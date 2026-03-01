@@ -35,16 +35,19 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
   const search    = params.search    ?? ""
 
   let payments: Awaited<ReturnType<typeof getPayments>>["payments"] = []
+  let allPayments: Awaited<ReturnType<typeof getPayments>>["payments"] = []
   let total = 0
   let summary = { total_collected: 0, total_pending: 0, total_overdue: 0, count_overdue: 0 }
   let error: string | null = null
 
   try {
-    const [result, summaryResult] = await Promise.all([
+    const [result, allResult, summaryResult] = await Promise.all([
       getPayments({ status: params.status, page, limit: 25, from: from || undefined, to: to || undefined, athleteId: athleteId || undefined, search: search || undefined }),
+      getPayments({ status: params.status, page: 1, limit: 1000, from: from || undefined, to: to || undefined, athleteId: athleteId || undefined, search: search || undefined }),
       getPaymentSummary(),
     ])
     payments = result.payments
+    allPayments = allResult.payments
     total = result.total
     summary = summaryResult
   } catch (e) {
@@ -66,12 +69,12 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
             />
           )}
           <ExportPaymentsButton
-            payments={payments.map((p) => ({
+            payments={allPayments.map((p) => ({
               ...p,
               athletes: p.athletes as { name: string } | null,
               plans: p.plans as { name: string } | null,
             }))}
-            filename={`pagos${params.status ? `-${params.status}` : ''}`}
+            filename={`pagos${params.status ? `-${params.status}` : ''}${search ? `-${search}` : ''}`}
           />
           <Link href="/dashboard/payments/new">
             <Button className="gap-2">
