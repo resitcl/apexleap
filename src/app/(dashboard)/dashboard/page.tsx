@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic"
 
 import Link from "next/link"
 import { redirect } from "next/navigation"
-import { getDashboardSummary, getRecentActivity } from "@/lib/actions/dashboard"
+import { getDashboardSummary, getRecentActivity, getMonthlyRevenue } from "@/lib/actions/dashboard"
 import { checkUserHasClub } from "@/lib/actions/onboarding"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -22,11 +22,13 @@ export default async function DashboardPage() {
     semaforoCount: { green: 0, yellow: 0, red: 0 },
   }
   let activity: Awaited<ReturnType<typeof getRecentActivity>> = []
+  let monthlyRevenue: Awaited<ReturnType<typeof getMonthlyRevenue>> = []
 
   try {
-    ;[summary, activity] = await Promise.all([
+    ;[summary, activity, monthlyRevenue] = await Promise.all([
       getDashboardSummary(),
       getRecentActivity(12),
+      getMonthlyRevenue(6),
     ])
   } catch {
     // show zeros on error
@@ -237,6 +239,48 @@ export default async function DashboardPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Monthly Revenue Chart */}
+      {monthlyRevenue.length > 0 && (() => {
+        const maxAmount = Math.max(...monthlyRevenue.map((m) => m.amount), 1)
+        return (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center justify-between">
+                <span>Ingresos Últimos 6 Meses</span>
+                <span className="text-sm font-normal text-muted-foreground">
+                  Total: ${monthlyRevenue.reduce((s, m) => s + m.amount, 0).toLocaleString("es-CL")}
+                </span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-end gap-2 h-28">
+                {monthlyRevenue.map((m, i) => {
+                  const pct = maxAmount > 0 ? Math.max((m.amount / maxAmount) * 100, 2) : 2
+                  const isCurrentMonth = i === monthlyRevenue.length - 1
+                  return (
+                    <div key={m.month} className="flex-1 flex flex-col items-center gap-1">
+                      <span className="text-xs text-muted-foreground font-medium">
+                        {m.amount > 0 ? `$${Math.round(m.amount / 1000)}k` : ''}
+                      </span>
+                      <div
+                        className={`w-full rounded-t-sm transition-all ${
+                          isCurrentMonth ? 'bg-primary' : 'bg-primary/30'
+                        }`}
+                        style={{ height: `${pct}%` }}
+                        title={`${m.label}: $${m.amount.toLocaleString('es-CL')}`}
+                      />
+                      <span className={`text-xs capitalize ${
+                        isCurrentMonth ? 'text-primary font-semibold' : 'text-muted-foreground'
+                      }`}>{m.label}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        )
+      })()}
 
       {/* Pending payments alert */}
       {summary.pendingAmount > 0 && (

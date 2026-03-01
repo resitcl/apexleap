@@ -188,3 +188,31 @@ export async function getRecentActivity(limit = 10) {
 
   return items.slice(0, limit)
 }
+
+export async function getMonthlyRevenue(months = 6) {
+  const clubId = await getClubId()
+  const supabase = await createClient()
+
+  const result: { month: string; label: string; amount: number }[] = []
+  const now = new Date()
+
+  for (let i = months - 1; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    const start = d.toISOString().split('T')[0]
+    const end = new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0]
+
+    const { data } = await supabase
+      .from('payments')
+      .select('amount')
+      .eq('club_id', clubId)
+      .eq('status', 'paid')
+      .gte('paid_at', start)
+      .lte('paid_at', end + 'T23:59:59')
+
+    const amount = (data ?? []).reduce((sum, p) => sum + Number(p.amount), 0)
+    const label = d.toLocaleDateString('es-CL', { month: 'short' })
+    result.push({ month: start, label, amount })
+  }
+
+  return result
+}
