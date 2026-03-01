@@ -13,6 +13,8 @@ import { DeleteCompetitionButton } from "@/components/competitions/DeleteCompeti
 import { ExportRosterButton } from "@/components/competitions/ExportRosterButton"
 import { EditCompetitionButton } from "@/components/competitions/EditCompetitionButton"
 import { AddAthleteToRosterButton } from "@/components/competitions/AddAthleteToRosterButton"
+import { NewRosterButton } from "@/components/competitions/NewRosterButton"
+import { DeleteRosterButton } from "@/components/competitions/DeleteRosterButton"
 
 const TYPE_LABELS: Record<string, string> = {
   tournament: "Torneo", league: "Liga", friendly: "Amistoso", championship: "Campeonato",
@@ -121,6 +123,7 @@ export default async function CompetitionDetailPage({ params }: PageProps) {
             <ClipboardList className="w-5 h-5" />
             Nóminas Matchday
           </h2>
+          <NewRosterButton competitionId={id} />
         </div>
 
         {rosterList.length === 0 ? (
@@ -164,6 +167,11 @@ export default async function CompetitionDetailPage({ params }: PageProps) {
                           rosterId={roster.id}
                           competitionId={id}
                           rosterAthletes={athletes}
+                          rosterName={roster.name}
+                        />
+                        <DeleteRosterButton
+                          rosterId={roster.id}
+                          competitionId={id}
                           rosterName={roster.name}
                         />
                       </div>

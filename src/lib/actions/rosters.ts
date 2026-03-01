@@ -14,6 +14,37 @@ async function getClubId() {
   return data.club_id as string
 }
 
+export async function createRoster(params: {
+  competitionId: string
+  name: string
+  matchDate: string
+  opponent?: string | null
+  venue?: string | null
+}) {
+  const clubId = await getClubId()
+  const supabase = await createClient()
+  const { data, error } = await supabase.from('rosters').insert({
+    competition_id: params.competitionId,
+    club_id: clubId,
+    name: params.name,
+    match_date: params.matchDate,
+    opponent: params.opponent ?? null,
+    venue: params.venue ?? null,
+  }).select().single()
+  if (error) throw new Error(error.message)
+  revalidatePath(`/dashboard/competitions/${params.competitionId}`)
+  return data
+}
+
+export async function deleteRoster(rosterId: string, competitionId: string) {
+  const clubId = await getClubId()
+  const supabase = await createClient()
+  const { error } = await supabase.from('rosters').delete()
+    .eq('id', rosterId).eq('club_id', clubId)
+  if (error) throw new Error(error.message)
+  revalidatePath(`/dashboard/competitions/${competitionId}`)
+}
+
 export async function addAthleteToRoster(params: {
   rosterId: string
   competitionId: string
