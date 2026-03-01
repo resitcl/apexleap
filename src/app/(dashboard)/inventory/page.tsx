@@ -10,6 +10,7 @@ import { NewItemForm } from "@/components/inventory/NewItemForm"
 import { DeleteItemButton } from "@/components/inventory/DeleteItemButton"
 import { AssignItemButton } from "@/components/inventory/AssignItemButton"
 import { EditItemButton } from "@/components/inventory/EditItemButton"
+import { ExportInventoryButton } from "@/components/inventory/ExportInventoryButton"
 
 const CATEGORY_META: Record<string, { label: string; icon: string }> = {
   equipment:      { label: "Equipamiento",   icon: "🥊" },
@@ -57,7 +58,10 @@ export default async function InventoryPage({ searchParams }: PageProps) {
           <h1 className="text-3xl font-bold">Inventario</h1>
           <p className="text-muted-foreground">{items.length} ítem{items.length !== 1 ? "s" : ""} registrado{items.length !== 1 ? "s" : ""}</p>
         </div>
-        <NewItemForm athletes={athleteList} />
+        <div className="flex gap-2">
+          <ExportInventoryButton items={items} />
+          <NewItemForm athletes={athleteList} />
+        </div>
       </div>
 
       {lowStock.length > 0 && (
