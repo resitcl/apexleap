@@ -27,12 +27,13 @@ async function getClubId() {
   return { clubId: data.club_id as string, userId }
 }
 
-export async function getDocuments(filters?: { category?: string; athleteId?: string }) {
+export async function getDocuments(filters?: { category?: string; athleteId?: string; status?: string }) {
   const { clubId } = await getClubId()
   const supabase = await createClient()
   let q = supabase.from('documents').select('*, athletes(id, name)').eq('club_id', clubId)
   if (filters?.category) q = q.eq('category', filters.category)
   if (filters?.athleteId) q = q.eq('athlete_id', filters.athleteId)
+  if (filters?.status) q = q.eq('status', filters.status)
   const { data, error } = await q.order('created_at', { ascending: false })
   if (error) throw new Error(error.message)
   return data ?? []

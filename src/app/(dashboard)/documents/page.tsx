@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { FolderOpen, AlertTriangle, ExternalLink } from "lucide-react"
 import { NewDocumentForm } from "@/components/documents/NewDocumentForm"
 import { DeleteDocumentButton } from "@/components/documents/DeleteDocumentButton"
+import { ExportDocumentsButton } from "@/components/documents/ExportDocumentsButton"
 
 const CATEGORY_LABELS: Record<string, { label: string; icon: string }> = {
   medical:       { label: "Ficha médica",    icon: "🏥" },
@@ -20,19 +21,23 @@ const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive"> = 
   active: "default", pending: "secondary", expired: "destructive",
 }
 
+const STATUS_LABELS: Record<string, string> = {
+  active: 'Activo', pending: 'Pendiente', expired: 'Vencido',
+}
+
 interface PageProps {
-  searchParams: Promise<{ category?: string }>
+  searchParams: Promise<{ category?: string; status?: string }>
 }
 
 export default async function DocumentsPage({ searchParams }: PageProps) {
-  const { category } = await searchParams
+  const { category, status } = await searchParams
 
   let docs: Awaited<ReturnType<typeof getDocuments>> = []
   let athleteList: { id: string; name: string }[] = []
 
   try {
     const [d, a] = await Promise.all([
-      getDocuments({ category }),
+      getDocuments({ category, status }),
       getAthletes({ limit: 200 }),
     ])
     docs = d
@@ -56,7 +61,13 @@ export default async function DocumentsPage({ searchParams }: PageProps) {
           <h1 className="text-3xl font-bold">Documentos</h1>
           <p className="text-muted-foreground">{docs.length} documento{docs.length !== 1 ? "s" : ""} registrado{docs.length !== 1 ? "s" : ""}</p>
         </div>
+        <div className="flex gap-2 flex-wrap">
+        <ExportDocumentsButton
+          docs={docs.map((d) => ({ ...d, athletes: d.athletes as { name: string } | null }))}
+          filename={`documentos${category ? `-${category}` : ''}${status ? `-${status}` : ''}`}
+        />
         <NewDocumentForm athletes={athleteList} />
+      </div>
       </div>
 
       {expiringSoon > 0 && (
@@ -69,6 +80,24 @@ export default async function DocumentsPage({ searchParams }: PageProps) {
           </CardContent>
         </Card>
       )}
+
+      {/* Status filter */}
+      <div className="flex flex-wrap gap-2">
+        {(['', 'active', 'pending', 'expired'] as const).map((s) => (
+          <Link
+            key={s}
+            href={`/dashboard/documents?${new URLSearchParams({ ...(category ? { category } : {}), ...(s ? { status: s } : {}) }).toString()}`}
+          >
+            <button className={`h-8 px-3 rounded-md border text-xs font-medium transition-colors ${
+              (s === '' && !status) || status === s
+                ? 'bg-primary text-primary-foreground border-primary'
+                : 'bg-background border-input hover:bg-accent'
+            }`}>
+              {s === '' ? 'Todos' : STATUS_LABELS[s]}
+            </button>
+          </Link>
+        ))}
+      </div>
 
       <div className="grid gap-3 sm:grid-cols-4">
         {Object.entries(CATEGORY_LABELS).map(([key, meta]) => (
