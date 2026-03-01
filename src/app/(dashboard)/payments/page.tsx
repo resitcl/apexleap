@@ -13,7 +13,7 @@ import { ExportPaymentsButton } from "@/components/payments/ExportPaymentsButton
 import { BulkMarkAsPaidButton } from "@/components/payments/BulkMarkAsPaidButton"
 
 interface PageProps {
-  searchParams: Promise<{ status?: string; page?: string; from?: string; to?: string }>
+  searchParams: Promise<{ status?: string; page?: string; from?: string; to?: string; athleteId?: string }>
 }
 
 const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
@@ -27,8 +27,9 @@ const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secon
 export default async function PaymentsPage({ searchParams }: PageProps) {
   const params = await searchParams
   const page = Number(params.page ?? 1)
-  const from = params.from ?? ""
-  const to   = params.to   ?? ""
+  const from      = params.from      ?? ""
+  const to        = params.to        ?? ""
+  const athleteId = params.athleteId ?? ""
 
   let payments: Awaited<ReturnType<typeof getPayments>>["payments"] = []
   let total = 0
@@ -37,7 +38,7 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
 
   try {
     const [result, summaryResult] = await Promise.all([
-      getPayments({ status: params.status, page, limit: 25, from: from || undefined, to: to || undefined }),
+      getPayments({ status: params.status, page, limit: 25, from: from || undefined, to: to || undefined, athleteId: athleteId || undefined }),
       getPaymentSummary(),
     ])
     payments = result.payments
@@ -77,6 +78,16 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
           </Link>
         </div>
       </div>
+
+      {/* Athlete filter banner */}
+      {athleteId && (
+        <div className="flex items-center gap-3 p-3 rounded-md bg-primary/5 border border-primary/20 text-sm">
+          <span className="text-primary font-medium">Filtrando pagos por atleta</span>
+          <Link href="/dashboard/payments" className="ml-auto text-xs text-muted-foreground hover:text-foreground underline">
+            Ver todos
+          </Link>
+        </div>
+      )}
 
       {/* Summary KPIs */}
       <div className="grid gap-4 md:grid-cols-3">
