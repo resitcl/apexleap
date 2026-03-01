@@ -32,14 +32,15 @@ async function getClubId() {
   return data.club_id as string
 }
 
-export async function getInventoryItems(filters?: { category?: string }) {
+export async function getInventoryItems(filters?: { category?: string; condition?: string }) {
   const clubId = await getClubId()
   const supabase = await createClient()
   let q = supabase
     .from('inventory_items')
     .select('*, athletes(id, name)')
     .eq('club_id', clubId)
-  if (filters?.category) q = q.eq('category', filters.category)
+  if (filters?.category)  q = q.eq('category', filters.category)
+  if (filters?.condition) q = q.eq('condition', filters.condition)
   const { data, error } = await q.order('category').order('name')
   if (error) throw new Error(error.message)
   return data ?? []

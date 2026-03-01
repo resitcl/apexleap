@@ -25,18 +25,18 @@ const CONDITION_LABEL: Record<string, string> = {
 }
 
 interface PageProps {
-  searchParams: Promise<{ category?: string }>
+  searchParams: Promise<{ category?: string; condition?: string }>
 }
 
 export default async function InventoryPage({ searchParams }: PageProps) {
-  const { category } = await searchParams
+  const { category, condition } = await searchParams
 
   let items: Awaited<ReturnType<typeof getInventoryItems>> = []
   let athleteList: { id: string; name: string }[] = []
 
   try {
     const [inv, ath] = await Promise.all([
-      getInventoryItems({ category }),
+      getInventoryItems({ category, condition }),
       getAthletes({ limit: 200 }),
     ])
     items = inv
@@ -70,6 +70,24 @@ export default async function InventoryPage({ searchParams }: PageProps) {
           </CardContent>
         </Card>
       )}
+
+      {/* Condition filter */}
+      <div className="flex flex-wrap gap-2">
+        {([['', 'Todos'], ['good', '✅ Bueno'], ['fair', '⚠️ Regular'], ['poor', '🔴 Malo'], ['broken', '💀 Roto']] as const).map(([val, lbl]) => (
+          <Link
+            key={val}
+            href={`/dashboard/inventory?${new URLSearchParams({ ...(category ? { category } : {}), ...(val ? { condition: val } : {}) }).toString()}`}
+          >
+            <button className={`h-8 px-3 rounded-md border text-xs font-medium transition-colors ${
+              (val === '' && !condition) || condition === val
+                ? 'bg-primary text-primary-foreground border-primary'
+                : 'bg-background border-input hover:bg-accent'
+            }`}>
+              {lbl}
+            </button>
+          </Link>
+        ))}
+      </div>
 
       <div className="grid gap-3 sm:grid-cols-4">
         {Object.entries(CATEGORY_META).map(([key, meta]) => (
