@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic"
 
 import Link from "next/link"
 import { getSubscriptions, getSubscriptionStats } from "@/lib/actions/subscriptions"
+import { getPlans } from "@/lib/actions/plans"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -23,27 +24,31 @@ const CYCLE_LABELS: Record<string, string> = {
 }
 
 interface PageProps {
-  searchParams: Promise<{ status?: string; page?: string }>
+  searchParams: Promise<{ status?: string; page?: string; planId?: string }>
 }
 
 export default async function SubscriptionsPage({ searchParams }: PageProps) {
   const params = await searchParams
-  const page = Number(params.page ?? 1)
+  const page   = Number(params.page ?? 1)
+  const planId = params.planId ?? ""
 
   let subs: Awaited<ReturnType<typeof getSubscriptions>>["subscriptions"] = []
   let total = 0
   let stats = { active: 0, paused: 0, cancelled: 0, expired: 0, mrr: 0 }
+  let plans: Array<{ id: string; name: string }> = []
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
   try {
-    const [result, statsResult] = await Promise.all([
-      getSubscriptions({ status: params.status, page, limit: 25 }),
+    const [result, statsResult, plansResult] = await Promise.all([
+      getSubscriptions({ status: params.status, page, limit: 25, planId: planId || undefined }),
       getSubscriptionStats(),
+      getPlans(),
     ])
     subs = result.subscriptions
     total = result.total
     stats = statsResult
+    plans = plansResult.map((p) => ({ id: p.id, name: p.name }))
   } catch {
     // show empty state
   }
@@ -108,21 +113,44 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
         </Card>
       </div>
 
-      {/* Filter tabs */}
-      <div className="flex gap-2 flex-wrap">
-        {[undefined, "active", "paused", "cancelled", "expired"].map((s) => (
-          <Link
-            key={s ?? "all"}
-            href={s ? `/dashboard/subscriptions?status=${s}` : "/dashboard/subscriptions"}
-          >
-            <Badge
-              variant={params.status === s || (!params.status && !s) ? "default" : "outline"}
-              className="cursor-pointer"
+      {/* Filters */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap gap-2">
+          {[undefined, "active", "paused", "cancelled", "expired"].map((s) => (
+            <Link
+              key={s ?? "all"}
+              href={s
+                ? `/dashboard/subscriptions?status=${s}${planId ? `&planId=${planId}` : ''}`
+                : `/dashboard/subscriptions${planId ? `?planId=${planId}` : ''}`}
             >
-              {s ? STATUS_CONFIG[s]?.label : "Todas"}
-            </Badge>
-          </Link>
-        ))}
+              <Badge
+                variant={params.status === s || (!params.status && !s) ? "default" : "outline"}
+                className="cursor-pointer"
+              >
+                {s ? STATUS_CONFIG[s]?.label : "Todas"}
+              </Badge>
+            </Link>
+          ))}
+        </div>
+        {plans.length > 0 && (
+          <form method="get" action="/dashboard/subscriptions" className="flex items-center gap-2">
+            {params.status && <input type="hidden" name="status" value={params.status} />}
+            <select name="planId" defaultValue={planId}
+              className="h-8 px-2 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring">
+              <option value="">Todos los planes</option>
+              {plans.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+            <button type="submit" className="h-8 px-3 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90">Filtrar</button>
+            {planId && (
+              <Link href={`/dashboard/subscriptions${params.status ? `?status=${params.status}` : ''}`}
+                className="text-xs text-muted-foreground hover:text-foreground">
+                ✕
+              </Link>
+            )}
+          </form>
+        )}
       </div>
 
       {/* List */}
