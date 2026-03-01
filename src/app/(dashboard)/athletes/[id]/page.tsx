@@ -13,6 +13,7 @@ import { HealthStatusButton } from "@/components/athletes/HealthStatusButton"
 import { ExportAthleteButton } from "@/components/athletes/ExportAthleteButton"
 import { AthleteNotesButton } from "@/components/athletes/AthleteNotesButton"
 import { ManualCheckInButton } from "@/components/athletes/ManualCheckInButton"
+import { NewSubscriptionFromAthleteButton } from "@/components/athletes/NewSubscriptionFromAthleteButton"
 import {
   ChevronLeft, Pencil, Phone, Mail, FileText,
   Calendar, CreditCard, CheckSquare, Activity, Heart,
@@ -88,6 +89,7 @@ export default async function AthleteDetailPage({ params }: PageProps) {
           payments={payments}
           attendance={attendance}
         />
+        <NewSubscriptionFromAthleteButton athleteId={id} />
         <ManualCheckInButton athleteId={id} />
         <AthleteNotesButton athleteId={id} currentNotes={athlete.notes ?? null} />
         <LogInjuryForm athleteId={id} />
