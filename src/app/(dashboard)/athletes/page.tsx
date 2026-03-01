@@ -281,6 +281,16 @@ export default async function AthletesPage({ searchParams }: PageProps) {
 
                     <div className="flex items-center gap-2 shrink-0">
                       {(() => {
+                        const docs = athlete.documents as Array<{ id: string }> | null
+                        const docCount = (docs ?? []).length
+                        if (docCount > 0) return (
+                          <span className="text-xs text-muted-foreground" title={`${docCount} documento${docCount !== 1 ? 's' : ''}`}>
+                            📄 {docCount}
+                          </span>
+                        )
+                        return null
+                      })()}
+                      {(() => {
                         const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
                         const att = athlete.attendance as Array<{ id: string; checked_in_at: string }> | null
                         const checkIns = (att ?? []).filter((a) => new Date(a.checked_in_at) >= thirtyDaysAgo).length

@@ -38,15 +38,18 @@ export default async function InventoryPage({ searchParams }: PageProps) {
 
   type InvItem = Awaited<ReturnType<typeof getInventoryItems>>['items'][number]
   let items: InvItem[] = []
+  let allItems: InvItem[] = []
   let total = 0
   let athleteList: { id: string; name: string }[] = []
 
   try {
-    const [inv, ath] = await Promise.all([
+    const [inv, allInv, ath] = await Promise.all([
       getInventoryItems({ category, condition, lowStock: isLowStock || undefined, search: search || undefined, page, limit }),
+      getInventoryItems({ category, condition, lowStock: isLowStock || undefined, search: search || undefined, limit: 10000 }),
       getAthletes({ limit: 200 }),
     ])
     items = inv.items
+    allItems = allInv.items
     total = inv.total
     athleteList = ath.athletes.map((a) => ({ id: a.id, name: a.name }))
   } catch { /* empty */ }
@@ -65,7 +68,7 @@ export default async function InventoryPage({ searchParams }: PageProps) {
           <p className="text-muted-foreground">{total} ítem{total !== 1 ? "s" : ""} registrado{total !== 1 ? "s" : ""}</p>
         </div>
         <div className="flex gap-2">
-          <ExportInventoryButton items={items} />
+          <ExportInventoryButton items={allItems} />
           <NewItemForm athletes={athleteList} />
         </div>
       </div>
