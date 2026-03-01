@@ -165,3 +165,40 @@ export async function updateCoach(id: string, input: Partial<CoachInput>) {
   revalidatePath('/dashboard/finances')
   return data
 }
+
+export async function getMonthlyFinanceChart(months = 6) {
+  const clubId = await getClubId()
+  const supabase = await createClient()
+  const now = new Date()
+
+  const result: { label: string; income: number; expenses: number }[] = []
+
+  for (let i = months - 1; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    const start = d.toISOString().split('T')[0]
+    const end = new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0]
+    const label = d.toLocaleDateString('es-CL', { month: 'short' })
+
+    const [incomeRes, expensesRes] = await Promise.all([
+      supabase
+        .from('payments')
+        .select('amount')
+        .eq('club_id', clubId)
+        .eq('status', 'paid')
+        .gte('paid_at', start)
+        .lte('paid_at', end + 'T23:59:59'),
+      supabase
+        .from('expenses')
+        .select('amount')
+        .eq('club_id', clubId)
+        .gte('date', start)
+        .lte('date', end),
+    ])
+
+    const income   = (incomeRes.data   ?? []).reduce((s, r) => s + Number(r.amount), 0)
+    const expenses = (expensesRes.data ?? []).reduce((s, r) => s + Number(r.amount), 0)
+    result.push({ label, income, expenses })
+  }
+
+  return result
+}

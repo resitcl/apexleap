@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic"
 
 import Link from "next/link"
-import { getFinanceSummary, getExpenses, getCoaches } from "@/lib/actions/finances"
+import { getFinanceSummary, getExpenses, getCoaches, getMonthlyFinanceChart } from "@/lib/actions/finances"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -33,19 +33,23 @@ export default async function FinancesPage({ searchParams }: PageProps) {
   let summary = { totalIncome: 0, totalExpenses: 0, pendingIncome: 0, netBalance: 0, byCategory: {} as Record<string, number>, month }
   let expenses: Awaited<ReturnType<typeof getExpenses>>["expenses"] = []
   let coaches: Awaited<ReturnType<typeof getCoaches>> = []
+  let chartData: Awaited<ReturnType<typeof getMonthlyFinanceChart>> = []
 
   try {
-    const [s, e, c] = await Promise.all([
+    const [s, e, c, ch] = await Promise.all([
       getFinanceSummary(month),
       getExpenses({ month }),
       getCoaches(),
+      getMonthlyFinanceChart(6),
     ])
     summary = s
     expenses = e.expenses
     coaches = c
+    chartData = ch
   } catch { /* show zeros */ }
 
   const monthLabel = new Date(month + "-02").toLocaleDateString("es-CL", { month: "long", year: "numeric" })
+  const chartMax = Math.max(...chartData.flatMap((m) => [m.income, m.expenses]), 1)
 
   return (
     <div className="space-y-6">
@@ -109,6 +113,49 @@ export default async function FinancesPage({ searchParams }: PageProps) {
           </CardContent>
         </Card>
       </div>
+
+      {/* Income vs Expenses Chart */}
+      {chartData.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center justify-between">
+              <span>Ingresos vs Egresos — Últimos 6 Meses</span>
+              <div className="flex items-center gap-4 text-xs font-normal text-muted-foreground">
+                <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-green-500 inline-block" />Ingresos</span>
+                <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-red-400 inline-block" />Egresos</span>
+              </div>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-end gap-3 h-32">
+              {chartData.map((m, i) => {
+                const incomePct  = Math.max((m.income   / chartMax) * 100, m.income   > 0 ? 3 : 0)
+                const expensesPct = Math.max((m.expenses / chartMax) * 100, m.expenses > 0 ? 3 : 0)
+                const isCurrentMonth = i === chartData.length - 1
+                return (
+                  <div key={m.label} className="flex-1 flex flex-col items-center gap-1">
+                    <div className="w-full flex items-end justify-center gap-0.5 flex-1">
+                      <div
+                        className={`w-5/12 rounded-t-sm ${isCurrentMonth ? 'bg-green-500' : 'bg-green-400/60'}`}
+                        style={{ height: `${incomePct}%` }}
+                        title={`Ingresos ${m.label}: $${m.income.toLocaleString('es-CL')}`}
+                      />
+                      <div
+                        className={`w-5/12 rounded-t-sm ${isCurrentMonth ? 'bg-red-400' : 'bg-red-300/60'}`}
+                        style={{ height: `${expensesPct}%` }}
+                        title={`Egresos ${m.label}: $${m.expenses.toLocaleString('es-CL')}`}
+                      />
+                    </div>
+                    <span className={`text-xs capitalize ${isCurrentMonth ? 'font-semibold text-foreground' : 'text-muted-foreground'}`}>
+                      {m.label}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Tabs */}
       <div className="flex gap-1 border-b border-border">
