@@ -11,6 +11,7 @@ import { LogInjuryForm } from "@/components/athletes/LogInjuryForm"
 import { ResolveInjuryButton } from "@/components/athletes/ResolveInjuryButton"
 import { HealthStatusButton } from "@/components/athletes/HealthStatusButton"
 import { ExportAthleteButton } from "@/components/athletes/ExportAthleteButton"
+import { AthleteNotesButton } from "@/components/athletes/AthleteNotesButton"
 import {
   ChevronLeft, Pencil, Phone, Mail, FileText,
   Calendar, CreditCard, CheckSquare, Activity, Heart,
@@ -85,6 +86,7 @@ export default async function AthleteDetailPage({ params }: PageProps) {
           payments={payments}
           attendance={attendance}
         />
+        <AthleteNotesButton athleteId={id} currentNotes={athlete.notes ?? null} />
         <LogInjuryForm athleteId={id} />
         <Link href={`/dashboard/athletes/${id}/edit`}>
           <Button variant="outline" size="sm" className="gap-1.5">
@@ -134,6 +136,12 @@ export default async function AthleteDetailPage({ params }: PageProps) {
                   <Badge variant="outline" className="text-xs">
                     Plan: {activeSub.plans?.name ?? "—"}
                   </Badge>
+                </div>
+              )}
+              {athlete.notes && (
+                <div className="mt-2 p-2.5 bg-muted/50 rounded-md border">
+                  <p className="text-xs font-medium text-muted-foreground mb-0.5">Notas</p>
+                  <p className="text-sm whitespace-pre-line">{athlete.notes}</p>
                 </div>
               )}
             </div>
