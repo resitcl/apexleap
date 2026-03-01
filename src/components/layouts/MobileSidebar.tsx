@@ -10,6 +10,7 @@ interface SidebarItem {
   href: string
   label: string
   icon: LucideIcon
+  badge?: number
 }
 
 interface Props {
@@ -79,7 +80,12 @@ export function MobileSidebar({ items }: Props) {
                     }`}
                   >
                     <item.icon className="w-4 h-4 shrink-0" />
-                    <span>{item.label}</span>
+                    <span className="flex-1">{item.label}</span>
+                    {item.badge && item.badge > 0 ? (
+                      <span className="bg-destructive text-destructive-foreground text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shrink-0">
+                        {item.badge > 99 ? "99+" : item.badge}
+                      </span>
+                    ) : null}
                   </Link>
                 </li>
               )

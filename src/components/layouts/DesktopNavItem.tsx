@@ -8,9 +8,10 @@ interface Props {
   href: string
   label: string
   icon: LucideIcon
+  badge?: number
 }
 
-export function DesktopNavItem({ href, label, icon: Icon }: Props) {
+export function DesktopNavItem({ href, label, icon: Icon, badge }: Props) {
   const pathname = usePathname()
   const isActive = pathname === href || (href !== "/dashboard" && pathname.startsWith(href))
 
@@ -24,7 +25,12 @@ export function DesktopNavItem({ href, label, icon: Icon }: Props) {
       }`}
     >
       <Icon className="w-4 h-4 shrink-0" />
-      <span>{label}</span>
+      <span className="flex-1">{label}</span>
+      {badge && badge > 0 ? (
+        <span className="ml-auto bg-destructive text-destructive-foreground text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shrink-0">
+          {badge > 99 ? "99+" : badge}
+        </span>
+      ) : null}
     </Link>
   )
 }

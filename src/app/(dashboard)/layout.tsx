@@ -18,6 +18,7 @@ import {
 } from "lucide-react"
 import { MobileSidebar } from "@/components/layouts/MobileSidebar"
 import { DesktopNavItem } from "@/components/layouts/DesktopNavItem"
+import { getSidebarAlerts } from "@/lib/actions/alerts"
 
 export const sidebarItems = [
   { href: "/dashboard",               label: "Dashboard",      icon: LayoutDashboard },
@@ -36,11 +37,24 @@ export const sidebarItems = [
   { href: "/dashboard/settings",      label: "Configuración",  icon: Settings },
 ]
 
-export default function DashboardLayout({
+export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  let alerts = { overduePayments: 0, expiringSoonDocs: 0 }
+  try { alerts = await getSidebarAlerts() } catch { /* silent */ }
+
+  const badgeMap: Record<string, number> = {
+    "/dashboard/payments":  alerts.overduePayments,
+    "/dashboard/documents": alerts.expiringSoonDocs,
+  }
+
+  const sidebarItemsWithBadges = sidebarItems.map((item) => ({
+    ...item,
+    badge: badgeMap[item.href] ?? 0,
+  }))
+
   return (
     <div className="min-h-screen flex">
       {/* Desktop Sidebar */}
@@ -56,9 +70,9 @@ export default function DashboardLayout({
 
         <nav className="flex-1 p-3 overflow-y-auto">
           <ul className="space-y-0.5">
-            {sidebarItems.map((item) => (
+            {sidebarItemsWithBadges.map((item) => (
               <li key={item.href}>
-                <DesktopNavItem href={item.href} label={item.label} icon={item.icon} />
+                <DesktopNavItem href={item.href} label={item.label} icon={item.icon} badge={item.badge} />
               </li>
             ))}
           </ul>
@@ -78,7 +92,7 @@ export default function DashboardLayout({
         <header className="h-14 border-b border-border flex items-center px-4 bg-card gap-3 shrink-0">
           {/* Mobile hamburger */}
           <div className="md:hidden">
-            <MobileSidebar items={sidebarItems} />
+            <MobileSidebar items={sidebarItemsWithBadges} />
           </div>
           {/* Logo (mobile) */}
           <Link href="/dashboard" className="flex items-center gap-2 md:hidden">
