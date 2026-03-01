@@ -18,13 +18,14 @@ const CYCLE_LABELS: Record<string, string> = {
 interface Props {
   athletes: { id: string; name: string }[]
   plans: { id: string; name: string; price: number; billing_cycle: string }[]
+  defaultAthleteId?: string
 }
 
-export function NewSubscriptionForm({ athletes, plans }: Props) {
+export function NewSubscriptionForm({ athletes, plans, defaultAthleteId }: Props) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [form, setForm] = useState({
-    athlete_id: '',
+    athlete_id: defaultAthleteId ?? '',
     plan_id: '',
     status: 'active',
     start_date: new Date().toISOString().split('T')[0],

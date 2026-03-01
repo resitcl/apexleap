@@ -5,7 +5,10 @@ import { NewSubscriptionForm } from "@/components/subscriptions/NewSubscriptionF
 import { getAthletes } from "@/lib/actions/athletes"
 import { getPlans } from "@/lib/actions/plans"
 
-export default async function NewSubscriptionPage() {
+interface Props { searchParams: Promise<{ athleteId?: string }> }
+
+export default async function NewSubscriptionPage({ searchParams }: Props) {
+  const { athleteId } = await searchParams
   const [athletesResult, plans] = await Promise.all([
     getAthletes({ limit: 200 }),
     getPlans(),
@@ -28,6 +31,7 @@ export default async function NewSubscriptionPage() {
 
       <NewSubscriptionForm
         athletes={athletesResult.athletes.map((a) => ({ id: a.id, name: a.name }))}
+        defaultAthleteId={athleteId}
         plans={plans.map((p) => ({
           id: p.id,
           name: p.name,

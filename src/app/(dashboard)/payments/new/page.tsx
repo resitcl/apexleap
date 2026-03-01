@@ -5,7 +5,10 @@ import { NewPaymentForm } from "@/components/payments/NewPaymentForm"
 import { getAthletes } from "@/lib/actions/athletes"
 import { getPlans } from "@/lib/actions/plans"
 
-export default async function NewPaymentPage() {
+interface Props { searchParams: Promise<{ athleteId?: string }> }
+
+export default async function NewPaymentPage({ searchParams }: Props) {
+  const { athleteId } = await searchParams
   const [athletesResult, plans] = await Promise.all([
     getAthletes({ limit: 200 }),
     getPlans(),
@@ -29,6 +32,7 @@ export default async function NewPaymentPage() {
       <NewPaymentForm
         athletes={athletesResult.athletes.map((a) => ({ id: a.id, name: a.name }))}
         plans={plans.map((p) => ({ id: p.id, name: p.name, price: Number(p.price) }))}
+        defaultAthleteId={athleteId}
       />
     </div>
   )

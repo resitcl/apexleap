@@ -13,14 +13,15 @@ import { createPayment } from '@/lib/actions/payments'
 interface Props {
   athletes: { id: string; name: string }[]
   plans: { id: string; name: string; price: number }[]
+  defaultAthleteId?: string
 }
 
-export function NewPaymentForm({ athletes, plans }: Props) {
+export function NewPaymentForm({ athletes, plans, defaultAthleteId }: Props) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
 
   const [form, setForm] = useState({
-    athlete_id: '',
+    athlete_id: defaultAthleteId ?? '',
     plan_id: '',
     concept: '',
     amount: '',

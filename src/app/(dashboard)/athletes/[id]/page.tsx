@@ -9,7 +9,8 @@ import { Separator } from "@/components/ui/separator"
 import { HealthStatusBadge } from "@/components/athletes/HealthStatusBadge"
 import {
   ChevronLeft, Pencil, Phone, Mail, FileText,
-  Calendar, CreditCard, CheckSquare, Activity, Heart
+  Calendar, CreditCard, CheckSquare, Activity, Heart,
+  Repeat2, ClipboardCheck, DollarSign
 } from "lucide-react"
 
 interface PageProps {
@@ -54,7 +55,7 @@ export default async function AthleteDetailPage({ params }: PageProps) {
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3 flex-wrap">
         <Link href="/dashboard/athletes">
           <Button variant="ghost" size="sm" className="gap-2">
             <ChevronLeft className="w-4 h-4" />
@@ -62,9 +63,22 @@ export default async function AthleteDetailPage({ params }: PageProps) {
           </Button>
         </Link>
         <div className="flex-1" />
+        {/* Acciones rápidas */}
+        <Link href={`/dashboard/subscriptions/new?athleteId=${id}`}>
+          <Button variant="outline" size="sm" className="gap-1.5">
+            <Repeat2 className="w-3.5 h-3.5" />
+            Asignar Plan
+          </Button>
+        </Link>
+        <Link href={`/dashboard/payments/new?athleteId=${id}`}>
+          <Button variant="outline" size="sm" className="gap-1.5">
+            <DollarSign className="w-3.5 h-3.5" />
+            Registrar Pago
+          </Button>
+        </Link>
         <Link href={`/dashboard/athletes/${id}/edit`}>
-          <Button variant="outline" size="sm" className="gap-2">
-            <Pencil className="w-4 h-4" />
+          <Button variant="outline" size="sm" className="gap-1.5">
+            <Pencil className="w-3.5 h-3.5" />
             Editar
           </Button>
         </Link>
@@ -235,22 +249,29 @@ export default async function AthleteDetailPage({ params }: PageProps) {
             <div className="flex items-center justify-between">
               <p className="text-xs text-muted-foreground">Tasa de Asistencia</p>
               <span className="font-bold text-lg">
-                {attendanceRate !== null ? `${attendanceRate}%` : "—"}
+                {attendanceRate !== null ? (
+                  <span className={attendanceRate >= 70 ? "text-green-600" : attendanceRate >= 40 ? "text-yellow-600" : "text-red-600"}>
+                    {attendanceRate}%
+                  </span>
+                ) : "—"}
               </span>
             </div>
             <Separator />
             <div>
-              <p className="text-xs text-muted-foreground mb-2">Últimas Asistencias</p>
+              <p className="text-xs text-muted-foreground mb-2">Últimas 14 asistencias</p>
               {attendance.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Sin registros</p>
               ) : (
-                <div className="space-y-1">
-                  {attendance.slice(0, 5).map((a) => (
-                    <div key={a.id} className="flex justify-between items-center text-sm">
-                      <span>{new Date(a.checked_in_at).toLocaleDateString("es-CL")}</span>
-                      <Badge variant={a.is_valid ? "default" : "destructive"} className="text-xs">
-                        {a.is_valid ? "Válida" : "Inválida"}
-                      </Badge>
+                <div className="flex flex-wrap gap-1.5">
+                  {attendance.slice(0, 14).map((a) => (
+                    <div
+                      key={a.id}
+                      title={new Date(a.checked_in_at).toLocaleDateString("es-CL")}
+                      className={`w-7 h-7 rounded-md flex items-center justify-center text-xs font-bold ${
+                        a.is_valid ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+                      }`}
+                    >
+                      {a.is_valid ? "✓" : "×"}
                     </div>
                   ))}
                 </div>
