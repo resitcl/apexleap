@@ -100,6 +100,12 @@ export default async function AthletesPage({ searchParams }: PageProps) {
     return sum + pmts.filter((p) => p.status === 'overdue').reduce((s, p) => s + Number(p.amount), 0)
   }, 0)
 
+  const today = new Date().toISOString().split('T')[0]
+  const expiredDocsCount = allAthletes.reduce((sum, a) => {
+    const docs = a.documents as Array<{ id: string; expiry_date: string | null }> | null ?? []
+    return sum + docs.filter((d) => d.expiry_date && d.expiry_date < today).length
+  }, 0)
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -110,6 +116,9 @@ export default async function AthletesPage({ searchParams }: PageProps) {
             {total} registrados en total
             {totalDebt > 0 && (
               <span className="ml-2 text-red-600 font-medium">· Deuda total: ${totalDebt.toLocaleString('es-CL')}</span>
+            )}
+            {expiredDocsCount > 0 && (
+              <span className="ml-2 text-orange-600 font-medium">· {expiredDocsCount} doc{expiredDocsCount !== 1 ? 's' : ''} vencido{expiredDocsCount !== 1 ? 's' : ''}</span>
             )}
           </p>
         </div>

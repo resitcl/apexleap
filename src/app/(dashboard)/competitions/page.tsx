@@ -52,7 +52,10 @@ export default async function CompetitionsPage({ searchParams }: PageProps) {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-3xl font-bold">Competencias</h1>
-          <p className="text-muted-foreground">Ligas, torneos y nóminas matchday</p>
+          <p className="text-muted-foreground">
+            Ligas, torneos y nóminas matchday
+            {rosters > 0 && <span className="ml-2 font-medium text-primary">· {rosters} inscrito{rosters !== 1 ? 's' : ''} en nóminas</span>}
+          </p>
         </div>
         <div className="flex gap-2">
           <ExportCompetitionsButton competitions={competitions} />

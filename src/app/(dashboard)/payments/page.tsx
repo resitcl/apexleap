@@ -288,6 +288,12 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
                         )}
                         <span className="text-muted-foreground text-sm">·</span>
                         <span className="text-sm text-muted-foreground truncate">{payment.concept}</span>
+                        {(() => {
+                          const plan = (payment as { plans?: { name: string } | null }).plans
+                          return plan ? (
+                            <span className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded font-medium shrink-0">{plan.name}</span>
+                          ) : null
+                        })()}
                       </div>
                       <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
                         <span>Vence: {new Date(payment.due_date).toLocaleDateString('es-CL')}</span>

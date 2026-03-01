@@ -57,7 +57,7 @@ export async function getPayments(params?: {
 
   let query = supabase
     .from('payments')
-    .select('*, athletes(id, name, photo_url)', { count: 'exact' })
+    .select('*, athletes(id, name, photo_url), plans(id, name)', { count: 'exact' })
     .eq('club_id', clubId)
     .order('due_date', { ascending: false })
     .range(rangeFrom, rangeTo)

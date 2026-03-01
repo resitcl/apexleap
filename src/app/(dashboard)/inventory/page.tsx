@@ -27,14 +27,16 @@ const CONDITION_LABEL: Record<string, string> = {
 }
 
 interface PageProps {
-  searchParams: Promise<{ category?: string; condition?: string; lowStock?: string; search?: string; page?: string; athleteId?: string }>
+  searchParams: Promise<{ category?: string; condition?: string; lowStock?: string; search?: string; page?: string; athleteId?: string; priceMin?: string; priceMax?: string }>
 }
 
 export default async function InventoryPage({ searchParams }: PageProps) {
-  const { category, condition, lowStock, search, page: pageStr, athleteId } = await searchParams
+  const { category, condition, lowStock, search, page: pageStr, athleteId, priceMin: priceMinStr, priceMax: priceMaxStr } = await searchParams
   const isLowStock = lowStock === '1'
   const page = Number(pageStr ?? 1)
   const limit = 50
+  const priceMin = priceMinStr ? Number(priceMinStr) : undefined
+  const priceMax = priceMaxStr ? Number(priceMaxStr) : undefined
 
   type InvItem = Awaited<ReturnType<typeof getInventoryItems>>['items'][number]
   let items: InvItem[] = []
@@ -44,8 +46,8 @@ export default async function InventoryPage({ searchParams }: PageProps) {
 
   try {
     const [inv, allInv, ath] = await Promise.all([
-      getInventoryItems({ category, condition, lowStock: isLowStock || undefined, search: search || undefined, page, limit, athleteId: athleteId || undefined }),
-      getInventoryItems({ category, condition, lowStock: isLowStock || undefined, search: search || undefined, limit: 10000, athleteId: athleteId || undefined }),
+      getInventoryItems({ category, condition, lowStock: isLowStock || undefined, search: search || undefined, page, limit, athleteId: athleteId || undefined, priceMin, priceMax }),
+      getInventoryItems({ category, condition, lowStock: isLowStock || undefined, search: search || undefined, limit: 10000, athleteId: athleteId || undefined, priceMin, priceMax }),
       getAthletes({ limit: 200 }),
     ])
     items = inv.items
@@ -119,8 +121,12 @@ export default async function InventoryPage({ searchParams }: PageProps) {
             ))}
           </select>
         )}
+        <input type="number" name="priceMin" defaultValue={priceMinStr ?? ''} min={0} placeholder="Precio mín."
+          className="h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring w-28" />
+        <input type="number" name="priceMax" defaultValue={priceMaxStr ?? ''} min={0} placeholder="Precio máx."
+          className="h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring w-28" />
         <button type="submit" className="h-9 px-4 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">Buscar</button>
-        {(search || athleteId) && (
+        {(search || athleteId || priceMinStr || priceMaxStr) && (
           <Link href={`/dashboard/inventory?${new URLSearchParams({ ...(category ? { category } : {}), ...(condition ? { condition } : {}), ...(isLowStock ? { lowStock: '1' } : {}) }).toString()}`}
             className="text-xs text-muted-foreground hover:text-foreground">✕ Limpiar</Link>
         )}
