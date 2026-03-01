@@ -12,6 +12,7 @@ import { ChevronLeft, MapPin, Calendar, Trophy, Users, Plus, ClipboardList } fro
 import { DeleteCompetitionButton } from "@/components/competitions/DeleteCompetitionButton"
 import { ExportRosterButton } from "@/components/competitions/ExportRosterButton"
 import { EditCompetitionButton } from "@/components/competitions/EditCompetitionButton"
+import { AddAthleteToRosterButton } from "@/components/competitions/AddAthleteToRosterButton"
 
 const TYPE_LABELS: Record<string, string> = {
   tournament: "Torneo", league: "Liga", friendly: "Amistoso", championship: "Campeonato",
@@ -158,6 +159,12 @@ export default async function CompetitionDetailPage({ params }: PageProps) {
                         <ExportRosterButton
                           roster={{ ...roster, roster_athletes: athletes }}
                           competitionName={comp.name}
+                        />
+                        <AddAthleteToRosterButton
+                          rosterId={roster.id}
+                          competitionId={id}
+                          rosterAthletes={athletes}
+                          rosterName={roster.name}
                         />
                       </div>
                     </div>
