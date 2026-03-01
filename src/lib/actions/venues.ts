@@ -35,7 +35,7 @@ export async function getVenues() {
   const clubId = await getClubId()
   const supabase = await createClient()
   const { data, error } = await supabase
-    .from('venues').select('*').eq('club_id', clubId).order('is_home_venue', { ascending: false }).order('name')
+    .from('venues').select('*, schedules(id, is_active)').eq('club_id', clubId).order('is_home_venue', { ascending: false }).order('name')
   if (error) throw new Error(error.message)
   return data ?? []
 }

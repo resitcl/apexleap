@@ -94,6 +94,18 @@ export default async function VenuesPage() {
                   )}
                 </div>
 
+                {(() => {
+                  const scheds = (venue as unknown as { schedules: Array<{ id: string; is_active: boolean }> }).schedules ?? []
+                  const activeCount = scheds.filter((s) => s.is_active).length
+                  if (activeCount === 0) return null
+                  return (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Clock className="w-4 h-4 shrink-0" />
+                      <span>{activeCount} sesión{activeCount !== 1 ? 'es' : ''} activa{activeCount !== 1 ? 's' : ''}</span>
+                    </div>
+                  )
+                })()}
+
                 <div className="flex items-center justify-between gap-2 pt-1">
                   <div className="flex gap-2 flex-wrap">
                     {venue.is_home_venue && (
