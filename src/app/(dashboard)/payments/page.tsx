@@ -178,6 +178,35 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
         )
       })()}
 
+      {/* Duplicate payments alert */}
+      {allPayments.length > 0 && (() => {
+        type P = typeof allPayments[number] & { athletes?: { name: string } | null }
+        const key = (p: P) => {
+          const athId = (p.athletes as { id?: string } | null)?.id ?? p.athlete_id ?? ''
+          const month = p.due_date ? p.due_date.slice(0, 7) : p.created_at?.slice(0, 7) ?? ''
+          return `${athId}::${month}`
+        }
+        const seen: Record<string, P[]> = {}
+        for (const p of allPayments as P[]) {
+          const k = key(p)
+          if (!seen[k]) seen[k] = []
+          seen[k].push(p)
+        }
+        const dupes = Object.values(seen).filter((arr) => arr.length > 1)
+        if (dupes.length === 0) return null
+        const athletes = [...new Set(dupes.map((arr) => (arr[0].athletes as { name?: string } | null)?.name ?? 'Atleta'))]
+        return (
+          <div className="flex items-start gap-3 px-4 py-3 rounded-lg border border-orange-200 bg-orange-50">
+            <AlertTriangle className="w-4 h-4 text-orange-600 shrink-0 mt-0.5" />
+            <p className="text-sm text-orange-800">
+              <span className="font-medium">Posibles pagos duplicados:</span>{' '}
+              {dupes.length} combinación{dupes.length !== 1 ? 'es' : ''} con más de 1 pago en el mismo mes
+              {athletes.length <= 3 && ` (${athletes.join(', ')})`}
+            </p>
+          </div>
+        )
+      })()}
+
       {/* Filters */}
       <div className="flex flex-wrap items-end gap-3">
         <Suspense fallback={null}>

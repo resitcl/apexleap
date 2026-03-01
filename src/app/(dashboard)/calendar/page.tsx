@@ -60,6 +60,15 @@ export default async function CalendarPage({ searchParams }: PageProps) {
 
   const totalAttendancesAllTime = schedules.reduce((sum, s) => sum + ((s.attendance as unknown[])?.length ?? 0), 0)
 
+  // Today occupation: sessions with capacity → sum today's check-ins vs total capacity
+  const todayStr = new Date().toISOString().split('T')[0]
+  const todayOccupation = todaySessions.reduce((acc, s) => {
+    if (!s.capacity) return acc
+    const todayCheckIns = ((s.attendance as Array<{ id: string; checked_in_at: string }> | null) ?? [])
+      .filter((a) => a.checked_in_at?.startsWith(todayStr)).length
+    return { checkins: acc.checkins + todayCheckIns, capacity: acc.capacity + s.capacity }
+  }, { checkins: 0, capacity: 0 })
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -71,6 +80,11 @@ export default async function CalendarPage({ searchParams }: PageProps) {
             {totalAttendancesAllTime > 0 && (
               <span className="ml-2 text-primary font-medium">· {totalAttendancesAllTime.toLocaleString('es-CL')} check-ins totales</span>
             )}
+            {todayOccupation.capacity > 0 && (() => {
+              const pct = Math.round((todayOccupation.checkins / todayOccupation.capacity) * 100)
+              const color = pct >= 80 ? 'text-red-600' : pct >= 50 ? 'text-yellow-600' : 'text-green-600'
+              return <span className={`ml-2 font-medium ${color}`}>· Hoy {pct}% ocupado ({todayOccupation.checkins}/{todayOccupation.capacity})</span>
+            })()}
           </p>
         </div>
         <div className="flex gap-2">

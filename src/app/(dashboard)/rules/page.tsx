@@ -185,6 +185,7 @@ export default async function RulesPage({ searchParams }: PageProps) {
                     const sev = SEVERITY_CONFIG[rule.severity] ?? SEVERITY_CONFIG.medium
                     const actionIcon = ACTION_ICONS[rule.action as keyof typeof ACTION_ICONS]
 
+                    const typeCount = affected[rule.type as keyof typeof affected] ?? 0
                     return (
                       <Card key={rule.id} className={rule.is_active ? '' : 'opacity-60'}>
                         <CardContent className="py-4">
@@ -195,6 +196,11 @@ export default async function RulesPage({ searchParams }: PageProps) {
                                 <span className="font-medium">{rule.name}</span>
                                 <Badge variant={sev.variant} className="text-xs">{sev.label}</Badge>
                                 {!rule.is_active && <Badge variant="outline" className="text-xs">Inactiva</Badge>}
+                                {rule.is_active && typeCount > 0 && (
+                                  <span className="text-xs font-medium bg-destructive/10 text-destructive px-1.5 py-0.5 rounded">
+                                    {typeCount} afectado{typeCount !== 1 ? 's' : ''}
+                                  </span>
+                                )}
                               </div>
                               {rule.description && (
                                 <p className="text-sm text-muted-foreground mt-0.5">{rule.description}</p>
