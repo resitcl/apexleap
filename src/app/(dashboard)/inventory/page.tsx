@@ -27,22 +27,27 @@ const CONDITION_LABEL: Record<string, string> = {
 }
 
 interface PageProps {
-  searchParams: Promise<{ category?: string; condition?: string; lowStock?: string; search?: string }>
+  searchParams: Promise<{ category?: string; condition?: string; lowStock?: string; search?: string; page?: string }>
 }
 
 export default async function InventoryPage({ searchParams }: PageProps) {
-  const { category, condition, lowStock, search } = await searchParams
+  const { category, condition, lowStock, search, page: pageStr } = await searchParams
   const isLowStock = lowStock === '1'
+  const page = Number(pageStr ?? 1)
+  const limit = 50
 
-  let items: Awaited<ReturnType<typeof getInventoryItems>> = []
+  type InvItem = Awaited<ReturnType<typeof getInventoryItems>>['items'][number]
+  let items: InvItem[] = []
+  let total = 0
   let athleteList: { id: string; name: string }[] = []
 
   try {
     const [inv, ath] = await Promise.all([
-      getInventoryItems({ category, condition, lowStock: isLowStock || undefined, search: search || undefined }),
+      getInventoryItems({ category, condition, lowStock: isLowStock || undefined, search: search || undefined, page, limit }),
       getAthletes({ limit: 200 }),
     ])
-    items = inv
+    items = inv.items
+    total = inv.total
     athleteList = ath.athletes.map((a) => ({ id: a.id, name: a.name }))
   } catch { /* empty */ }
 
@@ -57,7 +62,7 @@ export default async function InventoryPage({ searchParams }: PageProps) {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-3xl font-bold">Inventario</h1>
-          <p className="text-muted-foreground">{items.length} ítem{items.length !== 1 ? "s" : ""} registrado{items.length !== 1 ? "s" : ""}</p>
+          <p className="text-muted-foreground">{total} ítem{total !== 1 ? "s" : ""} registrado{total !== 1 ? "s" : ""}</p>
         </div>
         <div className="flex gap-2">
           <ExportInventoryButton items={items} />
@@ -183,6 +188,38 @@ export default async function InventoryPage({ searchParams }: PageProps) {
               </Card>
             )
           })}
+        </div>
+      )}
+      {/* Pagination */}
+      {total > limit && (
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-muted-foreground">
+            Mostrando {(page - 1) * limit + 1}–{Math.min(page * limit, total)} de {total}
+          </p>
+          <div className="flex gap-2">
+            {page > 1 && (
+              <Link href={`/dashboard/inventory?${new URLSearchParams({
+                ...(category  ? { category }  : {}),
+                ...(condition ? { condition } : {}),
+                ...(search    ? { search }    : {}),
+                ...(isLowStock ? { lowStock: '1' } : {}),
+                page: String(page - 1),
+              }).toString()}`}>
+                <button className="h-9 px-4 rounded-md border border-input bg-background text-sm hover:bg-accent transition-colors">← Anterior</button>
+              </Link>
+            )}
+            {page * limit < total && (
+              <Link href={`/dashboard/inventory?${new URLSearchParams({
+                ...(category  ? { category }  : {}),
+                ...(condition ? { condition } : {}),
+                ...(search    ? { search }    : {}),
+                ...(isLowStock ? { lowStock: '1' } : {}),
+                page: String(page + 1),
+              }).toString()}`}>
+                <button className="h-9 px-4 rounded-md border border-input bg-background text-sm hover:bg-accent transition-colors">Siguiente →</button>
+              </Link>
+            )}
+          </div>
         </div>
       )}
     </div>

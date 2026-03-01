@@ -32,20 +32,24 @@ async function getClubId() {
   return data.club_id as string
 }
 
-export async function getInventoryItems(filters?: { category?: string; condition?: string; lowStock?: boolean; search?: string }) {
+export async function getInventoryItems(filters?: { category?: string; condition?: string; lowStock?: boolean; search?: string; page?: number; limit?: number }) {
   const clubId = await getClubId()
   const supabase = await createClient()
+  const page  = filters?.page  ?? 1
+  const limit = filters?.limit ?? 50
+  const from  = (page - 1) * limit
+  const to    = from + limit - 1
   let q = supabase
     .from('inventory_items')
-    .select('*, athletes(id, name)')
+    .select('*, athletes(id, name)', { count: 'exact' })
     .eq('club_id', clubId)
   if (filters?.category)  q = q.eq('category', filters.category)
   if (filters?.condition) q = q.eq('condition', filters.condition)
   if (filters?.lowStock)  q = q.filter('quantity', 'lte', 'quantity_min').gt('quantity_min', 0)
   if (filters?.search)    q = q.ilike('name', `%${filters.search}%`)
-  const { data, error } = await q.order('category').order('name')
+  const { data, error, count } = await q.order('category').order('name').range(from, to)
   if (error) throw new Error(error.message)
-  return data ?? []
+  return { items: data ?? [], total: count ?? 0 }
 }
 
 export async function createInventoryItem(input: ItemInput) {
