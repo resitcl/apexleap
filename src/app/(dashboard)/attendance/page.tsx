@@ -13,7 +13,7 @@ import { getAthletes } from "@/lib/actions/athletes"
 import { getSchedules } from "@/lib/actions/schedules"
 
 interface PageProps {
-  searchParams: Promise<{ tab?: string; from?: string; to?: string; page?: string; scheduleId?: string }>
+  searchParams: Promise<{ tab?: string; from?: string; to?: string; page?: string; scheduleId?: string; athleteId?: string }>
 }
 
 export default async function AttendancePage({ searchParams }: PageProps) {
@@ -23,6 +23,7 @@ export default async function AttendancePage({ searchParams }: PageProps) {
   const to         = params.to         ?? ""
   const page       = Number(params.page ?? 1)
   const scheduleId = params.scheduleId ?? ""
+  const athleteId  = params.athleteId  ?? ""
 
   let todayRecords: Awaited<ReturnType<typeof getAttendanceToday>> = []
   let history: Awaited<ReturnType<typeof getAttendanceHistory>> = { records: [], total: 0 }
@@ -33,7 +34,7 @@ export default async function AttendancePage({ searchParams }: PageProps) {
   try {
     const [today, hist, athletesResult, schedulesResult] = await Promise.all([
       getAttendanceToday(),
-      getAttendanceHistory({ from: from || undefined, to: to || undefined, days: 30, limit: 50, page, scheduleId: scheduleId || undefined }),
+      getAttendanceHistory({ from: from || undefined, to: to || undefined, days: 30, limit: 50, page, scheduleId: scheduleId || undefined, athleteId: athleteId || undefined }),
       getAthletes({ limit: 200 }),
       getSchedules(),
     ])
@@ -167,6 +168,16 @@ export default async function AttendancePage({ searchParams }: PageProps) {
           {/* Date + session filters */}
           <form method="get" action="/dashboard/attendance" className="flex flex-wrap items-end gap-3">
             <input type="hidden" name="tab" value="history" />
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-muted-foreground font-medium">Alumno</label>
+              <select name="athleteId" defaultValue={athleteId}
+                className="h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring min-w-[160px]">
+                <option value="">Todos los alumnos</option>
+                {athletes.map((a) => (
+                  <option key={a.id} value={a.id}>{a.name}</option>
+                ))}
+              </select>
+            </div>
             <div className="flex flex-col gap-1">
               <label className="text-xs text-muted-foreground font-medium">Sesión</label>
               <select name="scheduleId" defaultValue={scheduleId}
