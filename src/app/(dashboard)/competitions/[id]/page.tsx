@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { ChevronLeft, MapPin, Calendar, Trophy, Users, Plus, ClipboardList } from "lucide-react"
 import { DeleteCompetitionButton } from "@/components/competitions/DeleteCompetitionButton"
+import { ExportRosterButton } from "@/components/competitions/ExportRosterButton"
 
 const TYPE_LABELS: Record<string, string> = {
   tournament: "Torneo", league: "Liga", friendly: "Amistoso", championship: "Campeonato",
@@ -152,6 +153,10 @@ export default async function CompetitionDetailPage({ params }: PageProps) {
                         {confirmed > 0 && (
                           <Badge variant="default" className="text-xs">{confirmed} confirmados</Badge>
                         )}
+                        <ExportRosterButton
+                          roster={{ ...roster, roster_athletes: athletes }}
+                          competitionName={comp.name}
+                        />
                       </div>
                     </div>
                     <div className="text-sm text-muted-foreground">
