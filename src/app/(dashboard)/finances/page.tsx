@@ -25,14 +25,16 @@ const SALARY_TYPE_LABELS: Record<string, string> = {
 }
 
 interface PageProps {
-  searchParams: Promise<{ month?: string; tab?: string; category?: string }>
+  searchParams: Promise<{ month?: string; tab?: string; category?: string; amountMin?: string; amountMax?: string }>
 }
 
 export default async function FinancesPage({ searchParams }: PageProps) {
   const params = await searchParams
-  const tab      = params.tab      ?? "overview"
-  const month    = params.month    ?? new Date().toISOString().slice(0, 7)
-  const category = params.category ?? ""
+  const tab       = params.tab       ?? "overview"
+  const month     = params.month     ?? new Date().toISOString().slice(0, 7)
+  const category  = params.category  ?? ""
+  const amountMin = params.amountMin ? Number(params.amountMin) : undefined
+  const amountMax = params.amountMax ? Number(params.amountMax) : undefined
 
   let summary = { totalIncome: 0, totalExpenses: 0, pendingIncome: 0, netBalance: 0, byCategory: {} as Record<string, number>, month }
   let prevSummary = { totalIncome: 0, totalExpenses: 0, pendingIncome: 0, netBalance: 0, byCategory: {} as Record<string, number>, month: '' }
@@ -57,6 +59,8 @@ export default async function FinancesPage({ searchParams }: PageProps) {
     summary = s
     prevSummary = prev
     expenses = e.expenses
+      .filter((ex) => amountMin === undefined || Number(ex.amount) >= amountMin)
+      .filter((ex) => amountMax === undefined || Number(ex.amount) <= amountMax)
     coaches = c
     chartData = ch
   } catch { /* show zeros */ }
@@ -295,7 +299,7 @@ export default async function FinancesPage({ searchParams }: PageProps) {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap gap-2">
               {([["", "Todas"], ["rent", "🏠 Arriendo"], ["salary", "👔 Salarios"], ["supplies", "📦 Insumos"], ["maintenance", "🔧 Mantención"], ["marketing", "📣 Marketing"], ["other", "📁 Otros"]] as const).map(([val, lbl]) => (
-                <a key={val} href={`/dashboard/finances?tab=expenses&month=${month}${val ? `&category=${val}` : ''}`}>
+                <a key={val} href={`/dashboard/finances?tab=expenses&month=${month}${val ? `&category=${val}` : ''}${amountMin !== undefined ? `&amountMin=${amountMin}` : ''}${amountMax !== undefined ? `&amountMax=${amountMax}` : ''}`}>
                   <button className={`h-8 px-3 rounded-md border text-xs font-medium transition-colors ${
                     (val === '' && !category) || category === val
                       ? 'bg-primary text-primary-foreground border-primary'
@@ -303,7 +307,27 @@ export default async function FinancesPage({ searchParams }: PageProps) {
                   }`}>{lbl}</button>
                 </a>
               ))}
+              {(amountMin !== undefined || amountMax !== undefined) && (
+                <a href={`/dashboard/finances?tab=expenses&month=${month}${category ? `&category=${category}` : ''}`}
+                  className="text-xs text-muted-foreground hover:text-foreground flex items-center">✕ Limpiar monto</a>
+              )}
             </div>
+            <form method="get" action="/dashboard/finances" className="flex items-center gap-2 flex-wrap">
+              <input type="hidden" name="tab" value="expenses" />
+              <input type="hidden" name="month" value={month} />
+              {category && <input type="hidden" name="category" value={category} />}
+              <div className="flex flex-col gap-0.5">
+                <label className="text-xs text-muted-foreground">Monto mín.</label>
+                <input type="number" name="amountMin" defaultValue={amountMin ?? ''} min={0} placeholder="0"
+                  className="h-8 px-2 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring w-24" />
+              </div>
+              <div className="flex flex-col gap-0.5">
+                <label className="text-xs text-muted-foreground">Monto máx.</label>
+                <input type="number" name="amountMax" defaultValue={amountMax ?? ''} min={0} placeholder="∞"
+                  className="h-8 px-2 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring w-24" />
+              </div>
+              <button type="submit" className="h-8 px-3 mt-4 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90">Filtrar</button>
+            </form>
             <div className="flex gap-2">
               <ExportExpensesButton expenses={expenses} month={month} />
               <NewExpenseForm />

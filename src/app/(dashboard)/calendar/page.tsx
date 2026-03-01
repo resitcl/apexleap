@@ -172,6 +172,7 @@ export default async function CalendarPage({ searchParams }: PageProps) {
                       <div className="p-1.5 rounded bg-background border hover:border-primary transition-colors text-xs">
                         <p className="font-medium truncate">{s.name}</p>
                         <p className="text-muted-foreground">{s.start_time.slice(0, 5)}–{s.end_time.slice(0, 5)}</p>
+                        {s.capacity && <p className="text-muted-foreground">👥 {s.capacity}</p>}
                       </div>
                     </Link>
                   ))}
