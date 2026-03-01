@@ -52,6 +52,17 @@ export async function createCompetition(input: CompetitionInput) {
   return data
 }
 
+export async function updateCompetition(id: string, input: Partial<CompetitionInput>) {
+  const clubId = await getClubId()
+  const supabase = await createClient()
+  const { error } = await supabase.from('competitions')
+    .update({ ...input, updated_at: new Date().toISOString() })
+    .eq('id', id).eq('club_id', clubId)
+  if (error) throw new Error(error.message)
+  revalidatePath('/dashboard/competitions')
+  revalidatePath(`/dashboard/competitions/${id}`)
+}
+
 export async function updateCompetitionStatus(id: string, status: CompetitionInput['status']) {
   const clubId = await getClubId()
   const supabase = await createClient()

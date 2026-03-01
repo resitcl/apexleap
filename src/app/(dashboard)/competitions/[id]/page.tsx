@@ -11,6 +11,7 @@ import { Separator } from "@/components/ui/separator"
 import { ChevronLeft, MapPin, Calendar, Trophy, Users, Plus, ClipboardList } from "lucide-react"
 import { DeleteCompetitionButton } from "@/components/competitions/DeleteCompetitionButton"
 import { ExportRosterButton } from "@/components/competitions/ExportRosterButton"
+import { EditCompetitionButton } from "@/components/competitions/EditCompetitionButton"
 
 const TYPE_LABELS: Record<string, string> = {
   tournament: "Torneo", league: "Liga", friendly: "Amistoso", championship: "Campeonato",
@@ -65,6 +66,7 @@ export default async function CompetitionDetailPage({ params }: PageProps) {
           </Button>
         </Link>
         <div className="flex-1" />
+        <EditCompetitionButton competition={comp} />
         <DeleteCompetitionButton competitionId={id} />
       </div>
 
