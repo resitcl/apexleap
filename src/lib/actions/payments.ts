@@ -138,7 +138,7 @@ export async function markAsPaid(id: string, method: string, paidAt?: string) {
   return data
 }
 
-export async function updatePayment(id: string, input: { concept?: string; amount?: number; due_date?: string; notes?: string | null; type?: string }) {
+export async function updatePayment(id: string, input: { concept?: string; amount?: number; due_date?: string; notes?: string | null; type?: string; payment_method?: string | null }) {
   const clubId = await getClubId()
   const supabase = await createClient()
   const { error } = await supabase.from('payments')

@@ -10,6 +10,16 @@ import {
 import { Pencil } from "lucide-react"
 import { updatePayment } from "@/lib/actions/payments"
 
+const METHOD_OPTIONS = [
+  { value: '', label: 'Sin especificar' },
+  { value: 'cash', label: 'Efectivo' },
+  { value: 'transfer', label: 'Transferencia' },
+  { value: 'card', label: 'Tarjeta' },
+  { value: 'webpay', label: 'Webpay' },
+  { value: 'flow', label: 'Flow' },
+  { value: 'mercadopago', label: 'MercadoPago' },
+]
+
 interface Props {
   payment: {
     id: string
@@ -18,6 +28,7 @@ interface Props {
     due_date: string
     notes: string | null
     type?: string
+    payment_method?: string | null
   }
 }
 
@@ -25,10 +36,11 @@ export function EditPaymentButton({ payment }: Props) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [form, setForm] = useState({
-    concept:  payment.concept,
-    amount:   String(payment.amount),
-    due_date: payment.due_date,
-    notes:    payment.notes ?? '',
+    concept:        payment.concept,
+    amount:         String(payment.amount),
+    due_date:       payment.due_date,
+    notes:          payment.notes ?? '',
+    payment_method: payment.payment_method ?? '',
   })
 
   function set(field: string, value: string) {
@@ -41,10 +53,11 @@ export function EditPaymentButton({ payment }: Props) {
     setLoading(true)
     try {
       await updatePayment(payment.id, {
-        concept:  form.concept.trim(),
-        amount:   Number(form.amount),
-        due_date: form.due_date,
-        notes:    form.notes || null,
+        concept:        form.concept.trim(),
+        amount:         Number(form.amount),
+        due_date:       form.due_date,
+        notes:          form.notes || null,
+        payment_method: form.payment_method || null,
       })
       toast.success('Pago actualizado')
       setOpen(false)
@@ -100,6 +113,18 @@ export function EditPaymentButton({ payment }: Props) {
                   className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 />
               </div>
+            </div>
+            <div className="space-y-1">
+              <Label>Método de pago</Label>
+              <select
+                value={form.payment_method}
+                onChange={(e) => set('payment_method', e.target.value)}
+                className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                {METHOD_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
             </div>
             <div className="space-y-1">
               <Label>Notas</Label>
