@@ -9,6 +9,7 @@ import { Package, AlertTriangle } from "lucide-react"
 import { NewItemForm } from "@/components/inventory/NewItemForm"
 import { DeleteItemButton } from "@/components/inventory/DeleteItemButton"
 import { AssignItemButton } from "@/components/inventory/AssignItemButton"
+import { EditItemButton } from "@/components/inventory/EditItemButton"
 
 const CATEGORY_META: Record<string, { label: string; icon: string }> = {
   equipment:      { label: "Equipamiento",   icon: "🥊" },
@@ -145,6 +146,7 @@ export default async function InventoryPage({ searchParams }: PageProps) {
                         <div className={`text-lg font-bold ${isLow ? "text-yellow-600" : ""}`}>{item.quantity}</div>
                         <div className="text-xs text-muted-foreground">unidades</div>
                       </div>
+                      <EditItemButton item={item} />
                       <AssignItemButton
                         itemId={item.id}
                         currentAssignedId={assigned?.id ?? null}
