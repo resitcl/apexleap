@@ -141,10 +141,23 @@ export default async function CalendarPage({ searchParams }: PageProps) {
                     const [eh, em] = s.end_time.split(":").map(Number)
                     return (eh * 60 + em) - (sh * 60 + sm)
                   })()
+                  const attCount = ((s.attendance as Array<{ id: string }> | null) ?? []).length
+                  const occ = s.capacity && s.capacity > 0 ? Math.round((attCount / s.capacity) * 100) : null
                   return (
                     <Link key={s.id} href={`/dashboard/calendar/${s.id}`}>
                       <div className="p-3 rounded-lg border bg-background hover:border-primary transition-colors">
-                        <p className="font-semibold text-sm truncate">{s.name}</p>
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="font-semibold text-sm truncate">{s.name}</p>
+                          {s.capacity && (
+                            <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded shrink-0 ${
+                              occ !== null && occ >= 90 ? 'bg-red-100 text-red-700' :
+                              occ !== null && occ >= 70 ? 'bg-yellow-100 text-yellow-700' :
+                              'bg-green-100 text-green-700'
+                            }`}>
+                              {attCount}/{s.capacity}{occ !== null ? ` (${occ}%)` : ''}
+                            </span>
+                          )}
+                        </div>
                         <p className="text-xs text-muted-foreground mt-0.5">
                           {s.start_time.slice(0, 5)} – {s.end_time.slice(0, 5)}
                           <span className="ml-1.5 text-muted-foreground/70">({durationMin}min)</span>
@@ -179,7 +192,15 @@ export default async function CalendarPage({ searchParams }: PageProps) {
                       <div className="p-1.5 rounded bg-background border hover:border-primary transition-colors text-xs">
                         <p className="font-medium truncate">{s.name}</p>
                         <p className="text-muted-foreground">{s.start_time.slice(0, 5)}–{s.end_time.slice(0, 5)}</p>
-                        {s.capacity && <p className="text-muted-foreground">👥 {s.capacity}</p>}
+                        {s.capacity && (() => {
+                          const n = ((s.attendance as Array<{ id: string }> | null) ?? []).length
+                          const p = Math.round((n / s.capacity) * 100)
+                          return (
+                            <p className={`text-[10px] font-medium ${
+                              p >= 90 ? 'text-red-600' : p >= 70 ? 'text-yellow-600' : 'text-green-600'
+                            }`}>{n}/{s.capacity}</p>
+                          )
+                        })()}
                       </div>
                     </Link>
                   ))}

@@ -58,7 +58,7 @@ export async function getAthletes(params?: {
 
   let query = supabase
     .from('athletes')
-    .select('*, subscriptions(id, status, plan_id, plans(name)), payments(id, status, paid_at), attendance(id, checked_in_at), documents(id)', { count: 'exact' })
+    .select('*, subscriptions(id, status, plan_id, plans(name)), payments(id, status, paid_at, payment_method), attendance(id, checked_in_at), documents(id)', { count: 'exact' })
     .eq('club_id', clubId)
     .order(
       params?.sort === 'created_at'      ? 'created_at' :

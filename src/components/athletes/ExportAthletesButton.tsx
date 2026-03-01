@@ -16,6 +16,7 @@ interface Athlete {
   birth_date: string | null
   created_at: string
   subscriptions?: Array<{ status: string; plans: { name: string } | null }> | null
+  payments?: Array<{ status: string; paid_at: string | null; payment_method: string | null }> | null
 }
 
 interface Props {
@@ -36,9 +37,18 @@ export function ExportAthletesButton({ athletes }: Props) {
         healthy: 'Saludable', injured: 'Lesionado', observation: 'Observación',
       }
 
-      const headers = ['Nombre', 'Email', 'Teléfono', 'RUT/Doc', 'Estado', 'Salud', 'Plan Activo', 'Nacimiento', 'Registrado']
+      const METHOD_LABELS: Record<string, string> = {
+        cash: 'Efectivo', transfer: 'Transferencia', card: 'Tarjeta',
+        webpay: 'Webpay', mercadopago: 'MercadoPago', flow: 'Flow',
+      }
+
+      const headers = ['Nombre', 'Email', 'Teléfono', 'RUT/Doc', 'Estado', 'Salud', 'Plan Activo', 'Último Método Pago', 'Nacimiento', 'Registrado']
       const rows = athletes.map((a) => {
         const activePlan = (a.subscriptions ?? []).find((s) => s.status === 'active')?.plans?.name ?? ''
+        const lastPaid = (a.payments ?? [])
+          .filter((p) => p.status === 'paid' && p.paid_at)
+          .sort((x, y) => new Date(y.paid_at!).getTime() - new Date(x.paid_at!).getTime())[0]
+        const lastMethod = lastPaid?.payment_method ? (METHOD_LABELS[lastPaid.payment_method] ?? lastPaid.payment_method) : ''
         return [
           a.name,
           a.email ?? '',
@@ -47,6 +57,7 @@ export function ExportAthletesButton({ athletes }: Props) {
           STATUS_LABELS[a.status] ?? a.status,
           HEALTH_LABELS[a.health_status] ?? a.health_status,
           activePlan,
+          lastMethod,
           a.birth_date ? new Date(a.birth_date + 'T12:00:00').toLocaleDateString('es-CL') : '',
           new Date(a.created_at).toLocaleDateString('es-CL'),
         ]
