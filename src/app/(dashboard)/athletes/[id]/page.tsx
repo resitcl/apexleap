@@ -9,6 +9,7 @@ import { Separator } from "@/components/ui/separator"
 import { HealthStatusBadge } from "@/components/athletes/HealthStatusBadge"
 import { LogInjuryForm } from "@/components/athletes/LogInjuryForm"
 import { ResolveInjuryButton } from "@/components/athletes/ResolveInjuryButton"
+import { HealthStatusButton } from "@/components/athletes/HealthStatusButton"
 import {
   ChevronLeft, Pencil, Phone, Mail, FileText,
   Calendar, CreditCard, CheckSquare, Activity, Heart,
@@ -200,7 +201,10 @@ export default async function AthleteDetailPage({ params }: PageProps) {
           <CardContent className="space-y-3">
             <div className="flex items-center justify-between">
               <p className="text-xs text-muted-foreground">Estado actual</p>
-              <HealthStatusBadge status={athlete.health_status as "healthy" | "injured" | "observation"} />
+              <HealthStatusButton
+                athleteId={id}
+                current={athlete.health_status as "healthy" | "injured" | "observation"}
+              />
             </div>
             <Separator />
             <div>
