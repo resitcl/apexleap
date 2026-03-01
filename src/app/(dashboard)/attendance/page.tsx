@@ -133,6 +133,27 @@ export default async function AttendancePage({ searchParams }: PageProps) {
                   <p className="text-sm">Nadie ha registrado asistencia hoy</p>
                 </div>
               ) : (
+                <>
+                {(() => {
+                  const bySession = todayRecords.reduce<Record<string, { name: string; count: number }>>((acc, r) => {
+                    const s = r.schedules as { id: string; name: string } | null
+                    if (!s) return acc
+                    if (!acc[s.id]) acc[s.id] = { name: s.name, count: 0 }
+                    acc[s.id].count++
+                    return acc
+                  }, {})
+                  const entries = Object.values(bySession)
+                  if (entries.length === 0) return null
+                  return (
+                    <div className="flex flex-wrap gap-1.5 mb-3">
+                      {entries.map((e) => (
+                        <span key={e.name} className="text-xs bg-muted px-2 py-0.5 rounded font-medium">
+                          {e.name}: {e.count}
+                        </span>
+                      ))}
+                    </div>
+                  )
+                })()}
                 <div className="space-y-2 max-h-80 overflow-y-auto">
                   {todayRecords.map((record) => {
                     const athlete = record.athletes as { id: string; name: string; photo_url: string | null; health_status: string } | null
@@ -157,6 +178,7 @@ export default async function AttendancePage({ searchParams }: PageProps) {
                     )
                   })}
                 </div>
+                </>
               )}
             </CardContent>
           </Card>
