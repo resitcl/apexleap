@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Plus, Users, TrendingUp, PauseCircle, XCircle } from "lucide-react"
+import { Plus, Users, TrendingUp, PauseCircle, XCircle, AlertTriangle } from "lucide-react"
 import { SubscriptionStatusButton } from "@/components/subscriptions/SubscriptionStatusButton"
 
 const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
@@ -32,6 +32,8 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
   let subs: Awaited<ReturnType<typeof getSubscriptions>>["subscriptions"] = []
   let total = 0
   let stats = { active: 0, paused: 0, cancelled: 0, expired: 0, mrr: 0 }
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
 
   try {
     const [result, statsResult] = await Promise.all([
@@ -141,6 +143,12 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
             const plan = sub.plans as { id: string; name: string; price: number; billing_cycle: string } | null
             const cfg = STATUS_CONFIG[sub.status] ?? STATUS_CONFIG.cancelled
 
+            const daysLeft = sub.end_date && sub.status === 'active'
+              ? Math.ceil((new Date(sub.end_date).getTime() - today.getTime()) / 86400000)
+              : null
+            const expiringSoon = daysLeft !== null && daysLeft >= 0 && daysLeft <= 7
+            const isExpired   = daysLeft !== null && daysLeft < 0
+
             return (
               <Card key={sub.id}>
                 <CardContent className="py-4">
@@ -164,9 +172,16 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
                           </Link>
                         )}
                       </div>
-                      <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground flex-wrap">
                         <span>Desde {new Date(sub.start_date).toLocaleDateString("es-CL")}</span>
                         {sub.end_date && <span>Hasta {new Date(sub.end_date).toLocaleDateString("es-CL")}</span>}
+                        {daysLeft !== null && daysLeft >= 0 && (
+                          <span className={expiringSoon ? 'text-yellow-600 font-medium' : 'text-muted-foreground'}>
+                            {expiringSoon && <AlertTriangle className="w-3 h-3 inline mr-0.5" />}
+                            {daysLeft === 0 ? 'Vence hoy' : `${daysLeft}d restantes`}
+                          </span>
+                        )}
+                        {isExpired && <span className="text-destructive font-medium">Vencida</span>}
                         {sub.auto_renew && <span className="text-green-600">↺ Auto-renovación</span>}
                       </div>
                     </div>
