@@ -20,19 +20,20 @@ const STATUS_META: Record<string, { label: string; variant: "default" | "seconda
 }
 
 interface PageProps {
-  searchParams: Promise<{ status?: string; page?: string }>
+  searchParams: Promise<{ status?: string; page?: string; search?: string }>
 }
 
 export default async function CompetitionsPage({ searchParams }: PageProps) {
   const params = await searchParams
-  const page = Number(params.page ?? 1)
-  const limit = 20
+  const page   = Number(params.page ?? 1)
+  const search = params.search ?? ""
+  const limit  = 20
 
   let competitions: { id: string; name: string; type: string; status: string; sport: string | null; location: string | null; start_date: string; end_date: string | null; rosters: unknown[] }[] = []
   let total = 0
 
   try {
-    const result = await getCompetitions({ status: params.status, page, limit })
+    const result = await getCompetitions({ status: params.status, search: search || undefined, page, limit })
     competitions = result.competitions as typeof competitions
     total = result.total
   } catch { /* empty */ }
@@ -67,23 +68,36 @@ export default async function CompetitionsPage({ searchParams }: PageProps) {
         ))}
       </div>
 
-      {/* Status filter */}
-      <div className="flex flex-wrap gap-2">
-        {([
-          { value: '', label: 'Todas' },
-          { value: 'upcoming', label: ' Próximas' },
-          { value: 'active', label: ' En curso' },
-          { value: 'finished', label: ' Finalizadas' },
-          { value: 'cancelled', label: 'Canceladas' },
-        ]).map(({ value, label }) => (
-          <Link key={value} href={`/dashboard/competitions${value ? `?status=${value}` : ''}`}>
-            <button className={`h-8 px-3 rounded-md border text-xs font-medium transition-colors ${
-              (value === '' && !params.status) || params.status === value
-                ? 'bg-primary text-primary-foreground border-primary'
-                : 'bg-background border-input hover:bg-accent'
-            }`}>{label}</button>
-          </Link>
-        ))}
+      {/* Filters */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap gap-2">
+          {([
+            { value: '', label: 'Todas' },
+            { value: 'upcoming', label: '📅 Próximas' },
+            { value: 'active', label: '🏆 En curso' },
+            { value: 'finished', label: '✅ Finalizadas' },
+            { value: 'cancelled', label: 'Canceladas' },
+          ]).map(({ value, label }) => (
+            <Link key={value} href={`/dashboard/competitions?${new URLSearchParams({ ...(value ? { status: value } : {}), ...(search ? { search } : {}) }).toString()}`}>
+              <button className={`h-8 px-3 rounded-md border text-xs font-medium transition-colors ${
+                (value === '' && !params.status) || params.status === value
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'bg-background border-input hover:bg-accent'
+              }`}>{label}</button>
+            </Link>
+          ))}
+        </div>
+        <form method="get" action="/dashboard/competitions" className="flex items-center gap-2">
+          {params.status && <input type="hidden" name="status" value={params.status} />}
+          <input type="text" name="search" defaultValue={search}
+            placeholder="Buscar competencia..."
+            className="h-8 px-3 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring w-44" />
+          <button type="submit" className="h-8 px-3 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90">Buscar</button>
+          {search && (
+            <Link href={`/dashboard/competitions${params.status ? `?status=${params.status}` : ''}`}
+              className="text-xs text-muted-foreground hover:text-foreground">✕ Limpiar</Link>
+          )}
+        </form>
       </div>
 
       {competitions.length === 0 ? (

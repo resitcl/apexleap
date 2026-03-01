@@ -29,7 +29,7 @@ async function getClubId() {
   return data.club_id as string
 }
 
-export async function getCompetitions(params?: { status?: string; page?: number; limit?: number }) {
+export async function getCompetitions(params?: { status?: string; search?: string; page?: number; limit?: number }) {
   const clubId = await getClubId()
   const supabase = await createClient()
   const page = params?.page ?? 1
@@ -43,6 +43,7 @@ export async function getCompetitions(params?: { status?: string; page?: number;
     .order('start_date', { ascending: false })
     .range(from, to)
   if (params?.status) query = query.eq('status', params.status)
+  if (params?.search) query = query.ilike('name', `%${params.search}%`)
   const { data, error, count } = await query
   if (error) throw new Error(error.message)
   return { competitions: data ?? [], total: count ?? 0 }
