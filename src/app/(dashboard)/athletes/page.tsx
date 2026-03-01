@@ -247,6 +247,17 @@ export default async function AthletesPage({ searchParams }: PageProps) {
 
                     <div className="flex items-center gap-2 shrink-0">
                       {(() => {
+                        const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+                        const att = athlete.attendance as Array<{ id: string; checked_in_at: string }> | null
+                        const checkIns = (att ?? []).filter((a) => new Date(a.checked_in_at) >= thirtyDaysAgo).length
+                        if (checkIns > 0) return (
+                          <span className="text-xs text-muted-foreground" title="Check-ins últimos 30 días">
+                            📋 {checkIns}
+                          </span>
+                        )
+                        return null
+                      })()}
+                      {(() => {
                         const pmts = athlete.payments as Array<{ status: string; paid_at: string | null }> | null
                         const overdue = pmts?.filter((p) => p.status === 'overdue').length ?? 0
                         const pending = pmts?.filter((p) => p.status === 'pending').length ?? 0
