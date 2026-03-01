@@ -255,16 +255,46 @@ export default async function AttendancePage({ searchParams }: PageProps) {
               {(() => {
                 const validCount = history.records.filter((r) => r.is_valid).length
                 const pct = history.records.length > 0 ? Math.round((validCount / history.records.length) * 100) : 0
+
+                // Per-session breakdown (only when not already filtered by session)
+                const bySession = !scheduleId ? history.records.reduce<Record<string, { name: string; total: number; valid: number }>>((acc, r) => {
+                  const s = r.schedules as { name: string } | null
+                  const key = s?.name ?? 'Sin sesión'
+                  if (!acc[key]) acc[key] = { name: key, total: 0, valid: 0 }
+                  acc[key].total++
+                  if (r.is_valid) acc[key].valid++
+                  return acc
+                }, {}) : {}
+                const sessionEntries = Object.values(bySession).sort((a, b) => b.total - a.total)
+
                 return (
-                  <div className="flex items-center gap-3 text-sm">
-                    <span className="text-muted-foreground">{history.total} registros encontrados</span>
-                    <span className={`font-medium px-2 py-0.5 rounded-full text-xs ${
-                      pct >= 80 ? 'bg-green-100 text-green-700' :
-                      pct >= 50 ? 'bg-yellow-100 text-yellow-700' :
-                      'bg-red-100 text-red-700'
-                    }`}>
-                      {validCount}/{history.records.length} válidos · {pct}% asistencia
-                    </span>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-3 text-sm flex-wrap">
+                      <span className="text-muted-foreground">{history.total} registros encontrados</span>
+                      <span className={`font-medium px-2 py-0.5 rounded-full text-xs ${
+                        pct >= 80 ? 'bg-green-100 text-green-700' :
+                        pct >= 50 ? 'bg-yellow-100 text-yellow-700' :
+                        'bg-red-100 text-red-700'
+                      }`}>
+                        {validCount}/{history.records.length} válidos · {pct}% asistencia
+                      </span>
+                    </div>
+                    {sessionEntries.length > 1 && (
+                      <div className="flex flex-wrap gap-2">
+                        {sessionEntries.map((e) => {
+                          const sp = Math.round((e.valid / e.total) * 100)
+                          return (
+                            <span key={e.name} className={`text-xs px-2 py-0.5 rounded font-medium ${
+                              sp >= 80 ? 'bg-green-50 text-green-700' :
+                              sp >= 50 ? 'bg-yellow-50 text-yellow-700' :
+                              'bg-red-50 text-red-700'
+                            }`}>
+                              {e.name}: {e.valid}/{e.total} ({sp}%)
+                            </span>
+                          )
+                        })}
+                      </div>
+                    )}
                   </div>
                 )
               })()}

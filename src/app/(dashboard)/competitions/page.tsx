@@ -21,22 +21,25 @@ const STATUS_META: Record<string, { label: string; variant: "default" | "seconda
 }
 
 interface PageProps {
-  searchParams: Promise<{ status?: string; page?: string; search?: string; type?: string }>
+  searchParams: Promise<{ status?: string; page?: string; search?: string; type?: string; location?: string }>
 }
 
 export default async function CompetitionsPage({ searchParams }: PageProps) {
   const params = await searchParams
-  const page   = Number(params.page ?? 1)
-  const search = params.search ?? ""
-  const type   = params.type   ?? ""
-  const limit  = 20
+  const page     = Number(params.page ?? 1)
+  const search   = params.search   ?? ""
+  const type     = params.type     ?? ""
+  const location = params.location ?? ""
+  const limit    = 20
 
   let competitions: { id: string; name: string; type: string; status: string; sport: string | null; location: string | null; start_date: string; end_date: string | null; rosters: unknown[] }[] = []
   let total = 0
 
   try {
     const result = await getCompetitions({ status: params.status, search: search || undefined, type: type || undefined, page, limit })
-    competitions = result.competitions as typeof competitions
+    // client-side location filter (location is a free text field)
+    if (location) competitions = (result.competitions as typeof competitions).filter((c) => c.location?.toLowerCase().includes(location.toLowerCase()))
+    else competitions = result.competitions as typeof competitions
     total = result.total
   } catch { /* empty */ }
 
@@ -112,9 +115,12 @@ export default async function CompetitionsPage({ searchParams }: PageProps) {
           {type && <input type="hidden" name="type" value={type} />}
           <input type="text" name="search" defaultValue={search}
             placeholder="Buscar competencia..."
-            className="h-8 px-3 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring w-44" />
+            className="h-8 px-3 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring w-36" />
+          <input type="text" name="location" defaultValue={location}
+            placeholder="Ubicación..."
+            className="h-8 px-3 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring w-32" />
           <button type="submit" className="h-8 px-3 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90">Buscar</button>
-          {search && (
+          {(search || location) && (
             <Link href={`/dashboard/competitions${params.status ? `?status=${params.status}` : ''}`}
               className="text-xs text-muted-foreground hover:text-foreground">✕ Limpiar</Link>
           )}
