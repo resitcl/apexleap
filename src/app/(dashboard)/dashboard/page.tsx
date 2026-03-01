@@ -2,11 +2,12 @@ export const dynamic = "force-dynamic"
 
 import Link from "next/link"
 import { redirect } from "next/navigation"
-import { getDashboardSummary } from "@/lib/actions/dashboard"
+import { getDashboardSummary, getRecentActivity } from "@/lib/actions/dashboard"
 import { checkUserHasClub } from "@/lib/actions/onboarding"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Users, DollarSign, ClipboardCheck, AlertCircle, UserPlus } from "lucide-react"
+import { Users, DollarSign, ClipboardCheck, AlertCircle, UserPlus, CreditCard, QrCode, UserCheck } from "lucide-react"
 
 export default async function DashboardPage() {
   const hasClub = await checkUserHasClub().catch(() => false)
@@ -20,9 +21,13 @@ export default async function DashboardPage() {
     todayCheckIns: 0,
     semaforoCount: { green: 0, yellow: 0, red: 0 },
   }
+  let activity: Awaited<ReturnType<typeof getRecentActivity>> = []
 
   try {
-    summary = await getDashboardSummary()
+    ;[summary, activity] = await Promise.all([
+      getDashboardSummary(),
+      getRecentActivity(12),
+    ])
   } catch {
     // show zeros on error
   }
@@ -166,6 +171,72 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Activity Feed */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Actividad Reciente</CardTitle>
+          <CardDescription>Últimos pagos, check-ins y alumnos</CardDescription>
+        </CardHeader>
+        <CardContent className="p-0">
+          {activity.length === 0 ? (
+            <div className="py-8 text-center text-muted-foreground text-sm">
+              Sin actividad reciente
+            </div>
+          ) : (
+            <div className="divide-y divide-border">
+              {activity.map((item) => {
+                const Icon =
+                  item.type === 'payment' ? CreditCard :
+                  item.type === 'checkin' ? QrCode : UserCheck
+
+                const iconColor =
+                  item.type === 'payment' ? 'text-green-500 bg-green-50' :
+                  item.type === 'checkin' ? 'text-blue-500 bg-blue-50' :
+                  'text-purple-500 bg-purple-50'
+
+                const timeAgo = (() => {
+                  const diff = Date.now() - new Date(item.time).getTime()
+                  const mins = Math.floor(diff / 60000)
+                  const hrs  = Math.floor(diff / 3600000)
+                  const days = Math.floor(diff / 86400000)
+                  if (mins < 60) return `hace ${mins}m`
+                  if (hrs  < 24) return `hace ${hrs}h`
+                  return `hace ${days}d`
+                })()
+
+                return (
+                  <div key={item.id} className="flex items-center gap-3 px-6 py-3 hover:bg-muted/30 transition-colors">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${iconColor}`}>
+                      <Icon className="w-4 h-4" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{item.label}</p>
+                      <p className="text-xs text-muted-foreground truncate">{item.sublabel}</p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {item.badge && item.type === 'payment' && (
+                        <Badge variant={
+                          item.badge === 'paid'    ? 'default' :
+                          item.badge === 'pending' ? 'secondary' : 'destructive'
+                        } className="text-xs">
+                          {item.badge === 'paid' ? 'Pagado' : item.badge === 'pending' ? 'Pendiente' : 'Moroso'}
+                        </Badge>
+                      )}
+                      {item.type === 'checkin' && (
+                        <Badge variant={item.badge === 'valid' ? 'default' : 'secondary'} className="text-xs">
+                          {item.badge === 'valid' ? '✓ Válido' : '✗ Inválido'}
+                        </Badge>
+                      )}
+                      <span className="text-xs text-muted-foreground w-14 text-right">{timeAgo}</span>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Pending payments alert */}
       {summary.pendingAmount > 0 && (

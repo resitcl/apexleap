@@ -110,3 +110,81 @@ export async function getDashboardSummary() {
     semaforoCount,
   }
 }
+
+export async function getRecentActivity(limit = 10) {
+  const clubId = await getClubId()
+  const supabase = await createClient()
+
+  const [paymentsRes, attendanceRes, athletesRes] = await Promise.all([
+    supabase
+      .from('payments')
+      .select('id, amount, status, created_at, athletes(name)')
+      .eq('club_id', clubId)
+      .order('created_at', { ascending: false })
+      .limit(limit),
+
+    supabase
+      .from('attendance')
+      .select('id, is_valid, checked_in_at, athletes(name), schedules(name)')
+      .eq('club_id', clubId)
+      .order('checked_in_at', { ascending: false })
+      .limit(limit),
+
+    supabase
+      .from('athletes')
+      .select('id, name, created_at')
+      .eq('club_id', clubId)
+      .order('created_at', { ascending: false })
+      .limit(5),
+  ])
+
+  type ActivityItem = {
+    id: string
+    type: 'payment' | 'checkin' | 'athlete'
+    label: string
+    sublabel: string
+    time: string
+    badge?: string
+  }
+
+  const items: ActivityItem[] = []
+
+  for (const p of paymentsRes.data ?? []) {
+    const athlete = p.athletes as unknown as { name: string } | null
+    items.push({
+      id: `pay-${p.id}`,
+      type: 'payment',
+      label: athlete?.name ?? 'Alumno',
+      sublabel: `Pago $${Number(p.amount).toLocaleString('es-CL')}`,
+      time: p.created_at,
+      badge: p.status,
+    })
+  }
+
+  for (const a of attendanceRes.data ?? []) {
+    const athlete = a.athletes as unknown as { name: string } | null
+    const schedule = a.schedules as unknown as { name: string } | null
+    items.push({
+      id: `att-${a.id}`,
+      type: 'checkin',
+      label: athlete?.name ?? 'Alumno',
+      sublabel: schedule?.name ? `Check-in · ${schedule.name}` : 'Check-in QR',
+      time: a.checked_in_at,
+      badge: a.is_valid ? 'valid' : 'invalid',
+    })
+  }
+
+  for (const ath of athletesRes.data ?? []) {
+    items.push({
+      id: `ath-${ath.id}`,
+      type: 'athlete',
+      label: ath.name,
+      sublabel: 'Nuevo alumno registrado',
+      time: ath.created_at,
+    })
+  }
+
+  items.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
+
+  return items.slice(0, limit)
+}
