@@ -74,7 +74,25 @@ export default async function FinancesPage({ searchParams }: PageProps) {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-3xl font-bold">Administración Financiera</h1>
-          <p className="text-muted-foreground capitalize">{monthLabel}</p>
+          <p className="text-muted-foreground capitalize">
+            {monthLabel}
+            {(() => {
+              const top3 = Object.entries(summary.byCategory)
+                .sort(([,a],[,b]) => b - a)
+                .slice(0, 3)
+              if (top3.length === 0) return null
+              return (
+                <span className="ml-2 text-sm not-italic">
+                  · {top3.map(([cat, amt]) => (
+                    <span key={cat} className="ml-1.5">
+                      <span className="text-muted-foreground/70">{CATEGORY_LABELS[cat] ?? cat}:</span>{' '}
+                      <span className="font-medium">${amt.toLocaleString('es-CL')}</span>
+                    </span>
+                  ))}
+                </span>
+              )
+            })()}
+          </p>
         </div>
         <MonthPicker month={month} tab={tab} />
       </div>

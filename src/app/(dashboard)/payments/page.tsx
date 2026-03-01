@@ -146,6 +146,30 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
         </Card>
       </div>
 
+      {/* Pending by month */}
+      {allPayments.length > 0 && (() => {
+        const pending = allPayments.filter((p) => p.status === 'pending' || p.status === 'overdue')
+        if (pending.length === 0) return null
+        const byMonth = pending.reduce<Record<string, number>>((acc, p) => {
+          const month = (p.due_date ?? p.created_at ?? '').slice(0, 7)
+          if (!month) return acc
+          acc[month] = (acc[month] ?? 0) + Number(p.amount)
+          return acc
+        }, {})
+        const entries = Object.entries(byMonth).sort(([a],[b]) => a.localeCompare(b)).slice(0, 4)
+        if (entries.length === 0) return null
+        return (
+          <div className="flex flex-wrap gap-2 items-center">
+            <span className="text-xs text-muted-foreground font-medium">Pendiente por mes:</span>
+            {entries.map(([month, amount]) => (
+              <span key={month} className="px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
+                {new Date(month + '-02').toLocaleDateString('es-CL', { month: 'short', year: '2-digit' })}: ${amount.toLocaleString('es-CL')}
+              </span>
+            ))}
+          </div>
+        )
+      })()}
+
       {/* Method breakdown */}
       {allPayments.length > 0 && (() => {
         const METHOD_LABEL: Record<string, string> = {

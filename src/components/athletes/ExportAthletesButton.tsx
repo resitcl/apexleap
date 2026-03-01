@@ -17,6 +17,7 @@ interface Athlete {
   created_at: string
   subscriptions?: Array<{ status: string; plans: { name: string } | null }> | null
   payments?: Array<{ status: string; paid_at: string | null; payment_method: string | null }> | null
+  attendance?: Array<{ checked_in_at: string }> | null
 }
 
 interface Props {
@@ -42,13 +43,28 @@ export function ExportAthletesButton({ athletes }: Props) {
         webpay: 'Webpay', mercadopago: 'MercadoPago', flow: 'Flow',
       }
 
-      const headers = ['Nombre', 'Email', 'Teléfono', 'RUT/Doc', 'Estado', 'Salud', 'Plan Activo', 'Último Método Pago', 'Nacimiento', 'Registrado']
+      const headers = ['Nombre', 'Email', 'Teléfono', 'RUT/Doc', 'Estado', 'Salud', 'Plan Activo', 'Último Método Pago', 'Streak Semanas', 'Nacimiento', 'Registrado']
       const rows = athletes.map((a) => {
         const activePlan = (a.subscriptions ?? []).find((s) => s.status === 'active')?.plans?.name ?? ''
         const lastPaid = (a.payments ?? [])
           .filter((p) => p.status === 'paid' && p.paid_at)
           .sort((x, y) => new Date(y.paid_at!).getTime() - new Date(x.paid_at!).getTime())[0]
         const lastMethod = lastPaid?.payment_method ? (METHOD_LABELS[lastPaid.payment_method] ?? lastPaid.payment_method) : ''
+        const att = a.attendance ?? []
+        const weekSet = new Set(att.map((r) => {
+          const d = new Date(r.checked_in_at)
+          const jan1 = new Date(d.getFullYear(), 0, 1)
+          return `${d.getFullYear()}-${Math.ceil(((d.getTime() - jan1.getTime()) / 86400000 + jan1.getDay() + 1) / 7)}`
+        }))
+        const nowW = (() => { const d = new Date(); const j = new Date(d.getFullYear(),0,1); return `${d.getFullYear()}-${Math.ceil(((d.getTime()-j.getTime())/86400000+j.getDay()+1)/7)}` })()
+        let streak = 0
+        let wN = parseInt(nowW.split('-')[1])
+        let wY = parseInt(nowW.split('-')[0])
+        while (weekSet.has(`${wY}-${wN}`)) {
+          streak++; wN--
+          if (wN < 1) { wY--; wN = 52 }
+          if (streak > 52) break
+        }
         return [
           a.name,
           a.email ?? '',
@@ -58,6 +74,7 @@ export function ExportAthletesButton({ athletes }: Props) {
           HEALTH_LABELS[a.health_status] ?? a.health_status,
           activePlan,
           lastMethod,
+          streak > 0 ? `${streak}` : '0',
           a.birth_date ? new Date(a.birth_date + 'T12:00:00').toLocaleDateString('es-CL') : '',
           new Date(a.created_at).toLocaleDateString('es-CL'),
         ]

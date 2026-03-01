@@ -88,6 +88,12 @@ export default async function InventoryPage({ searchParams }: PageProps) {
               const totalValue = allItems.reduce((sum, i) => sum + (i.purchase_price ?? 0) * i.quantity, 0)
               return totalValue > 0 ? <span className="ml-2 text-green-600 font-medium">· Valor total: ${totalValue.toLocaleString('es-CL')}</span> : null
             })()}
+            {(() => {
+              const unassigned = allItems.filter((i) => !i.assigned_to).length
+              return unassigned > 0 ? (
+                <span className="ml-2 text-muted-foreground/70">· {unassigned} sin asignar</span>
+              ) : null
+            })()}
             {newestItem?.created_at && (
               <span className="ml-2 text-muted-foreground/60">
                 · Último: {newestItem.name} ({new Date(newestItem.created_at).toLocaleDateString('es-CL')})
