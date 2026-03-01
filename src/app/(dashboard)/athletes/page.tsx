@@ -199,6 +199,45 @@ export default async function AthletesPage({ searchParams }: PageProps) {
           ))}
         </div>
       )}
+
+      {/* Pagination */}
+      {total > 20 && (
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-muted-foreground">
+            Mostrando {(page - 1) * 20 + 1}–{Math.min(page * 20, total)} de {total}
+          </p>
+          <div className="flex gap-2">
+            {page > 1 && (
+              <Link
+                href={`/dashboard/athletes?${new URLSearchParams({
+                  ...(params.search  ? { search:  params.search }  : {}),
+                  ...(params.status  ? { status:  params.status }  : {}),
+                  ...(params.health  ? { health:  params.health }  : {}),
+                  page: String(page - 1),
+                }).toString()}`}
+              >
+                <button className="h-9 px-4 rounded-md border border-input bg-background text-sm hover:bg-accent transition-colors">
+                  ← Anterior
+                </button>
+              </Link>
+            )}
+            {page * 20 < total && (
+              <Link
+                href={`/dashboard/athletes?${new URLSearchParams({
+                  ...(params.search  ? { search:  params.search }  : {}),
+                  ...(params.status  ? { status:  params.status }  : {}),
+                  ...(params.health  ? { health:  params.health }  : {}),
+                  page: String(page + 1),
+                }).toString()}`}
+              >
+                <button className="h-9 px-4 rounded-md border border-input bg-background text-sm hover:bg-accent transition-colors">
+                  Siguiente →
+                </button>
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
