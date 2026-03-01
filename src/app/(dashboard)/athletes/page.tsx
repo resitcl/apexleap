@@ -21,6 +21,7 @@ interface PageProps {
     subStatus?: string
     page?: string
     sort?: string
+    inactive?: string
   }>
 }
 
@@ -28,6 +29,7 @@ export default async function AthletesPage({ searchParams }: PageProps) {
   const params = await searchParams
   const page = Number(params.page ?? 1)
   const sort = params.sort ?? ""
+  const showInactive = params.inactive === '1'
 
   let athletes: Awaited<ReturnType<typeof getAthletes>>["athletes"] = []
   let allAthletes: Awaited<ReturnType<typeof getAthletes>>["athletes"] = []
@@ -55,6 +57,15 @@ export default async function AthletesPage({ searchParams }: PageProps) {
     plans = plansData.map((p) => ({ id: p.id, name: p.name }))
   } catch (e) {
     error = e instanceof Error ? e.message : "Error al cargar alumnos"
+  }
+
+  const thirtyDaysAgoISO = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+  if (showInactive) {
+    athletes = athletes.filter((a) => {
+      const att = a.attendance as Array<{ checked_in_at: string }> | null
+      const last = (att ?? []).reduce<string | null>((max, r) => (!max || r.checked_in_at > max ? r.checked_in_at : max), null)
+      return a.status === 'active' && (!last || last < thirtyDaysAgoISO)
+    })
   }
 
   const statusCounts = {
@@ -127,9 +138,22 @@ export default async function AthletesPage({ searchParams }: PageProps) {
 
       {/* Search and Filters */}
       <div className="space-y-3">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <AthletesSearch />
-          {(params.search || params.status || params.health || params.planId || params.subStatus || sort) && (
+          <Link href={`/dashboard/athletes?${new URLSearchParams({
+            ...(params.search    ? { search:    params.search }    : {}),
+            ...(params.status    ? { status:    params.status }    : {}),
+            ...(params.health    ? { health:    params.health }    : {}),
+            ...(params.planId    ? { planId:    params.planId }    : {}),
+            ...(params.subStatus ? { subStatus: params.subStatus } : {}),
+            ...(sort             ? { sort }                        : {}),
+            ...(showInactive     ? {} : { inactive: '1' }),
+          }).toString()}`}>
+            <button className={`h-8 px-3 rounded-md border text-xs font-medium transition-colors ${
+              showInactive ? 'bg-orange-500 text-white border-orange-500' : 'bg-background border-input hover:bg-accent'
+            }`}>⚠ Sin asistencia 30d</button>
+          </Link>
+          {(params.search || params.status || params.health || params.planId || params.subStatus || sort || showInactive) && (
             <Link href="/dashboard/athletes"
               className="text-xs text-muted-foreground hover:text-foreground underline shrink-0">
               ✕ Limpiar filtros
