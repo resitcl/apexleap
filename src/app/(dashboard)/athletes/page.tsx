@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { UserPlus, Search } from "lucide-react"
 import { AthletesSearch } from "@/components/athletes/AthletesSearch"
 import { HealthStatusBadge } from "@/components/athletes/HealthStatusBadge"
+import { ExportAthletesButton } from "@/components/athletes/ExportAthletesButton"
 
 interface PageProps {
   searchParams: Promise<{
@@ -55,12 +56,15 @@ export default async function AthletesPage({ searchParams }: PageProps) {
           <h1 className="text-3xl font-bold">Alumnos</h1>
           <p className="text-muted-foreground">{total} registrados en total</p>
         </div>
-        <Link href="/dashboard/athletes/new">
-          <Button className="gap-2">
-            <UserPlus className="w-4 h-4" />
-            Nuevo Alumno
-          </Button>
-        </Link>
+        <div className="flex gap-2">
+          <ExportAthletesButton athletes={athletes} />
+          <Link href="/dashboard/athletes/new">
+            <Button className="gap-2">
+              <UserPlus className="w-4 h-4" />
+              Nuevo Alumno
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* KPI Cards */}
