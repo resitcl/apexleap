@@ -92,3 +92,39 @@ export async function toggleRule(id: string, is_active: boolean) {
   if (error) throw new Error(error.message)
   revalidatePath('/dashboard/rules')
 }
+
+export async function getRuleAffectedCounts() {
+  const clubId = await getClubId()
+  const supabase = await createClient()
+
+  const thirtyDaysAgo = new Date()
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+  const expiringSoon = new Date()
+  expiringSoon.setDate(expiringSoon.getDate() + 30)
+
+  const [overdueRes, injuredRes, expiredDocsRes] = await Promise.all([
+    supabase
+      .from('payments')
+      .select('athlete_id', { count: 'exact' })
+      .eq('club_id', clubId)
+      .eq('status', 'overdue'),
+    supabase
+      .from('athletes')
+      .select('id', { count: 'exact' })
+      .eq('club_id', clubId)
+      .neq('health_status', 'healthy'),
+    supabase
+      .from('documents')
+      .select('id', { count: 'exact' })
+      .eq('club_id', clubId)
+      .not('expires_at', 'is', null)
+      .lte('expires_at', expiringSoon.toISOString().split('T')[0]),
+  ])
+
+  return {
+    financial:     overdueRes.count     ?? 0,
+    discipline:    injuredRes.count     ?? 0,
+    documentation: expiredDocsRes.count ?? 0,
+    attendance:    0,
+  }
+}

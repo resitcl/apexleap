@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic"
 
-import { getRules } from "@/lib/actions/rules"
+import { getRules, getRuleAffectedCounts } from "@/lib/actions/rules"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ShieldCheck, ShieldAlert, ShieldOff } from "lucide-react"
@@ -28,10 +28,14 @@ const ACTION_ICONS = {
 
 export default async function RulesPage() {
   let rules: Awaited<ReturnType<typeof getRules>> = []
+  let affected = { financial: 0, discipline: 0, documentation: 0, attendance: 0 }
   let error: string | null = null
 
   try {
-    rules = await getRules()
+    ;[rules, affected] = await Promise.all([
+      getRules(),
+      getRuleAffectedCounts(),
+    ])
   } catch (e) {
     error = e instanceof Error ? e.message : 'Error al cargar reglas'
   }
@@ -118,6 +122,11 @@ export default async function RulesPage() {
                     {cfg.label}
                   </span>
                   <span className="text-xs text-muted-foreground">{typeRules.length} regla{typeRules.length !== 1 ? 's' : ''}</span>
+                  {affected[type as keyof typeof affected] > 0 && (
+                    <span className="text-xs font-medium bg-destructive/10 text-destructive px-2 py-0.5 rounded-full">
+                      {affected[type as keyof typeof affected]} afectados
+                    </span>
+                  )}
                 </div>
                 <div className="space-y-2">
                   {typeRules.map((rule) => {
