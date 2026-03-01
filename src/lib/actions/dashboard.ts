@@ -189,6 +189,21 @@ export async function getRecentActivity(limit = 10) {
   return items.slice(0, limit)
 }
 
+export async function getTodaySessions() {
+  const clubId = await getClubId()
+  const supabase = await createClient()
+  const todayDow = new Date().getDay()
+
+  const { data } = await supabase
+    .from('schedules')
+    .select('id, name, start_time, end_time')
+    .eq('club_id', clubId)
+    .eq('is_active', true)
+    .contains('day_of_week', [todayDow])
+
+  return (data ?? []).sort((a, b) => a.start_time.localeCompare(b.start_time))
+}
+
 export async function getMonthlyRevenue(months = 6) {
   const clubId = await getClubId()
   const supabase = await createClient()

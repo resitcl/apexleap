@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic"
 
 import Link from "next/link"
 import { redirect } from "next/navigation"
-import { getDashboardSummary, getRecentActivity, getMonthlyRevenue } from "@/lib/actions/dashboard"
+import { getDashboardSummary, getRecentActivity, getMonthlyRevenue, getTodaySessions } from "@/lib/actions/dashboard"
 import { checkUserHasClub } from "@/lib/actions/onboarding"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -23,12 +23,14 @@ export default async function DashboardPage() {
   }
   let activity: Awaited<ReturnType<typeof getRecentActivity>> = []
   let monthlyRevenue: Awaited<ReturnType<typeof getMonthlyRevenue>> = []
+  let todaySessions: Awaited<ReturnType<typeof getTodaySessions>> = []
 
   try {
-    ;[summary, activity, monthlyRevenue] = await Promise.all([
+    ;[summary, activity, monthlyRevenue, todaySessions] = await Promise.all([
       getDashboardSummary(),
       getRecentActivity(12),
       getMonthlyRevenue(6),
+      getTodaySessions(),
     ])
   } catch {
     // show zeros on error
@@ -89,7 +91,26 @@ export default async function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{summary.todayCheckIns}</div>
-            <p className="text-xs text-muted-foreground">asistencias válidas</p>
+            <p className="text-xs text-muted-foreground">
+              asistencias válidas
+              {todaySessions.length > 0 && (
+                <span className="ml-1 text-blue-600">· {todaySessions.length} sesión{todaySessions.length !== 1 ? 'es' : ''} hoy</span>
+              )}
+            </p>
+            {todaySessions.length > 0 && (
+              <div className="mt-1.5 flex flex-wrap gap-1">
+                {todaySessions.slice(0, 3).map((s) => (
+                  <Link key={s.id} href={`/dashboard/calendar/${s.id}`}>
+                    <span className="text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded font-medium hover:bg-blue-100 transition-colors">
+                      {s.start_time.slice(0, 5)} {s.name}
+                    </span>
+                  </Link>
+                ))}
+                {todaySessions.length > 3 && (
+                  <span className="text-[10px] text-muted-foreground">+{todaySessions.length - 3} más</span>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
 
