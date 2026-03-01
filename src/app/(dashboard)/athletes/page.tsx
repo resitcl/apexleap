@@ -20,12 +20,14 @@ interface PageProps {
     planId?: string
     subStatus?: string
     page?: string
+    sort?: string
   }>
 }
 
 export default async function AthletesPage({ searchParams }: PageProps) {
   const params = await searchParams
   const page = Number(params.page ?? 1)
+  const sort = params.sort ?? ""
 
   let athletes: Awaited<ReturnType<typeof getAthletes>>["athletes"] = []
   let allAthletes: Awaited<ReturnType<typeof getAthletes>>["athletes"] = []
@@ -40,6 +42,7 @@ export default async function AthletesPage({ searchParams }: PageProps) {
       healthStatus: params.health,
       planId: params.planId,
       subscriptionStatus: params.subStatus,
+      sort: sort || undefined,
     }
     const [result, allResult, plansData] = await Promise.all([
       getAthletes({ ...filterParams, page, limit: 20 }),
@@ -163,6 +166,29 @@ export default async function AthletesPage({ searchParams }: PageProps) {
             }).toString()}`}>
               <button className={`h-7 px-2.5 rounded-md border text-xs font-medium transition-colors ${
                 (value === '' && !params.subStatus) || params.subStatus === value
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'bg-background border-input hover:bg-accent'
+              }`}>{label}</button>
+            </Link>
+          ))}
+        </div>
+        <div className="flex flex-wrap gap-2 items-center">
+          <span className="text-xs text-muted-foreground font-medium">Orden:</span>
+          {([
+            { value: '', label: 'Nombre A-Z' },
+            { value: 'created_at', label: '🕐 Más recientes' },
+            { value: 'status', label: '📊 Estado' },
+          ]).map(({ value, label }) => (
+            <Link key={value} href={`/dashboard/athletes?${new URLSearchParams({
+              ...(params.search    ? { search:    params.search }    : {}),
+              ...(params.status    ? { status:    params.status }    : {}),
+              ...(params.health    ? { health:    params.health }    : {}),
+              ...(params.planId    ? { planId:    params.planId }    : {}),
+              ...(params.subStatus ? { subStatus: params.subStatus } : {}),
+              ...(value            ? { sort: value }                 : {}),
+            }).toString()}`}>
+              <button className={`h-7 px-2.5 rounded-md border text-xs font-medium transition-colors ${
+                (value === '' && !sort) || sort === value
                   ? 'bg-primary text-primary-foreground border-primary'
                   : 'bg-background border-input hover:bg-accent'
               }`}>{label}</button>

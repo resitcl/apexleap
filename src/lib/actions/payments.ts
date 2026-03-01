@@ -45,6 +45,7 @@ export async function getPayments(params?: {
   to?: string
   amountMin?: number
   amountMax?: number
+  paymentMethod?: string
 }) {
   const clubId = await getClubId()
   const supabase = await createClient()
@@ -68,6 +69,7 @@ export async function getPayments(params?: {
   if (params?.to)        query = query.lte('due_date', params.to)
   if (params?.amountMin != null) query = query.gte('amount', params.amountMin)
   if (params?.amountMax != null) query = query.lte('amount', params.amountMax)
+  if (params?.paymentMethod)     query = query.eq('payment_method', params.paymentMethod)
   if (params?.athleteName) {
     const { data: athlData } = await supabase
       .from('athletes').select('id').eq('club_id', clubId)

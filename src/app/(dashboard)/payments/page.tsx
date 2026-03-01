@@ -15,7 +15,7 @@ import { DeletePaymentButton } from "@/components/payments/DeletePaymentButton"
 import { EditPaymentButton } from "@/components/payments/EditPaymentButton"
 
 interface PageProps {
-  searchParams: Promise<{ status?: string; page?: string; from?: string; to?: string; athleteId?: string; search?: string; athleteName?: string; amountMin?: string; amountMax?: string }>
+  searchParams: Promise<{ status?: string; page?: string; from?: string; to?: string; athleteId?: string; search?: string; athleteName?: string; amountMin?: string; amountMax?: string; paymentMethod?: string }>
 }
 
 const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
@@ -34,8 +34,9 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
   const athleteId   = params.athleteId   ?? ""
   const search      = params.search      ?? ""
   const athleteName = params.athleteName ?? ""
-  const amountMin   = params.amountMin   ?? ""
-  const amountMax   = params.amountMax   ?? ""
+  const amountMin      = params.amountMin      ?? ""
+  const amountMax      = params.amountMax      ?? ""
+  const paymentMethod  = params.paymentMethod  ?? ""
 
   let payments: Awaited<ReturnType<typeof getPayments>>["payments"] = []
   let allPayments: Awaited<ReturnType<typeof getPayments>>["payments"] = []
@@ -45,8 +46,8 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
 
   try {
     const [result, allResult, summaryResult] = await Promise.all([
-      getPayments({ status: params.status, page, limit: 25, from: from || undefined, to: to || undefined, athleteId: athleteId || undefined, search: search || undefined, athleteName: athleteName || undefined, amountMin: amountMin ? Number(amountMin) : undefined, amountMax: amountMax ? Number(amountMax) : undefined }),
-      getPayments({ status: params.status, page: 1, limit: 1000, from: from || undefined, to: to || undefined, athleteId: athleteId || undefined, search: search || undefined, athleteName: athleteName || undefined, amountMin: amountMin ? Number(amountMin) : undefined, amountMax: amountMax ? Number(amountMax) : undefined }),
+      getPayments({ status: params.status, page, limit: 25, from: from || undefined, to: to || undefined, athleteId: athleteId || undefined, search: search || undefined, athleteName: athleteName || undefined, amountMin: amountMin ? Number(amountMin) : undefined, amountMax: amountMax ? Number(amountMax) : undefined, paymentMethod: paymentMethod || undefined }),
+      getPayments({ status: params.status, page: 1, limit: 1000, from: from || undefined, to: to || undefined, athleteId: athleteId || undefined, search: search || undefined, athleteName: athleteName || undefined, amountMin: amountMin ? Number(amountMin) : undefined, amountMax: amountMax ? Number(amountMax) : undefined, paymentMethod: paymentMethod || undefined }),
       getPaymentSummary(),
     ])
     payments = result.payments
@@ -181,11 +182,25 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
             <input type="number" name="amountMax" defaultValue={amountMax} min={0} placeholder="∞"
               className="h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring w-28" />
           </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs text-muted-foreground font-medium">Método</label>
+            <select name="paymentMethod" defaultValue={paymentMethod}
+              className="h-9 px-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring">
+              <option value="">Todos</option>
+              <option value="cash">Efectivo</option>
+              <option value="transfer">Transferencia</option>
+              <option value="webpay">Webpay</option>
+              <option value="flow">Flow</option>
+              <option value="mercadopago">MercadoPago</option>
+              <option value="khipu">Khipu</option>
+              <option value="other">Otro</option>
+            </select>
+          </div>
           <button type="submit"
             className="h-9 px-4 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
             Filtrar
           </button>
-          {(from || to || search || athleteName || amountMin || amountMax) && (
+          {(from || to || search || athleteName || amountMin || amountMax || paymentMethod) && (
             <Link href={`/dashboard/payments${params.status ? `?status=${params.status}` : ''}`}
               className="h-9 px-3 rounded-md border border-input bg-background text-sm font-medium hover:bg-accent transition-colors flex items-center">
               ✕ Limpiar
@@ -290,6 +305,7 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
                 ...(to                ? { to }                            : {}),
                 ...(amountMin         ? { amountMin }                     : {}),
                 ...(amountMax         ? { amountMax }                     : {}),
+                ...(paymentMethod     ? { paymentMethod }                 : {}),
                 page: String(page - 1),
               }).toString()}`}>
                 <button className="h-9 px-4 rounded-md border border-input bg-background text-sm hover:bg-accent transition-colors">← Anterior</button>
@@ -304,6 +320,7 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
                 ...(to                ? { to }                            : {}),
                 ...(amountMin         ? { amountMin }                     : {}),
                 ...(amountMax         ? { amountMax }                     : {}),
+                ...(paymentMethod     ? { paymentMethod }                 : {}),
                 page: String(page + 1),
               }).toString()}`}>
                 <button className="h-9 px-4 rounded-md border border-input bg-background text-sm hover:bg-accent transition-colors">Siguiente →</button>

@@ -46,6 +46,7 @@ export async function getAthletes(params?: {
   subscriptionStatus?: string
   page?: number
   limit?: number
+  sort?: string
 }) {
   const clubId = await getClubId()
   const supabase = await createClient()
@@ -59,7 +60,12 @@ export async function getAthletes(params?: {
     .from('athletes')
     .select('*, subscriptions(id, status, plan_id, plans(name)), payments(id, status, paid_at), attendance(id, checked_in_at)', { count: 'exact' })
     .eq('club_id', clubId)
-    .order('name', { ascending: true })
+    .order(
+      params?.sort === 'created_at' ? 'created_at' :
+      params?.sort === 'status'     ? 'status' :
+      'name',
+      { ascending: params?.sort !== 'created_at' }
+    )
     .range(from, to)
 
   if (params?.search) {

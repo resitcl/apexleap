@@ -28,23 +28,33 @@ const STATUS_LABELS: Record<string, string> = {
 }
 
 interface PageProps {
-  searchParams: Promise<{ category?: string; status?: string; search?: string }>
+  searchParams: Promise<{ category?: string; status?: string; search?: string; expiring?: string }>
 }
 
 export default async function DocumentsPage({ searchParams }: PageProps) {
-  const { category, status, search } = await searchParams
+  const { category, status, search, expiring } = await searchParams
 
   let docs: Awaited<ReturnType<typeof getDocuments>> = []
   let athleteList: { id: string; name: string }[] = []
+
+  const now = new Date()
+  const expiryBefore = expiring
+    ? new Date(now.getTime() + Number(expiring) * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+    : undefined
 
   try {
     const [d, a] = await Promise.all([
       getDocuments({ category, status, search: search || undefined }),
       getAthletes({ limit: 200 }),
     ])
-    docs = d
+      docs = d
     athleteList = a.athletes.map((x) => ({ id: x.id, name: x.name }))
   } catch { /* empty */ }
+
+  if (expiryBefore) {
+    const todayStr = new Date().toISOString().split('T')[0]
+    docs = docs.filter((d) => d.expiry_date && d.expiry_date >= todayStr && d.expiry_date <= expiryBefore)
+  }
 
   const today = new Date().toISOString().split('T')[0]
   const expiringSoon = docs.filter((d) => d.expiry_date && d.expiry_date > today &&
@@ -98,10 +108,26 @@ export default async function DocumentsPage({ searchParams }: PageProps) {
       </form>
 
       <div className="flex flex-wrap gap-2">
+        {/* Expiry soon filter */}
+        {[['7', '⚡ Vence en 7 días'], ['30', '📅 Vence en 30 días']].map(([val, lbl]) => (
+          <Link key={val} href={`/dashboard/documents?${new URLSearchParams({
+            ...(category ? { category } : {}),
+            ...(status   ? { status }   : {}),
+            ...(search   ? { search }   : {}),
+            ...(expiring === val ? {} : { expiring: val }),
+          }).toString()}`}>
+            <button className={`h-8 px-3 rounded-md border text-xs font-medium transition-colors ${
+              expiring === val ? 'bg-yellow-500 text-white border-yellow-500' : 'bg-background border-input hover:bg-accent'
+            }`}>{lbl}</button>
+          </Link>
+        ))}
+      </div>
+
+      <div className="flex flex-wrap gap-2">
         {(['', 'active', 'pending', 'expired'] as const).map((s) => (
           <Link
             key={s}
-            href={`/dashboard/documents?${new URLSearchParams({ ...(category ? { category } : {}), ...(s ? { status: s } : {}) }).toString()}`}
+            href={`/dashboard/documents?${new URLSearchParams({ ...(category ? { category } : {}), ...(expiring ? { expiring } : {}), ...(s ? { status: s } : {}) }).toString()}`}
           >
             <button className={`h-8 px-3 rounded-md border text-xs font-medium transition-colors ${
               (s === '' && !status) || status === s
