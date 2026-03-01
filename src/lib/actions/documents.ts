@@ -63,6 +63,16 @@ export async function updateDocument(id: string, input: { name?: string; categor
   revalidatePath('/dashboard/documents')
 }
 
+export async function assignDocumentAthlete(id: string, athleteId: string | null) {
+  const { clubId } = await getClubId()
+  const supabase = await createClient()
+  const { error } = await supabase.from('documents')
+    .update({ athlete_id: athleteId, updated_at: new Date().toISOString() })
+    .eq('id', id).eq('club_id', clubId)
+  if (error) throw new Error(error.message)
+  revalidatePath('/dashboard/documents')
+}
+
 export async function updateDocumentStatus(id: string, status: 'pending' | 'active' | 'expired') {
   const { clubId } = await getClubId()
   const supabase = await createClient()

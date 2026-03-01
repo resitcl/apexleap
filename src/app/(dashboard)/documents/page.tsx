@@ -9,6 +9,7 @@ import { FolderOpen, AlertTriangle, ExternalLink } from "lucide-react"
 import { NewDocumentForm } from "@/components/documents/NewDocumentForm"
 import { DeleteDocumentButton } from "@/components/documents/DeleteDocumentButton"
 import { EditDocumentButton } from "@/components/documents/EditDocumentButton"
+import { AssignDocumentAthleteButton } from "@/components/documents/AssignDocumentAthleteButton"
 import { ExportDocumentsButton } from "@/components/documents/ExportDocumentsButton"
 
 const CATEGORY_LABELS: Record<string, { label: string; icon: string }> = {
@@ -164,6 +165,12 @@ export default async function DocumentsPage({ searchParams }: PageProps) {
                           <ExternalLink className="w-4 h-4" />
                         </a>
                       )}
+                      <AssignDocumentAthleteButton
+                        documentId={doc.id}
+                        documentName={doc.name}
+                        currentAthleteId={athlete?.id ?? null}
+                        currentAthleteName={athlete?.name ?? null}
+                      />
                       <EditDocumentButton doc={doc} />
                       <DeleteDocumentButton documentId={doc.id} />
                     </div>
