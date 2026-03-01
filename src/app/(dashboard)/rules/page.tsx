@@ -1,8 +1,11 @@
+export const dynamic = "force-dynamic"
+
 import { getRules } from "@/lib/actions/rules"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ShieldCheck, ShieldAlert, ShieldOff } from "lucide-react"
 import { ToggleRuleButton } from "@/components/rules/ToggleRuleButton"
+import { NewRuleForm } from "@/components/rules/NewRuleForm"
 
 const TYPE_CONFIG: Record<string, { label: string; color: string }> = {
   financial:     { label: 'Financiero',   color: 'bg-green-100 text-green-700' },
@@ -45,9 +48,12 @@ export default async function RulesPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Reglas</h1>
-        <p className="text-muted-foreground">Motor de bloqueos automáticos del club</p>
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="text-3xl font-bold">Reglas</h1>
+          <p className="text-muted-foreground">Motor de bloqueos automáticos del club</p>
+        </div>
+        <NewRuleForm />
       </div>
 
       {/* KPIs */}

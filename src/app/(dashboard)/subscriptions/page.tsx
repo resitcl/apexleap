@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic"
+
 import Link from "next/link"
 import { getSubscriptions, getSubscriptionStats } from "@/lib/actions/subscriptions"
 import { Button } from "@/components/ui/button"

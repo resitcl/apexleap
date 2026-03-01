@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic"
+
 import { getClubSettings } from "@/lib/actions/settings"
 import { ClubSettingsForm } from "@/components/settings/ClubSettingsForm"
 import { Card, CardContent } from "@/components/ui/card"
