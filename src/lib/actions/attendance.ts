@@ -43,20 +43,31 @@ export async function getAttendanceHistory(params?: {
   athleteId?: string
   scheduleId?: string
   days?: number
+  from?: string
+  to?: string
+  limit?: number
+  page?: number
 }) {
   const clubId = await getClubId()
   const supabase = await createClient()
 
-  const days = params?.days ?? 30
-  const since = new Date()
-  since.setDate(since.getDate() - days)
+  const limit = params?.limit ?? 50
+  const page  = params?.page  ?? 1
+  const from  = params?.from
+    ? new Date(params.from + 'T00:00:00').toISOString()
+    : (() => { const d = new Date(); d.setDate(d.getDate() - (params?.days ?? 30)); return d.toISOString() })()
+  const to    = params?.to
+    ? new Date(params.to + 'T23:59:59').toISOString()
+    : new Date().toISOString()
 
   let query = supabase
     .from('attendance')
     .select('*, athletes(id, name, photo_url)', { count: 'exact' })
     .eq('club_id', clubId)
-    .gte('checked_in_at', since.toISOString())
+    .gte('checked_in_at', from)
+    .lte('checked_in_at', to)
     .order('checked_in_at', { ascending: false })
+    .range((page - 1) * limit, page * limit - 1)
 
   if (params?.athleteId) query = query.eq('athlete_id', params.athleteId)
   if (params?.scheduleId) query = query.eq('schedule_id', params.scheduleId)
