@@ -61,7 +61,13 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Pagos</h1>
-          <p className="text-muted-foreground">{total} transacciones</p>
+          <p className="text-muted-foreground">
+            {total} transacciones
+            {allPayments.length > 0 && (() => {
+              const paidTotal = allPayments.filter(p => p.status === 'paid').reduce((s, p) => s + Number(p.amount), 0)
+              return paidTotal > 0 ? ` · $${paidTotal.toLocaleString('es-CL')} cobrado` : null
+            })()}
+          </p>
         </div>
         <div className="flex gap-2 flex-wrap">
           {payments.filter(p => p.status === 'pending' || p.status === 'overdue').length > 1 && (

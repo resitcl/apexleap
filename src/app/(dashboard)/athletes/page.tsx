@@ -247,14 +247,22 @@ export default async function AthletesPage({ searchParams }: PageProps) {
 
                     <div className="flex items-center gap-2 shrink-0">
                       {(() => {
-                        const pmts = athlete.payments as Array<{ status: string }> | null
+                        const pmts = athlete.payments as Array<{ status: string; paid_at: string | null }> | null
                         const overdue = pmts?.filter((p) => p.status === 'overdue').length ?? 0
                         const pending = pmts?.filter((p) => p.status === 'pending').length ?? 0
+                        const lastPaid = pmts
+                          ?.filter((p) => p.status === 'paid' && p.paid_at)
+                          .sort((a, b) => new Date(b.paid_at!).getTime() - new Date(a.paid_at!).getTime())[0]
                         if (overdue > 0) return (
                           <Badge variant="destructive" className="text-xs">{overdue} vencido{overdue > 1 ? 's' : ''}</Badge>
                         )
                         if (pending > 0) return (
                           <Badge variant="secondary" className="text-xs">{pending} pendiente{pending > 1 ? 's' : ''}</Badge>
+                        )
+                        if (lastPaid?.paid_at) return (
+                          <span className="text-xs text-muted-foreground">
+                            Pagó {new Date(lastPaid.paid_at).toLocaleDateString('es-CL', { day: '2-digit', month: 'short' })}
+                          </span>
                         )
                         return null
                       })()}
