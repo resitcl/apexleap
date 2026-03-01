@@ -1,138 +1,36 @@
-# ApexLeap 🏆
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
-Plataforma SaaS de gestión integral para clubes deportivos amateur.
+## Getting Started
 
-## 🎯 Descripción
-
-ApexLeap es un software **multi-tenant** y **agnóstico al deporte** diseñado para resolver los principales dolores administrativos de clubes deportivos:
-
-- Desorden en el cobro de cuotas
-- Falta de registro centralizado de socios
-- Conflictos en reserva de espacios
-- Dificultad para controlar asistencia
-
-## 🛠️ Stack Tecnológico
-
-| Tecnología | Uso |
-|------------|-----|
-| [Next.js 14+](https://nextjs.org/) | Frontend (App Router) |
-| [Supabase](https://supabase.com/) | Base de datos PostgreSQL |
-| [Clerk](https://clerk.com/) | Autenticación |
-| [TailwindCSS](https://tailwindcss.com/) | Estilos |
-| [shadcn/ui](https://ui.shadcn.com/) | Componentes UI |
-| [Lucide](https://lucide.dev/) | Iconos |
-
-## 📁 Estructura del Proyecto
-
-```
-/app                    # App Router de Next.js
-  /(auth)              # Rutas de autenticación
-  /(dashboard)         # Rutas protegidas
-  /api                 # API Routes
-/components
-  /ui                  # Componentes shadcn/ui
-  /forms               # Formularios reutilizables
-  /layouts             # Layouts compartidos
-/lib
-  /supabase            # Cliente y helpers
-  /actions             # Server Actions
-  /utils               # Utilidades
-/types                 # TypeScript types
-```
-
-## 🚀 Inicio Rápido
-
-### Prerrequisitos
-
-- Node.js 18+
-- pnpm (recomendado) o npm
-- Cuenta en Supabase
-- Cuenta en Clerk
-
-### Instalación
+First, run the development server:
 
 ```bash
-# Clonar el repositorio
-git clone https://github.com/tu-usuario/apexleap.git
-cd apexleap
-
-# Instalar dependencias
-pnpm install
-
-# Configurar variables de entorno
-cp .env.example .env.local
-# Editar .env.local con tus credenciales
-
-# Ejecutar en desarrollo
+npm run dev
+# or
+yarn dev
+# or
 pnpm dev
+# or
+bun dev
 ```
 
-### Variables de Entorno
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-```env
-# Supabase
-NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_ANON_KEY=
-SUPABASE_SERVICE_ROLE_KEY=
+You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
-# Clerk
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
-CLERK_SECRET_KEY=
-NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
-NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
-NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/dashboard
-NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/dashboard
-```
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
-## 📖 Documentación
+## Learn More
 
-- [PRODUCT_SPEC.md](./PRODUCT_SPEC.md) - Especificación del producto
-- [ARCHITECTURE.md](./ARCHITECTURE.md) - Arquitectura técnica
-- [.windsurfrules](./.windsurfrules) - Reglas del proyecto para Windsurf
+To learn more about Next.js, take a look at the following resources:
 
-## 🔐 Multi-Tenancy
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
 
-**REGLA CRÍTICA**: Todo dato pertenece a un `club_id`.
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
-- Cada query filtra por `club_id` del usuario autenticado
-- Row Level Security (RLS) habilitado en Supabase
-- Nunca exponer datos de un club a otro
+## Deploy on Vercel
 
-## 👥 Roles del Sistema
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
-| Rol | Descripción |
-|-----|-------------|
-| Super Admin | Dueños del SaaS |
-| Admin de Club | Tesorero/Presidente |
-| Staff/Coach | Entrenadores, personal |
-| Socio/Jugador | Miembros del club |
-
-## ✅ Funcionalidades MVP
-
-- [x] Gestión de Socios (CRUD + importación Excel)
-- [x] Sistema de Pagos (Pendiente, Pagado, Vencido)
-- [x] Calendario de Recursos (Reservas)
-- [x] Control de Asistencia
-
-## 🗺️ Roadmap
-
-- [ ] Integración WhatsApp Business API
-- [ ] Pasarelas de pago (MercadoPago, Stripe)
-- [ ] Exportación de reportes (PDF, Excel)
-- [ ] Dashboard con analytics avanzados
-
-## 🤝 Contribuir
-
-1. Fork el proyecto
-2. Crea tu branch (`git checkout -b feature/nueva-funcionalidad`)
-3. Commit tus cambios (`git commit -m 'feat: agregar nueva funcionalidad'`)
-4. Push al branch (`git push origin feature/nueva-funcionalidad`)
-5. Abre un Pull Request
-
-## 📝 Licencia
-
-Este proyecto es privado y propietario.
-
----
-
-Desarrollado con ❤️ para clubes deportivos amateur.
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
