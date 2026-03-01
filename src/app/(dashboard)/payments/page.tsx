@@ -11,6 +11,7 @@ import { PaymentsFilter } from "@/components/payments/PaymentsFilter"
 import { MarkAsPaidButton } from "@/components/payments/MarkAsPaidButton"
 import { ExportPaymentsButton } from "@/components/payments/ExportPaymentsButton"
 import { BulkMarkAsPaidButton } from "@/components/payments/BulkMarkAsPaidButton"
+import { DeletePaymentButton } from "@/components/payments/DeletePaymentButton"
 
 interface PageProps {
   searchParams: Promise<{ status?: string; page?: string; from?: string; to?: string; athleteId?: string }>
@@ -221,6 +222,7 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
                       {payment.status === 'pending' || payment.status === 'overdue' ? (
                         <MarkAsPaidButton paymentId={payment.id} />
                       ) : null}
+                      <DeletePaymentButton paymentId={payment.id} />
                     </div>
                   </div>
                 </CardContent>

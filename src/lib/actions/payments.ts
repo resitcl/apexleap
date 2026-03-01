@@ -156,6 +156,15 @@ export async function updatePaymentStatus(
   return data
 }
 
+export async function deletePayment(id: string) {
+  const clubId = await getClubId()
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('payments').delete().eq('id', id).eq('club_id', clubId)
+  if (error) throw new Error(error.message)
+  revalidatePath('/dashboard/payments')
+}
+
 export async function bulkMarkAsPaid(ids: string[], method = 'manual') {
   const clubId = await getClubId()
   const supabase = await createClient()
