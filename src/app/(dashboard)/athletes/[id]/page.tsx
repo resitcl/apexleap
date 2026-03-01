@@ -49,7 +49,8 @@ export default async function AthleteDetailPage({ params }: PageProps) {
     status: string; expiry_date: string | null
   }>
   const subscriptions = (athlete.subscriptions ?? []) as Array<{
-    id: string; status: string; plans: { name: string } | null
+    id: string; status: string; start_date: string; end_date: string | null;
+    plans: { name: string; billing_cycle: string } | null
   }>
 
   const activeSub = subscriptions.find((s) => s.status === "active")
@@ -134,10 +135,20 @@ export default async function AthleteDetailPage({ params }: PageProps) {
                 )}
               </div>
               {activeSub && (
-                <div className="mt-2">
+                <div className="mt-2 flex items-center gap-2 flex-wrap">
                   <Badge variant="outline" className="text-xs">
                     Plan: {activeSub.plans?.name ?? "—"}
                   </Badge>
+                  {activeSub.end_date && (() => {
+                    const daysLeft = Math.ceil((new Date(activeSub.end_date!).getTime() - Date.now()) / 86400000)
+                    return daysLeft >= 0 ? (
+                      <Badge variant={daysLeft <= 7 ? "destructive" : "secondary"} className="text-xs">
+                        {daysLeft === 0 ? 'Vence hoy' : `${daysLeft}d restantes`}
+                      </Badge>
+                    ) : (
+                      <Badge variant="destructive" className="text-xs">Vencida</Badge>
+                    )
+                  })()}
                 </div>
               )}
               {athlete.notes && (
