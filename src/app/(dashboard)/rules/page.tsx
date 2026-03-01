@@ -7,6 +7,7 @@ import { ShieldCheck, ShieldAlert, ShieldOff } from "lucide-react"
 import Link from "next/link"
 import { ToggleRuleButton } from "@/components/rules/ToggleRuleButton"
 import { NewRuleForm } from "@/components/rules/NewRuleForm"
+import { ExportRulesButton } from "@/components/rules/ExportRulesButton"
 
 const TYPE_CONFIG: Record<string, { label: string; color: string }> = {
   financial:     { label: 'Financiero',   color: 'bg-green-100 text-green-700' },
@@ -77,7 +78,10 @@ export default async function RulesPage({ searchParams }: PageProps) {
           <h1 className="text-3xl font-bold">Reglas</h1>
           <p className="text-muted-foreground">Motor de bloqueos automáticos del club</p>
         </div>
-        <NewRuleForm />
+        <div className="flex gap-2">
+          <ExportRulesButton rules={rules.map((r) => ({ ...r, condition: r.condition as Record<string, unknown> }))} />
+          <NewRuleForm />
+        </div>
       </div>
 
       {/* Type filter */}
