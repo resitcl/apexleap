@@ -7,6 +7,7 @@ import Link from "next/link"
 import { Trophy, MapPin, Calendar } from "lucide-react"
 import { NewCompetitionForm } from "@/components/competitions/NewCompetitionForm"
 import { DeleteCompetitionButton } from "@/components/competitions/DeleteCompetitionButton"
+import { ExportCompetitionsButton } from "@/components/competitions/ExportCompetitionsButton"
 
 const TYPE_LABELS: Record<string, string> = {
   tournament: "Torneo", league: "Liga", friendly: "Amistoso", championship: "Campeonato",
@@ -49,7 +50,10 @@ export default async function CompetitionsPage({ searchParams }: PageProps) {
           <h1 className="text-3xl font-bold">Competencias</h1>
           <p className="text-muted-foreground">Ligas, torneos y nóminas matchday</p>
         </div>
-        <NewCompetitionForm />
+        <div className="flex gap-2">
+          <ExportCompetitionsButton competitions={competitions} />
+          <NewCompetitionForm />
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">

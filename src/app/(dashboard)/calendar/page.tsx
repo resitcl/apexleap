@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Plus, Clock, MapPin, Users, Pencil } from "lucide-react"
 import { DeleteScheduleButton } from "@/components/calendar/DeleteScheduleButton"
+import { ExportSchedulesButton } from "@/components/calendar/ExportSchedulesButton"
 
 const DAYS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"]
 const DAY_COLORS = [
@@ -53,12 +54,18 @@ export default async function CalendarPage() {
           <h1 className="text-3xl font-bold">Calendario</h1>
           <p className="text-muted-foreground">{schedules.length} sesiones configuradas</p>
         </div>
-        <Link href="/dashboard/calendar/new">
-          <Button className="gap-2">
-            <Plus className="w-4 h-4" />
-            Nueva Sesión
-          </Button>
-        </Link>
+        <div className="flex gap-2">
+          <ExportSchedulesButton schedules={schedules.map((s) => ({
+            ...s,
+            day_of_week: s.day_of_week as number[],
+          }))} />
+          <Link href="/dashboard/calendar/new">
+            <Button className="gap-2">
+              <Plus className="w-4 h-4" />
+              Nueva Sesión
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {error ? (
