@@ -234,6 +234,40 @@ export default async function AthleteDetailPage({ params }: PageProps) {
                 </div>
               )}
             </div>
+            <Separator />
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs text-muted-foreground">Historial de Suscripciones</p>
+                <Link href={`/dashboard/subscriptions?athleteId=${id}`}
+                  className="text-xs text-primary hover:underline">Ver →</Link>
+              </div>
+              {subscriptions.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Sin suscripciones</p>
+              ) : (
+                <div className="space-y-1.5">
+                  {subscriptions.slice(0, 5).map((s) => (
+                    <div key={s.id} className="flex items-center justify-between gap-2 text-xs">
+                      <span className="font-medium truncate">{s.plans?.name ?? "Plan"}</span>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span className="text-muted-foreground">
+                          {new Date(s.start_date).toLocaleDateString("es-CL")}
+                          {s.end_date ? ` → ${new Date(s.end_date).toLocaleDateString("es-CL")}` : ""}
+                        </span>
+                        <Badge variant={
+                          s.status === "active" ? "default" :
+                          s.status === "expired" ? "outline" :
+                          s.status === "cancelled" ? "secondary" : "outline"
+                        } className="text-xs">
+                          {s.status === "active" ? "Activa" :
+                           s.status === "expired" ? "Expirada" :
+                           s.status === "cancelled" ? "Cancelada" : s.status}
+                        </Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
 
