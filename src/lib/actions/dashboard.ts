@@ -340,3 +340,32 @@ export async function getMonthlyRevenue(months = 6) {
 
   return result
 }
+
+export async function getExpiredDocuments() {
+  const clubId = await getClubId()
+  const supabase = await createClient()
+
+  const today = new Date().toISOString().split('T')[0]
+  const in30Days = new Date()
+  in30Days.setDate(in30Days.getDate() + 30)
+  const thirtyDaysLater = in30Days.toISOString().split('T')[0]
+
+  const { data } = await supabase
+    .from('documents')
+    .select('id, name, category, expiry_date, status, athletes(id, name)')
+    .eq('club_id', clubId)
+    .not('expiry_date', 'is', null)
+    .lte('expiry_date', thirtyDaysLater)
+    .order('expiry_date', { ascending: true })
+    .limit(10)
+
+  return (data ?? []).map((d) => ({
+    id: d.id as string,
+    name: d.name as string,
+    category: d.category as string,
+    expiry_date: d.expiry_date as string,
+    status: d.status as string,
+    isExpired: (d.expiry_date as string) < today,
+    athletes: (Array.isArray(d.athletes) ? d.athletes[0] : d.athletes) as { id: string; name: string } | null,
+  }))
+}

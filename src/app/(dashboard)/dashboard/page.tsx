@@ -2,12 +2,12 @@ export const dynamic = "force-dynamic"
 
 import Link from "next/link"
 import { redirect } from "next/navigation"
-import { getDashboardSummary, getRecentActivity, getMonthlyRevenue, getTodaySessions, getOverdueAlerts, getUpcomingSchedules, getExpiringSubscriptions, getWeeklyAttendanceRate } from "@/lib/actions/dashboard"
+import { getDashboardSummary, getRecentActivity, getMonthlyRevenue, getTodaySessions, getOverdueAlerts, getUpcomingSchedules, getExpiringSubscriptions, getWeeklyAttendanceRate, getExpiredDocuments } from "@/lib/actions/dashboard"
 import { checkUserHasClub } from "@/lib/actions/onboarding"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Users, DollarSign, ClipboardCheck, AlertCircle, UserPlus, CreditCard, QrCode, UserCheck, TrendingUp } from "lucide-react"
+import { Users, DollarSign, ClipboardCheck, AlertCircle, UserPlus, CreditCard, QrCode, UserCheck, TrendingUp, FileWarning } from "lucide-react"
 
 export default async function DashboardPage() {
   const hasClub = await checkUserHasClub().catch(() => false)
@@ -28,9 +28,10 @@ export default async function DashboardPage() {
   let upcomingSchedules: Awaited<ReturnType<typeof getUpcomingSchedules>> = []
   let expiringSubscriptions: Awaited<ReturnType<typeof getExpiringSubscriptions>> = []
   let weeklyAttendance = { total: 0, valid: 0, rate: 0 }
+  let expiredDocs: Awaited<ReturnType<typeof getExpiredDocuments>> = []
 
   try {
-    ;[summary, activity, monthlyRevenue, todaySessions, overdueAlerts, upcomingSchedules, expiringSubscriptions, weeklyAttendance] = await Promise.all([
+    ;[summary, activity, monthlyRevenue, todaySessions, overdueAlerts, upcomingSchedules, expiringSubscriptions, weeklyAttendance, expiredDocs] = await Promise.all([
       getDashboardSummary(),
       getRecentActivity(12),
       getMonthlyRevenue(6),
@@ -39,6 +40,7 @@ export default async function DashboardPage() {
       getUpcomingSchedules(),
       getExpiringSubscriptions(),
       getWeeklyAttendanceRate(),
+      getExpiredDocuments(),
     ])
   } catch {
     // show zeros on error
@@ -178,6 +180,33 @@ export default async function DashboardPage() {
           </Card>
         </Link>
       </div>
+
+      {expiredDocs.length > 0 && (
+        <Link href="/dashboard/documents">
+          <Card className="border-yellow-200 bg-yellow-50 hover:bg-yellow-100 transition-colors cursor-pointer">
+            <CardContent className="py-3">
+              <div className="flex items-start gap-3">
+                <FileWarning className="w-5 h-5 text-yellow-600 shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-yellow-800">
+                    {expiredDocs.filter((d) => d.isExpired).length > 0 && (
+                      <span>{expiredDocs.filter((d) => d.isExpired).length} documento{expiredDocs.filter((d) => d.isExpired).length > 1 ? 's' : ''} vencido{expiredDocs.filter((d) => d.isExpired).length > 1 ? 's' : ''}</span>
+                    )}
+                    {expiredDocs.filter((d) => d.isExpired).length > 0 && expiredDocs.filter((d) => !d.isExpired).length > 0 && ' · '}
+                    {expiredDocs.filter((d) => !d.isExpired).length > 0 && (
+                      <span>{expiredDocs.filter((d) => !d.isExpired).length} vence{expiredDocs.filter((d) => !d.isExpired).length === 1 ? '' : 'n'} en 30 días</span>
+                    )}
+                  </p>
+                  <p className="text-xs text-yellow-700 mt-0.5">
+                    {expiredDocs.slice(0, 3).map((d) => `${d.name}${d.athletes ? ` (${d.athletes.name})` : ''}`).join(' · ')}
+                    {expiredDocs.length > 3 && ` +${expiredDocs.length - 3} más`}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+      )}
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {/* Semáforo de Disponibilidad */}
