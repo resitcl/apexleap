@@ -138,6 +138,16 @@ export async function markAsPaid(id: string, method: string, paidAt?: string) {
   return data
 }
 
+export async function updatePayment(id: string, input: { concept?: string; amount?: number; due_date?: string; notes?: string | null; type?: string }) {
+  const clubId = await getClubId()
+  const supabase = await createClient()
+  const { error } = await supabase.from('payments')
+    .update({ ...input, updated_at: new Date().toISOString() })
+    .eq('id', id).eq('club_id', clubId)
+  if (error) throw new Error(error.message)
+  revalidatePath('/dashboard/payments')
+}
+
 export async function updatePaymentStatus(
   id: string,
   status: 'pending' | 'paid' | 'overdue' | 'failed' | 'cancelled'

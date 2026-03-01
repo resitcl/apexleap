@@ -12,6 +12,7 @@ import { MarkAsPaidButton } from "@/components/payments/MarkAsPaidButton"
 import { ExportPaymentsButton } from "@/components/payments/ExportPaymentsButton"
 import { BulkMarkAsPaidButton } from "@/components/payments/BulkMarkAsPaidButton"
 import { DeletePaymentButton } from "@/components/payments/DeletePaymentButton"
+import { EditPaymentButton } from "@/components/payments/EditPaymentButton"
 
 interface PageProps {
   searchParams: Promise<{ status?: string; page?: string; from?: string; to?: string; athleteId?: string; search?: string }>
@@ -226,6 +227,7 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
                         ${Number(payment.amount).toLocaleString('es-CL')}
                       </span>
                       <Badge variant={cfg.variant}>{cfg.label}</Badge>
+                      <EditPaymentButton payment={payment} />
                       {payment.status === 'pending' || payment.status === 'overdue' ? (
                         <MarkAsPaidButton paymentId={payment.id} />
                       ) : null}
