@@ -42,12 +42,13 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode
 }) {
-  let alerts = { overduePayments: 0, expiringSoonDocs: 0, clubName: null as string | null }
+  let alerts = { overduePayments: 0, expiringSoonDocs: 0, expiringSubscriptions: 0, clubName: null as string | null }
   try { alerts = await getSidebarAlerts() } catch { /* silent */ }
 
   const badgeMap: Record<string, number> = {
-    "/dashboard/payments":  alerts.overduePayments,
-    "/dashboard/documents": alerts.expiringSoonDocs,
+    "/dashboard/payments":      alerts.overduePayments,
+    "/dashboard/documents":     alerts.expiringSoonDocs,
+    "/dashboard/subscriptions": alerts.expiringSubscriptions,
   }
 
   const sidebarItemsWithBadges = sidebarItems.map((item) => ({
