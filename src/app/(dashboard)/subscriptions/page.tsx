@@ -10,6 +10,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Plus, Users, TrendingUp, PauseCircle, XCircle, AlertTriangle } from "lucide-react"
 import { SubscriptionStatusButton } from "@/components/subscriptions/SubscriptionStatusButton"
 import { RenewSubscriptionButton } from "@/components/subscriptions/RenewSubscriptionButton"
+import { ExportSubscriptionsButton } from "@/components/subscriptions/ExportSubscriptionsButton"
 
 const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   active:    { label: "Activa",     variant: "default" },
@@ -35,6 +36,7 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
   const expiring = params.expiring ?? ""
 
   let subs: Awaited<ReturnType<typeof getSubscriptions>>["subscriptions"] = []
+  let allSubs: Awaited<ReturnType<typeof getSubscriptions>>["subscriptions"] = []
   let total = 0
   let stats = { active: 0, paused: 0, cancelled: 0, expired: 0, mrr: 0 }
   let plans: Array<{ id: string; name: string }> = []
@@ -42,12 +44,15 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
   today.setHours(0, 0, 0, 0)
 
   try {
-    const [result, statsResult, plansResult] = await Promise.all([
-      getSubscriptions({ status: params.status, page, limit: 25, planId: planId || undefined, search: search || undefined, expiringIn: expiring ? Number(expiring) : undefined }),
+    const filterParams = { status: params.status, planId: planId || undefined, search: search || undefined, expiringIn: expiring ? Number(expiring) : undefined }
+    const [result, allResult, statsResult, plansResult] = await Promise.all([
+      getSubscriptions({ ...filterParams, page, limit: 25 }),
+      getSubscriptions({ ...filterParams, page: 1, limit: 1000 }),
       getSubscriptionStats(),
       getPlans(),
     ])
     subs = result.subscriptions
+    allSubs = allResult.subscriptions
     total = result.total
     stats = statsResult
     plans = plansResult.map((p) => ({ id: p.id, name: p.name }))
@@ -63,12 +68,19 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
           <h1 className="text-3xl font-bold">Suscripciones</h1>
           <p className="text-muted-foreground">{total} registros</p>
         </div>
-        <Link href="/dashboard/subscriptions/new">
-          <Button className="gap-2">
-            <Plus className="w-4 h-4" />
-            Asignar Plan
-          </Button>
-        </Link>
+        <div className="flex gap-2">
+          <ExportSubscriptionsButton subscriptions={allSubs.map((s) => ({
+            ...s,
+            athletes: s.athletes as { name: string } | null,
+            plans: s.plans as { name: string; price: number; billing_cycle: string } | null,
+          }))} />
+          <Link href="/dashboard/subscriptions/new">
+            <Button className="gap-2">
+              <Plus className="w-4 h-4" />
+              Asignar Plan
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* KPIs */}
