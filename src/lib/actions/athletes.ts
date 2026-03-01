@@ -42,6 +42,7 @@ export async function getAthletes(params?: {
   search?: string
   status?: string
   healthStatus?: string
+  planId?: string
   page?: number
   limit?: number
 }) {
@@ -70,6 +71,17 @@ export async function getAthletes(params?: {
   }
   if (params?.healthStatus) {
     query = query.eq('health_status', params.healthStatus)
+  }
+  if (params?.planId) {
+    const { data: subData } = await supabase
+      .from('subscriptions')
+      .select('athlete_id')
+      .eq('club_id', clubId)
+      .eq('plan_id', params.planId)
+      .eq('status', 'active')
+    const ids = (subData ?? []).map((s) => s.athlete_id).filter(Boolean)
+    if (ids.length === 0) return { athletes: [], total: 0 }
+    query = query.in('id', ids)
   }
 
   const { data, error, count } = await query

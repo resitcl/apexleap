@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic"
 
 import Link from "next/link"
 import { getAthletes } from "@/lib/actions/athletes"
+import { getPlans } from "@/lib/actions/plans"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -16,6 +17,7 @@ interface PageProps {
     search?: string
     status?: string
     health?: string
+    planId?: string
     page?: string
   }>
 }
@@ -27,17 +29,23 @@ export default async function AthletesPage({ searchParams }: PageProps) {
   let athletes: Awaited<ReturnType<typeof getAthletes>>["athletes"] = []
   let total = 0
   let error: string | null = null
+  let plans: { id: string; name: string }[] = []
 
   try {
-    const result = await getAthletes({
-      search: params.search,
-      status: params.status,
-      healthStatus: params.health,
-      page,
-      limit: 20,
-    })
+    const [result, plansData] = await Promise.all([
+      getAthletes({
+        search: params.search,
+        status: params.status,
+        healthStatus: params.health,
+        planId: params.planId,
+        page,
+        limit: 20,
+      }),
+      getPlans(),
+    ])
     athletes = result.athletes
     total = result.total
+    plans = plansData.map((p) => ({ id: p.id, name: p.name }))
   } catch (e) {
     error = e instanceof Error ? e.message : "Error al cargar alumnos"
   }
@@ -111,7 +119,29 @@ export default async function AthletesPage({ searchParams }: PageProps) {
       </div>
 
       {/* Search and Filters */}
-      <AthletesSearch />
+      <div className="space-y-3">
+        <AthletesSearch />
+        {plans.length > 0 && (
+          <div className="flex flex-wrap gap-2 items-center">
+            <span className="text-xs text-muted-foreground font-medium">Plan:</span>
+            <Link href={`/dashboard/athletes?${new URLSearchParams({ ...(params.search ? { search: params.search } : {}), ...(params.status ? { status: params.status } : {}), ...(params.health ? { health: params.health } : {}) }).toString()}`}>
+              <button className={`h-7 px-2.5 rounded-md border text-xs font-medium transition-colors ${
+                !params.planId ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-input hover:bg-accent'
+              }`}>Todos</button>
+            </Link>
+            {plans.map((plan) => (
+              <Link key={plan.id} href={`/dashboard/athletes?${new URLSearchParams({ ...(params.search ? { search: params.search } : {}), ...(params.status ? { status: params.status } : {}), ...(params.health ? { health: params.health } : {}), planId: plan.id }).toString()}`}>
+                <button className={`h-7 px-2.5 rounded-md border text-xs font-medium transition-colors ${
+                  params.planId === plan.id ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-input hover:bg-accent'
+                }`}>{plan.name}</button>
+              </Link>
+            ))}
+            {params.planId && (
+              <span className="text-xs text-muted-foreground ml-1">— {total} alumno{total !== 1 ? 's' : ''}</span>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Athletes List */}
       {error ? (
