@@ -168,20 +168,38 @@ export default async function AthleteDetailPage({ params }: PageProps) {
             </div>
             <Separator />
             <div>
-              <p className="text-xs text-muted-foreground mb-2">Últimos Pagos</p>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs text-muted-foreground">Historial de Pagos</p>
+                {payments.length > 0 && (
+                  <Link href={`/dashboard/payments?athleteId=${id}`}
+                    className="text-xs text-primary hover:underline">
+                    Ver todos →
+                  </Link>
+                )}
+              </div>
               {payments.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Sin registros</p>
               ) : (
                 <div className="space-y-2">
-                  {payments.slice(0, 3).map((p) => (
-                    <div key={p.id} className="flex justify-between items-center text-sm">
-                      <span className="truncate flex-1">{p.concept}</span>
-                      <Badge variant={
-                        p.status === "paid" ? "default" :
-                        p.status === "overdue" ? "destructive" : "secondary"
-                      } className="ml-2 text-xs">
-                        {p.status === "paid" ? "Pagado" : p.status === "overdue" ? "Vencido" : "Pendiente"}
-                      </Badge>
+                  {payments.slice(0, 6).map((p) => (
+                    <div key={p.id} className="flex justify-between items-center text-sm gap-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="truncate text-xs font-medium">{p.concept}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(p.due_date).toLocaleDateString("es-CL")}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span className="text-xs font-semibold">
+                          ${Number(p.amount).toLocaleString("es-CL")}
+                        </span>
+                        <Badge variant={
+                          p.status === "paid" ? "default" :
+                          p.status === "overdue" ? "destructive" : "secondary"
+                        } className="text-xs">
+                          {p.status === "paid" ? "✓" : p.status === "overdue" ? "!" : "·"}
+                        </Badge>
+                      </div>
                     </div>
                   ))}
                 </div>
