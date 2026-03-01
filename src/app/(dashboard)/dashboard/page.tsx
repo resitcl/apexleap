@@ -119,13 +119,23 @@ export default async function DashboardPage() {
             </p>
             {todaySessions.length > 0 && (
               <div className="mt-1.5 flex flex-wrap gap-1">
-                {todaySessions.slice(0, 3).map((s) => (
-                  <Link key={s.id} href={`/dashboard/calendar/${s.id}`}>
-                    <span className="text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded font-medium hover:bg-blue-100 transition-colors">
-                      {s.start_time.slice(0, 5)} {s.name}
-                    </span>
-                  </Link>
-                ))}
+                {todaySessions.slice(0, 3).map((s) => {
+                  const occ = s.capacity && s.capacity > 0
+                    ? Math.round((s.todayCheckIns / s.capacity) * 100)
+                    : null
+                  return (
+                    <Link key={s.id} href={`/dashboard/calendar/${s.id}`}>
+                      <span className="text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded font-medium hover:bg-blue-100 transition-colors">
+                        {s.start_time.slice(0, 5)} {s.name}
+                        {s.todayCheckIns > 0 && (
+                          <span className="ml-1 opacity-75">
+                            {s.todayCheckIns}{s.capacity ? `/${s.capacity}` : ''}{occ !== null ? ` (${occ}%)` : ''}
+                          </span>
+                        )}
+                      </span>
+                    </Link>
+                  )
+                })}
                 {todaySessions.length > 3 && (
                   <span className="text-[10px] text-muted-foreground">+{todaySessions.length - 3} más</span>
                 )}

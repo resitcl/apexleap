@@ -332,15 +332,28 @@ export async function getTodaySessions() {
   const clubId = await getClubId()
   const supabase = await createClient()
   const todayDow = new Date().getDay()
+  const todayStr = new Date().toISOString().split('T')[0]
 
   const { data } = await supabase
     .from('schedules')
-    .select('id, name, start_time, end_time')
+    .select('id, name, start_time, end_time, capacity, attendance(id, is_valid, checked_in_at)')
     .eq('club_id', clubId)
     .eq('is_active', true)
     .contains('day_of_week', [todayDow])
 
-  return (data ?? []).sort((a, b) => a.start_time.localeCompare(b.start_time))
+  return (data ?? []).sort((a, b) => a.start_time.localeCompare(b.start_time)).map((s) => {
+    const att = (s.attendance as Array<{ id: string; is_valid: boolean; checked_in_at: string }> | null) ?? []
+    const todayAtt = att.filter((a) => a.checked_in_at.startsWith(todayStr))
+    return {
+      id: s.id,
+      name: s.name,
+      start_time: s.start_time,
+      end_time: s.end_time,
+      capacity: s.capacity as number | null,
+      todayCheckIns: todayAtt.length,
+      validCheckIns: todayAtt.filter((a) => a.is_valid).length,
+    }
+  })
 }
 
 export async function getMonthlyRevenue(months = 6) {
