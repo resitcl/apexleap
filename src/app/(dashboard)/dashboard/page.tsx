@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic"
 
 import Link from "next/link"
 import { redirect } from "next/navigation"
-import { getDashboardSummary, getRecentActivity, getMonthlyRevenue, getTodaySessions, getOverdueAlerts, getUpcomingSchedules } from "@/lib/actions/dashboard"
+import { getDashboardSummary, getRecentActivity, getMonthlyRevenue, getTodaySessions, getOverdueAlerts, getUpcomingSchedules, getExpiringSubscriptions } from "@/lib/actions/dashboard"
 import { checkUserHasClub } from "@/lib/actions/onboarding"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -26,15 +26,17 @@ export default async function DashboardPage() {
   let todaySessions: Awaited<ReturnType<typeof getTodaySessions>> = []
   let overdueAlerts: Awaited<ReturnType<typeof getOverdueAlerts>> = []
   let upcomingSchedules: Awaited<ReturnType<typeof getUpcomingSchedules>> = []
+  let expiringSubscriptions: Awaited<ReturnType<typeof getExpiringSubscriptions>> = []
 
   try {
-    ;[summary, activity, monthlyRevenue, todaySessions, overdueAlerts, upcomingSchedules] = await Promise.all([
+    ;[summary, activity, monthlyRevenue, todaySessions, overdueAlerts, upcomingSchedules, expiringSubscriptions] = await Promise.all([
       getDashboardSummary(),
       getRecentActivity(12),
       getMonthlyRevenue(6),
       getTodaySessions(),
       getOverdueAlerts(),
       getUpcomingSchedules(),
+      getExpiringSubscriptions(),
     ])
   } catch {
     // show zeros on error
@@ -349,6 +351,37 @@ export default async function DashboardPage() {
           </Card>
         )
       })()}
+
+      {/* Expiring subscriptions alert */}
+      {expiringSubscriptions.length > 0 && (
+        <Card className="border-orange-200 bg-orange-50">
+          <CardHeader className="pb-2 pt-4 px-6">
+            <CardTitle className="text-sm font-semibold text-orange-800 flex items-center gap-2">
+              <AlertCircle className="w-4 h-4" />
+              {expiringSubscriptions.length} suscripción{expiringSubscriptions.length > 1 ? 'es' : ''} vence{expiringSubscriptions.length > 1 ? 'n' : ''} en 7 días
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pb-4 px-6 space-y-1.5">
+            {expiringSubscriptions.map((sub) => {
+              const athlete = sub.athletes
+              const daysLeft = Math.ceil((new Date(sub.end_date).getTime() - Date.now()) / 86400000)
+              return (
+                <div key={sub.id} className="flex items-center justify-between text-sm">
+                  <div className="flex items-center gap-2">
+                    {athlete ? (
+                      <Link href={`/dashboard/athletes/${athlete.id}`} className="font-medium text-orange-900 hover:underline">
+                        {athlete.name}
+                      </Link>
+                    ) : <span className="font-medium text-orange-900">Atleta</span>}
+                    {sub.plans && <span className="text-orange-700 text-xs">— {sub.plans.name}</span>}
+                  </div>
+                  <span className="text-xs font-medium text-orange-700">{daysLeft === 0 ? 'hoy' : `${daysLeft}d`}</span>
+                </div>
+              )
+            })}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Upcoming 7-day agenda */}
       {upcomingSchedules.length > 0 && (

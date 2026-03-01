@@ -211,6 +211,32 @@ export async function getOverdueAlerts() {
   }>
 }
 
+export async function getExpiringSubscriptions() {
+  const clubId = await getClubId()
+  const supabase = await createClient()
+
+  const today = new Date().toISOString().split('T')[0]
+  const inSevenDays = new Date()
+  inSevenDays.setDate(inSevenDays.getDate() + 7)
+  const sevenDaysLater = inSevenDays.toISOString().split('T')[0]
+
+  const { data } = await supabase
+    .from('subscriptions')
+    .select('id, end_date, athlete_id, athletes(id, name), plans(name)')
+    .eq('club_id', clubId)
+    .eq('status', 'active')
+    .gte('end_date', today)
+    .lte('end_date', sevenDaysLater)
+    .order('end_date', { ascending: true })
+    .limit(5)
+
+  return (data ?? []) as unknown as Array<{
+    id: string; end_date: string; athlete_id: string;
+    athletes: { id: string; name: string } | null
+    plans: { name: string } | null
+  }>
+}
+
 export async function getUpcomingSchedules() {
   const clubId = await getClubId()
   const supabase = await createClient()
