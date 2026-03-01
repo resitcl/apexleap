@@ -149,34 +149,41 @@ export default async function AthletesPage({ searchParams }: PageProps) {
                       </AvatarFallback>
                     </Avatar>
 
+                    {/* Semáforo dot */}
+                    <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${
+                      athlete.health_status === "injured"     ? "bg-red-500" :
+                      athlete.health_status === "observation" ? "bg-yellow-500" :
+                      "bg-green-500"
+                    }`} title={
+                      athlete.health_status === "injured"     ? "Lesionado" :
+                      athlete.health_status === "observation" ? "En observación" :
+                      "Apto"
+                    } />
+
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-semibold truncate">{athlete.name}</span>
                         <HealthStatusBadge status={athlete.health_status} />
                       </div>
-                      <div className="flex items-center gap-3 mt-1">
-                        {athlete.email && (
-                          <span className="text-sm text-muted-foreground truncate">
-                            {athlete.email}
-                          </span>
-                        )}
-                        {athlete.phone && (
-                          <span className="text-sm text-muted-foreground">
-                            {athlete.phone}
-                          </span>
-                        )}
+                      <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
+                        {athlete.email && <span className="truncate">{athlete.email}</span>}
+                        {(() => {
+                          const subs = athlete.subscriptions as Array<{ status: string; plans: { name: string } | null }> | null
+                          const active = subs?.find((s) => s.status === "active")
+                          return active?.plans ? (
+                            <span className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded font-medium shrink-0">
+                              {active.plans.name}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-muted-foreground/60 shrink-0">Sin plan</span>
+                          )
+                        })()}
                       </div>
                     </div>
 
                     <div className="flex items-center gap-2 shrink-0">
-                      <Badge
-                        variant={athlete.status === "active" ? "default" : "secondary"}
-                      >
-                        {athlete.status === "active"
-                          ? "Activo"
-                          : athlete.status === "inactive"
-                          ? "Inactivo"
-                          : "Suspendido"}
+                      <Badge variant={athlete.status === "active" ? "default" : "secondary"}>
+                        {athlete.status === "active" ? "Activo" : athlete.status === "inactive" ? "Inactivo" : "Suspendido"}
                       </Badge>
                     </div>
                   </div>
