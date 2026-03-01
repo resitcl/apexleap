@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic"
 import { getCompetitions } from "@/lib/actions/competitions"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import Link from "next/link"
 import { Trophy, MapPin, Calendar } from "lucide-react"
 import { NewCompetitionForm } from "@/components/competitions/NewCompetitionForm"
 import { DeleteCompetitionButton } from "@/components/competitions/DeleteCompetitionButton"
@@ -72,7 +73,8 @@ export default async function CompetitionsPage() {
             const statusMeta = STATUS_META[comp.status] ?? STATUS_META.upcoming
             const rosterCount = (comp.rosters as unknown[])?.length ?? 0
             return (
-              <Card key={comp.id} className="hover:bg-accent/30 transition-colors">
+              <Link key={comp.id} href={`/dashboard/competitions/${comp.id}`}>
+              <Card className="hover:bg-accent/30 transition-colors cursor-pointer">
                 <CardHeader className="pb-2">
                   <div className="flex items-start justify-between gap-2">
                     <CardTitle className="text-base leading-snug">{comp.name}</CardTitle>
@@ -109,6 +111,7 @@ export default async function CompetitionsPage() {
                   </div>
                 </CardContent>
               </Card>
+              </Link>
             )
           })}
         </div>
