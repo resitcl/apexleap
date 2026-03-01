@@ -10,29 +10,36 @@ import { ManualCheckInButton } from "@/components/attendance/ManualCheckInButton
 import { QRCheckInDisplay } from "@/components/attendance/QRCheckInDisplay"
 import { ExportAttendanceButton } from "@/components/attendance/ExportAttendanceButton"
 import { getAthletes } from "@/lib/actions/athletes"
+import { getSchedules } from "@/lib/actions/schedules"
 
 interface PageProps {
-  searchParams: Promise<{ tab?: string; from?: string; to?: string; page?: string }>
+  searchParams: Promise<{ tab?: string; from?: string; to?: string; page?: string; scheduleId?: string }>
 }
 
 export default async function AttendancePage({ searchParams }: PageProps) {
   const params = await searchParams
-  const tab  = params.tab  ?? "today"
-  const from = params.from ?? ""
-  const to   = params.to   ?? ""
-  const page = Number(params.page ?? 1)
+  const tab        = params.tab        ?? "today"
+  const from       = params.from       ?? ""
+  const to         = params.to         ?? ""
+  const page       = Number(params.page ?? 1)
+  const scheduleId = params.scheduleId ?? ""
 
   let todayRecords: Awaited<ReturnType<typeof getAttendanceToday>> = []
   let history: Awaited<ReturnType<typeof getAttendanceHistory>> = { records: [], total: 0 }
   let athletes: Array<{ id: string; name: string }> = []
+  let schedules: Array<{ id: string; name: string }> = []
   let error: string | null = null
 
   try {
-    const [today, hist, athletesResult] = await Promise.all([
+    const [today, hist, athletesResult, schedulesResult] = await Promise.all([
       getAttendanceToday(),
-      getAttendanceHistory({ from: from || undefined, to: to || undefined, days: 30, limit: 50, page }),
+      getAttendanceHistory({ from: from || undefined, to: to || undefined, days: 30, limit: 50, page, scheduleId: scheduleId || undefined }),
       getAthletes({ limit: 200 }),
+      getSchedules(),
     ])
+    schedules = (schedulesResult as Array<{ id: string; name: string; is_active: boolean }>)
+      .filter((s) => s.is_active)
+      .map((s) => ({ id: s.id, name: s.name }))
     todayRecords = today
     history = hist
     athletes = athletesResult.athletes.map((a) => ({ id: a.id, name: a.name }))
@@ -157,9 +164,19 @@ export default async function AttendancePage({ searchParams }: PageProps) {
 
       {tab === "history" && (
         <div className="space-y-4">
-          {/* Date filters */}
+          {/* Date + session filters */}
           <form method="get" action="/dashboard/attendance" className="flex flex-wrap items-end gap-3">
             <input type="hidden" name="tab" value="history" />
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-muted-foreground font-medium">Sesión</label>
+              <select name="scheduleId" defaultValue={scheduleId}
+                className="h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring min-w-[160px]">
+                <option value="">Todas las sesiones</option>
+                {schedules.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            </div>
             <div className="flex flex-col gap-1">
               <label className="text-xs text-muted-foreground font-medium">Desde</label>
               <input type="date" name="from" defaultValue={from}
