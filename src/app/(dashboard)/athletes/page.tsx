@@ -1,0 +1,191 @@
+import Link from "next/link"
+import { getAthletes } from "@/lib/actions/athletes"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { UserPlus, Search } from "lucide-react"
+import { AthletesSearch } from "@/components/athletes/AthletesSearch"
+import { HealthStatusBadge } from "@/components/athletes/HealthStatusBadge"
+
+interface PageProps {
+  searchParams: Promise<{
+    search?: string
+    status?: string
+    health?: string
+    page?: string
+  }>
+}
+
+export default async function AthletesPage({ searchParams }: PageProps) {
+  const params = await searchParams
+  const page = Number(params.page ?? 1)
+
+  let athletes: Awaited<ReturnType<typeof getAthletes>>["athletes"] = []
+  let total = 0
+  let error: string | null = null
+
+  try {
+    const result = await getAthletes({
+      search: params.search,
+      status: params.status,
+      healthStatus: params.health,
+      page,
+      limit: 20,
+    })
+    athletes = result.athletes
+    total = result.total
+  } catch (e) {
+    error = e instanceof Error ? e.message : "Error al cargar alumnos"
+  }
+
+  const statusCounts = {
+    active: athletes.filter((a) => a.status === "active").length,
+    injured: athletes.filter((a) => a.health_status === "injured").length,
+    overdue: 0,
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Alumnos</h1>
+          <p className="text-muted-foreground">{total} registrados en total</p>
+        </div>
+        <Link href="/dashboard/athletes/new">
+          <Button className="gap-2">
+            <UserPlus className="w-4 h-4" />
+            Nuevo Alumno
+          </Button>
+        </Link>
+      </div>
+
+      {/* KPI Cards */}
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Activos
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-green-500" />
+              <span className="text-2xl font-bold">{statusCounts.active}</span>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Lesionados
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-red-500" />
+              <span className="text-2xl font-bold">{statusCounts.injured}</span>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Con Deuda
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-yellow-500" />
+              <span className="text-2xl font-bold">{statusCounts.overdue}</span>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Search and Filters */}
+      <AthletesSearch />
+
+      {/* Athletes List */}
+      {error ? (
+        <Card>
+          <CardContent className="py-12 text-center text-destructive">
+            {error}
+          </CardContent>
+        </Card>
+      ) : athletes.length === 0 ? (
+        <Card>
+          <CardContent className="py-16 text-center">
+            <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+              <Search className="w-8 h-8 text-muted-foreground" />
+            </div>
+            <h3 className="font-semibold text-lg mb-1">
+              {params.search ? "Sin resultados" : "No hay alumnos registrados"}
+            </h3>
+            <p className="text-muted-foreground mb-4">
+              {params.search
+                ? `No encontramos resultados para "${params.search}"`
+                : "Comienza agregando el primer alumno al sistema"}
+            </p>
+            {!params.search && (
+              <Link href="/dashboard/athletes/new">
+                <Button>Agregar Alumno</Button>
+              </Link>
+            )}
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid gap-3">
+          {athletes.map((athlete) => (
+            <Link key={athlete.id} href={`/dashboard/athletes/${athlete.id}`}>
+              <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
+                <CardContent className="py-4">
+                  <div className="flex items-center gap-4">
+                    <Avatar className="w-12 h-12">
+                      <AvatarImage src={athlete.photo_url ?? undefined} />
+                      <AvatarFallback className="text-base font-semibold">
+                        {athlete.name.slice(0, 2).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-semibold truncate">{athlete.name}</span>
+                        <HealthStatusBadge status={athlete.health_status} />
+                      </div>
+                      <div className="flex items-center gap-3 mt-1">
+                        {athlete.email && (
+                          <span className="text-sm text-muted-foreground truncate">
+                            {athlete.email}
+                          </span>
+                        )}
+                        {athlete.phone && (
+                          <span className="text-sm text-muted-foreground">
+                            {athlete.phone}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Badge
+                        variant={athlete.status === "active" ? "default" : "secondary"}
+                      >
+                        {athlete.status === "active"
+                          ? "Activo"
+                          : athlete.status === "inactive"
+                          ? "Inactivo"
+                          : "Suspendido"}
+                      </Badge>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
