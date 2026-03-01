@@ -230,7 +230,22 @@ export default async function AttendancePage({ searchParams }: PageProps) {
             </Card>
           ) : (
             <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">{history.total} registros encontrados</p>
+              {(() => {
+                const validCount = history.records.filter((r) => r.is_valid).length
+                const pct = history.records.length > 0 ? Math.round((validCount / history.records.length) * 100) : 0
+                return (
+                  <div className="flex items-center gap-3 text-sm">
+                    <span className="text-muted-foreground">{history.total} registros encontrados</span>
+                    <span className={`font-medium px-2 py-0.5 rounded-full text-xs ${
+                      pct >= 80 ? 'bg-green-100 text-green-700' :
+                      pct >= 50 ? 'bg-yellow-100 text-yellow-700' :
+                      'bg-red-100 text-red-700'
+                    }`}>
+                      {validCount}/{history.records.length} válidos · {pct}% asistencia
+                    </span>
+                  </div>
+                )
+              })()}
               {history.records.map((record) => {
                 const athlete = record.athletes as { id: string; name: string } | null
                 const dt = new Date(record.checked_in_at)
