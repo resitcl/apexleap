@@ -60,13 +60,32 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
     // show empty state
   }
 
+  const CYCLE_MONTHLY: Record<string, number> = {
+    monthly: 1, quarterly: 1/3, semiannual: 1/6, annual: 1/12, single: 0
+  }
+  const filteredMrr = allSubs
+    .filter((s) => s.status === 'active')
+    .reduce((sum, s) => {
+      const plan = s.plans as { price: number; billing_cycle: string } | null
+      if (!plan) return sum
+      return sum + plan.price * (CYCLE_MONTHLY[plan.billing_cycle] ?? 1)
+    }, 0)
+  const hasFilters = !!(params.status || planId || search || expiring)
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Suscripciones</h1>
-          <p className="text-muted-foreground">{total} registros</p>
+          <p className="text-muted-foreground">
+            {total} registros
+            {hasFilters && filteredMrr > 0 && (
+              <span className="ml-2 text-green-600 font-medium">
+                · MRR filtrado: ${Math.round(filteredMrr).toLocaleString('es-CL')}
+              </span>
+            )}
+          </p>
         </div>
         <div className="flex gap-2">
           <ExportSubscriptionsButton subscriptions={allSubs.map((s) => ({

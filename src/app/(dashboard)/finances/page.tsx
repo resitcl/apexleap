@@ -227,7 +227,10 @@ export default async function FinancesPage({ searchParams }: PageProps) {
                             <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: s.color }} />
                             {CATEGORY_LABELS[s.cat] ?? s.cat}
                           </span>
-                          <span className="font-medium">{Math.round(s.pct)}%</span>
+                          <span className="font-medium text-right">
+                            ${s.amount.toLocaleString('es-CL')}
+                            <span className="text-muted-foreground font-normal ml-1">({Math.round(s.pct)}%)</span>
+                          </span>
                         </div>
                         <div className="h-1.5 bg-muted rounded-full overflow-hidden">
                           <div className="h-full rounded-full" style={{ width: `${s.pct}%`, background: s.color }} />

@@ -35,17 +35,20 @@ async function getClubId() {
   return data.club_id as string
 }
 
-export async function getSchedules() {
+export async function getSchedules(filters?: { venueId?: string }) {
   const clubId = await getClubId()
   const supabase = await createClient()
 
-  const { data, error } = await supabase
+  let q = supabase
     .from('schedules')
     .select('*, venues(id, name)')
     .eq('club_id', clubId)
     .eq('is_active', true)
     .order('start_time', { ascending: true })
 
+  if (filters?.venueId) q = q.eq('venue_id', filters.venueId)
+
+  const { data, error } = await q
   if (error) throw new Error(error.message)
   return data ?? []
 }

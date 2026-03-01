@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic"
 
 import Link from "next/link"
 import { getSchedules } from "@/lib/actions/schedules"
+import { getVenues } from "@/lib/actions/venues"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -20,12 +21,23 @@ const DAY_COLORS = [
   "bg-pink-100 text-pink-700",
 ]
 
-export default async function CalendarPage() {
+interface PageProps {
+  searchParams: Promise<{ venueId?: string }>
+}
+
+export default async function CalendarPage({ searchParams }: PageProps) {
+  const { venueId } = await searchParams
   let schedules: Awaited<ReturnType<typeof getSchedules>> = []
+  let venues: { id: string; name: string }[] = []
   let error: string | null = null
 
   try {
-    schedules = await getSchedules()
+    const [s, v] = await Promise.all([
+      getSchedules({ venueId: venueId || undefined }),
+      getVenues(),
+    ])
+    schedules = s
+    venues = v.map((v) => ({ id: v.id, name: v.name }))
   } catch (e) {
     error = e instanceof Error ? e.message : "Error al cargar horarios"
   }
@@ -67,6 +79,24 @@ export default async function CalendarPage() {
           </Link>
         </div>
       </div>
+
+      {venues.length > 0 && (
+        <div className="flex flex-wrap gap-2 items-center">
+          <span className="text-xs text-muted-foreground font-medium">Sede:</span>
+          <Link href="/dashboard/calendar">
+            <button className={`h-7 px-2.5 rounded-md border text-xs font-medium transition-colors ${
+              !venueId ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-input hover:bg-accent'
+            }`}>Todas</button>
+          </Link>
+          {venues.map((v) => (
+            <Link key={v.id} href={`/dashboard/calendar?venueId=${v.id}`}>
+              <button className={`h-7 px-2.5 rounded-md border text-xs font-medium transition-colors ${
+                venueId === v.id ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-input hover:bg-accent'
+              }`}>{v.name}</button>
+            </Link>
+          ))}
+        </div>
+      )}
 
       {error ? (
         <Card>
