@@ -138,39 +138,45 @@ export default async function DashboardPage() {
 
       {/* Attendance KPI */}
       <div className="grid gap-4 sm:grid-cols-3">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Asistencia 7 días</CardTitle>
-            <TrendingUp className="h-4 w-4 text-indigo-500" />
-          </CardHeader>
-          <CardContent>
-            <div className={`text-2xl font-bold ${
-              weeklyAttendance.rate >= 80 ? 'text-green-600' :
-              weeklyAttendance.rate >= 50 ? 'text-yellow-600' : 'text-red-600'
-            }`}>{weeklyAttendance.rate}%</div>
-            <p className="text-xs text-muted-foreground">{weeklyAttendance.valid} válidos de {weeklyAttendance.total} check-ins</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Morosos</CardTitle>
-            <CreditCard className="h-4 w-4 text-orange-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-orange-600">{overdueAlerts.length}</div>
-            <p className="text-xs text-muted-foreground">pagos vencidos pendientes</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Semáforos Rojos</CardTitle>
-            <UserCheck className="h-4 w-4 text-red-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600">{summary.semaforoCount.red}</div>
-            <p className="text-xs text-muted-foreground">atletas bloqueados</p>
-          </CardContent>
-        </Card>
+        <Link href="/dashboard/attendance?tab=history">
+          <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Asistencia 7 días</CardTitle>
+              <TrendingUp className="h-4 w-4 text-indigo-500" />
+            </CardHeader>
+            <CardContent>
+              <div className={`text-2xl font-bold ${
+                weeklyAttendance.rate >= 80 ? 'text-green-600' :
+                weeklyAttendance.rate >= 50 ? 'text-yellow-600' : 'text-red-600'
+              }`}>{weeklyAttendance.rate}%</div>
+              <p className="text-xs text-muted-foreground">{weeklyAttendance.valid} válidos de {weeklyAttendance.total} check-ins</p>
+            </CardContent>
+          </Card>
+        </Link>
+        <Link href="/dashboard/payments?status=overdue">
+          <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Morosos</CardTitle>
+              <CreditCard className="h-4 w-4 text-orange-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-orange-600">{overdueAlerts.length}</div>
+              <p className="text-xs text-muted-foreground">pagos vencidos pendientes</p>
+            </CardContent>
+          </Card>
+        </Link>
+        <Link href="/dashboard/athletes?health=injured">
+          <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Semáforos Rojos</CardTitle>
+              <UserCheck className="h-4 w-4 text-red-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-red-600">{summary.semaforoCount.red}</div>
+              <p className="text-xs text-muted-foreground">atletas bloqueados</p>
+            </CardContent>
+          </Card>
+        </Link>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
