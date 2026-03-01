@@ -64,3 +64,21 @@ export async function updateClubSettings(input: Partial<ClubInput>) {
   revalidatePath('/dashboard/settings')
   return data
 }
+
+export async function deleteClub(confirmName: string) {
+  const clubId = await getClubId()
+  const supabase = await createClient()
+
+  const { data: club } = await supabase
+    .from('clubs').select('name').eq('id', clubId).single()
+
+  if (!club) throw new Error('Club no encontrado')
+  if (club.name.trim().toLowerCase() !== confirmName.trim().toLowerCase()) {
+    throw new Error('El nombre no coincide. Escribe el nombre exacto del club para confirmar.')
+  }
+
+  const { error } = await supabase.from('clubs').delete().eq('id', clubId)
+  if (error) throw new Error(error.message)
+  revalidatePath('/')
+  return { deleted: true }
+}
