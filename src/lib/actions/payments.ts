@@ -151,3 +151,24 @@ export async function updatePaymentStatus(
   revalidatePath('/dashboard/payments')
   return data
 }
+
+export async function bulkMarkAsPaid(ids: string[], method = 'manual') {
+  const clubId = await getClubId()
+  const supabase = await createClient()
+
+  const { error, count } = await supabase
+    .from('payments')
+    .update({
+      status: 'paid',
+      paid_at: new Date().toISOString(),
+      payment_method: method,
+      updated_at: new Date().toISOString(),
+    })
+    .in('id', ids)
+    .eq('club_id', clubId)
+    .in('status', ['pending', 'overdue'])
+
+  if (error) throw new Error(error.message)
+  revalidatePath('/dashboard/payments')
+  return count ?? 0
+}

@@ -10,6 +10,7 @@ import { Plus, DollarSign, Clock, AlertTriangle } from "lucide-react"
 import { PaymentsFilter } from "@/components/payments/PaymentsFilter"
 import { MarkAsPaidButton } from "@/components/payments/MarkAsPaidButton"
 import { ExportPaymentsButton } from "@/components/payments/ExportPaymentsButton"
+import { BulkMarkAsPaidButton } from "@/components/payments/BulkMarkAsPaidButton"
 
 interface PageProps {
   searchParams: Promise<{ status?: string; page?: string }>
@@ -52,7 +53,12 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
           <h1 className="text-3xl font-bold">Pagos</h1>
           <p className="text-muted-foreground">{total} transacciones</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
+          {payments.filter(p => p.status === 'pending' || p.status === 'overdue').length > 1 && (
+            <BulkMarkAsPaidButton
+              ids={payments.filter(p => p.status === 'pending' || p.status === 'overdue').map(p => p.id)}
+            />
+          )}
           <ExportPaymentsButton
             payments={payments.map((p) => ({
               ...p,
