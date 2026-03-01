@@ -127,7 +127,15 @@ export default async function AthletesPage({ searchParams }: PageProps) {
 
       {/* Search and Filters */}
       <div className="space-y-3">
-        <AthletesSearch />
+        <div className="flex items-center gap-3">
+          <AthletesSearch />
+          {(params.search || params.status || params.health || params.planId || params.subStatus || sort) && (
+            <Link href="/dashboard/athletes"
+              className="text-xs text-muted-foreground hover:text-foreground underline shrink-0">
+              ✕ Limpiar filtros
+            </Link>
+          )}
+        </div>
         {plans.length > 0 && (
           <div className="flex flex-wrap gap-2 items-center">
             <span className="text-xs text-muted-foreground font-medium">Plan:</span>

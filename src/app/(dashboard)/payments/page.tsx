@@ -259,9 +259,24 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
                         {payment.paid_at && (
                           <span>Pagado: {new Date(payment.paid_at).toLocaleDateString('es-CL')}</span>
                         )}
-                        {payment.payment_method && (
-                          <span className="capitalize">{payment.payment_method}</span>
-                        )}
+                        {payment.payment_method && (() => {
+                          const METHOD_STYLE: Record<string, string> = {
+                            cash: 'bg-green-100 text-green-700',
+                            transfer: 'bg-blue-100 text-blue-700',
+                            webpay: 'bg-purple-100 text-purple-700',
+                            flow: 'bg-indigo-100 text-indigo-700',
+                            mercadopago: 'bg-sky-100 text-sky-700',
+                            khipu: 'bg-teal-100 text-teal-700',
+                            other: 'bg-gray-100 text-gray-600',
+                          }
+                          const METHOD_LABEL: Record<string, string> = {
+                            cash: 'Efectivo', transfer: 'Transfer.', webpay: 'Webpay',
+                            flow: 'Flow', mercadopago: 'MP', khipu: 'Khipu', other: 'Otro',
+                          }
+                          const style = METHOD_STYLE[payment.payment_method] ?? 'bg-gray-100 text-gray-600'
+                          const label = METHOD_LABEL[payment.payment_method] ?? payment.payment_method
+                          return <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${style}`}>{label}</span>
+                        })()}
                         {(payment as { notes?: string | null }).notes && (
                           <span className="italic truncate max-w-[200px]" title={(payment as { notes?: string | null }).notes ?? ''}>
                             📝 {(payment as { notes?: string | null }).notes}

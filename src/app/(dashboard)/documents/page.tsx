@@ -127,7 +127,7 @@ export default async function DocumentsPage({ searchParams }: PageProps) {
         {(['', 'active', 'pending', 'expired'] as const).map((s) => (
           <Link
             key={s}
-            href={`/dashboard/documents?${new URLSearchParams({ ...(category ? { category } : {}), ...(expiring ? { expiring } : {}), ...(s ? { status: s } : {}) }).toString()}`}
+            href={`/dashboard/documents?${new URLSearchParams({ ...(category ? { category } : {}), ...(expiring ? { expiring } : {}), ...(search ? { search } : {}), ...(s ? { status: s } : {}) }).toString()}`}
           >
             <button className={`h-8 px-3 rounded-md border text-xs font-medium transition-colors ${
               (s === '' && !status) || status === s
@@ -142,7 +142,7 @@ export default async function DocumentsPage({ searchParams }: PageProps) {
 
       <div className="grid gap-3 sm:grid-cols-4">
         {Object.entries(CATEGORY_LABELS).map(([key, meta]) => (
-          <Link key={key} href={`/dashboard/documents?category=${category === key ? '' : key}`}>
+          <Link key={key} href={`/dashboard/documents?${new URLSearchParams({ ...(category === key ? {} : { category: key }), ...(status ? { status } : {}), ...(search ? { search } : {}), ...(expiring ? { expiring } : {}) }).toString()}`}>
             <Card className={`cursor-pointer transition-colors hover:bg-accent/50 ${category === key ? "border-primary bg-primary/5" : ""}`}>
               <CardContent className="py-4 text-center">
                 <span className="text-3xl">{meta.icon}</span>
