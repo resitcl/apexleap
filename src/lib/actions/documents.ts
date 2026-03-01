@@ -53,6 +53,16 @@ export async function createDocument(input: DocInput) {
   return data
 }
 
+export async function updateDocument(id: string, input: { name?: string; category?: string; expiry_date?: string | null; status?: string; notes?: string | null }) {
+  const { clubId } = await getClubId()
+  const supabase = await createClient()
+  const { error } = await supabase.from('documents')
+    .update({ ...input, updated_at: new Date().toISOString() })
+    .eq('id', id).eq('club_id', clubId)
+  if (error) throw new Error(error.message)
+  revalidatePath('/dashboard/documents')
+}
+
 export async function updateDocumentStatus(id: string, status: 'pending' | 'active' | 'expired') {
   const { clubId } = await getClubId()
   const supabase = await createClient()

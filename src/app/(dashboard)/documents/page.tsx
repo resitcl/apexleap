@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { FolderOpen, AlertTriangle, ExternalLink } from "lucide-react"
 import { NewDocumentForm } from "@/components/documents/NewDocumentForm"
 import { DeleteDocumentButton } from "@/components/documents/DeleteDocumentButton"
+import { EditDocumentButton } from "@/components/documents/EditDocumentButton"
 import { ExportDocumentsButton } from "@/components/documents/ExportDocumentsButton"
 
 const CATEGORY_LABELS: Record<string, { label: string; icon: string }> = {
@@ -163,6 +164,7 @@ export default async function DocumentsPage({ searchParams }: PageProps) {
                           <ExternalLink className="w-4 h-4" />
                         </a>
                       )}
+                      <EditDocumentButton doc={doc} />
                       <DeleteDocumentButton documentId={doc.id} />
                     </div>
                   </div>
