@@ -320,6 +320,12 @@ export default async function AthletesPage({ searchParams }: PageProps) {
                         const last = sorted[0]
                         const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
                         const checkIns = (att ?? []).filter((a) => new Date(a.checked_in_at) >= thirtyDaysAgo).length
+                        const isInactive = athlete.status === 'active' && (!last || new Date(last.checked_in_at) < thirtyDaysAgo)
+                        if (isInactive) return (
+                          <span className="text-xs text-orange-500 font-medium" title={last ? `Sin asistencia desde ${new Date(last.checked_in_at).toLocaleDateString('es-CL')}` : 'Sin asistencias registradas'}>
+                            ⚠ Inactivo
+                          </span>
+                        )
                         if (last) return (
                           <span className="text-xs text-muted-foreground" title={`Última asistencia · ${checkIns} check-ins en 30 días`}>
                             📋 {new Date(last.checked_in_at).toLocaleDateString('es-CL', { day: '2-digit', month: 'short' })}

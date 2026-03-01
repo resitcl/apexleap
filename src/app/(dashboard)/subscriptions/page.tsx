@@ -72,6 +72,12 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
     }, 0)
   const hasFilters = !!(params.status || planId || search || expiring)
 
+  const now = new Date()
+  const in7  = new Date(now); in7.setDate(in7.getDate() + 7)
+  const in30 = new Date(now); in30.setDate(in30.getDate() + 30)
+  const expiringIn7  = allSubs.filter((s) => s.status === 'active' && s.end_date && new Date(s.end_date) <= in7  && new Date(s.end_date) >= now).length
+  const expiringIn30 = allSubs.filter((s) => s.status === 'active' && s.end_date && new Date(s.end_date) <= in30 && new Date(s.end_date) >= now).length
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -84,6 +90,12 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
               <span className="ml-2 text-green-600 font-medium">
                 · MRR filtrado: ${Math.round(filteredMrr).toLocaleString('es-CL')}
               </span>
+            )}
+            {expiringIn7 > 0 && (
+              <span className="ml-2 text-red-600 font-medium">· {expiringIn7} vence{expiringIn7 > 1 ? 'n' : ''} esta semana</span>
+            )}
+            {expiringIn7 === 0 && expiringIn30 > 0 && (
+              <span className="ml-2 text-yellow-600 font-medium">· {expiringIn30} vence{expiringIn30 > 1 ? 'n' : ''} este mes</span>
             )}
           </p>
         </div>
