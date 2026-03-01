@@ -181,7 +181,7 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
       {/* Filters */}
       <div className="flex flex-wrap items-end gap-3">
         <Suspense fallback={null}>
-          <PaymentsFilter currentStatus={params.status} currentMethod={paymentMethod || undefined} />
+          <PaymentsFilter currentStatus={params.status} currentMethod={paymentMethod || undefined} currentFrom={params.from} currentTo={params.to} />
         </Suspense>
         <form method="get" action="/dashboard/payments" className="flex flex-wrap items-end gap-2">
           {params.status && <input type="hidden" name="status" value={params.status} />}

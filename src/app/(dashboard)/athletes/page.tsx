@@ -354,7 +354,7 @@ export default async function AthletesPage({ searchParams }: PageProps) {
                               {active.plans.name}
                             </span>
                           ) : (
-                            <span className="text-xs text-muted-foreground/60 shrink-0">Sin plan</span>
+                            <span className="text-xs bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded font-medium shrink-0">Sin plan</span>
                           )
                         })()}
                       </div>

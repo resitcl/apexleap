@@ -63,6 +63,9 @@ export default async function InventoryPage({ searchParams }: PageProps) {
     acc[i.condition] = (acc[i.condition] ?? 0) + 1
     return acc
   }, {})
+  const newestItem = allItems.slice().sort((a, b) =>
+    new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime()
+  )[0]
 
   return (
     <div className="space-y-6">
@@ -75,6 +78,11 @@ export default async function InventoryPage({ searchParams }: PageProps) {
               const totalValue = allItems.reduce((sum, i) => sum + (i.purchase_price ?? 0) * i.quantity, 0)
               return totalValue > 0 ? <span className="ml-2 text-green-600 font-medium">· Valor total: ${totalValue.toLocaleString('es-CL')}</span> : null
             })()}
+            {newestItem?.created_at && (
+              <span className="ml-2 text-muted-foreground/60">
+                · Último: {newestItem.name} ({new Date(newestItem.created_at).toLocaleDateString('es-CL')})
+              </span>
+            )}
           </p>
         </div>
         <div className="flex gap-2">
