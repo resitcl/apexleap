@@ -37,6 +37,7 @@ async function getClubId() {
 export async function getPayments(params?: {
   status?: string
   athleteId?: string
+  athleteName?: string
   search?: string
   page?: number
   limit?: number
@@ -58,11 +59,19 @@ export async function getPayments(params?: {
     .order('due_date', { ascending: false })
     .range(rangeFrom, rangeTo)
 
-  if (params?.status) query = query.eq('status', params.status)
+  if (params?.status)    query = query.eq('status', params.status)
   if (params?.athleteId) query = query.eq('athlete_id', params.athleteId)
-  if (params?.search) query = query.ilike('concept', `%${params.search}%`)
-  if (params?.from) query = query.gte('due_date', params.from)
-  if (params?.to)   query = query.lte('due_date', params.to)
+  if (params?.search)    query = query.ilike('concept', `%${params.search}%`)
+  if (params?.from)      query = query.gte('due_date', params.from)
+  if (params?.to)        query = query.lte('due_date', params.to)
+  if (params?.athleteName) {
+    const { data: athlData } = await supabase
+      .from('athletes').select('id').eq('club_id', clubId)
+      .ilike('name', `%${params.athleteName}%`)
+    const ids = (athlData ?? []).map((a) => a.id)
+    if (ids.length === 0) return { payments: [], total: 0 }
+    query = query.in('athlete_id', ids)
+  }
 
   const { data, error, count } = await query
   if (error) throw new Error(error.message)

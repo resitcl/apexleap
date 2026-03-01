@@ -15,7 +15,7 @@ import { DeletePaymentButton } from "@/components/payments/DeletePaymentButton"
 import { EditPaymentButton } from "@/components/payments/EditPaymentButton"
 
 interface PageProps {
-  searchParams: Promise<{ status?: string; page?: string; from?: string; to?: string; athleteId?: string; search?: string }>
+  searchParams: Promise<{ status?: string; page?: string; from?: string; to?: string; athleteId?: string; search?: string; athleteName?: string }>
 }
 
 const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
@@ -29,10 +29,11 @@ const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secon
 export default async function PaymentsPage({ searchParams }: PageProps) {
   const params = await searchParams
   const page = Number(params.page ?? 1)
-  const from      = params.from      ?? ""
-  const to        = params.to        ?? ""
-  const athleteId = params.athleteId ?? ""
-  const search    = params.search    ?? ""
+  const from        = params.from        ?? ""
+  const to          = params.to          ?? ""
+  const athleteId   = params.athleteId   ?? ""
+  const search      = params.search      ?? ""
+  const athleteName = params.athleteName ?? ""
 
   let payments: Awaited<ReturnType<typeof getPayments>>["payments"] = []
   let allPayments: Awaited<ReturnType<typeof getPayments>>["payments"] = []
@@ -42,8 +43,8 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
 
   try {
     const [result, allResult, summaryResult] = await Promise.all([
-      getPayments({ status: params.status, page, limit: 25, from: from || undefined, to: to || undefined, athleteId: athleteId || undefined, search: search || undefined }),
-      getPayments({ status: params.status, page: 1, limit: 1000, from: from || undefined, to: to || undefined, athleteId: athleteId || undefined, search: search || undefined }),
+      getPayments({ status: params.status, page, limit: 25, from: from || undefined, to: to || undefined, athleteId: athleteId || undefined, search: search || undefined, athleteName: athleteName || undefined }),
+      getPayments({ status: params.status, page: 1, limit: 1000, from: from || undefined, to: to || undefined, athleteId: athleteId || undefined, search: search || undefined, athleteName: athleteName || undefined }),
       getPaymentSummary(),
     ])
     payments = result.payments
@@ -141,6 +142,12 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
         <form method="get" action="/dashboard/payments" className="flex flex-wrap items-end gap-2">
           {params.status && <input type="hidden" name="status" value={params.status} />}
           <div className="flex flex-col gap-1">
+            <label className="text-xs text-muted-foreground font-medium">Buscar alumno</label>
+            <input type="text" name="athleteName" defaultValue={athleteName}
+              placeholder="Nombre de alumno..."
+              className="h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring w-44" />
+          </div>
+          <div className="flex flex-col gap-1">
             <label className="text-xs text-muted-foreground font-medium">Buscar concepto</label>
             <input type="text" name="search" defaultValue={search}
               placeholder="Ej: mensualidad..."
@@ -160,7 +167,7 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
             className="h-9 px-4 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
             Filtrar
           </button>
-          {(from || to || search) && (
+          {(from || to || search || athleteName) && (
             <Link href={`/dashboard/payments${params.status ? `?status=${params.status}` : ''}`}
               className="h-9 px-3 rounded-md border border-input bg-background text-sm font-medium hover:bg-accent transition-colors flex items-center">
               ✕ Limpiar
