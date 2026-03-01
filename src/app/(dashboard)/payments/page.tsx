@@ -235,6 +235,11 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
                         {payment.payment_method && (
                           <span className="capitalize">{payment.payment_method}</span>
                         )}
+                        {(payment as { notes?: string | null }).notes && (
+                          <span className="italic truncate max-w-[200px]" title={(payment as { notes?: string | null }).notes ?? ''}>
+                            📝 {(payment as { notes?: string | null }).notes}
+                          </span>
+                        )}
                       </div>
                     </div>
 

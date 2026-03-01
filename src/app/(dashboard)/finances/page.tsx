@@ -14,6 +14,7 @@ import { EditCoachButton } from "@/components/finances/EditCoachButton"
 import { DeleteExpenseButton } from "@/components/finances/DeleteExpenseButton"
 import { EditExpenseButton } from "@/components/finances/EditExpenseButton"
 import { MonthPicker } from "@/components/finances/MonthPicker"
+import { ExportExpensesButton } from "@/components/finances/ExportExpensesButton"
 
 const CATEGORY_LABELS: Record<string, string> = {
   rent: "Arriendo", salary: "Salarios", supplies: "Insumos",
@@ -263,7 +264,8 @@ export default async function FinancesPage({ searchParams }: PageProps) {
       {/* Expenses Tab */}
       {tab === "expenses" && (
         <div className="space-y-4">
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-2">
+            <ExportExpensesButton expenses={expenses} month={month} />
             <NewExpenseForm />
           </div>
 
