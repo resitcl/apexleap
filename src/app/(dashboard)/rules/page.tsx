@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic"
 
-import { getRules, getRuleAffectedCounts } from "@/lib/actions/rules"
+import { getRules, getRuleAffectedCounts, getRuleLastTriggerDates } from "@/lib/actions/rules"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ShieldCheck, ShieldAlert, ShieldOff } from "lucide-react"
@@ -50,12 +50,14 @@ export default async function RulesPage({ searchParams }: PageProps) {
 
   let rules: Awaited<ReturnType<typeof getRules>> = []
   let affected = { financial: 0, discipline: 0, documentation: 0, attendance: 0 }
+  let lastTrigger: Awaited<ReturnType<typeof getRuleLastTriggerDates>> = { financial: null, attendance: null, documentation: null, discipline: null }
   let error: string | null = null
 
   try {
-    ;[rules, affected] = await Promise.all([
+    ;[rules, affected, lastTrigger] = await Promise.all([
       getRules({ type: type || undefined }),
       getRuleAffectedCounts(),
+      getRuleLastTriggerDates(),
     ])
   } catch (e) {
     error = e instanceof Error ? e.message : 'Error al cargar reglas'
@@ -162,7 +164,7 @@ export default async function RulesPage({ searchParams }: PageProps) {
 
             return (
               <div key={type}>
-                <div className="flex items-center gap-2 mb-3">
+                <div className="flex items-center gap-2 mb-3 flex-wrap">
                   <span className={`text-xs font-bold px-2 py-1 rounded-full ${cfg.color}`}>
                     {cfg.label}
                   </span>
@@ -170,6 +172,11 @@ export default async function RulesPage({ searchParams }: PageProps) {
                   {affected[type as keyof typeof affected] > 0 && (
                     <span className="text-xs font-medium bg-destructive/10 text-destructive px-2 py-0.5 rounded-full">
                       {affected[type as keyof typeof affected]} afectados
+                    </span>
+                  )}
+                  {lastTrigger[type as keyof typeof lastTrigger] && (
+                    <span className="text-xs text-muted-foreground/70">
+                      · último disparo: {new Date(lastTrigger[type as keyof typeof lastTrigger]!).toLocaleDateString('es-CL')}
                     </span>
                   )}
                 </div>

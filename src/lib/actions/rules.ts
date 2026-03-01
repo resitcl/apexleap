@@ -97,6 +97,42 @@ export async function toggleRule(id: string, is_active: boolean) {
   revalidatePath('/dashboard/rules')
 }
 
+export async function getRuleLastTriggerDates() {
+  const clubId = await getClubId()
+  const supabase = await createClient()
+
+  const [overdueRes, attRes, docRes] = await Promise.all([
+    supabase
+      .from('payments')
+      .select('updated_at')
+      .eq('club_id', clubId)
+      .eq('status', 'overdue')
+      .order('updated_at', { ascending: false })
+      .limit(1),
+    supabase
+      .from('attendance')
+      .select('checked_in_at')
+      .eq('club_id', clubId)
+      .eq('is_valid', false)
+      .order('checked_in_at', { ascending: false })
+      .limit(1),
+    supabase
+      .from('documents')
+      .select('updated_at')
+      .eq('club_id', clubId)
+      .eq('status', 'expired')
+      .order('updated_at', { ascending: false })
+      .limit(1),
+  ])
+
+  return {
+    financial:     (overdueRes.data?.[0]?.updated_at  as string | undefined) ?? null,
+    attendance:    (attRes.data?.[0]?.checked_in_at   as string | undefined) ?? null,
+    documentation: (docRes.data?.[0]?.updated_at      as string | undefined) ?? null,
+    discipline:    null as string | null,
+  }
+}
+
 export async function getRuleAffectedCounts() {
   const clubId = await getClubId()
   const supabase = await createClient()
