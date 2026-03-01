@@ -218,6 +218,18 @@ export default async function AthletesPage({ searchParams }: PageProps) {
                     </div>
 
                     <div className="flex items-center gap-2 shrink-0">
+                      {(() => {
+                        const pmts = athlete.payments as Array<{ status: string }> | null
+                        const overdue = pmts?.filter((p) => p.status === 'overdue').length ?? 0
+                        const pending = pmts?.filter((p) => p.status === 'pending').length ?? 0
+                        if (overdue > 0) return (
+                          <Badge variant="destructive" className="text-xs">{overdue} vencido{overdue > 1 ? 's' : ''}</Badge>
+                        )
+                        if (pending > 0) return (
+                          <Badge variant="secondary" className="text-xs">{pending} pendiente{pending > 1 ? 's' : ''}</Badge>
+                        )
+                        return null
+                      })()}
                       <Badge variant={athlete.status === "active" ? "default" : "secondary"}>
                         {athlete.status === "active" ? "Activo" : athlete.status === "inactive" ? "Inactivo" : "Suspendido"}
                       </Badge>
