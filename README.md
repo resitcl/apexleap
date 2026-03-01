@@ -1,36 +1,126 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ApexLeap 🏆
 
-## Getting Started
+**Performance Hub para Academias de Artes Marciales y Clubes Deportivos**
 
-First, run the development server:
+Plataforma SaaS multi-tenant que fusiona la administración de negocio con el alto rendimiento deportivo. No es solo un sistema de cobros — es el sistema operativo de tu club.
+
+---
+
+## Stack Tecnológico
+
+| Tecnología | Uso |
+|---|---|
+| **Next.js 14+** (App Router) | Frontend + Server Actions |
+| **Supabase** (PostgreSQL) | Base de datos + Row Level Security |
+| **Clerk** | Autenticación multi-rol |
+| **TailwindCSS** | Estilos |
+| **shadcn/ui** | Componentes UI |
+| **Zod** | Validación de esquemas |
+| **qrcode.react** | Generación de QR para check-in |
+| **svix** | Verificación de webhooks Clerk |
+
+---
+
+## Setup Local
+
+### 1. Clonar e instalar dependencias
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/jisantander/apexleap.git
+cd apexleap
+pnpm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Variables de entorno
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+cp .env.example .env.local
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Edita `.env.local` con tus credenciales reales:
 
-## Learn More
+| Variable | Dónde obtenerla |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | [supabase.com](https://supabase.com) → Project Settings → API |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase → Project Settings → API |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase → Project Settings → API |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | [clerk.com](https://clerk.com) → API Keys |
+| `CLERK_SECRET_KEY` | Clerk → API Keys |
+| `CLERK_WEBHOOK_SECRET` | Clerk → Webhooks → Signing Secret |
 
-To learn more about Next.js, take a look at the following resources:
+### 3. Base de datos
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Ejecuta las migraciones SQL en Supabase SQL Editor:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+# 1. Schema principal
+supabase/migrations/001_initial_schema.sql
 
-## Deploy on Vercel
+# 2. Datos semilla (reglas por defecto)
+supabase/migrations/002_seed_data.sql
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### 4. Configurar Clerk Webhook
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+En [clerk.com](https://clerk.com) → Webhooks, crear un endpoint hacia:
+```
+https://tu-dominio.com/api/webhooks/clerk
+```
+Eventos a suscribir: `user.created`, `user.updated`, `user.deleted`
+
+### 5. Ejecutar en desarrollo
+
+```bash
+pnpm dev
+```
+
+Abre [http://localhost:3000](http://localhost:3000)
+
+---
+
+## Arquitectura Multi-Tenant
+
+- Cada institución tiene su propio `club_id`
+- **Row Level Security (RLS)** en todas las tablas de Supabase
+- Ningún dato de un club es visible desde otro
+- El primer usuario de un club es automáticamente `admin`
+
+---
+
+## Módulos Implementados
+
+| Módulo | Estado | Descripción |
+|---|---|---|
+| **Onboarding** | ✅ | Creación de club + reglas por defecto |
+| **Dashboard** | ✅ | KPIs reales, Semáforo de Disponibilidad |
+| **Alumnos** | ✅ | Ficha 360°, CRUD, semáforo inline |
+| **Planes** | ✅ | Ciclos de cobro, sesiones, multisede |
+| **Suscripciones** | ✅ | Vinculación alumno↔plan, MRR estimado |
+| **Pagos** | ✅ | Registro, KPIs, marcar como pagado |
+| **Asistencia** | ✅ | QR dinámico + geolocalización + manual |
+| **Calendario** | ✅ | Sesiones recurrentes, vista semanal |
+| **Reglas** | ✅ | Motor de bloqueos automáticos |
+| **Configuración** | ✅ | Identidad y datos del club |
+| **Documentos** | 🚧 | Próximamente |
+| **Inventario** | 🚧 | Próximamente |
+| **Competencias** | 🚧 | Próximamente |
+| **Sedes** | 🚧 | Próximamente |
+
+---
+
+## Killer Features
+
+- 🚦 **Semáforo de Disponibilidad** — Estado en tiempo real: 🟢 Apto / 🟡 Observación / 🔴 Bloqueado
+- 📱 **Check-in QR + Geofencing** — QR dinámico (expira cada 60s) con validación GPS (radio 50m)
+- ⚡ **Motor de Reglas** — Bloqueos automáticos por mora, lesión, asistencia o documentos
+- 📊 **MRR en tiempo real** — Ingreso mensual recurrente calculado desde suscripciones activas
+
+---
+
+## Flujo de Nuevo Usuario
+
+```
+Sign up (Clerk) → /onboarding (crear club) → /dashboard
+                                ↓
+              Crea club + user_clubs + 4 reglas por defecto
+```

@@ -1,10 +1,15 @@
 import Link from "next/link"
+import { redirect } from "next/navigation"
 import { getDashboardSummary } from "@/lib/actions/dashboard"
+import { checkUserHasClub } from "@/lib/actions/onboarding"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Users, DollarSign, ClipboardCheck, AlertCircle, UserPlus } from "lucide-react"
 
 export default async function DashboardPage() {
+  const hasClub = await checkUserHasClub().catch(() => false)
+  if (!hasClub) redirect("/onboarding")
+
   let summary = {
     totalAthletes: 0,
     mrr: 0,
@@ -17,7 +22,7 @@ export default async function DashboardPage() {
   try {
     summary = await getDashboardSummary()
   } catch {
-    // No club set up yet — show zeros
+    // show zeros on error
   }
 
   const total = summary.semaforoCount.green + summary.semaforoCount.yellow + summary.semaforoCount.red

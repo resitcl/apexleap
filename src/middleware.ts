@@ -15,6 +15,8 @@ export default clerkMiddleware(async (auth, request) => {
   }
 })
 
+// Note: /onboarding is intentionally NOT in publicRoutes — it requires Clerk auth
+
 export const config = {
   matcher: [
     // Skip Next.js internals and all static files, unless found in search params
