@@ -441,6 +441,41 @@ export async function getWeeklyAttendanceByDay() {
   return result
 }
 
+export async function getMonthlyRetentionRate() {
+  const clubId = await getClubId()
+  const supabase = await createClient()
+
+  const now = new Date()
+  const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString()
+  const prevMonthEnd   = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59).toISOString()
+  const currMonthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
+
+  // Athletes active (with attendance) last month
+  const { data: prevActive } = await supabase
+    .from('attendance')
+    .select('athlete_id')
+    .eq('club_id', clubId)
+    .eq('is_valid', true)
+    .gte('checked_in_at', prevMonthStart)
+    .lte('checked_in_at', prevMonthEnd)
+
+  const prevIds = [...new Set((prevActive ?? []).map((r) => r.athlete_id).filter(Boolean))]
+  if (prevIds.length === 0) return null
+
+  // How many of those also attended this month
+  const { data: currActive } = await supabase
+    .from('attendance')
+    .select('athlete_id')
+    .eq('club_id', clubId)
+    .eq('is_valid', true)
+    .gte('checked_in_at', currMonthStart)
+    .in('athlete_id', prevIds)
+
+  const currIds = new Set((currActive ?? []).map((r) => r.athlete_id))
+  const retained = prevIds.filter((id) => currIds.has(id)).length
+  return { retained, total: prevIds.length, rate: Math.round((retained / prevIds.length) * 100) }
+}
+
 export async function getExpiredDocuments() {
   const clubId = await getClubId()
   const supabase = await createClient()

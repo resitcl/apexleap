@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic"
 
 import Link from "next/link"
 import { redirect } from "next/navigation"
-import { getDashboardSummary, getRecentActivity, getMonthlyRevenue, getTodaySessions, getOverdueAlerts, getUpcomingSchedules, getExpiringSubscriptions, getWeeklyAttendanceRate, getExpiredDocuments, getAthletesWithoutPlan, getWeeklyAttendanceByDay } from "@/lib/actions/dashboard"
+import { getDashboardSummary, getRecentActivity, getMonthlyRevenue, getTodaySessions, getOverdueAlerts, getUpcomingSchedules, getExpiringSubscriptions, getWeeklyAttendanceRate, getExpiredDocuments, getAthletesWithoutPlan, getWeeklyAttendanceByDay, getMonthlyRetentionRate } from "@/lib/actions/dashboard"
 import { checkUserHasClub } from "@/lib/actions/onboarding"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -33,9 +33,10 @@ export default async function DashboardPage() {
   let weeklyByDay: Awaited<ReturnType<typeof getWeeklyAttendanceByDay>> = []
   let expiredDocs: Awaited<ReturnType<typeof getExpiredDocuments>> = []
   let athletesWithoutPlan = 0
+  let retention: Awaited<ReturnType<typeof getMonthlyRetentionRate>> = null
 
   try {
-    ;[summary, activity, monthlyRevenue, todaySessions, overdueAlerts, upcomingSchedules, expiringSubscriptions, weeklyAttendance, weeklyByDay, expiredDocs, athletesWithoutPlan] = await Promise.all([
+    ;[summary, activity, monthlyRevenue, todaySessions, overdueAlerts, upcomingSchedules, expiringSubscriptions, weeklyAttendance, weeklyByDay, expiredDocs, athletesWithoutPlan, retention] = await Promise.all([
       getDashboardSummary(),
       getRecentActivity(12),
       getMonthlyRevenue(6),
@@ -47,6 +48,7 @@ export default async function DashboardPage() {
       getWeeklyAttendanceByDay(),
       getExpiredDocuments(),
       getAthletesWithoutPlan(),
+      getMonthlyRetentionRate(),
     ])
   } catch {
     // show zeros on error
@@ -199,6 +201,21 @@ export default async function DashboardPage() {
             </CardContent>
           </Card>
         </Link>
+        {retention !== null && (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Retención Mensual</CardTitle>
+              <TrendingUp className="h-4 w-4 text-teal-500" />
+            </CardHeader>
+            <CardContent>
+              <div className={`text-2xl font-bold ${
+                retention.rate >= 80 ? 'text-green-600' :
+                retention.rate >= 60 ? 'text-yellow-600' : 'text-red-600'
+              }`}>{retention.rate}%</div>
+              <p className="text-xs text-muted-foreground">{retention.retained}/{retention.total} atletas del mes anterior</p>
+            </CardContent>
+          </Card>
+        )}
         {athletesWithoutPlan > 0 && (
           <Link href="/dashboard/subscriptions">
             <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
