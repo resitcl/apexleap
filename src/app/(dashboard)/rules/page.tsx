@@ -26,6 +26,19 @@ const ACTION_ICONS = {
   notify: <ShieldCheck className="w-4 h-4 text-blue-500" />,
 }
 
+function formatCondition(cond: Record<string, unknown>): string {
+  const parts: string[] = []
+  if (cond.days_overdue !== undefined)    parts.push(`${cond.days_overdue} días vencido`)
+  if (cond.grace_days !== undefined)      parts.push(`${cond.grace_days} días de gracia`)
+  if (cond.threshold !== undefined)       parts.push(`umbral ${cond.threshold}`)
+  if (cond.min_sessions !== undefined)    parts.push(`mín. ${cond.min_sessions} sesiones`)
+  if (cond.max_absences !== undefined)    parts.push(`máx. ${cond.max_absences} ausencias`)
+  if (cond.absence_days !== undefined)    parts.push(`${cond.absence_days} días sin asistir`)
+  if (cond.expiry_days !== undefined)     parts.push(`vence en ${cond.expiry_days} días`)
+  if (cond.attendance_rate !== undefined) parts.push(`asistencia < ${cond.attendance_rate}%`)
+  return parts.length > 0 ? parts.join(' · ') : ''
+}
+
 export default async function RulesPage() {
   let rules: Awaited<ReturnType<typeof getRules>> = []
   let affected = { financial: 0, discipline: 0, documentation: 0, attendance: 0 }
@@ -147,9 +160,19 @@ export default async function RulesPage() {
                               {rule.description && (
                                 <p className="text-sm text-muted-foreground mt-0.5">{rule.description}</p>
                               )}
-                              <p className="text-xs text-muted-foreground mt-1 capitalize">
-                                Acción: {rule.action === 'block' ? 'Bloquear acceso' : rule.action === 'warn' ? 'Advertencia' : 'Notificar'}
-                              </p>
+                              <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1">
+                                <p className="text-xs text-muted-foreground capitalize">
+                                  Acción: {rule.action === 'block' ? 'Bloquear acceso' : rule.action === 'warn' ? 'Advertencia' : 'Notificar'}
+                                </p>
+                                {(() => {
+                                  const cond = formatCondition(rule.trigger_condition as Record<string, unknown>)
+                                  return cond ? (
+                                    <p className="text-xs font-mono bg-muted px-1.5 py-0.5 rounded text-muted-foreground">
+                                      {cond}
+                                    </p>
+                                  ) : null
+                                })()}
+                              </div>
                             </div>
                             <ToggleRuleButton ruleId={rule.id} isActive={rule.is_active} />
                           </div>
