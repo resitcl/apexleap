@@ -25,13 +25,14 @@ const SALARY_TYPE_LABELS: Record<string, string> = {
 }
 
 interface PageProps {
-  searchParams: Promise<{ month?: string; tab?: string }>
+  searchParams: Promise<{ month?: string; tab?: string; category?: string }>
 }
 
 export default async function FinancesPage({ searchParams }: PageProps) {
   const params = await searchParams
-  const tab = params.tab ?? "overview"
-  const month = params.month ?? new Date().toISOString().slice(0, 7)
+  const tab      = params.tab      ?? "overview"
+  const month    = params.month    ?? new Date().toISOString().slice(0, 7)
+  const category = params.category ?? ""
 
   let summary = { totalIncome: 0, totalExpenses: 0, pendingIncome: 0, netBalance: 0, byCategory: {} as Record<string, number>, month }
   let expenses: Awaited<ReturnType<typeof getExpenses>>["expenses"] = []
@@ -41,7 +42,7 @@ export default async function FinancesPage({ searchParams }: PageProps) {
   try {
     const [s, e, c, ch] = await Promise.all([
       getFinanceSummary(month),
-      getExpenses({ month }),
+      getExpenses({ month, category: category || undefined }),
       getCoaches(),
       getMonthlyFinanceChart(6),
     ])
@@ -264,9 +265,22 @@ export default async function FinancesPage({ searchParams }: PageProps) {
       {/* Expenses Tab */}
       {tab === "expenses" && (
         <div className="space-y-4">
-          <div className="flex justify-end gap-2">
-            <ExportExpensesButton expenses={expenses} month={month} />
-            <NewExpenseForm />
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap gap-2">
+              {([["", "Todas"], ["rent", "🏠 Arriendo"], ["salary", "👔 Salarios"], ["supplies", "📦 Insumos"], ["maintenance", "🔧 Mantención"], ["marketing", "📣 Marketing"], ["other", "📁 Otros"]] as const).map(([val, lbl]) => (
+                <a key={val} href={`/dashboard/finances?tab=expenses&month=${month}${val ? `&category=${val}` : ''}`}>
+                  <button className={`h-8 px-3 rounded-md border text-xs font-medium transition-colors ${
+                    (val === '' && !category) || category === val
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'bg-background border-input hover:bg-accent'
+                  }`}>{lbl}</button>
+                </a>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <ExportExpensesButton expenses={expenses} month={month} />
+              <NewExpenseForm />
+            </div>
           </div>
 
           {expenses.length === 0 ? (
