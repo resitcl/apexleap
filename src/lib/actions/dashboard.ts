@@ -189,6 +189,28 @@ export async function getRecentActivity(limit = 10) {
   return items.slice(0, limit)
 }
 
+export async function getOverdueAlerts() {
+  const clubId = await getClubId()
+  const supabase = await createClient()
+
+  const sevenDaysAgo = new Date()
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+
+  const { data } = await supabase
+    .from('payments')
+    .select('id, concept, amount, due_date, athlete_id, athletes(id, name)')
+    .eq('club_id', clubId)
+    .eq('status', 'overdue')
+    .lte('due_date', sevenDaysAgo.toISOString().split('T')[0])
+    .order('due_date', { ascending: true })
+    .limit(5)
+
+  return (data ?? []) as unknown as Array<{
+    id: string; concept: string; amount: number; due_date: string; athlete_id: string;
+    athletes: { id: string; name: string } | null
+  }>
+}
+
 export async function getTodaySessions() {
   const clubId = await getClubId()
   const supabase = await createClient()

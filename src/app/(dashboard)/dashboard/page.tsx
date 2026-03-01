@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic"
 
 import Link from "next/link"
 import { redirect } from "next/navigation"
-import { getDashboardSummary, getRecentActivity, getMonthlyRevenue, getTodaySessions } from "@/lib/actions/dashboard"
+import { getDashboardSummary, getRecentActivity, getMonthlyRevenue, getTodaySessions, getOverdueAlerts } from "@/lib/actions/dashboard"
 import { checkUserHasClub } from "@/lib/actions/onboarding"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -24,13 +24,15 @@ export default async function DashboardPage() {
   let activity: Awaited<ReturnType<typeof getRecentActivity>> = []
   let monthlyRevenue: Awaited<ReturnType<typeof getMonthlyRevenue>> = []
   let todaySessions: Awaited<ReturnType<typeof getTodaySessions>> = []
+  let overdueAlerts: Awaited<ReturnType<typeof getOverdueAlerts>> = []
 
   try {
-    ;[summary, activity, monthlyRevenue, todaySessions] = await Promise.all([
+    ;[summary, activity, monthlyRevenue, todaySessions, overdueAlerts] = await Promise.all([
       getDashboardSummary(),
       getRecentActivity(12),
       getMonthlyRevenue(6),
       getTodaySessions(),
+      getOverdueAlerts(),
     ])
   } catch {
     // show zeros on error
@@ -198,6 +200,45 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Overdue Alerts */}
+      {overdueAlerts.length > 0 && (
+        <Card className="border-destructive/40 bg-destructive/5">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-destructive" />
+              Pagos morosos &gt;7 días ({overdueAlerts.length})
+            </CardTitle>
+            <CardDescription>Alumnos con deudas vencidas que requieren gestión</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {overdueAlerts.map((alert) => {
+              const daysPast = Math.floor((Date.now() - new Date(alert.due_date).getTime()) / 86400000)
+              return (
+                <div key={alert.id} className="flex items-center justify-between gap-3 text-sm">
+                  <div className="flex-1 min-w-0">
+                    {alert.athletes && (
+                      <Link href={`/dashboard/athletes/${alert.athletes.id}`}
+                        className="font-medium hover:underline">
+                        {alert.athletes.name}
+                      </Link>
+                    )}
+                    <p className="text-xs text-muted-foreground truncate">{alert.concept}</p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-destructive font-semibold">${Number(alert.amount).toLocaleString('es-CL')}</span>
+                    <Badge variant="destructive" className="text-xs">{daysPast}d vencido</Badge>
+                  </div>
+                </div>
+              )
+            })}
+            <div className="pt-1">
+              <Link href="/dashboard/payments?status=overdue"
+                className="text-xs text-destructive hover:underline">Ver todos los pagos vencidos →</Link>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Activity Feed */}
       <Card>
