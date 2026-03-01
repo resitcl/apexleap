@@ -37,6 +37,7 @@ export async function getSubscriptions(params?: {
   athleteId?: string
   planId?: string
   search?: string
+  expiringIn?: number
   page?: number
   limit?: number
 }) {
@@ -59,6 +60,13 @@ export async function getSubscriptions(params?: {
   if (params?.athleteId) query = query.eq('athlete_id', params.athleteId)
   if (params?.planId)    query = query.eq('plan_id', params.planId)
   if (params?.search)    query = query.ilike('athletes.name', `%${params.search}%`)
+  if (params?.expiringIn) {
+    const today = new Date().toISOString().split('T')[0]
+    const future = new Date()
+    future.setDate(future.getDate() + params.expiringIn)
+    const futureStr = future.toISOString().split('T')[0]
+    query = query.gte('end_date', today).lte('end_date', futureStr).eq('status', 'active')
+  }
 
   const { data, error, count } = await query
   if (error) throw new Error(error.message)

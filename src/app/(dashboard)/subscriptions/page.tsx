@@ -24,14 +24,15 @@ const CYCLE_LABELS: Record<string, string> = {
 }
 
 interface PageProps {
-  searchParams: Promise<{ status?: string; page?: string; planId?: string; search?: string }>
+  searchParams: Promise<{ status?: string; page?: string; planId?: string; search?: string; expiring?: string }>
 }
 
 export default async function SubscriptionsPage({ searchParams }: PageProps) {
   const params = await searchParams
-  const page   = Number(params.page ?? 1)
-  const planId = params.planId ?? ""
-  const search = params.search ?? ""
+  const page     = Number(params.page ?? 1)
+  const planId   = params.planId   ?? ""
+  const search   = params.search   ?? ""
+  const expiring = params.expiring ?? ""
 
   let subs: Awaited<ReturnType<typeof getSubscriptions>>["subscriptions"] = []
   let total = 0
@@ -42,7 +43,7 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
 
   try {
     const [result, statsResult, plansResult] = await Promise.all([
-      getSubscriptions({ status: params.status, page, limit: 25, planId: planId || undefined, search: search || undefined }),
+      getSubscriptions({ status: params.status, page, limit: 25, planId: planId || undefined, search: search || undefined, expiringIn: expiring ? Number(expiring) : undefined }),
       getSubscriptionStats(),
       getPlans(),
     ])
@@ -149,8 +150,14 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
               ))}
             </select>
           )}
+          <select name="expiring" defaultValue={expiring}
+            className="h-8 px-2 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring">
+            <option value="">Cualquier vencimiento</option>
+            <option value="7">Vence en 7 días</option>
+            <option value="30">Vence en 30 días</option>
+          </select>
           <button type="submit" className="h-8 px-3 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90">Filtrar</button>
-          {(planId || search) && (
+          {(planId || search || expiring) && (
             <Link href={`/dashboard/subscriptions${params.status ? `?status=${params.status}` : ''}`}
               className="text-xs text-muted-foreground hover:text-foreground">
               ✕ Limpiar
