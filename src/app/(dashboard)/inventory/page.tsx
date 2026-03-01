@@ -65,7 +65,13 @@ export default async function InventoryPage({ searchParams }: PageProps) {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-3xl font-bold">Inventario</h1>
-          <p className="text-muted-foreground">{total} ítem{total !== 1 ? "s" : ""} registrado{total !== 1 ? "s" : ""}</p>
+          <p className="text-muted-foreground">
+            {total} ítem{total !== 1 ? "s" : ""} registrado{total !== 1 ? "s" : ""}
+            {(() => {
+              const totalValue = allItems.reduce((sum, i) => sum + (i.purchase_price ?? 0) * i.quantity, 0)
+              return totalValue > 0 ? <span className="ml-2 text-green-600 font-medium">· Valor total: ${totalValue.toLocaleString('es-CL')}</span> : null
+            })()}
+          </p>
         </div>
         <div className="flex gap-2">
           <ExportInventoryButton items={allItems} />
