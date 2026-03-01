@@ -54,8 +54,8 @@ export default async function InventoryPage({ searchParams }: PageProps) {
     athleteList = ath.athletes.map((a) => ({ id: a.id, name: a.name }))
   } catch { /* empty */ }
 
-  const lowStockItems = items.filter((i) => i.quantity <= i.quantity_min && i.quantity_min > 0)
-  const counts = items.reduce<Record<string, number>>((acc, i) => {
+  const lowStockItems = allItems.filter((i) => i.quantity <= i.quantity_min && i.quantity_min > 0)
+  const counts = allItems.reduce<Record<string, number>>((acc, i) => {
     acc[i.category] = (acc[i.category] ?? 0) + 1
     return acc
   }, {})
