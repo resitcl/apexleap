@@ -41,7 +41,7 @@ export async function getSchedules(filters?: { venueId?: string }) {
 
   let q = supabase
     .from('schedules')
-    .select('*, venues(id, name)')
+    .select('*, venues(id, name), attendance(id)')
     .eq('club_id', clubId)
     .eq('is_active', true)
     .order('start_time', { ascending: true })

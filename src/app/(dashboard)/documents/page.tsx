@@ -190,11 +190,17 @@ export default async function DocumentsPage({ searchParams }: PageProps) {
                             {athlete.name}
                           </Link>
                         )}
-                        {doc.expiry_date && (
-                          <span className={isExpired ? "text-destructive font-medium" : ""}>
-                            Vence: {new Date(doc.expiry_date + 'T12:00:00').toLocaleDateString("es-CL")}
-                          </span>
-                        )}
+                        {doc.expiry_date && (() => {
+                          const exp = new Date(doc.expiry_date + 'T12:00:00')
+                          const diffDays = Math.ceil((exp.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+                          return (
+                            <span className={isExpired ? "text-destructive font-medium" : diffDays <= 30 ? "text-yellow-600 font-medium" : ""}>
+                              Vence: {exp.toLocaleDateString("es-CL")}
+                              {!isExpired && diffDays <= 30 && ` (${diffDays}d)`}
+                              {isExpired && ` (hace ${Math.abs(diffDays)}d)`}
+                            </span>
+                          )
+                        })()}
                       </div>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">

@@ -216,6 +216,15 @@ export default async function CalendarPage({ searchParams }: PageProps) {
                               Máx. {s.capacity}
                             </span>
                           )}
+                          {(() => {
+                            const att = s.attendance as Array<{ id: string }> | null
+                            const count = (att ?? []).length
+                            return count > 0 ? (
+                              <span className="flex items-center gap-1 text-primary font-medium">
+                                📋 {count} asistencias
+                              </span>
+                            ) : null
+                          })()}
                         </div>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
