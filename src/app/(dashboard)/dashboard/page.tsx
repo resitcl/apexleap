@@ -249,6 +249,21 @@ export default async function DashboardPage() {
         </Card>
       )}
 
+      {todaySessions.length === 0 && (
+        <Link href="/dashboard/calendar">
+          <Card className="border-blue-200 bg-blue-50 hover:bg-blue-100 transition-colors cursor-pointer">
+            <CardContent className="py-3">
+              <div className="flex items-center gap-3">
+                <ClipboardCheck className="w-5 h-5 text-blue-500 shrink-0" />
+                <p className="text-sm text-blue-800 font-medium">
+                  No hay sesiones programadas para hoy — ¿querés agregar una?
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+      )}
+
       {expiredDocs.length > 0 && (
         <Link href="/dashboard/documents">
           <Card className="border-yellow-200 bg-yellow-50 hover:bg-yellow-100 transition-colors cursor-pointer">

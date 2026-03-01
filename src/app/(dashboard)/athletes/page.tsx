@@ -61,6 +61,16 @@ export default async function AthletesPage({ searchParams }: PageProps) {
 
   const thirtyDaysAgoISO = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
 
+  if (sort === 'debt') {
+    athletes = athletes.slice().sort((a, b) => {
+      const debtA = (a.payments as Array<{ status: string; amount: number }> | null ?? [])
+        .filter((p) => p.status === 'overdue').reduce((s, p) => s + Number(p.amount), 0)
+      const debtB = (b.payments as Array<{ status: string; amount: number }> | null ?? [])
+        .filter((p) => p.status === 'overdue').reduce((s, p) => s + Number(p.amount), 0)
+      return debtB - debtA
+    })
+  }
+
   if (sort === 'last_attendance') {
     athletes = athletes.slice().sort((a, b) => {
       const lastA = (a.attendance as Array<{ checked_in_at: string }> | null ?? [])
@@ -246,6 +256,7 @@ export default async function AthletesPage({ searchParams }: PageProps) {
             { value: 'created_at', label: '🕐 Más recientes' },
             { value: 'status', label: '📊 Estado' },
             { value: 'last_attendance', label: '📋 Última asistencia' },
+            { value: 'debt', label: '💰 Mayor deuda' },
           ]).map(({ value, label }) => (
             <Link key={value} href={`/dashboard/athletes?${new URLSearchParams({
               ...(params.search    ? { search:    params.search }    : {}),
