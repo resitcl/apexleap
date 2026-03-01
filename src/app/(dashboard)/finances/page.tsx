@@ -289,13 +289,28 @@ export default async function FinancesPage({ searchParams }: PageProps) {
       {/* Expenses Tab */}
       {tab === "expenses" && (
         <div className="space-y-4">
-          {expenses.length > 0 && (
-            <div className="text-sm text-muted-foreground">
-              Total filtrado: <span className="font-semibold text-foreground">
-                ${expenses.reduce((s, e) => s + Number(e.amount), 0).toLocaleString('es-CL')}
-              </span> · {expenses.length} egreso{expenses.length !== 1 ? 's' : ''}
-            </div>
-          )}
+          {expenses.length > 0 && (() => {
+            const totalAmt = expenses.reduce((s, e) => s + Number(e.amount), 0)
+            const byCat = expenses.reduce<Record<string, number>>((acc, e) => {
+              acc[e.category] = (acc[e.category] ?? 0) + Number(e.amount)
+              return acc
+            }, {})
+            const top3 = Object.entries(byCat).sort((a, b) => b[1] - a[1]).slice(0, 3)
+            const CAT_LABEL: Record<string, string> = { rent: '🏠 Arriendo', salary: '👔 Salarios', supplies: '📦 Insumos', maintenance: '🔧 Mantención', marketing: '📣 Marketing', other: '📁 Otros' }
+            return (
+              <div className="flex flex-wrap items-center gap-4 text-sm">
+                <span className="text-muted-foreground">
+                  Total: <span className="font-semibold text-foreground">${totalAmt.toLocaleString('es-CL')}</span>
+                  {' · '}{expenses.length} egreso{expenses.length !== 1 ? 's' : ''}
+                </span>
+                {top3.map(([cat, amt]) => (
+                  <span key={cat} className="text-xs bg-muted px-2 py-0.5 rounded font-medium">
+                    {CAT_LABEL[cat] ?? cat}: ${amt.toLocaleString('es-CL')} ({Math.round((amt / totalAmt) * 100)}%)
+                  </span>
+                ))}
+              </div>
+            )
+          })()}
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap gap-2">
               {([["", "Todas"], ["rent", "🏠 Arriendo"], ["salary", "👔 Salarios"], ["supplies", "📦 Insumos"], ["maintenance", "🔧 Mantención"], ["marketing", "📣 Marketing"], ["other", "📁 Otros"]] as const).map(([val, lbl]) => (

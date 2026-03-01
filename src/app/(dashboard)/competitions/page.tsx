@@ -173,11 +173,16 @@ export default async function CompetitionsPage({ searchParams }: PageProps) {
                     </span>
                   </div>
                   <div className="flex items-center justify-between pt-1">
-                    {rosterCount > 0 ? (
-                      <p className="text-xs text-muted-foreground">
-                        {rosterCount} nómina{rosterCount !== 1 ? "s" : ""} creada{rosterCount !== 1 ? "s" : ""}
-                      </p>
-                    ) : <span />}
+                    {rosterCount > 0 ? (() => {
+                      const athleteCount = (comp.rosters as Array<{ roster_athletes?: unknown[] }>)
+                        .reduce((sum, r) => sum + (r.roster_athletes?.length ?? 0), 0)
+                      return (
+                        <p className="text-xs text-muted-foreground">
+                          {rosterCount} nómina{rosterCount !== 1 ? "s" : ""}
+                          {athleteCount > 0 && ` · ${athleteCount} atleta${athleteCount !== 1 ? "s" : ""}`}
+                        </p>
+                      )
+                    })() : <span />}
                     <DeleteCompetitionButton competitionId={comp.id} />
                   </div>
                 </CardContent>

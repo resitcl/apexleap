@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic"
 
 import Link from "next/link"
+import { Suspense } from "react"
 import { getPayments, getPaymentSummary } from "@/lib/actions/payments"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -179,7 +180,9 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
 
       {/* Filters */}
       <div className="flex flex-wrap items-end gap-3">
-        <PaymentsFilter currentStatus={params.status} />
+        <Suspense fallback={null}>
+          <PaymentsFilter currentStatus={params.status} currentMethod={paymentMethod || undefined} />
+        </Suspense>
         <form method="get" action="/dashboard/payments" className="flex flex-wrap items-end gap-2">
           {params.status && <input type="hidden" name="status" value={params.status} />}
           <div className="flex flex-col gap-1">

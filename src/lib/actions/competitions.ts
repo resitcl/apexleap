@@ -38,7 +38,7 @@ export async function getCompetitions(params?: { status?: string; search?: strin
   const to = from + limit - 1
   let query = supabase
     .from('competitions')
-    .select('*, rosters(id)', { count: 'exact' })
+    .select('*, rosters(id, roster_athletes(id))', { count: 'exact' })
     .eq('club_id', clubId)
     .order('start_date', { ascending: false })
     .range(from, to)
