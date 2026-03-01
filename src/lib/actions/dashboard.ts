@@ -211,6 +211,27 @@ export async function getOverdueAlerts() {
   }>
 }
 
+export async function getWeeklyAttendanceRate() {
+  const clubId = await getClubId()
+  const supabase = await createClient()
+
+  const sevenDaysAgo = new Date()
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+
+  const [{ count: total }, { count: valid }] = await Promise.all([
+    supabase.from('attendance').select('id', { count: 'exact', head: true })
+      .eq('club_id', clubId).gte('checked_in_at', sevenDaysAgo.toISOString()),
+    supabase.from('attendance').select('id', { count: 'exact', head: true })
+      .eq('club_id', clubId).eq('is_valid', true).gte('checked_in_at', sevenDaysAgo.toISOString()),
+  ])
+
+  return {
+    total: total ?? 0,
+    valid: valid ?? 0,
+    rate: total ? Math.round(((valid ?? 0) / total) * 100) : 0,
+  }
+}
+
 export async function getExpiringSubscriptions() {
   const clubId = await getClubId()
   const supabase = await createClient()
