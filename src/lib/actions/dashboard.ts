@@ -26,11 +26,14 @@ export async function getDashboardSummary() {
   const tomorrow = new Date(today)
   tomorrow.setDate(tomorrow.getDate() + 1)
 
+  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1).toISOString()
+
   const [
     athletesResult,
     paymentsResult,
     attendanceTodayResult,
     overdueResult,
+    topAttendanceResult,
   ] = await Promise.all([
     // Athletes by health/status
     supabase
@@ -58,6 +61,14 @@ export async function getDashboardSummary() {
       .select('athlete_id')
       .eq('club_id', clubId)
       .eq('status', 'overdue'),
+
+    // Top attendance this month
+    supabase
+      .from('attendance')
+      .select('athlete_id, athletes(id, name)')
+      .eq('club_id', clubId)
+      .eq('is_valid', true)
+      .gte('checked_in_at', monthStart),
   ])
 
   const athletes = athletesResult.data ?? []
@@ -72,7 +83,6 @@ export async function getDashboardSummary() {
     .filter((p) => p.status === 'paid')
     .reduce((sum, p) => sum + Number(p.amount), 0)
 
-  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1).toISOString()
   const monthlyIncome = payments
     .filter((p) => p.status === 'paid' && p.paid_at && p.paid_at >= monthStart)
     .reduce((sum, p) => sum + Number(p.amount), 0)
@@ -106,6 +116,19 @@ export async function getDashboardSummary() {
     red: semaforo.filter((s) => s === 'red').length,
   }
 
+  // Top 3 athletes by attendance this month
+  const attRows = topAttendanceResult.data ?? []
+  const attByAthlete = attRows.reduce<Record<string, { id: string; name: string; count: number }>>((acc, r) => {
+    const ath = r.athletes as unknown as { id: string; name: string } | null
+    if (!ath) return acc
+    if (!acc[ath.id]) acc[ath.id] = { id: ath.id, name: ath.name, count: 0 }
+    acc[ath.id].count++
+    return acc
+  }, {})
+  const topAthletes = Object.values(attByAthlete)
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 3)
+
   return {
     totalAthletes,
     mrr,
@@ -114,6 +137,7 @@ export async function getDashboardSummary() {
     overdueAmount,
     todayCheckIns,
     semaforoCount,
+    topAthletes,
   }
 }
 

@@ -21,6 +21,7 @@ export default async function DashboardPage() {
     overdueAmount: 0,
     todayCheckIns: 0,
     semaforoCount: { green: 0, yellow: 0, red: 0 },
+    topAthletes: [] as { id: string; name: string; count: number }[],
   }
   let activity: Awaited<ReturnType<typeof getRecentActivity>> = []
   let monthlyRevenue: Awaited<ReturnType<typeof getMonthlyRevenue>> = []
@@ -299,6 +300,32 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Top athletes by attendance this month */}
+      {summary.topAthletes.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              🏅 Top Asistencias del Mes
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {summary.topAthletes.map((ath, i) => (
+                <div key={ath.id} className="flex items-center justify-between gap-3 text-sm">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-muted-foreground w-5 text-right">{i + 1}.</span>
+                    <Link href={`/dashboard/athletes/${ath.id}`} className="font-medium hover:underline">{ath.name}</Link>
+                  </div>
+                  <span className="text-xs font-semibold bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                    {ath.count} check-ins
+                  </span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Overdue Alerts */}
       {overdueAlerts.length > 0 && (
