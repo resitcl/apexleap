@@ -14,7 +14,7 @@ import { BulkMarkAsPaidButton } from "@/components/payments/BulkMarkAsPaidButton
 import { DeletePaymentButton } from "@/components/payments/DeletePaymentButton"
 
 interface PageProps {
-  searchParams: Promise<{ status?: string; page?: string; from?: string; to?: string; athleteId?: string }>
+  searchParams: Promise<{ status?: string; page?: string; from?: string; to?: string; athleteId?: string; search?: string }>
 }
 
 const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
@@ -31,6 +31,7 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
   const from      = params.from      ?? ""
   const to        = params.to        ?? ""
   const athleteId = params.athleteId ?? ""
+  const search    = params.search    ?? ""
 
   let payments: Awaited<ReturnType<typeof getPayments>>["payments"] = []
   let total = 0
@@ -39,7 +40,7 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
 
   try {
     const [result, summaryResult] = await Promise.all([
-      getPayments({ status: params.status, page, limit: 25, from: from || undefined, to: to || undefined, athleteId: athleteId || undefined }),
+      getPayments({ status: params.status, page, limit: 25, from: from || undefined, to: to || undefined, athleteId: athleteId || undefined, search: search || undefined }),
       getPaymentSummary(),
     ])
     payments = result.payments
@@ -136,6 +137,12 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
         <form method="get" action="/dashboard/payments" className="flex flex-wrap items-end gap-2">
           {params.status && <input type="hidden" name="status" value={params.status} />}
           <div className="flex flex-col gap-1">
+            <label className="text-xs text-muted-foreground font-medium">Buscar concepto</label>
+            <input type="text" name="search" defaultValue={search}
+              placeholder="Ej: mensualidad..."
+              className="h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring w-44" />
+          </div>
+          <div className="flex flex-col gap-1">
             <label className="text-xs text-muted-foreground font-medium">Venc. desde</label>
             <input type="date" name="from" defaultValue={from}
               className="h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
@@ -149,7 +156,7 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
             className="h-9 px-4 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
             Filtrar
           </button>
-          {(from || to) && (
+          {(from || to || search) && (
             <Link href={`/dashboard/payments${params.status ? `?status=${params.status}` : ''}`}
               className="h-9 px-3 rounded-md border border-input bg-background text-sm font-medium hover:bg-accent transition-colors flex items-center">
               ✕ Limpiar

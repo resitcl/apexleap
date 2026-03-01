@@ -37,6 +37,7 @@ async function getClubId() {
 export async function getPayments(params?: {
   status?: string
   athleteId?: string
+  search?: string
   page?: number
   limit?: number
   from?: string
@@ -59,6 +60,7 @@ export async function getPayments(params?: {
 
   if (params?.status) query = query.eq('status', params.status)
   if (params?.athleteId) query = query.eq('athlete_id', params.athleteId)
+  if (params?.search) query = query.ilike('concept', `%${params.search}%`)
   if (params?.from) query = query.gte('due_date', params.from)
   if (params?.to)   query = query.lte('due_date', params.to)
 
