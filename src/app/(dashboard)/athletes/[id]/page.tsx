@@ -10,6 +10,7 @@ import { HealthStatusBadge } from "@/components/athletes/HealthStatusBadge"
 import { LogInjuryForm } from "@/components/athletes/LogInjuryForm"
 import { ResolveInjuryButton } from "@/components/athletes/ResolveInjuryButton"
 import { HealthStatusButton } from "@/components/athletes/HealthStatusButton"
+import { ExportAthleteButton } from "@/components/athletes/ExportAthleteButton"
 import {
   ChevronLeft, Pencil, Phone, Mail, FileText,
   Calendar, CreditCard, CheckSquare, Activity, Heart,
@@ -79,6 +80,11 @@ export default async function AthleteDetailPage({ params }: PageProps) {
             Registrar Pago
           </Button>
         </Link>
+        <ExportAthleteButton
+          athlete={athlete}
+          payments={payments}
+          attendance={attendance}
+        />
         <LogInjuryForm athleteId={id} />
         <Link href={`/dashboard/athletes/${id}/edit`}>
           <Button variant="outline" size="sm" className="gap-1.5">
