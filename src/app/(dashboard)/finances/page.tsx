@@ -11,6 +11,7 @@ import {
 import { NewExpenseForm } from "@/components/finances/NewExpenseForm"
 import { NewCoachForm } from "@/components/finances/NewCoachForm"
 import { DeleteExpenseButton } from "@/components/finances/DeleteExpenseButton"
+import { EditExpenseButton } from "@/components/finances/EditExpenseButton"
 import { MonthPicker } from "@/components/finances/MonthPicker"
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -293,6 +294,7 @@ export default async function FinancesPage({ searchParams }: PageProps) {
                       <span className="font-bold text-red-600 shrink-0">
                         −${Number(exp.amount).toLocaleString("es-CL")}
                       </span>
+                      <EditExpenseButton expense={exp} />
                       <DeleteExpenseButton expenseId={exp.id} />
                     </div>
                   </CardContent>

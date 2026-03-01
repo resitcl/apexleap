@@ -122,6 +122,16 @@ export async function createExpense(input: ExpenseInput) {
   return data
 }
 
+export async function updateExpense(id: string, input: Partial<ExpenseInput>) {
+  const clubId = await getClubId()
+  const supabase = await createClient()
+  const { error } = await supabase.from('expenses')
+    .update({ ...input, updated_at: new Date().toISOString() })
+    .eq('id', id).eq('club_id', clubId)
+  if (error) throw new Error(error.message)
+  revalidatePath('/dashboard/finances')
+}
+
 export async function deleteExpense(id: string) {
   const clubId = await getClubId()
   const supabase = await createClient()
