@@ -169,12 +169,12 @@ export default async function CompetitionsPage({ searchParams }: PageProps) {
           </p>
           <div className="flex gap-2">
             {page > 1 && (
-              <Link href={`/dashboard/competitions?${new URLSearchParams({ ...(params.status ? { status: params.status } : {}), page: String(page - 1) }).toString()}`}>
+              <Link href={`/dashboard/competitions?${new URLSearchParams({ ...(params.status ? { status: params.status } : {}), ...(search ? { search } : {}), page: String(page - 1) }).toString()}`}>
                 <button className="h-9 px-4 rounded-md border border-input bg-background text-sm hover:bg-accent transition-colors">← Anterior</button>
               </Link>
             )}
             {page * limit < total && (
-              <Link href={`/dashboard/competitions?${new URLSearchParams({ ...(params.status ? { status: params.status } : {}), page: String(page + 1) }).toString()}`}>
+              <Link href={`/dashboard/competitions?${new URLSearchParams({ ...(params.status ? { status: params.status } : {}), ...(search ? { search } : {}), page: String(page + 1) }).toString()}`}>
                 <button className="h-9 px-4 rounded-md border border-input bg-background text-sm hover:bg-accent transition-colors">Siguiente →</button>
               </Link>
             )}
