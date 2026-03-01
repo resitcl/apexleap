@@ -32,9 +32,14 @@ export default async function PlanDetailPage({ params }: PageProps) {
 
   const subscriptions = (plan.subscriptions ?? []) as Array<{
     id: string; status: string; athlete_id: string;
-    athletes: { name: string } | null
+    start_date: string; end_date: string | null;
+    athletes: { id: string; name: string } | null
   }>
-  const activeSubs = subscriptions.filter((s) => s.status === 'active')
+  const activeSubs   = subscriptions.filter((s) => s.status === 'active')
+  const allSortedSubs = [...subscriptions].sort((a, b) => {
+    const order: Record<string, number> = { active: 0, paused: 1, expired: 2, cancelled: 3 }
+    return (order[a.status] ?? 9) - (order[b.status] ?? 9)
+  })
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
@@ -140,34 +145,42 @@ export default async function PlanDetailPage({ params }: PageProps) {
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
               <Users className="w-4 h-4" />
-              Suscriptores activos ({activeSubs.length})
+              Suscriptores ({subscriptions.length})
+              <Badge className="text-xs">{activeSubs.length} activos</Badge>
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {activeSubs.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Sin suscriptores activos</p>
+            {allSortedSubs.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Sin suscriptores</p>
             ) : (
-              <div className="space-y-2">
-                {activeSubs.slice(0, 8).map((sub) => (
+              <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                {allSortedSubs.map((sub) => (
                   <div key={sub.id} className="flex items-center gap-2">
-                    <Avatar className="w-7 h-7">
+                    <Avatar className="w-7 h-7 shrink-0">
                       <AvatarFallback className="text-xs">
                         {sub.athletes?.name?.slice(0, 2).toUpperCase() ?? '??'}
                       </AvatarFallback>
                     </Avatar>
-                    <Link
-                      href={`/dashboard/athletes/${sub.athlete_id}`}
-                      className="text-sm hover:underline"
+                    <div className="flex-1 min-w-0">
+                      <Link
+                        href={`/dashboard/athletes/${sub.athletes?.id ?? sub.athlete_id}`}
+                        className="text-sm font-medium hover:underline truncate block"
+                      >
+                        {sub.athletes?.name ?? 'Alumno'}
+                      </Link>
+                      <p className="text-xs text-muted-foreground">
+                        Desde {new Date(sub.start_date).toLocaleDateString('es-CL')}
+                        {sub.end_date ? ` · Hasta ${new Date(sub.end_date).toLocaleDateString('es-CL')}` : ''}
+                      </p>
+                    </div>
+                    <Badge
+                      variant={sub.status === 'active' ? 'default' : sub.status === 'cancelled' ? 'destructive' : 'secondary'}
+                      className="text-xs shrink-0"
                     >
-                      {sub.athletes?.name ?? 'Alumno'}
-                    </Link>
+                      {sub.status === 'active' ? 'Activa' : sub.status === 'paused' ? 'Pausada' : sub.status === 'cancelled' ? 'Cancelada' : 'Expirada'}
+                    </Badge>
                   </div>
                 ))}
-                {activeSubs.length > 8 && (
-                  <p className="text-xs text-muted-foreground">
-                    +{activeSubs.length - 8} más...
-                  </p>
-                )}
               </div>
             )}
           </CardContent>

@@ -57,7 +57,7 @@ export async function getPlanById(id: string) {
 
   const { data, error } = await supabase
     .from('plans')
-    .select('*, subscriptions(id, status, athlete_id, athletes(name))')
+    .select('*, subscriptions(id, status, athlete_id, start_date, end_date, athletes(id, name))')
     .eq('id', id)
     .eq('club_id', clubId)
     .single()
