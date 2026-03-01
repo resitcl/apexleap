@@ -38,10 +38,10 @@ export async function getDashboardSummary() {
       .select('id, status, health_status')
       .eq('club_id', clubId),
 
-    // All payments for MRR
+    // All payments for MRR + monthly income
     supabase
       .from('payments')
-      .select('status, amount')
+      .select('status, amount, paid_at')
       .eq('club_id', clubId),
 
     // Today's attendance
@@ -70,6 +70,11 @@ export async function getDashboardSummary() {
 
   const mrr = payments
     .filter((p) => p.status === 'paid')
+    .reduce((sum, p) => sum + Number(p.amount), 0)
+
+  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1).toISOString()
+  const monthlyIncome = payments
+    .filter((p) => p.status === 'paid' && p.paid_at && p.paid_at >= monthStart)
     .reduce((sum, p) => sum + Number(p.amount), 0)
 
   const pendingAmount = payments
@@ -104,6 +109,7 @@ export async function getDashboardSummary() {
   return {
     totalAthletes,
     mrr,
+    monthlyIncome,
     pendingAmount,
     overdueAmount,
     todayCheckIns,

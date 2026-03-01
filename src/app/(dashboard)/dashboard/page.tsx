@@ -16,6 +16,7 @@ export default async function DashboardPage() {
   let summary = {
     totalAthletes: 0,
     mrr: 0,
+    monthlyIncome: 0,
     pendingAmount: 0,
     overdueAmount: 0,
     todayCheckIns: 0,
@@ -83,18 +84,22 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Recaudado</CardTitle>
-            <DollarSign className="h-4 w-4 text-green-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">
-              ${summary.mrr.toLocaleString("es-CL")}
-            </div>
-            <p className="text-xs text-muted-foreground">pagos confirmados</p>
-          </CardContent>
-        </Card>
+        <Link href={`/dashboard/finances?tab=overview&month=${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}`}>
+          <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Ingresos del Mes</CardTitle>
+              <DollarSign className="h-4 w-4 text-green-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-green-600">
+                ${summary.monthlyIncome.toLocaleString("es-CL")}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {new Date().toLocaleDateString("es-CL", { month: "long", year: "numeric" })}
+              </p>
+            </CardContent>
+          </Card>
+        </Link>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
