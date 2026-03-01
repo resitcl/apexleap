@@ -7,89 +7,58 @@ import { Suspense } from "react"
 function CheckInContent() {
   const searchParams = useSearchParams()
   const token = searchParams.get("token")
-  const [status, setStatus] = useState<"idle" | "locating" | "submitting" | "success" | "error">("idle")
+  const [step, setStep] = useState<"identify" | "locating" | "submitting" | "success" | "error">("identify")
+  const [docNumber, setDocNumber] = useState("")
   const [message, setMessage] = useState("")
   const [athleteName, setAthleteName] = useState("")
 
   useEffect(() => {
     if (!token) {
-      setStatus("error")
-      setMessage("QR inválido o expirado")
-      return
+      setStep("error")
+      setMessage("QR inválido o expirado. Pide un nuevo código al entrenador.")
     }
-    // Auto-start on mount
-    handleCheckIn()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token])
 
   async function handleCheckIn() {
-    setStatus("locating")
+    if (!docNumber.trim()) return
+    setStep("locating")
     setMessage("Verificando ubicación...")
+
+    let lat: number | undefined
+    let lng: number | undefined
 
     try {
       const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-        if (!navigator.geolocation) {
-          reject(new Error("Geolocalización no disponible"))
-          return
-        }
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          timeout: 10000,
-          maximumAge: 0,
-          enableHighAccuracy: true,
-        })
+        if (!navigator.geolocation) { reject(new Error("no-geo")); return }
+        navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 8000, maximumAge: 0, enableHighAccuracy: true })
       })
+      lat = position.coords.latitude
+      lng = position.coords.longitude
+    } catch {
+      // proceed without GPS
+    }
 
-      setStatus("submitting")
-      setMessage("Registrando asistencia...")
+    setStep("submitting")
+    setMessage("Registrando asistencia...")
 
+    try {
       const res = await fetch("/api/attendance/check-in", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          token,
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-        }),
+        body: JSON.stringify({ token, documentNumber: docNumber.trim(), lat, lng }),
       })
-
       const data = await res.json()
-
       if (!res.ok) {
-        setStatus("error")
+        setStep("error")
         setMessage(data.error ?? "Error al registrar asistencia")
       } else {
-        setStatus("success")
+        setStep("success")
         setAthleteName(data.athleteName ?? "")
         setMessage("¡Asistencia registrada!")
       }
-    } catch (err) {
-      // If geolocation denied, try without GPS
-      if ((err as Error).name === "GeolocationPositionError" || typeof (err as { code?: number }).code === "number") {
-        setStatus("submitting")
-        setMessage("Registrando sin GPS...")
-        try {
-          const res = await fetch("/api/attendance/check-in", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ token }),
-          })
-          const data = await res.json()
-          if (!res.ok) {
-            setStatus("error")
-            setMessage(data.error ?? "Error al registrar asistencia")
-          } else {
-            setStatus("success")
-            setAthleteName(data.athleteName ?? "")
-            setMessage("¡Asistencia registrada!")
-          }
-        } catch {
-          setStatus("error")
-          setMessage("Error de conexión")
-        }
-      } else {
-        setStatus("error")
-        setMessage(err instanceof Error ? err.message : "Error inesperado")
-      }
+    } catch {
+      setStep("error")
+      setMessage("Error de conexión")
     }
   }
 
@@ -102,22 +71,40 @@ function CheckInContent() {
         </div>
 
         {/* Status */}
-        <div className="space-y-3">
-          {status === "idle" && (
-            <div className="space-y-2">
-              <p className="text-xl font-semibold">Check-in ApexLeap</p>
-              <p className="text-muted-foreground text-sm">Iniciando validación...</p>
+        <div className="space-y-4">
+          {step === "identify" && (
+            <div className="space-y-4">
+              <div>
+                <p className="text-xl font-semibold">Check-in ApexLeap</p>
+                <p className="text-muted-foreground text-sm mt-1">Ingresa tu RUT o número de documento</p>
+              </div>
+              <input
+                type="text"
+                value={docNumber}
+                onChange={(e) => setDocNumber(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleCheckIn()}
+                placeholder="Ej: 12345678-9"
+                className="w-full text-center text-lg border-2 border-input rounded-xl px-4 py-3 focus:outline-none focus:border-primary bg-background"
+                autoFocus
+              />
+              <button
+                onClick={handleCheckIn}
+                disabled={!docNumber.trim()}
+                className="w-full py-3 bg-primary text-primary-foreground rounded-xl font-semibold text-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Registrar Asistencia
+              </button>
             </div>
           )}
 
-          {(status === "locating" || status === "submitting") && (
+          {(step === "locating" || step === "submitting") && (
             <div className="space-y-3">
               <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
               <p className="text-lg font-semibold">{message}</p>
             </div>
           )}
 
-          {status === "success" && (
+          {step === "success" && (
             <div className="space-y-3">
               <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto">
                 <span className="text-5xl">✅</span>
@@ -130,7 +117,7 @@ function CheckInContent() {
             </div>
           )}
 
-          {status === "error" && (
+          {step === "error" && (
             <div className="space-y-3">
               <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto">
                 <span className="text-5xl">❌</span>
@@ -138,10 +125,10 @@ function CheckInContent() {
               <p className="text-xl font-bold text-red-600">Error</p>
               <p className="text-muted-foreground">{message}</p>
               <button
-                onClick={handleCheckIn}
-                className="mt-4 px-6 py-2 bg-primary text-primary-foreground rounded-lg font-medium"
+                onClick={() => { setStep("identify"); setDocNumber("") }}
+                className="mt-2 px-6 py-2 bg-primary text-primary-foreground rounded-lg font-medium"
               >
-                Reintentar
+                Intentar de nuevo
               </button>
             </div>
           )}

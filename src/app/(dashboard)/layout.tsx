@@ -14,6 +14,7 @@ import {
   BookOpen,
   ShieldCheck,
   Repeat2,
+  BarChart3,
 } from "lucide-react"
 import { MobileSidebar } from "@/components/layouts/MobileSidebar"
 import { DesktopNavItem } from "@/components/layouts/DesktopNavItem"
@@ -24,6 +25,7 @@ export const sidebarItems = [
   { href: "/dashboard/plans",         label: "Planes",         icon: BookOpen },
   { href: "/dashboard/subscriptions", label: "Suscripciones",  icon: Repeat2 },
   { href: "/dashboard/payments",      label: "Pagos",          icon: CreditCard },
+  { href: "/dashboard/finances",      label: "Finanzas",       icon: BarChart3 },
   { href: "/dashboard/attendance",    label: "Asistencia",     icon: ClipboardCheck },
   { href: "/dashboard/calendar",      label: "Calendario",     icon: Calendar },
   { href: "/dashboard/rules",         label: "Reglas",         icon: ShieldCheck },
