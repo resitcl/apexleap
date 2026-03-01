@@ -20,6 +20,8 @@ interface Props {
     geofence_radius: number
     capacity: number | null
     is_home_venue: boolean
+    opening_time: string | null
+    closing_time: string | null
   }
 }
 
@@ -35,6 +37,8 @@ export function EditVenueForm({ venue }: Props) {
     geofence_radius:  String(venue.geofence_radius ?? 100),
     capacity:         venue.capacity         != null ? String(venue.capacity)         : '',
     is_home_venue:    venue.is_home_venue,
+    opening_time:     venue.opening_time     ?? '',
+    closing_time:     venue.closing_time     ?? '',
   })
 
   function set(k: string, v: string | boolean) { setForm((p) => ({ ...p, [k]: v })) }
@@ -46,13 +50,15 @@ export function EditVenueForm({ venue }: Props) {
     try {
       await updateVenue(venue.id, {
         name:            form.name,
-        address:         form.address  || null,
-        city:            form.city     || null,
-        lat:             form.lat      ? Number(form.lat)              : null,
-        lng:             form.lng      ? Number(form.lng)              : null,
+        address:         form.address       || null,
+        city:            form.city          || null,
+        lat:             form.lat           ? Number(form.lat)    : null,
+        lng:             form.lng           ? Number(form.lng)    : null,
         geofence_radius: Number(form.geofence_radius) || 100,
-        capacity:        form.capacity ? Number(form.capacity)         : null,
+        capacity:        form.capacity      ? Number(form.capacity) : null,
         is_home_venue:   form.is_home_venue,
+        opening_time:    form.opening_time  || null,
+        closing_time:    form.closing_time  || null,
       })
       toast.success('Sede actualizada')
       setOpen(false)
@@ -91,6 +97,14 @@ export function EditVenueForm({ venue }: Props) {
             <div className="space-y-1.5">
               <Label htmlFor="e-capacity">Aforo</Label>
               <Input id="e-capacity" type="number" min="1" value={form.capacity} onChange={(e) => set('capacity', e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="e-open">Apertura</Label>
+              <Input id="e-open" type="time" value={form.opening_time} onChange={(e) => set('opening_time', e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="e-close">Cierre</Label>
+              <Input id="e-close" type="time" value={form.closing_time} onChange={(e) => set('closing_time', e.target.value)} />
             </div>
           </div>
 

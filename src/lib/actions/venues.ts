@@ -15,6 +15,8 @@ const venueSchema = z.object({
   capacity: z.coerce.number().int().min(1).optional().nullable(),
   is_home_venue: z.boolean().default(false),
   is_active: z.boolean().default(true),
+  opening_time: z.string().regex(/^\d{2}:\d{2}$/).optional().nullable(),
+  closing_time: z.string().regex(/^\d{2}:\d{2}$/).optional().nullable(),
 })
 
 export type VenueInput = z.infer<typeof venueSchema>

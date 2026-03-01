@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic"
 import { getVenues } from "@/lib/actions/venues"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { MapPin, Navigation, Users, Home } from "lucide-react"
+import { MapPin, Navigation, Users, Home, Clock } from "lucide-react"
 import { NewVenueForm } from "@/components/venues/NewVenueForm"
 import { VenueToggleButton } from "@/components/venues/VenueToggleButton"
 import { EditVenueForm } from "@/components/venues/EditVenueForm"
@@ -64,6 +64,17 @@ export default async function VenuesPage() {
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Users className="w-4 h-4 shrink-0" />
                     <span>Aforo: {venue.capacity} personas</span>
+                  </div>
+                )}
+
+                {(venue.opening_time || venue.closing_time) && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Clock className="w-4 h-4 shrink-0" />
+                    <span>
+                      {venue.opening_time ? venue.opening_time.slice(0, 5) : '—'}
+                      {' · '}
+                      {venue.closing_time ? venue.closing_time.slice(0, 5) : '—'}
+                    </span>
                   </div>
                 )}
 
