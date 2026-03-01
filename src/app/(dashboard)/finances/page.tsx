@@ -35,18 +35,27 @@ export default async function FinancesPage({ searchParams }: PageProps) {
   const category = params.category ?? ""
 
   let summary = { totalIncome: 0, totalExpenses: 0, pendingIncome: 0, netBalance: 0, byCategory: {} as Record<string, number>, month }
+  let prevSummary = { totalIncome: 0, totalExpenses: 0, pendingIncome: 0, netBalance: 0, byCategory: {} as Record<string, number>, month: '' }
   let expenses: Awaited<ReturnType<typeof getExpenses>>["expenses"] = []
   let coaches: Awaited<ReturnType<typeof getCoaches>> = []
   let chartData: Awaited<ReturnType<typeof getMonthlyFinanceChart>> = []
 
+  const prevMonth = (() => {
+    const [y, m] = month.split('-').map(Number)
+    const d = new Date(y, m - 2, 1)
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+  })()
+
   try {
-    const [s, e, c, ch] = await Promise.all([
+    const [s, prev, e, c, ch] = await Promise.all([
       getFinanceSummary(month),
+      getFinanceSummary(prevMonth),
       getExpenses({ month, category: category || undefined }),
       getCoaches(),
       getMonthlyFinanceChart(6),
     ])
     summary = s
+    prevSummary = prev
     expenses = e.expenses
     coaches = c
     chartData = ch
@@ -77,7 +86,11 @@ export default async function FinancesPage({ searchParams }: PageProps) {
             <div className="text-2xl font-bold text-green-600">
               ${summary.totalIncome.toLocaleString("es-CL")}
             </div>
-            <p className="text-xs text-muted-foreground">pagos recibidos</p>
+            {prevSummary.totalIncome > 0 && (() => {
+              const pct = Math.round(((summary.totalIncome - prevSummary.totalIncome) / prevSummary.totalIncome) * 100)
+              return <p className={`text-xs font-medium mt-0.5 ${pct >= 0 ? 'text-green-600' : 'text-red-600'}`}>{pct >= 0 ? '▲' : '▼'} {Math.abs(pct)}% vs mes anterior</p>
+            })()}
+            {!prevSummary.totalIncome && <p className="text-xs text-muted-foreground">pagos recibidos</p>}
           </CardContent>
         </Card>
         <Card>
@@ -89,7 +102,11 @@ export default async function FinancesPage({ searchParams }: PageProps) {
             <div className="text-2xl font-bold text-red-600">
               ${summary.totalExpenses.toLocaleString("es-CL")}
             </div>
-            <p className="text-xs text-muted-foreground">gastos del mes</p>
+            {prevSummary.totalExpenses > 0 && (() => {
+              const pct = Math.round(((summary.totalExpenses - prevSummary.totalExpenses) / prevSummary.totalExpenses) * 100)
+              return <p className={`text-xs font-medium mt-0.5 ${pct <= 0 ? 'text-green-600' : 'text-red-600'}`}>{pct >= 0 ? '▲' : '▼'} {Math.abs(pct)}% vs mes anterior</p>
+            })()}
+            {!prevSummary.totalExpenses && <p className="text-xs text-muted-foreground">gastos del mes</p>}
           </CardContent>
         </Card>
         <Card>
