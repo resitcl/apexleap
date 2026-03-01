@@ -43,7 +43,7 @@ export async function getPlans() {
 
   const { data, error } = await supabase
     .from('plans')
-    .select('*, subscriptions(id, status)')
+    .select('*, subscriptions(id, status, athletes(id, name))')
     .eq('club_id', clubId)
     .order('price', { ascending: true })
 

@@ -5,6 +5,7 @@ import { getPlans } from "@/lib/actions/plans"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Plus, Users, Clock, Building2, Eye, EyeOff } from "lucide-react"
 
 const CYCLE_LABELS: Record<string, string> = {
@@ -70,8 +71,9 @@ export default async function PlansPage() {
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {plans.map((plan) => {
-            const activeSubs = ((plan.subscriptions ?? []) as Array<{ status: string }>)
-              .filter((s) => s.status === 'active').length
+            const allSubs = (plan.subscriptions ?? []) as Array<{ status: string; athletes: { id: string; name: string } | null }>
+            const activeSubs = allSubs.filter((s) => s.status === 'active')
+            const activeAthletes = activeSubs.map((s) => s.athletes).filter(Boolean) as { id: string; name: string }[]
 
             return (
               <Card key={plan.id} className={`flex flex-col ${!plan.is_active ? 'opacity-60' : ''}`}>
@@ -113,7 +115,7 @@ export default async function PlansPage() {
                   <div className="space-y-2">
                     <div className="flex items-center gap-2 text-sm">
                       <Users className="w-4 h-4 text-muted-foreground" />
-                      <span>{activeSubs} suscriptores activos</span>
+                      <span>{activeSubs.length} suscriptores activos</span>
                     </div>
 
                     <div className="flex items-center gap-2 text-sm">
@@ -138,6 +140,29 @@ export default async function PlansPage() {
                       </div>
                     )}
                   </div>
+
+                  {/* Active athletes avatars */}
+                  {activeAthletes.length > 0 && (
+                    <div className="pt-2 border-t">
+                      <p className="text-xs text-muted-foreground mb-2">Alumnos activos</p>
+                      <div className="flex flex-wrap gap-1">
+                        {activeAthletes.slice(0, 8).map((a) => (
+                          <Link key={a.id} href={`/dashboard/athletes/${a.id}`} title={a.name}>
+                            <Avatar className="w-7 h-7 hover:ring-2 hover:ring-primary transition-all">
+                              <AvatarFallback className="text-[10px] font-semibold">
+                                {a.name.slice(0, 2).toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                          </Link>
+                        ))}
+                        {activeAthletes.length > 8 && (
+                          <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center text-[10px] font-medium text-muted-foreground">
+                            +{activeAthletes.length - 8}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
 
                 <CardFooter className="gap-2">
