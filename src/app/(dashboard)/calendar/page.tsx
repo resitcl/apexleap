@@ -5,7 +5,8 @@ import { getSchedules } from "@/lib/actions/schedules"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Clock, MapPin, Users } from "lucide-react"
+import { Plus, Clock, MapPin, Users, Pencil } from "lucide-react"
+import { DeleteScheduleButton } from "@/components/calendar/DeleteScheduleButton"
 
 const DAYS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"]
 const DAY_COLORS = [
@@ -174,12 +175,20 @@ export default async function CalendarPage() {
                           )}
                         </div>
                       </div>
-                      <div className="flex gap-1 flex-wrap justify-end shrink-0">
-                        {days.map((d) => (
-                          <span key={d} className={`text-xs px-1.5 py-0.5 rounded font-medium ${DAY_COLORS[DAYS.indexOf(d)]}`}>
-                            {d}
-                          </span>
-                        ))}
+                      <div className="flex items-center gap-2 shrink-0">
+                        <div className="flex gap-1 flex-wrap justify-end">
+                          {days.map((d) => (
+                            <span key={d} className={`text-xs px-1.5 py-0.5 rounded font-medium ${DAY_COLORS[DAYS.indexOf(d)]}`}>
+                              {d}
+                            </span>
+                          ))}
+                        </div>
+                        <Link href={`/dashboard/calendar/${s.id}/edit`}>
+                          <button className="h-8 w-8 flex items-center justify-center rounded-md border border-input bg-background text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                        </Link>
+                        <DeleteScheduleButton scheduleId={s.id} />
                       </div>
                     </div>
                   </CardContent>
