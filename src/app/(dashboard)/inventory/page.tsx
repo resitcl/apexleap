@@ -27,25 +27,26 @@ const CONDITION_LABEL: Record<string, string> = {
 }
 
 interface PageProps {
-  searchParams: Promise<{ category?: string; condition?: string }>
+  searchParams: Promise<{ category?: string; condition?: string; lowStock?: string }>
 }
 
 export default async function InventoryPage({ searchParams }: PageProps) {
-  const { category, condition } = await searchParams
+  const { category, condition, lowStock } = await searchParams
+  const isLowStock = lowStock === '1'
 
   let items: Awaited<ReturnType<typeof getInventoryItems>> = []
   let athleteList: { id: string; name: string }[] = []
 
   try {
     const [inv, ath] = await Promise.all([
-      getInventoryItems({ category, condition }),
+      getInventoryItems({ category, condition, lowStock: isLowStock || undefined }),
       getAthletes({ limit: 200 }),
     ])
     items = inv
     athleteList = ath.athletes.map((a) => ({ id: a.id, name: a.name }))
   } catch { /* empty */ }
 
-  const lowStock = items.filter((i) => i.quantity <= i.quantity_min && i.quantity_min > 0)
+  const lowStockItems = items.filter((i) => i.quantity <= i.quantity_min && i.quantity_min > 0)
   const counts = items.reduce<Record<string, number>>((acc, i) => {
     acc[i.category] = (acc[i.category] ?? 0) + 1
     return acc
@@ -64,24 +65,29 @@ export default async function InventoryPage({ searchParams }: PageProps) {
         </div>
       </div>
 
-      {lowStock.length > 0 && (
+      {lowStockItems.length > 0 && (
         <Card className="border-yellow-200 bg-yellow-50">
           <CardContent className="py-3 flex items-center gap-3">
             <AlertTriangle className="w-5 h-5 text-yellow-600 shrink-0" />
             <p className="text-sm text-yellow-800 font-medium">
-              {lowStock.length} ítem{lowStock.length > 1 ? "s" : ""} bajo stock mínimo:{" "}
-              {lowStock.map((i) => i.name).join(", ")}
+              {lowStockItems.length} ítem{lowStockItems.length > 1 ? "s" : ""} bajo stock mínimo:{" "}
+              {lowStockItems.map((i: { name: string }) => i.name).join(", ")}
             </p>
           </CardContent>
         </Card>
       )}
 
-      {/* Condition filter */}
+      {/* Condition + low stock filters */}
       <div className="flex flex-wrap gap-2">
+        <Link href={`/dashboard/inventory?${new URLSearchParams({ ...(category ? { category } : {}), ...(condition ? { condition } : {}), ...(isLowStock ? {} : { lowStock: '1' }) }).toString()}`}>
+          <button className={`h-8 px-3 rounded-md border text-xs font-medium transition-colors ${
+            isLowStock ? 'bg-yellow-500 text-white border-yellow-500' : 'bg-background border-input hover:bg-accent'
+          }`}>⚠️ Stock bajo</button>
+        </Link>
         {([['', 'Todos'], ['good', '✅ Bueno'], ['fair', '⚠️ Regular'], ['poor', '🔴 Malo'], ['broken', '💀 Roto']] as const).map(([val, lbl]) => (
           <Link
             key={val}
-            href={`/dashboard/inventory?${new URLSearchParams({ ...(category ? { category } : {}), ...(val ? { condition: val } : {}) }).toString()}`}
+            href={`/dashboard/inventory?${new URLSearchParams({ ...(category ? { category } : {}), ...(isLowStock ? { lowStock: '1' } : {}), ...(val ? { condition: val } : {}) }).toString()}`}
           >
             <button className={`h-8 px-3 rounded-md border text-xs font-medium transition-colors ${
               (val === '' && !condition) || condition === val
