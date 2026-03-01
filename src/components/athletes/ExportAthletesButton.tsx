@@ -15,6 +15,7 @@ interface Athlete {
   health_status: string
   birth_date: string | null
   created_at: string
+  subscriptions?: Array<{ status: string; plans: { name: string } | null }> | null
 }
 
 interface Props {
@@ -35,17 +36,21 @@ export function ExportAthletesButton({ athletes }: Props) {
         healthy: 'Saludable', injured: 'Lesionado', observation: 'Observación',
       }
 
-      const headers = ['Nombre', 'Email', 'Teléfono', 'RUT/Doc', 'Estado', 'Salud', 'Nacimiento', 'Registrado']
-      const rows = athletes.map((a) => [
-        a.name,
-        a.email ?? '',
-        a.phone ?? '',
-        a.document_number ?? '',
-        STATUS_LABELS[a.status] ?? a.status,
-        HEALTH_LABELS[a.health_status] ?? a.health_status,
-        a.birth_date ? new Date(a.birth_date + 'T12:00:00').toLocaleDateString('es-CL') : '',
-        new Date(a.created_at).toLocaleDateString('es-CL'),
-      ])
+      const headers = ['Nombre', 'Email', 'Teléfono', 'RUT/Doc', 'Estado', 'Salud', 'Plan Activo', 'Nacimiento', 'Registrado']
+      const rows = athletes.map((a) => {
+        const activePlan = (a.subscriptions ?? []).find((s) => s.status === 'active')?.plans?.name ?? ''
+        return [
+          a.name,
+          a.email ?? '',
+          a.phone ?? '',
+          a.document_number ?? '',
+          STATUS_LABELS[a.status] ?? a.status,
+          HEALTH_LABELS[a.health_status] ?? a.health_status,
+          activePlan,
+          a.birth_date ? new Date(a.birth_date + 'T12:00:00').toLocaleDateString('es-CL') : '',
+          new Date(a.created_at).toLocaleDateString('es-CL'),
+        ]
+      })
 
       const csv = [headers, ...rows]
         .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
