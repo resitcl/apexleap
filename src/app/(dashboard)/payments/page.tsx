@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Plus, DollarSign, Clock, AlertTriangle } from "lucide-react"
 import { PaymentsFilter } from "@/components/payments/PaymentsFilter"
 import { MarkAsPaidButton } from "@/components/payments/MarkAsPaidButton"
+import { ExportPaymentsButton } from "@/components/payments/ExportPaymentsButton"
 
 interface PageProps {
   searchParams: Promise<{ status?: string; page?: string }>
@@ -51,12 +52,22 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
           <h1 className="text-3xl font-bold">Pagos</h1>
           <p className="text-muted-foreground">{total} transacciones</p>
         </div>
-        <Link href="/dashboard/payments/new">
-          <Button className="gap-2">
-            <Plus className="w-4 h-4" />
-            Registrar Pago
-          </Button>
-        </Link>
+        <div className="flex gap-2">
+          <ExportPaymentsButton
+            payments={payments.map((p) => ({
+              ...p,
+              athletes: p.athletes as { name: string } | null,
+              plans: p.plans as { name: string } | null,
+            }))}
+            filename={`pagos${params.status ? `-${params.status}` : ''}`}
+          />
+          <Link href="/dashboard/payments/new">
+            <Button className="gap-2">
+              <Plus className="w-4 h-4" />
+              Registrar Pago
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* Summary KPIs */}
