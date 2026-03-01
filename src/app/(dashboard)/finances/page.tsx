@@ -179,32 +179,59 @@ export default async function FinancesPage({ searchParams }: PageProps) {
       </div>
 
       {/* Overview Tab */}
-      {tab === "overview" && (
+      {tab === "overview" && (() => {
+        const DONUT_COLORS = ['#6366f1','#f43f5e','#f59e0b','#10b981','#3b82f6','#8b5cf6']
+        const catEntries = Object.entries(summary.byCategory).sort(([,a],[,b]) => b - a)
+        let cumulative = 0
+        const segments = catEntries.map(([cat, amount], i) => {
+          const pct = summary.totalExpenses > 0 ? (amount / summary.totalExpenses) * 100 : 0
+          const seg = { cat, amount, pct, start: cumulative, color: DONUT_COLORS[i % DONUT_COLORS.length] }
+          cumulative += pct
+          return seg
+        })
+        const gradient = segments.length > 0
+          ? segments.map((s) => `${s.color} ${s.start.toFixed(1)}% ${(s.start + s.pct).toFixed(1)}%`).join(', ')
+          : '#e5e7eb 0% 100%'
+
+        return (
         <div className="grid gap-6 md:grid-cols-2">
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Egresos por categoría</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
-              {Object.keys(summary.byCategory).length === 0 ? (
+            <CardContent>
+              {catEntries.length === 0 ? (
                 <p className="text-muted-foreground text-sm">Sin egresos este mes</p>
               ) : (
-                Object.entries(summary.byCategory)
-                  .sort(([, a], [, b]) => b - a)
-                  .map(([cat, amount]) => {
-                    const pct = summary.totalExpenses > 0 ? Math.round((amount / summary.totalExpenses) * 100) : 0
-                    return (
-                      <div key={cat}>
-                        <div className="flex items-center justify-between text-sm mb-1">
-                          <span>{CATEGORY_LABELS[cat] ?? cat}</span>
-                          <span className="font-medium">${amount.toLocaleString("es-CL")} <span className="text-muted-foreground text-xs">({pct}%)</span></span>
+                <div className="flex items-center gap-6">
+                  {/* Donut */}
+                  <div className="shrink-0 relative w-24 h-24">
+                    <div
+                      className="w-24 h-24 rounded-full"
+                      style={{ background: `conic-gradient(${gradient})` }}
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="w-12 h-12 rounded-full bg-card" />
+                    </div>
+                  </div>
+                  {/* Legend + bars */}
+                  <div className="flex-1 space-y-2">
+                    {segments.map((s) => (
+                      <div key={s.cat}>
+                        <div className="flex items-center justify-between text-xs mb-0.5">
+                          <span className="flex items-center gap-1.5">
+                            <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: s.color }} />
+                            {CATEGORY_LABELS[s.cat] ?? s.cat}
+                          </span>
+                          <span className="font-medium">{Math.round(s.pct)}%</span>
                         </div>
-                        <div className="h-2 bg-muted rounded-full overflow-hidden">
-                          <div className="h-full bg-primary/70 rounded-full" style={{ width: `${pct}%` }} />
+                        <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                          <div className="h-full rounded-full" style={{ width: `${s.pct}%`, background: s.color }} />
                         </div>
                       </div>
-                    )
-                  })
+                    ))}
+                  </div>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -228,7 +255,8 @@ export default async function FinancesPage({ searchParams }: PageProps) {
             </CardContent>
           </Card>
         </div>
-      )}
+        )
+      })()}
 
       {/* Expenses Tab */}
       {tab === "expenses" && (
