@@ -5,7 +5,7 @@ import { auth } from "@clerk/nextjs/server"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { ChevronLeft, Pencil, Clock, Users, MapPin } from "lucide-react"
+import { ChevronLeft, Pencil, Clock, Users, MapPin, CheckSquare } from "lucide-react"
 import { DeleteScheduleButton } from "@/components/calendar/DeleteScheduleButton"
 
 const DAYS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"]
@@ -38,6 +38,16 @@ export default async function ScheduleDetailPage({ params }: PageProps) {
     .single()
 
   if (error || !schedule) notFound()
+
+  // Attendance count for this schedule in the last 30 days
+  const thirtyDaysAgo = new Date()
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+  const { count: attendanceCount } = await supabase
+    .from('attendance')
+    .select('id', { count: 'exact', head: true })
+    .eq('schedule_id', id)
+    .eq('club_id', userClub.club_id)
+    .gte('checked_in_at', thirtyDaysAgo.toISOString())
 
   const days = (schedule.day_of_week as number[]).map((d) => DAYS[d])
   const venue = schedule.venues as { id: string; name: string } | null
@@ -96,15 +106,14 @@ export default async function ScheduleDetailPage({ params }: PageProps) {
                 <p className="text-xs text-muted-foreground">{durationMin} min</p>
               </div>
             </div>
-            {schedule.capacity && (
-              <div className="flex items-center gap-2 text-sm">
-                <Users className="w-4 h-4 text-muted-foreground shrink-0" />
-                <div>
-                  <p className="font-medium">Cupo: {schedule.capacity}</p>
-                  <p className="text-xs text-muted-foreground">máximo por sesión</p>
-                </div>
-              </div>
-            )}
+            <div className="flex items-center gap-2 text-sm">
+              <Users className="w-4 h-4 text-muted-foreground" />
+              <span>{schedule.capacity ? `Capacidad: ${schedule.capacity} personas` : 'Sin límite de capacidad'}</span>
+            </div>
+            <div className="flex items-center gap-2 text-sm">
+              <CheckSquare className="w-4 h-4 text-muted-foreground" />
+              <span>{attendanceCount ?? 0} check-ins en los últimos 30 días</span>
+            </div>
             {venue && (
               <div className="flex items-center gap-2 text-sm">
                 <MapPin className="w-4 h-4 text-muted-foreground shrink-0" />
