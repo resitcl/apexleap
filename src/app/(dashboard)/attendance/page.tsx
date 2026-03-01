@@ -295,6 +295,35 @@ export default async function AttendancePage({ searchParams }: PageProps) {
                         })}
                       </div>
                     )}
+                    {!athleteId && (() => {
+                      const byAthlete = history.records.reduce<Record<string, { name: string; id: string; total: number; valid: number }>>((acc, r) => {
+                        const a = r.athletes as { id: string; name: string } | null
+                        if (!a) return acc
+                        if (!acc[a.id]) acc[a.id] = { name: a.name, id: a.id, total: 0, valid: 0 }
+                        acc[a.id].total++
+                        if (r.is_valid) acc[a.id].valid++
+                        return acc
+                      }, {})
+                      const entries = Object.values(byAthlete).sort((a, b) => b.total - a.total).slice(0, 8)
+                      if (entries.length < 2) return null
+                      return (
+                        <div className="mt-1 flex flex-wrap gap-2">
+                          <span className="text-xs text-muted-foreground font-medium self-center">Por atleta:</span>
+                          {entries.map((e) => {
+                            const ap = Math.round((e.valid / e.total) * 100)
+                            return (
+                              <span key={e.id} className={`text-xs px-2 py-0.5 rounded font-medium ${
+                                ap >= 80 ? 'bg-green-50 text-green-700' :
+                                ap >= 50 ? 'bg-yellow-50 text-yellow-700' :
+                                'bg-red-50 text-red-700'
+                              }`} title={`${e.valid}/${e.total} válidos`}>
+                                {e.name.split(' ')[0]}: {ap}%
+                              </span>
+                            )
+                          })}
+                        </div>
+                      )
+                    })()}
                   </div>
                 )
               })()}
