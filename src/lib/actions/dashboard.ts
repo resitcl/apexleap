@@ -34,6 +34,7 @@ export async function getDashboardSummary() {
     attendanceTodayResult,
     overdueResult,
     topAttendanceResult,
+    activeSubsResult,
   ] = await Promise.all([
     // Athletes by health/status
     supabase
@@ -69,12 +70,20 @@ export async function getDashboardSummary() {
       .eq('club_id', clubId)
       .eq('is_valid', true)
       .gte('checked_in_at', monthStart),
+
+    // Active subscriptions
+    supabase
+      .from('subscriptions')
+      .select('id', { count: 'exact' })
+      .eq('club_id', clubId)
+      .eq('status', 'active'),
   ])
 
   const athletes = athletesResult.data ?? []
   const payments = paymentsResult.data ?? []
   const attendanceToday = attendanceTodayResult.data ?? []
   const overdueAthleteIds = new Set((overdueResult.data ?? []).map((p) => p.athlete_id))
+  const activeSubscriptions = activeSubsResult.count ?? 0
 
   // KPIs
   const totalAthletes = athletes.filter((a) => a.status === 'active').length
@@ -138,6 +147,7 @@ export async function getDashboardSummary() {
     todayCheckIns,
     semaforoCount,
     topAthletes,
+    activeSubscriptions,
   }
 }
 

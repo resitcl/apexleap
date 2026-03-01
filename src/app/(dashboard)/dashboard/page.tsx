@@ -22,6 +22,7 @@ export default async function DashboardPage() {
     todayCheckIns: 0,
     semaforoCount: { green: 0, yellow: 0, red: 0 },
     topAthletes: [] as { id: string; name: string; count: number }[],
+    activeSubscriptions: 0,
   }
   let activity: Awaited<ReturnType<typeof getRecentActivity>> = []
   let monthlyRevenue: Awaited<ReturnType<typeof getMonthlyRevenue>> = []
@@ -85,7 +86,12 @@ export default async function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{summary.totalAthletes}</div>
-            <p className="text-xs text-muted-foreground">registrados en el club</p>
+            <p className="text-xs text-muted-foreground">
+              registrados en el club
+              {summary.activeSubscriptions > 0 && (
+                <span className="ml-1.5 text-green-600 font-medium">· {summary.activeSubscriptions} con plan</span>
+              )}
+            </p>
           </CardContent>
         </Card>
 

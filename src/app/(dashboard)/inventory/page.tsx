@@ -27,11 +27,11 @@ const CONDITION_LABEL: Record<string, string> = {
 }
 
 interface PageProps {
-  searchParams: Promise<{ category?: string; condition?: string; lowStock?: string; search?: string; page?: string; athleteId?: string; priceMin?: string; priceMax?: string }>
+  searchParams: Promise<{ category?: string; condition?: string; lowStock?: string; search?: string; page?: string; athleteId?: string; priceMin?: string; priceMax?: string; sortBy?: string }>
 }
 
 export default async function InventoryPage({ searchParams }: PageProps) {
-  const { category, condition, lowStock, search, page: pageStr, athleteId, priceMin: priceMinStr, priceMax: priceMaxStr } = await searchParams
+  const { category, condition, lowStock, search, page: pageStr, athleteId, priceMin: priceMinStr, priceMax: priceMaxStr, sortBy } = await searchParams
   const isLowStock = lowStock === '1'
   const page = Number(pageStr ?? 1)
   const limit = 50
@@ -68,6 +68,14 @@ export default async function InventoryPage({ searchParams }: PageProps) {
   const newestItem = allItems.slice().sort((a, b) =>
     new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime()
   )[0]
+
+  if (sortBy === 'value') {
+    items = items.slice().sort((a, b) => {
+      const va = (a.purchase_price ?? 0) * a.quantity
+      const vb = (b.purchase_price ?? 0) * b.quantity
+      return vb - va
+    })
+  }
 
   return (
     <div className="space-y-6">
@@ -132,12 +140,17 @@ export default async function InventoryPage({ searchParams }: PageProps) {
         )}
       </form>
 
-      {/* Condition + low stock filters */}
+      {/* Condition + low stock + sort filters */}
       <div className="flex flex-wrap gap-2">
-        <Link href={`/dashboard/inventory?${new URLSearchParams({ ...(category ? { category } : {}), ...(condition ? { condition } : {}), ...(search ? { search } : {}), ...(isLowStock ? {} : { lowStock: '1' }) }).toString()}`}>
+        <Link href={`/dashboard/inventory?${new URLSearchParams({ ...(category ? { category } : {}), ...(condition ? { condition } : {}), ...(search ? { search } : {}), ...(isLowStock ? {} : { lowStock: '1' }), ...(sortBy ? { sortBy } : {}) }).toString()}`}>
           <button className={`h-8 px-3 rounded-md border text-xs font-medium transition-colors ${
             isLowStock ? 'bg-yellow-500 text-white border-yellow-500' : 'bg-background border-input hover:bg-accent'
           }`}>⚠️ Stock bajo</button>
+        </Link>
+        <Link href={`/dashboard/inventory?${new URLSearchParams({ ...(category ? { category } : {}), ...(condition ? { condition } : {}), ...(search ? { search } : {}), ...(isLowStock ? { lowStock: '1' } : {}), ...(sortBy === 'value' ? {} : { sortBy: 'value' }) }).toString()}`}>
+          <button className={`h-8 px-3 rounded-md border text-xs font-medium transition-colors ${
+            sortBy === 'value' ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-input hover:bg-accent'
+          }`}>💰 Mayor valor</button>
         </Link>
         {([['', 'Todos'], ['good', '✅ Bueno'], ['fair', '⚠️ Regular'], ['poor', '🔴 Malo'], ['broken', '💀 Roto']] as [string, string][]).map(([val, lbl]) => {
           const isActive = (val === '' && !condition) || condition === val

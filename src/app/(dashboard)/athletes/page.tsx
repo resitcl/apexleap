@@ -400,10 +400,29 @@ export default async function AthletesPage({ searchParams }: PageProps) {
                           }, null)
                           const monthsSpan = oldest ? Math.max(1, Math.ceil((Date.now() - oldest.getTime()) / (1000 * 60 * 60 * 24 * 30))) : 1
                           const avgPerMonth = Math.round(allAtt.length / monthsSpan)
+
+                          // Streak: consecutive weeks with at least 1 attendance
+                          const weekSet = new Set(allAtt.map((r) => {
+                            const d = new Date(r.checked_in_at)
+                            const jan1 = new Date(d.getFullYear(), 0, 1)
+                            return `${d.getFullYear()}-${Math.ceil(((d.getTime() - jan1.getTime()) / 86400000 + jan1.getDay() + 1) / 7)}`
+                          }))
+                          const nowWeek = (() => { const d = new Date(); const j = new Date(d.getFullYear(),0,1); return `${d.getFullYear()}-${Math.ceil(((d.getTime()-j.getTime())/86400000+j.getDay()+1)/7)}` })()
+                          let streak = 0
+                          let wNum = parseInt(nowWeek.split('-')[1])
+                          let wYear = parseInt(nowWeek.split('-')[0])
+                          while (weekSet.has(`${wYear}-${wNum}`)) {
+                            streak++
+                            wNum--
+                            if (wNum < 1) { wYear--; wNum = 52 }
+                            if (streak > 52) break
+                          }
+
                           return (
                             <span className="text-xs text-muted-foreground" title={`Última: ${new Date(last.checked_in_at).toLocaleDateString('es-CL')} · ${checkIns} en 30d · ~${avgPerMonth}/mes`}>
                               📋 {new Date(last.checked_in_at).toLocaleDateString('es-CL', { day: '2-digit', month: 'short' })}
                               {avgPerMonth > 0 && <span className="ml-1 text-primary">~{avgPerMonth}/mes</span>}
+                              {streak >= 2 && <span className="ml-1 text-orange-500 font-medium">🔥{streak}s</span>}
                             </span>
                           )
                         }
