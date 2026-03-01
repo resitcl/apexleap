@@ -62,7 +62,7 @@ export async function getAthletes(params?: {
 
   if (params?.search) {
     query = query.or(
-      `name.ilike.%${params.search}%,email.ilike.%${params.search}%,document_number.ilike.%${params.search}%`
+      `name.ilike.%${params.search}%,email.ilike.%${params.search}%,document_number.ilike.%${params.search}%,phone.ilike.%${params.search}%`
     )
   }
   if (params?.status) {
