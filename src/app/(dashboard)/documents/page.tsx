@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { FolderOpen, AlertTriangle, ExternalLink } from "lucide-react"
 import { NewDocumentForm } from "@/components/documents/NewDocumentForm"
+import { DeleteDocumentButton } from "@/components/documents/DeleteDocumentButton"
 
 const CATEGORY_LABELS: Record<string, { label: string; icon: string }> = {
   medical:       { label: "Ficha médica",    icon: "🏥" },
@@ -126,12 +127,15 @@ export default async function DocumentsPage({ searchParams }: PageProps) {
                         )}
                       </div>
                     </div>
-                    {doc.file_url && (
-                      <a href={doc.file_url} target="_blank" rel="noopener noreferrer"
-                        className="shrink-0 text-primary hover:text-primary/80">
-                        <ExternalLink className="w-4 h-4" />
-                      </a>
-                    )}
+                    <div className="flex items-center gap-1 shrink-0">
+                      {doc.file_url && (
+                        <a href={doc.file_url} target="_blank" rel="noopener noreferrer"
+                          className="text-primary hover:text-primary/80">
+                          <ExternalLink className="w-4 h-4" />
+                        </a>
+                      )}
+                      <DeleteDocumentButton documentId={doc.id} />
+                    </div>
                   </div>
                 </CardContent>
               </Card>
