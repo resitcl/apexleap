@@ -7,6 +7,8 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
 import { HealthStatusBadge } from "@/components/athletes/HealthStatusBadge"
+import { LogInjuryForm } from "@/components/athletes/LogInjuryForm"
+import { ResolveInjuryButton } from "@/components/athletes/ResolveInjuryButton"
 import {
   ChevronLeft, Pencil, Phone, Mail, FileText,
   Calendar, CreditCard, CheckSquare, Activity, Heart,
@@ -76,6 +78,7 @@ export default async function AthleteDetailPage({ params }: PageProps) {
             Registrar Pago
           </Button>
         </Link>
+        <LogInjuryForm athleteId={id} />
         <Link href={`/dashboard/athletes/${id}/edit`}>
           <Button variant="outline" size="sm" className="gap-1.5">
             <Pencil className="w-3.5 h-3.5" />
@@ -206,19 +209,25 @@ export default async function AthleteDetailPage({ params }: PageProps) {
                 <p className="text-sm text-muted-foreground">Sin lesiones registradas</p>
               ) : (
                 <div className="space-y-2">
-                  {injuries.slice(0, 3).map((inj) => (
-                    <div key={inj.id} className="text-sm">
-                      <p className="font-medium">{inj.diagnosis}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {new Date(inj.start_date).toLocaleDateString("es-CL")}
-                        {inj.actual_recovery
-                          ? ` → Alta: ${new Date(inj.actual_recovery).toLocaleDateString("es-CL")}`
-                          : inj.estimated_recovery
-                          ? ` → Est. alta: ${new Date(inj.estimated_recovery).toLocaleDateString("es-CL")}`
-                          : " → En curso"}
-                      </p>
-                    </div>
-                  ))}
+                  {injuries.slice(0, 5).map((inj) => {
+                    const active = !inj.actual_recovery
+                    return (
+                      <div key={inj.id} className={`text-sm rounded-md p-2 ${active ? 'bg-red-50 border border-red-100' : 'bg-muted/30'}`}>
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="font-medium">{inj.diagnosis}</p>
+                          {active && <ResolveInjuryButton injuryId={inj.id} athleteId={id} />}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {new Date(inj.start_date).toLocaleDateString("es-CL")}
+                          {inj.actual_recovery
+                            ? ` → Alta: ${new Date(inj.actual_recovery).toLocaleDateString("es-CL")}`
+                            : inj.estimated_recovery
+                            ? ` → Est. alta: ${new Date(inj.estimated_recovery).toLocaleDateString("es-CL")}`
+                            : " → En curso"}
+                        </p>
+                      </div>
+                    )
+                  })}
                 </div>
               )}
             </div>
