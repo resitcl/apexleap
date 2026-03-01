@@ -211,6 +211,15 @@ export default async function AttendancePage({ searchParams }: PageProps) {
             />
           </form>
 
+          {(from || to || scheduleId || athleteId) && (
+            <div className="flex">
+              <Link href="/dashboard/attendance?tab=history"
+                className="text-xs text-muted-foreground hover:text-foreground underline">
+                ✕ Limpiar filtros
+              </Link>
+            </div>
+          )}
+
           {/* History list */}
           {history.records.length === 0 ? (
             <Card>
@@ -250,6 +259,41 @@ export default async function AttendancePage({ searchParams }: PageProps) {
                   </Card>
                 )
               })}
+
+              {/* Pagination */}
+              {history.total > 50 && (
+                <div className="flex items-center justify-between pt-2">
+                  <p className="text-xs text-muted-foreground">
+                    Mostrando {(page - 1) * 50 + 1}–{Math.min(page * 50, history.total)} de {history.total}
+                  </p>
+                  <div className="flex gap-2">
+                    {page > 1 && (
+                      <Link href={`/dashboard/attendance?${new URLSearchParams({
+                        tab: 'history',
+                        ...(from        ? { from }        : {}),
+                        ...(to          ? { to }          : {}),
+                        ...(scheduleId  ? { scheduleId }  : {}),
+                        ...(athleteId   ? { athleteId }   : {}),
+                        page: String(page - 1),
+                      }).toString()}`}>
+                        <button className="h-8 px-3 rounded-md border border-input bg-background text-xs hover:bg-accent transition-colors">← Anterior</button>
+                      </Link>
+                    )}
+                    {page * 50 < history.total && (
+                      <Link href={`/dashboard/attendance?${new URLSearchParams({
+                        tab: 'history',
+                        ...(from        ? { from }        : {}),
+                        ...(to          ? { to }          : {}),
+                        ...(scheduleId  ? { scheduleId }  : {}),
+                        ...(athleteId   ? { athleteId }   : {}),
+                        page: String(page + 1),
+                      }).toString()}`}>
+                        <button className="h-8 px-3 rounded-md border border-input bg-background text-xs hover:bg-accent transition-colors">Siguiente →</button>
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
