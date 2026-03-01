@@ -10,6 +10,7 @@ import {
 } from "lucide-react"
 import { NewExpenseForm } from "@/components/finances/NewExpenseForm"
 import { NewCoachForm } from "@/components/finances/NewCoachForm"
+import { EditCoachButton } from "@/components/finances/EditCoachButton"
 import { DeleteExpenseButton } from "@/components/finances/DeleteExpenseButton"
 import { EditExpenseButton } from "@/components/finances/EditExpenseButton"
 import { MonthPicker } from "@/components/finances/MonthPicker"
@@ -342,6 +343,7 @@ export default async function FinancesPage({ searchParams }: PageProps) {
                           <span>{SALARY_TYPE_LABELS[coach.salary_type]}{coach.salary_amount ? `: $${Number(coach.salary_amount).toLocaleString("es-CL")}` : ""}</span>
                         </div>
                       </div>
+                      <EditCoachButton coach={coach} />
                     </div>
                   </CardContent>
                 </Card>
