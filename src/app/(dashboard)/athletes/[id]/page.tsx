@@ -257,26 +257,40 @@ export default async function AthleteDetailPage({ params }: PageProps) {
               </span>
             </div>
             <Separator />
-            <div>
-              <p className="text-xs text-muted-foreground mb-2">Últimas 14 asistencias</p>
-              {attendance.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Sin registros</p>
-              ) : (
-                <div className="flex flex-wrap gap-1.5">
-                  {attendance.slice(0, 14).map((a) => (
-                    <div
-                      key={a.id}
-                      title={new Date(a.checked_in_at).toLocaleDateString("es-CL")}
-                      className={`w-7 h-7 rounded-md flex items-center justify-center text-xs font-bold ${
-                        a.is_valid ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
-                      }`}
-                    >
-                      {a.is_valid ? "✓" : "×"}
-                    </div>
-                  ))}
+            {(() => {
+              const now = new Date()
+              const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
+              const thisMonth = attendance.filter((a) => a.checked_in_at >= monthStart)
+              const validThisMonth = thisMonth.filter((a) => a.is_valid).length
+              return (
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-muted-foreground">Este mes</span>
+                    <span className="font-semibold text-green-600">{validThisMonth} sesiones</span>
+                  </div>
+                  <Separator />
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-2">Últimas 20 asistencias</p>
+                    {attendance.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">Sin registros</p>
+                    ) : (
+                      <div className="space-y-1">
+                        {attendance.slice(0, 20).map((a) => (
+                          <div key={a.id} className="flex items-center justify-between text-xs">
+                            <span className="text-muted-foreground">
+                              {new Date(a.checked_in_at).toLocaleDateString("es-CL", { weekday: "short", day: "numeric", month: "short" })}
+                            </span>
+                            <span className={`font-medium ${a.is_valid ? "text-green-600" : "text-red-500"}`}>
+                              {a.is_valid ? "✓ Válido" : "✗ Inválido"}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              )}
-            </div>
+              )
+            })()}
           </CardContent>
         </Card>
 

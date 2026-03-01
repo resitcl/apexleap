@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Package, AlertTriangle } from "lucide-react"
 import { NewItemForm } from "@/components/inventory/NewItemForm"
+import { DeleteItemButton } from "@/components/inventory/DeleteItemButton"
 
 const CATEGORY_META: Record<string, { label: string; icon: string }> = {
   equipment:      { label: "Equipamiento",   icon: "🥊" },
@@ -120,9 +121,12 @@ export default async function InventoryPage({ searchParams }: PageProps) {
                         )}
                       </div>
                     </div>
-                    <div className="text-right shrink-0">
-                      <div className={`text-lg font-bold ${isLow ? "text-yellow-600" : ""}`}>{item.quantity}</div>
-                      <div className="text-xs text-muted-foreground">unidades</div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <div className="text-right">
+                        <div className={`text-lg font-bold ${isLow ? "text-yellow-600" : ""}`}>{item.quantity}</div>
+                        <div className="text-xs text-muted-foreground">unidades</div>
+                      </div>
+                      <DeleteItemButton itemId={item.id} />
                     </div>
                   </div>
                 </CardContent>

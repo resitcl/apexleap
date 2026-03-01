@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Trophy, MapPin, Calendar } from "lucide-react"
 import { NewCompetitionForm } from "@/components/competitions/NewCompetitionForm"
+import { DeleteCompetitionButton } from "@/components/competitions/DeleteCompetitionButton"
 
 const TYPE_LABELS: Record<string, string> = {
   tournament: "Torneo", league: "Liga", friendly: "Amistoso", championship: "Campeonato",
@@ -98,11 +99,14 @@ export default async function CompetitionsPage() {
                       {comp.end_date ? ` → ${new Date(comp.end_date + "T12:00:00").toLocaleDateString("es-CL")}` : ""}
                     </span>
                   </div>
-                  {rosterCount > 0 && (
-                    <p className="text-xs text-muted-foreground">
-                      {rosterCount} nómina{rosterCount !== 1 ? "s" : ""} creada{rosterCount !== 1 ? "s" : ""}
-                    </p>
-                  )}
+                  <div className="flex items-center justify-between pt-1">
+                    {rosterCount > 0 ? (
+                      <p className="text-xs text-muted-foreground">
+                        {rosterCount} nómina{rosterCount !== 1 ? "s" : ""} creada{rosterCount !== 1 ? "s" : ""}
+                      </p>
+                    ) : <span />}
+                    <DeleteCompetitionButton competitionId={comp.id} />
+                  </div>
                 </CardContent>
               </Card>
             )
