@@ -145,6 +145,38 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
         </Card>
       </div>
 
+      {/* Method breakdown */}
+      {allPayments.length > 0 && (() => {
+        const METHOD_LABEL: Record<string, string> = {
+          cash: 'Efectivo', transfer: 'Transfer.', webpay: 'Webpay',
+          flow: 'Flow', mercadopago: 'MercadoPago', khipu: 'Khipu', other: 'Otro',
+        }
+        const METHOD_STYLE: Record<string, string> = {
+          cash: 'bg-green-100 text-green-700', transfer: 'bg-blue-100 text-blue-700',
+          webpay: 'bg-purple-100 text-purple-700', flow: 'bg-indigo-100 text-indigo-700',
+          mercadopago: 'bg-sky-100 text-sky-700', khipu: 'bg-teal-100 text-teal-700', other: 'bg-gray-100 text-gray-600',
+        }
+        const byMethod = allPayments
+          .filter(p => p.status === 'paid' && p.payment_method)
+          .reduce<Record<string, number>>((acc, p) => {
+            const m = p.payment_method!
+            acc[m] = (acc[m] ?? 0) + Number(p.amount)
+            return acc
+          }, {})
+        const entries = Object.entries(byMethod).sort(([,a],[,b]) => b - a)
+        if (entries.length === 0) return null
+        return (
+          <div className="flex flex-wrap gap-2 items-center">
+            <span className="text-xs text-muted-foreground font-medium">Cobrado por método:</span>
+            {entries.map(([method, amount]) => (
+              <span key={method} className={`px-2 py-0.5 rounded text-xs font-medium ${METHOD_STYLE[method] ?? 'bg-gray-100 text-gray-600'}`}>
+                {METHOD_LABEL[method] ?? method}: ${amount.toLocaleString('es-CL')}
+              </span>
+            ))}
+          </div>
+        )
+      })()}
+
       {/* Filters */}
       <div className="flex flex-wrap items-end gap-3">
         <PaymentsFilter currentStatus={params.status} />

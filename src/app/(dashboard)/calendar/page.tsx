@@ -159,6 +159,11 @@ export default async function CalendarPage({ searchParams }: PageProps) {
                   dow === todayDow ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
                 }`}>
                   {DAYS[dow]}
+                  {(byDay[dow]?.length ?? 0) > 0 && (
+                    <span className={`ml-1 text-[10px] font-normal opacity-80`}>
+                      ({byDay[dow].length})
+                    </span>
+                  )}
                   {dow === todayDow && <span className="ml-1">•</span>}
                 </div>
                 <div className="space-y-1 p-1 min-h-24 bg-muted/20 rounded-b-md">
