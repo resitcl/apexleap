@@ -1,0 +1,130 @@
+# ApexLeap - Reglas del Proyecto (La "Biblia")
+
+## Descripción General
+ApexLeap es una plataforma SaaS **multi-tenant** de gestión integral para **academias de artes marciales y clubes deportivos** (Fútbol, Básquetbol, Yoga, etc.).
+
+**Concepto Core**: Es un "Performance Hub" que fusiona la administración de negocio con el alto rendimiento deportivo. No es solo un sistema de cobros.
+
+## Stack Tecnológico
+- **Frontend**: Next.js 14+ (App Router)
+- **Base de Datos**: PostgreSQL via Supabase
+- **Autenticación**: Clerk
+- **Estilos**: TailwindCSS
+- **Componentes UI**: shadcn/ui
+- **Iconos**: Lucide React
+- **Validación**: Zod + React Hook Form
+- **Pasarelas de Pago**: Webpay, Flow, Khipu, MercadoPago, Reveniu
+
+## Arquitectura Multi-Tenant
+- **REGLA CRÍTICA**: Todo dato DEBE pertenecer a un `club_id` (tenant_id)
+- Cada query debe filtrar por `club_id` del usuario autenticado
+- Nunca exponer datos de un club a otro
+- Row Level Security (RLS) habilitado en Supabase
+- Cada institución tiene portal personalizado con branding y subdominio propio
+
+## Modelo de Datos Agnóstico al Deporte
+- NO crear tablas específicas por deporte (ej: NO tabla `Goles`, NO tabla `Tiempos`)
+- Usar `performance_meta` JSONB para métricas específicas de cada disciplina
+- Usar `health_status` enum (healthy, injured, observation) para estado de salud
+- Cada club define sus propios tipos de eventos/resultados
+
+## Roles del Sistema
+1. **Super Admin**: Dueños del SaaS - gestión global
+2. **Admin de Club**: Tesorero/Presidente - dashboard financiero, gestión completa
+3. **Entrenador/Coach**: Semáforo de disponibilidad, nóminas, pizarra táctica
+4. **Alumno/Jugador**: Portal de progreso, check-in QR, calendario, pagos
+
+## Los 16 Módulos del Sistema
+1. **Dashboard**: Panel de control por rol (Admin, Coach, Alumno)
+2. **Alumnos**: Ficha Atleta 360° (Administrativa, Salud, Rendimiento, Técnico)
+3. **Planes**: Suscripciones con reglas de acceso y límites
+4. **Pagos**: Procesamiento multicanal y cobranza automática
+5. **Admin Financiera**: Egresos, nómina de profesores, KPIs
+6. **Horarios/Calendario**: Sesiones recurrentes y eventos especiales
+7. **Asistencia**: Check-in QR con Geofencing, elegibilidad
+8. **Reglas**: Motor de bloqueos automáticos (pagos, asistencia, documentos)
+9. **Nóminas**: Citaciones inteligentes con validación automática
+10. **Estadísticas**: Importador universal, analytics, insights
+11. **Competencias**: Ligas, torneos, live score
+12. **Contenido**: Media Hub, videos, fotos, marketing social
+13. **Tracking/Entrenador**: Pizarra táctica, RPE, scouting
+14. **Documentos**: Archivo central con firma digital
+15. **Inventario**: Control de activos y material
+16. **Sedes**: Gestión de infraestructura y espacios
+
+## Killer Features
+- **Semáforo de Disponibilidad**: 🔴 Bloqueado, 🟡 Observación, 🟢 Apto
+- **Check-in QR + Geofencing**: Validación de presencia física (50m radio)
+- **Motor de Reglas**: Bloqueos automáticos por pagos/asistencia/documentos
+- **Nóminas Matchday Ready**: PDF profesional + imagen para RRSS
+
+## Convenciones de Código
+
+### Estructura de Archivos
+```
+/app                    # App Router de Next.js
+  /(auth)              # Rutas de autenticación
+  /(dashboard)         # Rutas protegidas del dashboard
+    /admin             # Vistas de administrador
+    /coach             # Vistas de entrenador
+    /athlete           # Vistas de alumno/jugador
+  /api                 # API Routes
+/components
+  /ui                  # Componentes shadcn/ui
+  /forms               # Formularios reutilizables
+  /layouts             # Layouts compartidos
+  /dashboard           # Componentes de dashboard por rol
+/lib
+  /supabase            # Cliente y helpers de Supabase
+  /actions             # Server Actions
+  /utils               # Utilidades generales
+  /rules               # Motor de reglas y validaciones
+/types                 # TypeScript types/interfaces
+```
+
+### Nomenclatura
+- Componentes: PascalCase (`AthleteCard.tsx`)
+- Funciones/variables: camelCase (`getAthleteById`)
+- Archivos de utilidad: kebab-case (`date-utils.ts`)
+- Tablas DB: snake_case (`club_athletes`)
+- Enums: SCREAMING_SNAKE_CASE (`PAYMENT_STATUS`)
+
+### Formularios
+- SIEMPRE incluir `club_id` en formularios de creación
+- Usar React Hook Form + Zod para validación
+- Mostrar estados de loading y error
+- Validar elegibilidad antes de acciones críticas (nóminas, acceso)
+
+### API y Base de Datos
+- Usar Server Actions cuando sea posible
+- Implementar paginación en listados (+20 items)
+- Manejar errores con try/catch y mensajes claros
+- Consultar Motor de Reglas antes de permitir acciones bloqueables
+
+## Entidades Principales
+- `Athlete`: Extiende User, tiene `health_status` y `performance_meta` JSONB
+- `Plan`: Incluye `session_limit`, `multi_sede`, `content_level`
+- `Payment`: Estados (pending, paid, overdue, failed, cancelled)
+- `Attendance`: Vinculado a `schedule_id` y `athlete_id`, con geolocation
+- `Rule`: Configurable por club, tipos (financial, attendance, discipline, documentation)
+
+## User Journey del Cobro Automático
+1. **Día -3**: Email/push preventivo de renovación
+2. **Día 0**: Intento de cobro automático con token
+3. **Día +1 (falla)**: Reintento + estado "Pendiente"
+4. **Día +3 (persiste)**: Estado "Moroso" + bloqueo QR + semáforo rojo
+
+## Reglas de UI/UX
+- Diseño mobile-first
+- **Modo "Estadio/Dojo"**: Alto contraste para sol/luces fuertes
+- **Branding Dinámico**: Colores según configuración del club
+- Feedback visual inmediato en acciones
+- Confirmación antes de acciones destructivas
+- Mensajes de error descriptivos y accionables
+- Candado 🔒 para elementos bloqueados con explicación al tocar
+
+## Testing
+- Tests unitarios para lógica de negocio crítica
+- Tests E2E para flujos principales
+- Validar siempre el aislamiento multi-tenant
+- Probar Motor de Reglas con diferentes escenarios de bloqueo
