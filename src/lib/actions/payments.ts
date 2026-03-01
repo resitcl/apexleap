@@ -114,7 +114,7 @@ export async function createPayment(input: PaymentInput) {
   return data
 }
 
-export async function markAsPaid(id: string, method: string) {
+export async function markAsPaid(id: string, method: string, paidAt?: string) {
   const clubId = await getClubId()
   const supabase = await createClient()
 
@@ -122,7 +122,7 @@ export async function markAsPaid(id: string, method: string) {
     .from('payments')
     .update({
       status: 'paid',
-      paid_at: new Date().toISOString(),
+      paid_at: paidAt ? new Date(paidAt).toISOString() : new Date().toISOString(),
       payment_method: method,
       updated_at: new Date().toISOString(),
     })

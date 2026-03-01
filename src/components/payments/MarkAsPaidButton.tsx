@@ -25,12 +25,13 @@ interface Props {
 export function MarkAsPaidButton({ paymentId }: Props) {
   const [open, setOpen] = useState(false)
   const [method, setMethod] = useState('cash')
+  const [paidAt, setPaidAt] = useState(() => new Date().toISOString().split('T')[0])
   const [loading, setLoading] = useState(false)
 
   async function handleConfirm() {
     setLoading(true)
     try {
-      await markAsPaid(paymentId, method)
+      await markAsPaid(paymentId, method, paidAt)
       toast.success('Pago marcado como pagado')
       setOpen(false)
     } catch (err) {
@@ -57,18 +58,30 @@ export function MarkAsPaidButton({ paymentId }: Props) {
           <DialogHeader>
             <DialogTitle>Confirmar Pago</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3 py-2">
-            <Label htmlFor="method">Método de pago</Label>
-            <select
-              id="method"
-              value={method}
-              onChange={(e) => setMethod(e.target.value)}
-              className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-            >
-              {METHODS.map((m) => (
-                <option key={m.value} value={m.value}>{m.label}</option>
-              ))}
-            </select>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="method">Método de pago</Label>
+              <select
+                id="method"
+                value={method}
+                onChange={(e) => setMethod(e.target.value)}
+                className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                {METHODS.map((m) => (
+                  <option key={m.value} value={m.value}>{m.label}</option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="paidAt">Fecha de pago</Label>
+              <input
+                id="paidAt"
+                type="date"
+                value={paidAt}
+                onChange={(e) => setPaidAt(e.target.value)}
+                className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)} disabled={loading}>
