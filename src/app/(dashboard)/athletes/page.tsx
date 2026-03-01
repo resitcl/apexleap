@@ -325,11 +325,12 @@ export default async function AthletesPage({ searchParams }: PageProps) {
             {page > 1 && (
               <Link
                 href={`/dashboard/athletes?${new URLSearchParams({
-                  ...(params.search  ? { search:  params.search }  : {}),
-                  ...(params.status  ? { status:  params.status }  : {}),
-                  ...(params.health  ? { health:  params.health }  : {}),
+                  ...(params.search    ? { search:    params.search }    : {}),
+                  ...(params.status    ? { status:    params.status }    : {}),
+                  ...(params.health    ? { health:    params.health }    : {}),
                   ...(params.planId    ? { planId:    params.planId }    : {}),
                   ...(params.subStatus ? { subStatus: params.subStatus } : {}),
+                  ...(sort             ? { sort }                        : {}),
                   page: String(page - 1),
                 }).toString()}`}
               >
@@ -346,6 +347,7 @@ export default async function AthletesPage({ searchParams }: PageProps) {
                   ...(params.health    ? { health:    params.health }    : {}),
                   ...(params.planId    ? { planId:    params.planId }    : {}),
                   ...(params.subStatus ? { subStatus: params.subStatus } : {}),
+                  ...(sort             ? { sort }                        : {}),
                   page: String(page + 1),
                 }).toString()}`}
               >
