@@ -395,6 +395,39 @@ export async function getAthletesWithoutPlan() {
   return count ?? 0
 }
 
+export async function getWeeklyAttendanceByDay() {
+  const clubId = await getClubId()
+  const supabase = await createClient()
+
+  const sevenDaysAgo = new Date()
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6)
+  sevenDaysAgo.setHours(0, 0, 0, 0)
+
+  const { data } = await supabase
+    .from('attendance')
+    .select('checked_in_at, is_valid')
+    .eq('club_id', clubId)
+    .gte('checked_in_at', sevenDaysAgo.toISOString())
+
+  const DAYS_SHORT = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
+  const result: { label: string; date: string; total: number; valid: number }[] = []
+
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date()
+    d.setDate(d.getDate() - i)
+    const dateStr = d.toISOString().split('T')[0]
+    const rows = (data ?? []).filter((r) => r.checked_in_at.startsWith(dateStr))
+    result.push({
+      label: i === 0 ? 'Hoy' : DAYS_SHORT[d.getDay()],
+      date: dateStr,
+      total: rows.length,
+      valid: rows.filter((r) => r.is_valid).length,
+    })
+  }
+
+  return result
+}
+
 export async function getExpiredDocuments() {
   const clubId = await getClubId()
   const supabase = await createClient()

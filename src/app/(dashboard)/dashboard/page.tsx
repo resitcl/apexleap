@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic"
 
 import Link from "next/link"
 import { redirect } from "next/navigation"
-import { getDashboardSummary, getRecentActivity, getMonthlyRevenue, getTodaySessions, getOverdueAlerts, getUpcomingSchedules, getExpiringSubscriptions, getWeeklyAttendanceRate, getExpiredDocuments, getAthletesWithoutPlan } from "@/lib/actions/dashboard"
+import { getDashboardSummary, getRecentActivity, getMonthlyRevenue, getTodaySessions, getOverdueAlerts, getUpcomingSchedules, getExpiringSubscriptions, getWeeklyAttendanceRate, getExpiredDocuments, getAthletesWithoutPlan, getWeeklyAttendanceByDay } from "@/lib/actions/dashboard"
 import { checkUserHasClub } from "@/lib/actions/onboarding"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -30,11 +30,12 @@ export default async function DashboardPage() {
   let upcomingSchedules: Awaited<ReturnType<typeof getUpcomingSchedules>> = []
   let expiringSubscriptions: Awaited<ReturnType<typeof getExpiringSubscriptions>> = []
   let weeklyAttendance = { total: 0, valid: 0, rate: 0 }
+  let weeklyByDay: Awaited<ReturnType<typeof getWeeklyAttendanceByDay>> = []
   let expiredDocs: Awaited<ReturnType<typeof getExpiredDocuments>> = []
   let athletesWithoutPlan = 0
 
   try {
-    ;[summary, activity, monthlyRevenue, todaySessions, overdueAlerts, upcomingSchedules, expiringSubscriptions, weeklyAttendance, expiredDocs, athletesWithoutPlan] = await Promise.all([
+    ;[summary, activity, monthlyRevenue, todaySessions, overdueAlerts, upcomingSchedules, expiringSubscriptions, weeklyAttendance, weeklyByDay, expiredDocs, athletesWithoutPlan] = await Promise.all([
       getDashboardSummary(),
       getRecentActivity(12),
       getMonthlyRevenue(6),
@@ -43,6 +44,7 @@ export default async function DashboardPage() {
       getUpcomingSchedules(),
       getExpiringSubscriptions(),
       getWeeklyAttendanceRate(),
+      getWeeklyAttendanceByDay(),
       getExpiredDocuments(),
       getAthletesWithoutPlan(),
     ])
@@ -202,6 +204,40 @@ export default async function DashboardPage() {
           </Link>
         )}
       </div>
+
+      {/* Weekly attendance bar chart */}
+      {weeklyByDay.some((d) => d.total > 0) && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-primary" />
+              Asistencia Últimos 7 Días
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {(() => {
+              const maxVal = Math.max(...weeklyByDay.map((d) => d.total), 1)
+              return (
+                <div className="flex items-end gap-2 h-24">
+                  {weeklyByDay.map((d) => (
+                    <div key={d.date} className="flex-1 flex flex-col items-center gap-1">
+                      <span className="text-xs text-muted-foreground font-medium">{d.total > 0 ? d.total : ''}</span>
+                      <div className="w-full relative rounded-t overflow-hidden bg-muted" style={{ height: `${Math.max((d.total / maxVal) * 64, d.total > 0 ? 8 : 2)}px` }}>
+                        <div
+                          className="absolute bottom-0 left-0 right-0 bg-primary/80 rounded-t"
+                          style={{ height: `${d.total > 0 ? Math.round((d.valid / d.total) * 100) : 0}%` }}
+                        />
+                      </div>
+                      <span className="text-xs text-muted-foreground">{d.label}</span>
+                    </div>
+                  ))}
+                </div>
+              )
+            })()}
+            <p className="text-xs text-muted-foreground mt-2">Barras azules = check-ins válidos · gris = total</p>
+          </CardContent>
+        </Card>
+      )}
 
       {expiredDocs.length > 0 && (
         <Link href="/dashboard/documents">
