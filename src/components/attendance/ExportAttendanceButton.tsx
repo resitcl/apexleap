@@ -11,6 +11,7 @@ interface Record {
   is_valid: boolean
   check_in_lat: number | null
   athletes?: { name: string } | null
+  schedules?: { name: string } | null
 }
 
 interface Props {
@@ -24,11 +25,12 @@ export function ExportAttendanceButton({ records }: Props) {
     if (records.length === 0) { toast.error('Sin registros para exportar'); return }
     setLoading(true)
     try {
-      const headers = ['Alumno', 'Fecha', 'Hora', 'Válido', 'GPS']
+      const headers = ['Alumno', 'Sesión', 'Fecha', 'Hora', 'Válido', 'GPS']
       const rows = records.map((r) => {
         const dt = new Date(r.checked_in_at)
         return [
           r.athletes?.name ?? '',
+          (r.schedules as { name: string } | null)?.name ?? '',
           dt.toLocaleDateString('es-CL'),
           dt.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }),
           r.is_valid ? 'Sí' : 'No',

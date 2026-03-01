@@ -195,6 +195,7 @@ export default async function AttendancePage({ searchParams }: PageProps) {
               records={history.records.map((r) => ({
                 ...r,
                 athletes: r.athletes as { name: string } | null,
+                schedules: r.schedules as { name: string } | null,
               }))}
             />
           </form>
