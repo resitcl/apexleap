@@ -396,6 +396,16 @@ export default async function AthletesPage({ searchParams }: PageProps) {
 
                     <div className="flex items-center gap-2 shrink-0">
                       {(() => {
+                        const att = athlete.attendance as Array<{ id: string; checked_in_at: string }> | null
+                        const total = (att ?? []).length
+                        if (total === 0) return null
+                        return (
+                          <span className="text-xs font-medium text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded" title={`${total} check-ins en total`}>
+                            ★{total}
+                          </span>
+                        )
+                      })()}
+                      {(() => {
                         const docs = athlete.documents as Array<{ id: string }> | null
                         const docCount = (docs ?? []).length
                         if (docCount > 0) return (

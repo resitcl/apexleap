@@ -158,6 +158,33 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
         </Card>
       </div>
 
+      {/* Active subscriptions by plan */}
+      {plans.length > 0 && (() => {
+        const byPlan = allSubs
+          .filter((s) => s.status === 'active')
+          .reduce<Record<string, { name: string; count: number; mrr: number }>>((acc, s) => {
+            const plan = s.plans as { id: string; name: string; price: number; billing_cycle: string } | null
+            if (!plan) return acc
+            if (!acc[plan.id]) acc[plan.id] = { name: plan.name, count: 0, mrr: 0 }
+            acc[plan.id].count++
+            acc[plan.id].mrr += plan.price * (CYCLE_MONTHLY[plan.billing_cycle] ?? 1)
+            return acc
+          }, {})
+        const entries = Object.values(byPlan).sort((a, b) => b.count - a.count)
+        if (entries.length === 0) return null
+        return (
+          <div className="flex flex-wrap gap-2 items-center">
+            <span className="text-xs text-muted-foreground font-medium">Por plan:</span>
+            {entries.map((p) => (
+              <span key={p.name} className="px-2.5 py-1 rounded-full border text-xs font-medium bg-primary/5 border-primary/20 text-primary">
+                {p.name} <span className="font-bold">{p.count}</span>
+                {p.mrr > 0 && <span className="text-muted-foreground ml-1">· ${Math.round(p.mrr).toLocaleString('es-CL')}/mes</span>}
+              </span>
+            ))}
+          </div>
+        )
+      })()}
+
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex flex-wrap gap-2">

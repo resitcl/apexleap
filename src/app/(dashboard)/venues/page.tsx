@@ -26,6 +26,10 @@ export default async function VenuesPage() {
           <h1 className="text-3xl font-bold">Sedes</h1>
           <p className="text-muted-foreground">
             {active} sede{active !== 1 ? "s" : ""} activa{active !== 1 ? "s" : ""}
+            {(() => {
+              const totalCap = venues.filter((v) => v.is_active && v.capacity).reduce((sum, v) => sum + (v.capacity ?? 0), 0)
+              return totalCap > 0 ? <span className="ml-2 font-medium">· {totalCap} personas de aforo total</span> : null
+            })()}
           </p>
         </div>
         <div className="flex gap-2">

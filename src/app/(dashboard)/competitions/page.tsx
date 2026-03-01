@@ -55,6 +55,9 @@ export default async function CompetitionsPage({ searchParams }: PageProps) {
           <p className="text-muted-foreground">
             Ligas, torneos y nóminas matchday
             {rosters > 0 && <span className="ml-2 font-medium text-primary">· {rosters} inscrito{rosters !== 1 ? 's' : ''} en nóminas</span>}
+            {competitions.length > 0 && rosters > 0 && (
+              <span className="ml-2 text-muted-foreground/70">· promedio {(rosters / competitions.length).toFixed(1)} por competencia</span>
+            )}
           </p>
         </div>
         <div className="flex gap-2">
