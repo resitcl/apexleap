@@ -156,20 +156,24 @@ export default async function DashboardPage() {
             <CardTitle>Acciones Rápidas</CardTitle>
             <CardDescription>Atajos frecuentes</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-2">
-            {[
-              { href: "/dashboard/athletes/new",  label: "Nuevo Alumno",   icon: "👤" },
-              { href: "/dashboard/payments/new",  label: "Registrar Pago", icon: "💳" },
-              { href: "/dashboard/attendance",    label: "Ver Asistencia", icon: "📋" },
-              { href: "/dashboard/plans/new",     label: "Crear Plan",     icon: "📦" },
-            ].map((item) => (
-              <Link key={item.href} href={item.href}>
-                <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-accent transition-colors cursor-pointer">
-                  <span className="text-xl">{item.icon}</span>
-                  <span className="text-sm font-medium">{item.label}</span>
-                </div>
-              </Link>
-            ))}
+          <CardContent>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { href: "/dashboard/athletes/new",       label: "Nuevo Alumno",      icon: "👤", color: "bg-blue-50 hover:bg-blue-100 text-blue-700" },
+                { href: "/dashboard/payments/new",       label: "Registrar Pago",    icon: "💳", color: "bg-green-50 hover:bg-green-100 text-green-700" },
+                { href: "/dashboard/attendance?tab=today", label: "Check-in Manual", icon: "📋", color: "bg-purple-50 hover:bg-purple-100 text-purple-700" },
+                { href: "/dashboard/documents/new",      label: "Subir Documento",   icon: "📄", color: "bg-orange-50 hover:bg-orange-100 text-orange-700" },
+                { href: "/dashboard/competitions/new",   label: "Nueva Competencia", icon: "🏆", color: "bg-yellow-50 hover:bg-yellow-100 text-yellow-700" },
+                { href: "/dashboard/calendar/new",       label: "Nueva Sesión",      icon: "�", color: "bg-pink-50 hover:bg-pink-100 text-pink-700" },
+              ].map((item) => (
+                <Link key={item.href} href={item.href}>
+                  <div className={`flex flex-col items-center gap-1.5 p-3 rounded-lg transition-colors cursor-pointer text-center ${item.color}`}>
+                    <span className="text-2xl">{item.icon}</span>
+                    <span className="text-xs font-medium leading-tight">{item.label}</span>
+                  </div>
+                </Link>
+              ))}
+            </div>
           </CardContent>
         </Card>
       </div>
