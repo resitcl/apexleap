@@ -126,6 +126,12 @@ export default async function InventoryPage({ searchParams }: PageProps) {
             </button>
           </Link>
         ))}
+        {(condition || isLowStock || category) && (
+          <Link href={`/dashboard/inventory?${search ? `search=${encodeURIComponent(search)}` : ''}`}
+            className="text-xs text-muted-foreground hover:text-foreground flex items-center ml-1">
+            ✕ Limpiar filtros
+          </Link>
+        )}
       </div>
 
       <div className="grid gap-3 sm:grid-cols-4">
