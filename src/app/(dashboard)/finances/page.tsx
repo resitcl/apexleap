@@ -6,12 +6,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
-  TrendingUp, TrendingDown, DollarSign, AlertCircle,
-  Plus, Users, Trash2
+  TrendingUp, TrendingDown, DollarSign, AlertCircle, Users
 } from "lucide-react"
 import { NewExpenseForm } from "@/components/finances/NewExpenseForm"
 import { NewCoachForm } from "@/components/finances/NewCoachForm"
 import { DeleteExpenseButton } from "@/components/finances/DeleteExpenseButton"
+import { MonthPicker } from "@/components/finances/MonthPicker"
 
 const CATEGORY_LABELS: Record<string, string> = {
   rent: "Arriendo", salary: "Salarios", supplies: "Insumos",
@@ -55,20 +55,7 @@ export default async function FinancesPage({ searchParams }: PageProps) {
           <h1 className="text-3xl font-bold">Administración Financiera</h1>
           <p className="text-muted-foreground capitalize">{monthLabel}</p>
         </div>
-        <div className="flex gap-2 items-center">
-          <input
-            type="month"
-            defaultValue={month}
-            className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm"
-            onChange={(e) => {
-              if (typeof window !== 'undefined') {
-                const url = new URL(window.location.href)
-                url.searchParams.set('month', e.target.value)
-                window.location.href = url.toString()
-              }
-            }}
-          />
-        </div>
+        <MonthPicker month={month} tab={tab} />
       </div>
 
       {/* KPI Cards */}
