@@ -226,6 +226,7 @@ export default async function AttendancePage({ searchParams }: PageProps) {
                           <p className="font-medium text-sm truncate">{athlete?.name ?? "Desconocido"}</p>
                           <p className="text-xs text-muted-foreground">
                             {dt.toLocaleDateString("es-CL")} · {dt.toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" })}
+                            {(record.schedules as { name: string } | null)?.name && ` · ${(record.schedules as { name: string }).name}`}
                             {record.check_in_lat && " · 📍 GPS"}
                           </p>
                         </div>

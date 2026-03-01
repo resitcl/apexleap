@@ -62,7 +62,7 @@ export async function getAttendanceHistory(params?: {
 
   let query = supabase
     .from('attendance')
-    .select('*, athletes(id, name, photo_url)', { count: 'exact' })
+    .select('*, athletes(id, name, photo_url), schedules(id, name)', { count: 'exact' })
     .eq('club_id', clubId)
     .gte('checked_in_at', from)
     .lte('checked_in_at', to)
