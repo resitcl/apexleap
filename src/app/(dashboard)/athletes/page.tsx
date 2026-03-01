@@ -362,11 +362,21 @@ export default async function AthletesPage({ searchParams }: PageProps) {
                             ⚠ Inactivo
                           </span>
                         )
-                        if (last) return (
-                          <span className="text-xs text-muted-foreground" title={`Última asistencia · ${checkIns} check-ins en 30 días`}>
-                            📋 {new Date(last.checked_in_at).toLocaleDateString('es-CL', { day: '2-digit', month: 'short' })}
-                          </span>
-                        )
+                        if (last) {
+                          const allAtt = att ?? []
+                          const oldest = allAtt.reduce<Date | null>((min, r) => {
+                            const d = new Date(r.checked_in_at)
+                            return !min || d < min ? d : min
+                          }, null)
+                          const monthsSpan = oldest ? Math.max(1, Math.ceil((Date.now() - oldest.getTime()) / (1000 * 60 * 60 * 24 * 30))) : 1
+                          const avgPerMonth = Math.round(allAtt.length / monthsSpan)
+                          return (
+                            <span className="text-xs text-muted-foreground" title={`Última: ${new Date(last.checked_in_at).toLocaleDateString('es-CL')} · ${checkIns} en 30d · ~${avgPerMonth}/mes`}>
+                              📋 {new Date(last.checked_in_at).toLocaleDateString('es-CL', { day: '2-digit', month: 'short' })}
+                              {avgPerMonth > 0 && <span className="ml-1 text-primary">~{avgPerMonth}/mes</span>}
+                            </span>
+                          )
+                        }
                         return null
                       })()}
                       {(() => {

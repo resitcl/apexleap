@@ -225,6 +225,18 @@ export default async function CalendarPage({ searchParams }: PageProps) {
                               </span>
                             ) : null
                           })()}
+                          {(() => {
+                            const dowList = s.day_of_week as number[]
+                            if (!dowList?.length) return null
+                            const now = new Date()
+                            const todayDow = now.getDay()
+                            const diffs = dowList.map((d) => (d - todayDow + 7) % 7)
+                            const minDiff = Math.min(...diffs)
+                            const nextDate = new Date(now)
+                            nextDate.setDate(nextDate.getDate() + minDiff)
+                            const label = minDiff === 0 ? 'Hoy' : minDiff === 1 ? 'Mañana' : nextDate.toLocaleDateString('es-CL', { weekday: 'short', day: 'numeric', month: 'short' })
+                            return <span className={`text-xs font-medium ${minDiff === 0 ? 'text-green-600' : 'text-muted-foreground'}`}>📅 {label}</span>
+                          })()}
                           {s.end_date && (() => {
                             const daysLeft = Math.ceil((new Date(s.end_date + 'T12:00:00').getTime() - Date.now()) / 86400000)
                             if (daysLeft < 0) return <span className="text-destructive text-xs font-medium">Finalizada</span>
