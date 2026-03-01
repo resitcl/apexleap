@@ -58,13 +58,20 @@ export default async function CalendarPage({ searchParams }: PageProps) {
   const todayDow = new Date().getDay()
   const todaySessions = (byDay[todayDow] ?? []).filter((s) => s.is_active)
 
+  const totalAttendancesAllTime = schedules.reduce((sum, s) => sum + ((s.attendance as unknown[])?.length ?? 0), 0)
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Calendario</h1>
-          <p className="text-muted-foreground">{schedules.length} sesiones configuradas</p>
+          <p className="text-muted-foreground">
+            {schedules.length} sesiones configuradas
+            {totalAttendancesAllTime > 0 && (
+              <span className="ml-2 text-primary font-medium">· {totalAttendancesAllTime.toLocaleString('es-CL')} check-ins totales</span>
+            )}
+          </p>
         </div>
         <div className="flex gap-2">
           <ExportSchedulesButton schedules={schedules.map((s) => ({

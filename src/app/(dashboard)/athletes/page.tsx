@@ -95,13 +95,23 @@ export default async function AthletesPage({ searchParams }: PageProps) {
     overdue: 0,
   }
 
+  const totalDebt = allAthletes.reduce((sum, a) => {
+    const pmts = a.payments as Array<{ status: string; amount: number }> | null ?? []
+    return sum + pmts.filter((p) => p.status === 'overdue').reduce((s, p) => s + Number(p.amount), 0)
+  }, 0)
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Alumnos</h1>
-          <p className="text-muted-foreground">{total} registrados en total</p>
+          <p className="text-muted-foreground">
+            {total} registrados en total
+            {totalDebt > 0 && (
+              <span className="ml-2 text-red-600 font-medium">· Deuda total: ${totalDebt.toLocaleString('es-CL')}</span>
+            )}
+          </p>
         </div>
         <div className="flex gap-2">
           <ExportAthletesButton athletes={allAthletes} />
