@@ -255,6 +255,7 @@ export default async function AthletesPage({ searchParams }: PageProps) {
                   ...(params.search  ? { search:  params.search }  : {}),
                   ...(params.status  ? { status:  params.status }  : {}),
                   ...(params.health  ? { health:  params.health }  : {}),
+                  ...(params.planId  ? { planId:  params.planId }  : {}),
                   page: String(page - 1),
                 }).toString()}`}
               >
@@ -269,6 +270,7 @@ export default async function AthletesPage({ searchParams }: PageProps) {
                   ...(params.search  ? { search:  params.search }  : {}),
                   ...(params.status  ? { status:  params.status }  : {}),
                   ...(params.health  ? { health:  params.health }  : {}),
+                  ...(params.planId  ? { planId:  params.planId }  : {}),
                   page: String(page + 1),
                 }).toString()}`}
               >
