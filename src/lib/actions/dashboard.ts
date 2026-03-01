@@ -211,6 +211,46 @@ export async function getOverdueAlerts() {
   }>
 }
 
+export async function getUpcomingSchedules() {
+  const clubId = await getClubId()
+  const supabase = await createClient()
+
+  const today = new Date()
+  const result: { dow: number; label: string; date: string; sessions: { id: string; name: string; start_time: string; end_time: string }[] }[] = []
+
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(today)
+    d.setDate(d.getDate() + i)
+    const dow = d.getDay()
+    const dateStr = d.toISOString().split('T')[0]
+    const label = i === 0 ? 'Hoy' : i === 1 ? 'Mañana' : d.toLocaleDateString('es-CL', { weekday: 'short', day: 'numeric' })
+    result.push({ dow, label, date: dateStr, sessions: [] })
+  }
+
+  const dows = [...new Set(result.map((r) => r.dow))]
+  const { data } = await supabase
+    .from('schedules')
+    .select('id, name, start_time, end_time, day_of_week')
+    .eq('club_id', clubId)
+    .eq('is_active', true)
+    .overlaps('day_of_week', dows)
+
+  for (const s of data ?? []) {
+    const days: number[] = s.day_of_week ?? []
+    for (const slot of result) {
+      if (days.includes(slot.dow)) {
+        slot.sessions.push({ id: s.id, name: s.name, start_time: s.start_time, end_time: s.end_time })
+      }
+    }
+  }
+
+  for (const slot of result) {
+    slot.sessions.sort((a, b) => a.start_time.localeCompare(b.start_time))
+  }
+
+  return result.filter((r) => r.sessions.length > 0)
+}
+
 export async function getTodaySessions() {
   const clubId = await getClubId()
   const supabase = await createClient()

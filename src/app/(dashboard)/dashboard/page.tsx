@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic"
 
 import Link from "next/link"
 import { redirect } from "next/navigation"
-import { getDashboardSummary, getRecentActivity, getMonthlyRevenue, getTodaySessions, getOverdueAlerts } from "@/lib/actions/dashboard"
+import { getDashboardSummary, getRecentActivity, getMonthlyRevenue, getTodaySessions, getOverdueAlerts, getUpcomingSchedules } from "@/lib/actions/dashboard"
 import { checkUserHasClub } from "@/lib/actions/onboarding"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -25,14 +25,16 @@ export default async function DashboardPage() {
   let monthlyRevenue: Awaited<ReturnType<typeof getMonthlyRevenue>> = []
   let todaySessions: Awaited<ReturnType<typeof getTodaySessions>> = []
   let overdueAlerts: Awaited<ReturnType<typeof getOverdueAlerts>> = []
+  let upcomingSchedules: Awaited<ReturnType<typeof getUpcomingSchedules>> = []
 
   try {
-    ;[summary, activity, monthlyRevenue, todaySessions, overdueAlerts] = await Promise.all([
+    ;[summary, activity, monthlyRevenue, todaySessions, overdueAlerts, upcomingSchedules] = await Promise.all([
       getDashboardSummary(),
       getRecentActivity(12),
       getMonthlyRevenue(6),
       getTodaySessions(),
       getOverdueAlerts(),
+      getUpcomingSchedules(),
     ])
   } catch {
     // show zeros on error
@@ -347,6 +349,42 @@ export default async function DashboardPage() {
           </Card>
         )
       })()}
+
+      {/* Upcoming 7-day agenda */}
+      {upcomingSchedules.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center justify-between">
+              <span className="flex items-center gap-2">
+                <ClipboardCheck className="w-4 h-4 text-primary" />
+                Agenda — Próximos 7 días
+              </span>
+              <Link href="/dashboard/calendar" className="text-xs text-muted-foreground hover:text-primary font-normal">
+                Ver calendario →
+              </Link>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {upcomingSchedules.map((day) => (
+              <div key={day.date}>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
+                  {day.label}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {day.sessions.map((s) => (
+                    <Link key={s.id} href={`/dashboard/calendar/${s.id}`}>
+                      <span className="inline-flex items-center gap-1.5 text-xs bg-primary/5 border border-primary/20 text-primary px-2.5 py-1 rounded-full hover:bg-primary/10 transition-colors">
+                        <span className="font-medium">{s.start_time.slice(0, 5)}</span>
+                        {s.name}
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Pending payments alert */}
       {summary.pendingAmount > 0 && (
