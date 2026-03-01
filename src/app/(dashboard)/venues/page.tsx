@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { MapPin, Navigation, Users, Home } from "lucide-react"
 import { NewVenueForm } from "@/components/venues/NewVenueForm"
+import { VenueToggleButton } from "@/components/venues/VenueToggleButton"
 
 export default async function VenuesPage() {
   let venues: Awaited<ReturnType<typeof getVenues>> = []
@@ -76,15 +77,18 @@ export default async function VenuesPage() {
                   )}
                 </div>
 
-                <div className="flex gap-2 flex-wrap pt-1">
-                  {venue.is_home_venue && (
-                    <Badge variant="outline" className="text-xs gap-1">
-                      <Home className="w-3 h-3" /> Principal
+                <div className="flex items-center justify-between gap-2 pt-1">
+                  <div className="flex gap-2 flex-wrap">
+                    {venue.is_home_venue && (
+                      <Badge variant="outline" className="text-xs gap-1">
+                        <Home className="w-3 h-3" /> Principal
+                      </Badge>
+                    )}
+                    <Badge variant={venue.lat && venue.lng ? "default" : "secondary"} className="text-xs">
+                      {venue.lat && venue.lng ? "Geofencing activo" : "Sin GPS"}
                     </Badge>
-                  )}
-                  <Badge variant={venue.lat && venue.lng ? "default" : "secondary"} className="text-xs">
-                    {venue.lat && venue.lng ? "Geofencing activo" : "Sin GPS"}
-                  </Badge>
+                  </div>
+                  <VenueToggleButton venueId={venue.id} isActive={venue.is_active} />
                 </div>
               </CardContent>
             </Card>
