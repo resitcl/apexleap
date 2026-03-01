@@ -362,6 +362,30 @@ export default async function AthleteDetailPage({ params }: PageProps) {
                     <span className="text-muted-foreground">Este mes</span>
                     <span className="font-semibold text-green-600">{validThisMonth} sesiones</span>
                   </div>
+                  {(() => {
+                    const sorted = attendance
+                      .filter((a) => a.is_valid)
+                      .map((a) => new Date(a.checked_in_at).toISOString().split('T')[0])
+                      .filter((v, i, arr) => arr.indexOf(v) === i)
+                      .sort((a, b) => b.localeCompare(a))
+                    let streak = 0
+                    for (let i = 0; i < sorted.length; i++) {
+                      const expected = new Date()
+                      expected.setDate(expected.getDate() - i)
+                      const eStr = expected.toISOString().split('T')[0]
+                      if (sorted[i] === eStr) streak++
+                      else break
+                    }
+                    if (streak === 0) return null
+                    return (
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-muted-foreground">Racha actual</span>
+                        <span className={`font-bold ${streak >= 7 ? 'text-orange-500' : streak >= 3 ? 'text-yellow-600' : 'text-primary'}`}>
+                          🔥 {streak} día{streak !== 1 ? 's' : ''} consecutivo{streak !== 1 ? 's' : ''}
+                        </span>
+                      </div>
+                    )
+                  })()}
                   <Separator />
                   <div>
                     <p className="text-xs text-muted-foreground mb-2">Últimas 20 asistencias</p>
