@@ -196,6 +196,11 @@ export default async function RulesPage({ searchParams }: PageProps) {
                                     </p>
                                   ) : null
                                 })()}
+                                {(rule as { updated_at?: string | null }).updated_at && (
+                                  <p className="text-xs text-muted-foreground">
+                                    Modificada: {new Date((rule as { updated_at: string }).updated_at).toLocaleDateString('es-CL')}
+                                  </p>
+                                )}
                               </div>
                             </div>
                             <ToggleRuleButton ruleId={rule.id} isActive={rule.is_active} />

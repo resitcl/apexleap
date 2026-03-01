@@ -268,6 +268,11 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
                         )}
                         {isExpired && <span className="text-destructive font-medium">Vencida</span>}
                         {sub.auto_renew && <span className="text-green-600">↺ Auto-renovación</span>}
+                        {sub.auto_renew && sub.end_date && sub.status === 'active' && daysLeft !== null && daysLeft >= 0 && (
+                          <span className="text-blue-600 font-medium">
+                            Próximo cobro: {new Date(sub.end_date).toLocaleDateString('es-CL')}
+                          </span>
+                        )}
                       </div>
                     </div>
                     <div className="flex items-center gap-3 shrink-0">
