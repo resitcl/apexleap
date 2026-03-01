@@ -13,7 +13,7 @@ import { ExportPaymentsButton } from "@/components/payments/ExportPaymentsButton
 import { BulkMarkAsPaidButton } from "@/components/payments/BulkMarkAsPaidButton"
 
 interface PageProps {
-  searchParams: Promise<{ status?: string; page?: string }>
+  searchParams: Promise<{ status?: string; page?: string; from?: string; to?: string }>
 }
 
 const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
@@ -27,6 +27,8 @@ const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secon
 export default async function PaymentsPage({ searchParams }: PageProps) {
   const params = await searchParams
   const page = Number(params.page ?? 1)
+  const from = params.from ?? ""
+  const to   = params.to   ?? ""
 
   let payments: Awaited<ReturnType<typeof getPayments>>["payments"] = []
   let total = 0
@@ -35,7 +37,7 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
 
   try {
     const [result, summaryResult] = await Promise.all([
-      getPayments({ status: params.status, page, limit: 25 }),
+      getPayments({ status: params.status, page, limit: 25, from: from || undefined, to: to || undefined }),
       getPaymentSummary(),
     ])
     payments = result.payments
@@ -117,7 +119,32 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
       </div>
 
       {/* Filters */}
-      <PaymentsFilter currentStatus={params.status} />
+      <div className="flex flex-wrap items-end gap-3">
+        <PaymentsFilter currentStatus={params.status} />
+        <form method="get" action="/dashboard/payments" className="flex flex-wrap items-end gap-2">
+          {params.status && <input type="hidden" name="status" value={params.status} />}
+          <div className="flex flex-col gap-1">
+            <label className="text-xs text-muted-foreground font-medium">Venc. desde</label>
+            <input type="date" name="from" defaultValue={from}
+              className="h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs text-muted-foreground font-medium">Venc. hasta</label>
+            <input type="date" name="to" defaultValue={to}
+              className="h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+          </div>
+          <button type="submit"
+            className="h-9 px-4 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
+            Filtrar
+          </button>
+          {(from || to) && (
+            <Link href={`/dashboard/payments${params.status ? `?status=${params.status}` : ''}`}
+              className="h-9 px-3 rounded-md border border-input bg-background text-sm font-medium hover:bg-accent transition-colors flex items-center">
+              ✕ Limpiar
+            </Link>
+          )}
+        </form>
+      </div>
 
       {/* Payments List */}
       {error ? (

@@ -39,24 +39,28 @@ export async function getPayments(params?: {
   athleteId?: string
   page?: number
   limit?: number
+  from?: string
+  to?: string
 }) {
   const clubId = await getClubId()
   const supabase = await createClient()
 
   const page = params?.page ?? 1
   const limit = params?.limit ?? 25
-  const from = (page - 1) * limit
-  const to = from + limit - 1
+  const rangeFrom = (page - 1) * limit
+  const rangeTo = rangeFrom + limit - 1
 
   let query = supabase
     .from('payments')
     .select('*, athletes(id, name, photo_url)', { count: 'exact' })
     .eq('club_id', clubId)
     .order('due_date', { ascending: false })
-    .range(from, to)
+    .range(rangeFrom, rangeTo)
 
   if (params?.status) query = query.eq('status', params.status)
   if (params?.athleteId) query = query.eq('athlete_id', params.athleteId)
+  if (params?.from) query = query.gte('due_date', params.from)
+  if (params?.to)   query = query.lte('due_date', params.to)
 
   const { data, error, count } = await query
   if (error) throw new Error(error.message)
