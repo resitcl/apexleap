@@ -31,16 +31,20 @@ async function getClubId() {
   return data.club_id as string
 }
 
-export async function getRules() {
+export async function getRules(filters?: { type?: string }) {
   const clubId = await getClubId()
   const supabase = await createClient()
 
-  const { data, error } = await supabase
+  let q = supabase
     .from('rules')
     .select('*')
     .eq('club_id', clubId)
     .order('type', { ascending: true })
     .order('severity', { ascending: false })
+
+  if (filters?.type) q = q.eq('type', filters.type)
+
+  const { data, error } = await q
 
   if (error) throw new Error(error.message)
   return data ?? []

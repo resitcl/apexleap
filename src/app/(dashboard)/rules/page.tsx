@@ -4,6 +4,7 @@ import { getRules, getRuleAffectedCounts } from "@/lib/actions/rules"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ShieldCheck, ShieldAlert, ShieldOff } from "lucide-react"
+import Link from "next/link"
 import { ToggleRuleButton } from "@/components/rules/ToggleRuleButton"
 import { NewRuleForm } from "@/components/rules/NewRuleForm"
 
@@ -39,14 +40,20 @@ function formatCondition(cond: Record<string, unknown>): string {
   return parts.length > 0 ? parts.join(' · ') : ''
 }
 
-export default async function RulesPage() {
+interface PageProps {
+  searchParams: Promise<{ type?: string }>
+}
+
+export default async function RulesPage({ searchParams }: PageProps) {
+  const { type } = await searchParams
+
   let rules: Awaited<ReturnType<typeof getRules>> = []
   let affected = { financial: 0, discipline: 0, documentation: 0, attendance: 0 }
   let error: string | null = null
 
   try {
     ;[rules, affected] = await Promise.all([
-      getRules(),
+      getRules({ type: type || undefined }),
       getRuleAffectedCounts(),
     ])
   } catch (e) {
@@ -71,6 +78,19 @@ export default async function RulesPage() {
           <p className="text-muted-foreground">Motor de bloqueos automáticos del club</p>
         </div>
         <NewRuleForm />
+      </div>
+
+      {/* Type filter */}
+      <div className="flex flex-wrap gap-2">
+        {([['', 'Todos'], ['financial', '💰 Financiero'], ['attendance', '📋 Asistencia'], ['discipline', '🛡️ Disciplina'], ['documentation', '📄 Documentación']] as const).map(([val, lbl]) => (
+          <Link key={val} href={`/dashboard/rules${val ? `?type=${val}` : ''}`}>
+            <button className={`h-8 px-3 rounded-md border text-xs font-medium transition-colors ${
+              (val === '' && !type) || type === val
+                ? 'bg-primary text-primary-foreground border-primary'
+                : 'bg-background border-input hover:bg-accent'
+            }`}>{lbl}</button>
+          </Link>
+        ))}
       </div>
 
       {/* KPIs */}

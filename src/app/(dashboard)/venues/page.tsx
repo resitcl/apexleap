@@ -8,6 +8,7 @@ import { NewVenueForm } from "@/components/venues/NewVenueForm"
 import { VenueToggleButton } from "@/components/venues/VenueToggleButton"
 import { EditVenueForm } from "@/components/venues/EditVenueForm"
 import { DeleteVenueButton } from "@/components/venues/DeleteVenueButton"
+import { ExportVenuesButton } from "@/components/venues/ExportVenuesButton"
 
 export default async function VenuesPage() {
   let venues: Awaited<ReturnType<typeof getVenues>> = []
@@ -27,7 +28,10 @@ export default async function VenuesPage() {
             {active} sede{active !== 1 ? "s" : ""} activa{active !== 1 ? "s" : ""}
           </p>
         </div>
-        <NewVenueForm />
+        <div className="flex gap-2">
+          <ExportVenuesButton venues={venues} />
+          <NewVenueForm />
+        </div>
       </div>
 
       {venues.length === 0 ? (
