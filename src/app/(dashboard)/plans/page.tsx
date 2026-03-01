@@ -7,6 +7,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Plus, Users, Clock, Building2, Eye, EyeOff } from "lucide-react"
+import { EditPlanButton } from "@/components/plans/EditPlanButton"
 
 const CYCLE_LABELS: Record<string, string> = {
   monthly: 'Mensual',
@@ -169,9 +170,7 @@ export default async function PlansPage() {
                   <Link href={`/dashboard/plans/${plan.id}`} className="flex-1">
                     <Button variant="outline" className="w-full">Ver detalle</Button>
                   </Link>
-                  <Link href={`/dashboard/plans/${plan.id}/edit`}>
-                    <Button variant="ghost" size="sm">Editar</Button>
-                  </Link>
+                  <EditPlanButton plan={plan} />
                 </CardFooter>
               </Card>
             )
