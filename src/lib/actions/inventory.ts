@@ -32,7 +32,7 @@ async function getClubId() {
   return data.club_id as string
 }
 
-export async function getInventoryItems(filters?: { category?: string; condition?: string; lowStock?: boolean; search?: string; page?: number; limit?: number }) {
+export async function getInventoryItems(filters?: { category?: string; condition?: string; lowStock?: boolean; search?: string; page?: number; limit?: number; athleteId?: string }) {
   const clubId = await getClubId()
   const supabase = await createClient()
   const page  = filters?.page  ?? 1
@@ -47,6 +47,7 @@ export async function getInventoryItems(filters?: { category?: string; condition
   if (filters?.condition) q = q.eq('condition', filters.condition)
   if (filters?.lowStock)  q = q.filter('quantity', 'lte', 'quantity_min').gt('quantity_min', 0)
   if (filters?.search)    q = q.ilike('name', `%${filters.search}%`)
+  if (filters?.athleteId) q = q.eq('assigned_to', filters.athleteId)
   const { data, error, count } = await q.order('category').order('name').range(from, to)
   if (error) throw new Error(error.message)
   return { items: data ?? [], total: count ?? 0 }

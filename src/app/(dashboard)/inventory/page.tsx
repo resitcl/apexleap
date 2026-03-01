@@ -27,11 +27,11 @@ const CONDITION_LABEL: Record<string, string> = {
 }
 
 interface PageProps {
-  searchParams: Promise<{ category?: string; condition?: string; lowStock?: string; search?: string; page?: string }>
+  searchParams: Promise<{ category?: string; condition?: string; lowStock?: string; search?: string; page?: string; athleteId?: string }>
 }
 
 export default async function InventoryPage({ searchParams }: PageProps) {
-  const { category, condition, lowStock, search, page: pageStr } = await searchParams
+  const { category, condition, lowStock, search, page: pageStr, athleteId } = await searchParams
   const isLowStock = lowStock === '1'
   const page = Number(pageStr ?? 1)
   const limit = 50
@@ -44,8 +44,8 @@ export default async function InventoryPage({ searchParams }: PageProps) {
 
   try {
     const [inv, allInv, ath] = await Promise.all([
-      getInventoryItems({ category, condition, lowStock: isLowStock || undefined, search: search || undefined, page, limit }),
-      getInventoryItems({ category, condition, lowStock: isLowStock || undefined, search: search || undefined, limit: 10000 }),
+      getInventoryItems({ category, condition, lowStock: isLowStock || undefined, search: search || undefined, page, limit, athleteId: athleteId || undefined }),
+      getInventoryItems({ category, condition, lowStock: isLowStock || undefined, search: search || undefined, limit: 10000, athleteId: athleteId || undefined }),
       getAthletes({ limit: 200 }),
     ])
     items = inv.items
@@ -92,14 +92,23 @@ export default async function InventoryPage({ searchParams }: PageProps) {
       )}
 
       {/* Search */}
-      <form method="get" action="/dashboard/inventory" className="flex items-center gap-2">
+      <form method="get" action="/dashboard/inventory" className="flex flex-wrap items-center gap-2">
         {category  && <input type="hidden" name="category"  value={category} />}
         {condition && <input type="hidden" name="condition" value={condition} />}
         {isLowStock && <input type="hidden" name="lowStock" value="1" />}
         <input type="text" name="search" defaultValue={search ?? ''} placeholder="Buscar ítem..."
           className="h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring w-52" />
+        {athleteList.length > 0 && (
+          <select name="athleteId" defaultValue={athleteId ?? ''}
+            className="h-9 px-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring">
+            <option value="">Todos los atletas</option>
+            {athleteList.map((a) => (
+              <option key={a.id} value={a.id}>{a.name}</option>
+            ))}
+          </select>
+        )}
         <button type="submit" className="h-9 px-4 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">Buscar</button>
-        {search && (
+        {(search || athleteId) && (
           <Link href={`/dashboard/inventory?${new URLSearchParams({ ...(category ? { category } : {}), ...(condition ? { condition } : {}), ...(isLowStock ? { lowStock: '1' } : {}) }).toString()}`}
             className="text-xs text-muted-foreground hover:text-foreground">✕ Limpiar</Link>
         )}
