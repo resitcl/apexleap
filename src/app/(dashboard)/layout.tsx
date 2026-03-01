@@ -10,20 +10,24 @@ import {
   Trophy,
   FileText,
   Package,
-  MapPin
+  MapPin,
+  BookOpen,
+  ShieldCheck,
 } from "lucide-react"
 
 const sidebarItems = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/dashboard/athletes", label: "Alumnos", icon: Users },
-  { href: "/dashboard/payments", label: "Pagos", icon: CreditCard },
-  { href: "/dashboard/calendar", label: "Calendario", icon: Calendar },
-  { href: "/dashboard/attendance", label: "Asistencia", icon: ClipboardCheck },
-  { href: "/dashboard/competitions", label: "Competencias", icon: Trophy },
-  { href: "/dashboard/documents", label: "Documentos", icon: FileText },
-  { href: "/dashboard/inventory", label: "Inventario", icon: Package },
-  { href: "/dashboard/venues", label: "Sedes", icon: MapPin },
-  { href: "/dashboard/settings", label: "Configuración", icon: Settings },
+  { href: "/dashboard",             label: "Dashboard",    icon: LayoutDashboard },
+  { href: "/dashboard/athletes",    label: "Alumnos",      icon: Users },
+  { href: "/dashboard/plans",       label: "Planes",       icon: BookOpen },
+  { href: "/dashboard/payments",    label: "Pagos",        icon: CreditCard },
+  { href: "/dashboard/attendance",  label: "Asistencia",   icon: ClipboardCheck },
+  { href: "/dashboard/calendar",    label: "Calendario",   icon: Calendar },
+  { href: "/dashboard/rules",       label: "Reglas",       icon: ShieldCheck },
+  { href: "/dashboard/competitions",label: "Competencias", icon: Trophy },
+  { href: "/dashboard/documents",   label: "Documentos",   icon: FileText },
+  { href: "/dashboard/inventory",   label: "Inventario",   icon: Package },
+  { href: "/dashboard/venues",      label: "Sedes",        icon: MapPin },
+  { href: "/dashboard/settings",    label: "Configuración",icon: Settings },
 ]
 
 export default function DashboardLayout({
