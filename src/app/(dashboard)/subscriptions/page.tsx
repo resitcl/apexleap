@@ -24,13 +24,14 @@ const CYCLE_LABELS: Record<string, string> = {
 }
 
 interface PageProps {
-  searchParams: Promise<{ status?: string; page?: string; planId?: string }>
+  searchParams: Promise<{ status?: string; page?: string; planId?: string; search?: string }>
 }
 
 export default async function SubscriptionsPage({ searchParams }: PageProps) {
   const params = await searchParams
   const page   = Number(params.page ?? 1)
   const planId = params.planId ?? ""
+  const search = params.search ?? ""
 
   let subs: Awaited<ReturnType<typeof getSubscriptions>>["subscriptions"] = []
   let total = 0
@@ -41,7 +42,7 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
 
   try {
     const [result, statsResult, plansResult] = await Promise.all([
-      getSubscriptions({ status: params.status, page, limit: 25, planId: planId || undefined }),
+      getSubscriptions({ status: params.status, page, limit: 25, planId: planId || undefined, search: search || undefined }),
       getSubscriptionStats(),
       getPlans(),
     ])
@@ -132,9 +133,14 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
             </Link>
           ))}
         </div>
-        {plans.length > 0 && (
-          <form method="get" action="/dashboard/subscriptions" className="flex items-center gap-2">
-            {params.status && <input type="hidden" name="status" value={params.status} />}
+        <form method="get" action="/dashboard/subscriptions" className="flex flex-wrap items-center gap-2">
+          {params.status && <input type="hidden" name="status" value={params.status} />}
+          <input
+            type="text" name="search" defaultValue={search}
+            placeholder="Buscar alumno..."
+            className="h-8 px-3 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring w-36"
+          />
+          {plans.length > 0 && (
             <select name="planId" defaultValue={planId}
               className="h-8 px-2 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring">
               <option value="">Todos los planes</option>
@@ -142,15 +148,15 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
                 <option key={p.id} value={p.id}>{p.name}</option>
               ))}
             </select>
-            <button type="submit" className="h-8 px-3 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90">Filtrar</button>
-            {planId && (
-              <Link href={`/dashboard/subscriptions${params.status ? `?status=${params.status}` : ''}`}
-                className="text-xs text-muted-foreground hover:text-foreground">
-                ✕
-              </Link>
-            )}
-          </form>
-        )}
+          )}
+          <button type="submit" className="h-8 px-3 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90">Filtrar</button>
+          {(planId || search) && (
+            <Link href={`/dashboard/subscriptions${params.status ? `?status=${params.status}` : ''}`}
+              className="text-xs text-muted-foreground hover:text-foreground">
+              ✕ Limpiar
+            </Link>
+          )}
+        </form>
       </div>
 
       {/* List */}

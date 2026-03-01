@@ -36,6 +36,7 @@ export async function getSubscriptions(params?: {
   status?: string
   athleteId?: string
   planId?: string
+  search?: string
   page?: number
   limit?: number
 }) {
@@ -57,6 +58,7 @@ export async function getSubscriptions(params?: {
   if (params?.status)    query = query.eq('status', params.status)
   if (params?.athleteId) query = query.eq('athlete_id', params.athleteId)
   if (params?.planId)    query = query.eq('plan_id', params.planId)
+  if (params?.search)    query = query.ilike('athletes.name', `%${params.search}%`)
 
   const { data, error, count } = await query
   if (error) throw new Error(error.message)
