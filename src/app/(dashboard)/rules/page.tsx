@@ -86,15 +86,23 @@ export default async function RulesPage({ searchParams }: PageProps) {
 
       {/* Type filter */}
       <div className="flex flex-wrap gap-2">
-        {([['', 'Todos'], ['financial', '💰 Financiero'], ['attendance', '📋 Asistencia'], ['discipline', '🛡️ Disciplina'], ['documentation', '📄 Documentación']] as const).map(([val, lbl]) => (
-          <Link key={val} href={`/dashboard/rules${val ? `?type=${val}` : ''}`}>
-            <button className={`h-8 px-3 rounded-md border text-xs font-medium transition-colors ${
-              (val === '' && !type) || type === val
-                ? 'bg-primary text-primary-foreground border-primary'
-                : 'bg-background border-input hover:bg-accent'
-            }`}>{lbl}</button>
-          </Link>
-        ))}
+        {([['', 'Todos', null], ['financial', '💰 Financiero', affected.financial], ['attendance', '📋 Asistencia', affected.attendance], ['discipline', '🛡️ Disciplina', affected.discipline], ['documentation', '📄 Documentación', affected.documentation]] as [string, string, number | null][]).map(([val, lbl, count]) => {
+          const isActive = (val === '' && !type) || type === val
+          return (
+            <Link key={val} href={`/dashboard/rules${val ? `?type=${val}` : ''}`}>
+              <button className={`h-8 px-3 rounded-md border text-xs font-medium transition-colors flex items-center gap-1.5 ${
+                isActive ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-input hover:bg-accent'
+              }`}>
+                {lbl}
+                {count !== null && count > 0 && (
+                  <span className={`rounded-full text-xs font-bold px-1.5 py-0 leading-4 ${
+                    isActive ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-destructive/15 text-destructive'
+                  }`}>{count}</span>
+                )}
+              </button>
+            </Link>
+          )
+        })}
       </div>
 
       {/* KPIs */}

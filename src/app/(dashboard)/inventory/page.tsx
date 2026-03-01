@@ -59,6 +59,10 @@ export default async function InventoryPage({ searchParams }: PageProps) {
     acc[i.category] = (acc[i.category] ?? 0) + 1
     return acc
   }, {})
+  const conditionCounts = allItems.reduce<Record<string, number>>((acc, i) => {
+    acc[i.condition] = (acc[i.condition] ?? 0) + 1
+    return acc
+  }, {})
 
   return (
     <div className="space-y-6">
@@ -121,20 +125,22 @@ export default async function InventoryPage({ searchParams }: PageProps) {
             isLowStock ? 'bg-yellow-500 text-white border-yellow-500' : 'bg-background border-input hover:bg-accent'
           }`}>⚠️ Stock bajo</button>
         </Link>
-        {([['', 'Todos'], ['good', '✅ Bueno'], ['fair', '⚠️ Regular'], ['poor', '🔴 Malo'], ['broken', '💀 Roto']] as const).map(([val, lbl]) => (
-          <Link
-            key={val}
-            href={`/dashboard/inventory?${new URLSearchParams({ ...(category ? { category } : {}), ...(isLowStock ? { lowStock: '1' } : {}), ...(search ? { search } : {}), ...(val ? { condition: val } : {}) }).toString()}`}
-          >
-            <button className={`h-8 px-3 rounded-md border text-xs font-medium transition-colors ${
-              (val === '' && !condition) || condition === val
-                ? 'bg-primary text-primary-foreground border-primary'
-                : 'bg-background border-input hover:bg-accent'
-            }`}>
-              {lbl}
-            </button>
-          </Link>
-        ))}
+        {([['', 'Todos'], ['good', '✅ Bueno'], ['fair', '⚠️ Regular'], ['poor', '🔴 Malo'], ['broken', '💀 Roto']] as [string, string][]).map(([val, lbl]) => {
+          const isActive = (val === '' && !condition) || condition === val
+          const cnt = val ? (conditionCounts[val] ?? 0) : null
+          return (
+            <Link key={val} href={`/dashboard/inventory?${new URLSearchParams({ ...(category ? { category } : {}), ...(isLowStock ? { lowStock: '1' } : {}), ...(search ? { search } : {}), ...(val ? { condition: val } : {}) }).toString()}`}>
+              <button className={`h-8 px-3 rounded-md border text-xs font-medium transition-colors flex items-center gap-1.5 ${
+                isActive ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-input hover:bg-accent'
+              }`}>
+                {lbl}
+                {cnt !== null && cnt > 0 && (
+                  <span className={`rounded-full text-xs font-bold px-1.5 leading-4 ${isActive ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>{cnt}</span>
+                )}
+              </button>
+            </Link>
+          )
+        })}
         {(condition || isLowStock || category) && (
           <Link href={`/dashboard/inventory?${search ? `search=${encodeURIComponent(search)}` : ''}`}
             className="text-xs text-muted-foreground hover:text-foreground flex items-center ml-1">
