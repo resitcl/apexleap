@@ -28,18 +28,18 @@ const STATUS_LABELS: Record<string, string> = {
 }
 
 interface PageProps {
-  searchParams: Promise<{ category?: string; status?: string }>
+  searchParams: Promise<{ category?: string; status?: string; search?: string }>
 }
 
 export default async function DocumentsPage({ searchParams }: PageProps) {
-  const { category, status } = await searchParams
+  const { category, status, search } = await searchParams
 
   let docs: Awaited<ReturnType<typeof getDocuments>> = []
   let athleteList: { id: string; name: string }[] = []
 
   try {
     const [d, a] = await Promise.all([
-      getDocuments({ category, status }),
+      getDocuments({ category, status, search: search || undefined }),
       getAthletes({ limit: 200 }),
     ])
     docs = d
@@ -83,7 +83,20 @@ export default async function DocumentsPage({ searchParams }: PageProps) {
         </Card>
       )}
 
-      {/* Status filter */}
+      {/* Search + Status filter */}
+      <form method="get" action="/dashboard/documents" className="flex items-center gap-2 flex-wrap">
+        {category && <input type="hidden" name="category" value={category} />}
+        {status   && <input type="hidden" name="status"   value={status}   />}
+        <input type="text" name="search" defaultValue={search ?? ''}
+          placeholder="Buscar documento..."
+          className="h-8 px-3 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring w-48" />
+        <button type="submit" className="h-8 px-3 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90">Buscar</button>
+        {search && (
+          <Link href={`/dashboard/documents?${new URLSearchParams({ ...(category ? { category } : {}), ...(status ? { status } : {}) }).toString()}`}
+            className="text-xs text-muted-foreground hover:text-foreground">✕ Limpiar</Link>
+        )}
+      </form>
+
       <div className="flex flex-wrap gap-2">
         {(['', 'active', 'pending', 'expired'] as const).map((s) => (
           <Link
