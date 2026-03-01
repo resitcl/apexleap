@@ -29,16 +29,23 @@ async function getClubId() {
   return data.club_id as string
 }
 
-export async function getCompetitions() {
+export async function getCompetitions(params?: { status?: string; page?: number; limit?: number }) {
   const clubId = await getClubId()
   const supabase = await createClient()
-  const { data, error } = await supabase
+  const page = params?.page ?? 1
+  const limit = params?.limit ?? 20
+  const from = (page - 1) * limit
+  const to = from + limit - 1
+  let query = supabase
     .from('competitions')
-    .select('*, rosters(id)')
+    .select('*, rosters(id)', { count: 'exact' })
     .eq('club_id', clubId)
     .order('start_date', { ascending: false })
+    .range(from, to)
+  if (params?.status) query = query.eq('status', params.status)
+  const { data, error, count } = await query
   if (error) throw new Error(error.message)
-  return data ?? []
+  return { competitions: data ?? [], total: count ?? 0 }
 }
 
 export async function createCompetition(input: CompetitionInput) {

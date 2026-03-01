@@ -19,11 +19,22 @@ const STATUS_META: Record<string, { label: string; variant: "default" | "seconda
   cancelled: { label: "Cancelado",  variant: "destructive" },
 }
 
-export default async function CompetitionsPage() {
-  let competitions: Awaited<ReturnType<typeof getCompetitions>> = []
+interface PageProps {
+  searchParams: Promise<{ status?: string; page?: string }>
+}
+
+export default async function CompetitionsPage({ searchParams }: PageProps) {
+  const params = await searchParams
+  const page = Number(params.page ?? 1)
+  const limit = 20
+
+  let competitions: { id: string; name: string; type: string; status: string; sport: string | null; location: string | null; start_date: string; end_date: string | null; rosters: unknown[] }[] = []
+  let total = 0
 
   try {
-    competitions = await getCompetitions()
+    const result = await getCompetitions({ status: params.status, page, limit })
+    competitions = result.competitions as typeof competitions
+    total = result.total
   } catch { /* empty */ }
 
   const active   = competitions.filter((c) => c.status === "active").length
@@ -42,9 +53,9 @@ export default async function CompetitionsPage() {
 
       <div className="grid gap-4 sm:grid-cols-3">
         {[
-          { label: "En curso",      icon: "🏆", count: active },
-          { label: "Próximos",      icon: "�", count: upcoming },
-          { label: "Nóminas",       icon: "�", count: rosters },
+          { label: "En curso",  icon: "", count: active },
+          { label: "Próximos",  icon: "", count: upcoming },
+          { label: "Nóminas",   icon: "", count: rosters },
         ].map((stat) => (
           <Card key={stat.label}>
             <CardContent className="pt-6 text-center">
@@ -53,6 +64,25 @@ export default async function CompetitionsPage() {
               <p className="text-2xl font-bold mt-1">{stat.count}</p>
             </CardContent>
           </Card>
+        ))}
+      </div>
+
+      {/* Status filter */}
+      <div className="flex flex-wrap gap-2">
+        {([
+          { value: '', label: 'Todas' },
+          { value: 'upcoming', label: ' Próximas' },
+          { value: 'active', label: ' En curso' },
+          { value: 'finished', label: ' Finalizadas' },
+          { value: 'cancelled', label: 'Canceladas' },
+        ]).map(({ value, label }) => (
+          <Link key={value} href={`/dashboard/competitions${value ? `?status=${value}` : ''}`}>
+            <button className={`h-8 px-3 rounded-md border text-xs font-medium transition-colors ${
+              (value === '' && !params.status) || params.status === value
+                ? 'bg-primary text-primary-foreground border-primary'
+                : 'bg-background border-input hover:bg-accent'
+            }`}>{label}</button>
+          </Link>
         ))}
       </div>
 
@@ -114,6 +144,27 @@ export default async function CompetitionsPage() {
               </Link>
             )
           })}
+        </div>
+      )}
+
+      {/* Pagination */}
+      {total > limit && (
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-muted-foreground">
+            Mostrando {(page - 1) * limit + 1}–{Math.min(page * limit, total)} de {total}
+          </p>
+          <div className="flex gap-2">
+            {page > 1 && (
+              <Link href={`/dashboard/competitions?${new URLSearchParams({ ...(params.status ? { status: params.status } : {}), page: String(page - 1) }).toString()}`}>
+                <button className="h-9 px-4 rounded-md border border-input bg-background text-sm hover:bg-accent transition-colors">← Anterior</button>
+              </Link>
+            )}
+            {page * limit < total && (
+              <Link href={`/dashboard/competitions?${new URLSearchParams({ ...(params.status ? { status: params.status } : {}), page: String(page + 1) }).toString()}`}>
+                <button className="h-9 px-4 rounded-md border border-input bg-background text-sm hover:bg-accent transition-colors">Siguiente →</button>
+              </Link>
+            )}
+          </div>
         </div>
       )}
     </div>
