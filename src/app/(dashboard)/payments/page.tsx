@@ -250,6 +250,41 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
           })}
         </div>
       )}
+
+      {/* Pagination */}
+      {total > 25 && (
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-muted-foreground">
+            Mostrando {(page - 1) * 25 + 1}–{Math.min(page * 25, total)} de {total}
+          </p>
+          <div className="flex gap-2">
+            {page > 1 && (
+              <Link href={`/dashboard/payments?${new URLSearchParams({
+                ...(params.status     ? { status:     params.status }     : {}),
+                ...(search            ? { search }                        : {}),
+                ...(athleteName       ? { athleteName }                   : {}),
+                ...(from              ? { from }                          : {}),
+                ...(to                ? { to }                            : {}),
+                page: String(page - 1),
+              }).toString()}`}>
+                <button className="h-9 px-4 rounded-md border border-input bg-background text-sm hover:bg-accent transition-colors">← Anterior</button>
+              </Link>
+            )}
+            {page * 25 < total && (
+              <Link href={`/dashboard/payments?${new URLSearchParams({
+                ...(params.status     ? { status:     params.status }     : {}),
+                ...(search            ? { search }                        : {}),
+                ...(athleteName       ? { athleteName }                   : {}),
+                ...(from              ? { from }                          : {}),
+                ...(to                ? { to }                            : {}),
+                page: String(page + 1),
+              }).toString()}`}>
+                <button className="h-9 px-4 rounded-md border border-input bg-background text-sm hover:bg-accent transition-colors">Siguiente →</button>
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

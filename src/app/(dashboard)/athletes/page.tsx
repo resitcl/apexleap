@@ -28,24 +28,26 @@ export default async function AthletesPage({ searchParams }: PageProps) {
   const page = Number(params.page ?? 1)
 
   let athletes: Awaited<ReturnType<typeof getAthletes>>["athletes"] = []
+  let allAthletes: Awaited<ReturnType<typeof getAthletes>>["athletes"] = []
   let total = 0
   let error: string | null = null
   let plans: { id: string; name: string }[] = []
 
   try {
-    const [result, plansData] = await Promise.all([
-      getAthletes({
-        search: params.search,
-        status: params.status,
-        healthStatus: params.health,
-        planId: params.planId,
-        subscriptionStatus: params.subStatus,
-        page,
-        limit: 20,
-      }),
+    const filterParams = {
+      search: params.search,
+      status: params.status,
+      healthStatus: params.health,
+      planId: params.planId,
+      subscriptionStatus: params.subStatus,
+    }
+    const [result, allResult, plansData] = await Promise.all([
+      getAthletes({ ...filterParams, page, limit: 20 }),
+      getAthletes({ ...filterParams, page: 1, limit: 1000 }),
       getPlans(),
     ])
     athletes = result.athletes
+    allAthletes = allResult.athletes
     total = result.total
     plans = plansData.map((p) => ({ id: p.id, name: p.name }))
   } catch (e) {
@@ -67,7 +69,7 @@ export default async function AthletesPage({ searchParams }: PageProps) {
           <p className="text-muted-foreground">{total} registrados en total</p>
         </div>
         <div className="flex gap-2">
-          <ExportAthletesButton athletes={athletes} />
+          <ExportAthletesButton athletes={allAthletes} />
           <Link href="/dashboard/athletes/new">
             <Button className="gap-2">
               <UserPlus className="w-4 h-4" />
