@@ -28,7 +28,7 @@ export default async function CalendarPage() {
     error = e instanceof Error ? e.message : "Error al cargar horarios"
   }
 
-  // Group by day_of_week
+  // Group by day_of_week, sorted by start_time
   const byDay: Record<number, typeof schedules> = {}
   for (const s of schedules) {
     const days = s.day_of_week as number[]
@@ -37,8 +37,12 @@ export default async function CalendarPage() {
       byDay[d].push(s)
     }
   }
+  for (const d in byDay) {
+    byDay[d] = byDay[d].sort((a, b) => a.start_time.localeCompare(b.start_time))
+  }
 
   const todayDow = new Date().getDay()
+  const todaySessions = (byDay[todayDow] ?? []).filter((s) => s.is_active)
 
   return (
     <div className="space-y-6">
@@ -75,6 +79,40 @@ export default async function CalendarPage() {
         </Card>
       ) : (
         <>
+          {/* Today's Sessions */}
+          {todaySessions.length > 0 && (
+            <Card className="border-primary/30 bg-primary/5">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                  Hoy — {new Date().toLocaleDateString("es-CL", { weekday: "long", day: "numeric", month: "long" })}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {todaySessions.map((s) => {
+                  const venue = s.venues as { id: string; name: string } | null
+                  const durationMin = (() => {
+                    const [sh, sm] = s.start_time.split(":").map(Number)
+                    const [eh, em] = s.end_time.split(":").map(Number)
+                    return (eh * 60 + em) - (sh * 60 + sm)
+                  })()
+                  return (
+                    <Link key={s.id} href={`/dashboard/calendar/${s.id}`}>
+                      <div className="p-3 rounded-lg border bg-background hover:border-primary transition-colors">
+                        <p className="font-semibold text-sm truncate">{s.name}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {s.start_time.slice(0, 5)} – {s.end_time.slice(0, 5)}
+                          <span className="ml-1.5 text-muted-foreground/70">({durationMin}min)</span>
+                        </p>
+                        {venue && <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1"><MapPin className="w-3 h-3" />{venue.name}</p>}
+                      </div>
+                    </Link>
+                  )
+                })}
+              </CardContent>
+            </Card>
+          )}
+
           {/* Weekly view */}
           <div className="grid gap-3 md:grid-cols-7">
             {[1, 2, 3, 4, 5, 6, 0].map((dow) => (
