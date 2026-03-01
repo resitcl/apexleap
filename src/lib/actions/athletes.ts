@@ -43,6 +43,7 @@ export async function getAthletes(params?: {
   status?: string
   healthStatus?: string
   planId?: string
+  subscriptionStatus?: string
   page?: number
   limit?: number
 }) {
@@ -72,13 +73,11 @@ export async function getAthletes(params?: {
   if (params?.healthStatus) {
     query = query.eq('health_status', params.healthStatus)
   }
-  if (params?.planId) {
-    const { data: subData } = await supabase
-      .from('subscriptions')
-      .select('athlete_id')
-      .eq('club_id', clubId)
-      .eq('plan_id', params.planId)
-      .eq('status', 'active')
+  if (params?.planId || params?.subscriptionStatus) {
+    let subQ = supabase.from('subscriptions').select('athlete_id').eq('club_id', clubId)
+    if (params.planId)            subQ = subQ.eq('plan_id', params.planId)
+    if (params.subscriptionStatus) subQ = subQ.eq('status', params.subscriptionStatus)
+    const { data: subData } = await subQ
     const ids = (subData ?? []).map((s) => s.athlete_id).filter(Boolean)
     if (ids.length === 0) return { athletes: [], total: 0 }
     query = query.in('id', ids)

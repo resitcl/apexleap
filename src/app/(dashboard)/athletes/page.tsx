@@ -18,6 +18,7 @@ interface PageProps {
     status?: string
     health?: string
     planId?: string
+    subStatus?: string
     page?: string
   }>
 }
@@ -38,6 +39,7 @@ export default async function AthletesPage({ searchParams }: PageProps) {
         status: params.status,
         healthStatus: params.health,
         planId: params.planId,
+        subscriptionStatus: params.subStatus,
         page,
         limit: 20,
       }),
@@ -141,6 +143,30 @@ export default async function AthletesPage({ searchParams }: PageProps) {
             )}
           </div>
         )}
+        <div className="flex flex-wrap gap-2 items-center">
+          <span className="text-xs text-muted-foreground font-medium">Suscripción:</span>
+          {([
+            { value: '', label: 'Todas' },
+            { value: 'active', label: '✅ Activa' },
+            { value: 'expired', label: '🔴 Vencida' },
+            { value: 'paused', label: '⏸ Pausada' },
+            { value: 'cancelled', label: 'Cancelada' },
+          ]).map(({ value, label }) => (
+            <Link key={value} href={`/dashboard/athletes?${new URLSearchParams({
+              ...(params.search ? { search: params.search } : {}),
+              ...(params.status ? { status: params.status } : {}),
+              ...(params.health ? { health: params.health } : {}),
+              ...(params.planId ? { planId: params.planId } : {}),
+              ...(value ? { subStatus: value } : {}),
+            }).toString()}`}>
+              <button className={`h-7 px-2.5 rounded-md border text-xs font-medium transition-colors ${
+                (value === '' && !params.subStatus) || params.subStatus === value
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'bg-background border-input hover:bg-accent'
+              }`}>{label}</button>
+            </Link>
+          ))}
+        </div>
       </div>
 
       {/* Athletes List */}
