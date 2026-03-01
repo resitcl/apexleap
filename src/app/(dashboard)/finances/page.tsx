@@ -265,6 +265,13 @@ export default async function FinancesPage({ searchParams }: PageProps) {
       {/* Expenses Tab */}
       {tab === "expenses" && (
         <div className="space-y-4">
+          {expenses.length > 0 && (
+            <div className="text-sm text-muted-foreground">
+              Total filtrado: <span className="font-semibold text-foreground">
+                ${expenses.reduce((s, e) => s + Number(e.amount), 0).toLocaleString('es-CL')}
+              </span> · {expenses.length} egreso{expenses.length !== 1 ? 's' : ''}
+            </div>
+          )}
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap gap-2">
               {([["", "Todas"], ["rent", "🏠 Arriendo"], ["salary", "👔 Salarios"], ["supplies", "📦 Insumos"], ["maintenance", "🔧 Mantención"], ["marketing", "📣 Marketing"], ["other", "📁 Otros"]] as const).map(([val, lbl]) => (

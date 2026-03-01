@@ -93,7 +93,7 @@ export default async function InventoryPage({ searchParams }: PageProps) {
 
       {/* Condition + low stock filters */}
       <div className="flex flex-wrap gap-2">
-        <Link href={`/dashboard/inventory?${new URLSearchParams({ ...(category ? { category } : {}), ...(condition ? { condition } : {}), ...(isLowStock ? {} : { lowStock: '1' }) }).toString()}`}>
+        <Link href={`/dashboard/inventory?${new URLSearchParams({ ...(category ? { category } : {}), ...(condition ? { condition } : {}), ...(search ? { search } : {}), ...(isLowStock ? {} : { lowStock: '1' }) }).toString()}`}>
           <button className={`h-8 px-3 rounded-md border text-xs font-medium transition-colors ${
             isLowStock ? 'bg-yellow-500 text-white border-yellow-500' : 'bg-background border-input hover:bg-accent'
           }`}>⚠️ Stock bajo</button>
@@ -101,7 +101,7 @@ export default async function InventoryPage({ searchParams }: PageProps) {
         {([['', 'Todos'], ['good', '✅ Bueno'], ['fair', '⚠️ Regular'], ['poor', '🔴 Malo'], ['broken', '💀 Roto']] as const).map(([val, lbl]) => (
           <Link
             key={val}
-            href={`/dashboard/inventory?${new URLSearchParams({ ...(category ? { category } : {}), ...(isLowStock ? { lowStock: '1' } : {}), ...(val ? { condition: val } : {}) }).toString()}`}
+            href={`/dashboard/inventory?${new URLSearchParams({ ...(category ? { category } : {}), ...(isLowStock ? { lowStock: '1' } : {}), ...(search ? { search } : {}), ...(val ? { condition: val } : {}) }).toString()}`}
           >
             <button className={`h-8 px-3 rounded-md border text-xs font-medium transition-colors ${
               (val === '' && !condition) || condition === val
@@ -116,7 +116,7 @@ export default async function InventoryPage({ searchParams }: PageProps) {
 
       <div className="grid gap-3 sm:grid-cols-4">
         {Object.entries(CATEGORY_META).map(([key, meta]) => (
-          <Link key={key} href={`/dashboard/inventory?category=${category === key ? "" : key}`}>
+          <Link key={key} href={`/dashboard/inventory?${new URLSearchParams({ ...(category === key ? {} : { category: key }), ...(condition ? { condition } : {}), ...(search ? { search } : {}), ...(isLowStock ? { lowStock: '1' } : {}) }).toString()}`}>
             <Card className={`cursor-pointer transition-colors hover:bg-accent/50 ${category === key ? "border-primary bg-primary/5" : ""}`}>
               <CardContent className="py-4 text-center">
                 <span className="text-3xl">{meta.icon}</span>
