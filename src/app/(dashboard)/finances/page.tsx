@@ -139,6 +139,24 @@ export default async function FinancesPage({ searchParams }: PageProps) {
         </Card>
       </div>
 
+      {/* Coaches Payroll KPI */}
+      {coaches.length > 0 && (() => {
+        type Coach = { is_active: boolean; salary_type: string; salary_amount: number | null }
+        const activeFixed = (coaches as Coach[]).filter((c) => c.is_active && c.salary_type === 'fixed' && c.salary_amount)
+        const totalPayroll = activeFixed.reduce((sum, c) => sum + (c.salary_amount ?? 0), 0)
+        if (totalPayroll === 0) return null
+        return (
+          <div className="flex items-center gap-3 px-4 py-3 rounded-lg border bg-muted/40">
+            <Users className="w-5 h-5 text-purple-500 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium">Nómina mensual fija</p>
+              <p className="text-xs text-muted-foreground">{activeFixed.length} coach{activeFixed.length !== 1 ? 'es' : ''} con salario fijo activos</p>
+            </div>
+            <span className="text-xl font-bold text-purple-700">${totalPayroll.toLocaleString('es-CL')}</span>
+          </div>
+        )
+      })()}
+
       {/* Income vs Expenses Chart */}
       {chartData.length > 0 && (
         <Card>
