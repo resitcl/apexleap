@@ -42,7 +42,7 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode
 }) {
-  let alerts = { overduePayments: 0, expiringSoonDocs: 0 }
+  let alerts = { overduePayments: 0, expiringSoonDocs: 0, clubName: null as string | null }
   try { alerts = await getSidebarAlerts() } catch { /* silent */ }
 
   const badgeMap: Record<string, number> = {
@@ -61,10 +61,13 @@ export default async function DashboardLayout({
       <aside className="w-64 bg-card border-r border-border hidden md:flex flex-col shrink-0">
         <div className="p-6 border-b border-border">
           <Link href="/dashboard" className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shrink-0">
               <span className="text-primary-foreground font-bold text-sm">AL</span>
             </div>
-            <span className="font-semibold text-lg">ApexLeap</span>
+            <div className="min-w-0">
+              <p className="font-semibold text-sm leading-tight truncate">{alerts.clubName ?? "ApexLeap"}</p>
+              <p className="text-xs text-muted-foreground leading-tight">ApexLeap</p>
+            </div>
           </Link>
         </div>
 

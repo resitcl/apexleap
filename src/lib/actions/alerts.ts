@@ -14,11 +14,14 @@ async function getClubId() {
 
 export async function getSidebarAlerts() {
   const clubId = await getClubId()
-  if (!clubId) return { overduePayments: 0, expiringSoonDocs: 0 }
+  if (!clubId) return { overduePayments: 0, expiringSoonDocs: 0, clubName: null }
 
   const supabase = await createClient()
   const today = new Date().toISOString().split('T')[0]
   const in30Days = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+
+  const { data: clubData } = await supabase
+    .from('clubs').select('name').eq('id', clubId).single()
 
   const [paymentsRes, docsRes] = await Promise.all([
     supabase
@@ -38,5 +41,6 @@ export async function getSidebarAlerts() {
   return {
     overduePayments: paymentsRes.count ?? 0,
     expiringSoonDocs: docsRes.count ?? 0,
+    clubName: clubData?.name ?? null,
   }
 }
