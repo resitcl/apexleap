@@ -182,6 +182,40 @@ export default async function FinancesPage({ searchParams }: PageProps) {
         </Card>
       )}
 
+      {/* Expense Breakdown by Category */}
+      {summary.totalExpenses > 0 && Object.keys(summary.byCategory).length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Egresos por Categoría — {monthLabel}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2.5">
+              {Object.entries(summary.byCategory)
+                .sort(([, a], [, b]) => b - a)
+                .map(([cat, amount]) => {
+                  const pct = Math.round((amount / summary.totalExpenses) * 100)
+                  return (
+                    <div key={cat}>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm font-medium">{CATEGORY_LABELS[cat] ?? cat}</span>
+                        <span className="text-sm text-muted-foreground">
+                          ${amount.toLocaleString('es-CL')} <span className="text-xs">({pct}%)</span>
+                        </span>
+                      </div>
+                      <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-red-400"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    </div>
+                  )
+                })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Tabs */}
       <div className="flex gap-1 border-b border-border">
         {[
