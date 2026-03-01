@@ -61,8 +61,9 @@ export async function getAthletes(params?: {
     .select('*, subscriptions(id, status, plan_id, plans(name)), payments(id, status, paid_at), attendance(id, checked_in_at), documents(id)', { count: 'exact' })
     .eq('club_id', clubId)
     .order(
-      params?.sort === 'created_at' ? 'created_at' :
-      params?.sort === 'status'     ? 'status' :
+      params?.sort === 'created_at'      ? 'created_at' :
+      params?.sort === 'status'          ? 'status' :
+      params?.sort === 'last_attendance' ? 'name' :
       'name',
       { ascending: params?.sort !== 'created_at' }
     )

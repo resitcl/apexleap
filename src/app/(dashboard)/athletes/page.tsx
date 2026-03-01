@@ -60,6 +60,17 @@ export default async function AthletesPage({ searchParams }: PageProps) {
   }
 
   const thirtyDaysAgoISO = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+
+  if (sort === 'last_attendance') {
+    athletes = athletes.slice().sort((a, b) => {
+      const lastA = (a.attendance as Array<{ checked_in_at: string }> | null ?? [])
+        .reduce<string>((max, r) => (r.checked_in_at > max ? r.checked_in_at : max), '')
+      const lastB = (b.attendance as Array<{ checked_in_at: string }> | null ?? [])
+        .reduce<string>((max, r) => (r.checked_in_at > max ? r.checked_in_at : max), '')
+      return lastB.localeCompare(lastA)
+    })
+  }
+
   if (showInactive) {
     athletes = athletes.filter((a) => {
       const att = a.attendance as Array<{ checked_in_at: string }> | null
@@ -234,6 +245,7 @@ export default async function AthletesPage({ searchParams }: PageProps) {
             { value: '', label: 'Nombre A-Z' },
             { value: 'created_at', label: '🕐 Más recientes' },
             { value: 'status', label: '📊 Estado' },
+            { value: 'last_attendance', label: '📋 Última asistencia' },
           ]).map(({ value, label }) => (
             <Link key={value} href={`/dashboard/athletes?${new URLSearchParams({
               ...(params.search    ? { search:    params.search }    : {}),
