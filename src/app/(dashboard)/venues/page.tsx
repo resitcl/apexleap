@@ -6,6 +6,8 @@ import { Badge } from "@/components/ui/badge"
 import { MapPin, Navigation, Users, Home } from "lucide-react"
 import { NewVenueForm } from "@/components/venues/NewVenueForm"
 import { VenueToggleButton } from "@/components/venues/VenueToggleButton"
+import { EditVenueForm } from "@/components/venues/EditVenueForm"
+import { DeleteVenueButton } from "@/components/venues/DeleteVenueButton"
 
 export default async function VenuesPage() {
   let venues: Awaited<ReturnType<typeof getVenues>> = []
@@ -88,7 +90,11 @@ export default async function VenuesPage() {
                       {venue.lat && venue.lng ? "Geofencing activo" : "Sin GPS"}
                     </Badge>
                   </div>
-                  <VenueToggleButton venueId={venue.id} isActive={venue.is_active} />
+                  <div className="flex items-center gap-1">
+                    <VenueToggleButton venueId={venue.id} isActive={venue.is_active} />
+                    <EditVenueForm venue={venue} />
+                    <DeleteVenueButton venueId={venue.id} venueName={venue.name} />
+                  </div>
                 </div>
               </CardContent>
             </Card>
