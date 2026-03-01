@@ -225,6 +225,12 @@ export default async function CalendarPage({ searchParams }: PageProps) {
                               </span>
                             ) : null
                           })()}
+                          {s.end_date && (() => {
+                            const daysLeft = Math.ceil((new Date(s.end_date + 'T12:00:00').getTime() - Date.now()) / 86400000)
+                            if (daysLeft < 0) return <span className="text-destructive text-xs font-medium">Finalizada</span>
+                            if (daysLeft <= 30) return <span className={`text-xs font-medium ${daysLeft <= 7 ? 'text-red-600' : 'text-yellow-600'}`}>⏱ {daysLeft}d restantes</span>
+                            return null
+                          })()}
                         </div>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
