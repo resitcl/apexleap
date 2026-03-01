@@ -15,6 +15,11 @@ interface Rule {
   condition: Record<string, unknown>
 }
 
+interface Props {
+  rules: Rule[]
+  affected?: Record<string, number>
+}
+
 const TYPE_LABELS: Record<string, string> = {
   financial: 'Financiero', attendance: 'Asistencia',
   discipline: 'Disciplina', documentation: 'Documentación',
@@ -32,20 +37,21 @@ function formatCondition(cond: Record<string, unknown>): string {
     .join('; ')
 }
 
-export function ExportRulesButton({ rules }: { rules: Rule[] }) {
+export function ExportRulesButton({ rules, affected = {} }: Props) {
   const [loading, setLoading] = useState(false)
 
   function handleExport() {
     if (rules.length === 0) { toast.error('Sin reglas para exportar'); return }
     setLoading(true)
     try {
-      const headers = ['Nombre', 'Tipo', 'Severidad', 'Acción', 'Activa', 'Condición']
+      const headers = ['Nombre', 'Tipo', 'Severidad', 'Acción', 'Activa', 'Afectados', 'Condición']
       const rows = rules.map((r) => [
         r.name,
         TYPE_LABELS[r.type]     ?? r.type,
         SEVERITY_LABELS[r.severity] ?? r.severity,
         ACTION_LABELS[r.action] ?? r.action,
         r.is_active ? 'Sí' : 'No',
+        String(affected[r.type] ?? 0),
         r.condition ? formatCondition(r.condition) : '',
       ])
 

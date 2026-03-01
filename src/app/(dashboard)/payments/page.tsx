@@ -202,6 +202,36 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
         )
       })()}
 
+      {/* Day-of-week heatmap */}
+      {allPayments.length > 0 && (() => {
+        const DAYS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
+        const paid = allPayments.filter((p) => p.status === 'paid' && p.paid_at)
+        if (paid.length === 0) return null
+        const byDay = Array(7).fill(0) as number[]
+        for (const p of paid) { byDay[new Date(p.paid_at!).getDay()]++ }
+        const maxDay = Math.max(...byDay, 1)
+        return (
+          <div className="flex flex-wrap gap-3 items-end">
+            <span className="text-xs text-muted-foreground font-medium self-center">Pagos por día:</span>
+            {byDay.map((count, i) => (
+              <div key={i} className="flex flex-col items-center gap-1">
+                <span className="text-xs text-muted-foreground">{count > 0 ? count : ''}</span>
+                <div
+                  className="w-8 rounded-sm transition-all"
+                  style={{
+                    height: `${Math.max(4, Math.round((count / maxDay) * 40))}px`,
+                    backgroundColor: count === 0 ? 'hsl(var(--muted))' :
+                      count >= maxDay * 0.8 ? 'hsl(142 76% 36%)' :
+                      count >= maxDay * 0.5 ? 'hsl(142 76% 50%)' : 'hsl(142 76% 70%)',
+                  }}
+                />
+                <span className="text-xs text-muted-foreground">{DAYS[i]}</span>
+              </div>
+            ))}
+          </div>
+        )
+      })()}
+
       {/* Duplicate payments alert */}
       {allPayments.length > 0 && (() => {
         type P = typeof allPayments[number] & { athletes?: { name: string } | null }

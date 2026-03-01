@@ -45,7 +45,7 @@ export async function getDashboardSummary() {
     // All payments for MRR + monthly income
     supabase
       .from('payments')
-      .select('status, amount, paid_at')
+      .select('status, amount, paid_at, athlete_id, athletes(id, name)')
       .eq('club_id', clubId),
 
     // Today's attendance
@@ -125,6 +125,20 @@ export async function getDashboardSummary() {
     red: semaforo.filter((s) => s === 'red').length,
   }
 
+  // Top 3 athletes by overdue debt
+  const topDebtors = Object.values(
+    payments
+      .filter((p) => p.status === 'overdue')
+      .reduce<Record<string, { id: string; name: string; debt: number }>>((acc, p) => {
+        const raw = (p as unknown as { athletes?: { id: string; name: string } | { id: string; name: string }[] | null }).athletes
+        const ath = Array.isArray(raw) ? raw[0] ?? null : raw
+        if (!ath) return acc
+        if (!acc[ath.id]) acc[ath.id] = { id: ath.id, name: ath.name, debt: 0 }
+        acc[ath.id].debt += Number(p.amount)
+        return acc
+      }, {})
+  ).sort((a, b) => b.debt - a.debt).slice(0, 3)
+
   // Top 3 athletes by attendance this month
   const attRows = topAttendanceResult.data ?? []
   const attByAthlete = attRows.reduce<Record<string, { id: string; name: string; count: number }>>((acc, r) => {
@@ -148,6 +162,7 @@ export async function getDashboardSummary() {
     semaforoCount,
     topAthletes,
     activeSubscriptions,
+    topDebtors,
   }
 }
 

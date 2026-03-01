@@ -23,6 +23,7 @@ export default async function DashboardPage() {
     semaforoCount: { green: 0, yellow: 0, red: 0 },
     topAthletes: [] as { id: string; name: string; count: number }[],
     activeSubscriptions: 0,
+    topDebtors: [] as { id: string; name: string; debt: number }[],
   }
   let activity: Awaited<ReturnType<typeof getRecentActivity>> = []
   let monthlyRevenue: Awaited<ReturnType<typeof getMonthlyRevenue>> = []
@@ -270,6 +271,28 @@ export default async function DashboardPage() {
             <p className="text-xs text-muted-foreground mt-2">Barras azules = check-ins válidos · gris = total</p>
           </CardContent>
         </Card>
+      )}
+
+      {summary.topDebtors.length > 0 && (
+        <Link href="/dashboard/payments?status=overdue">
+          <Card className="border-red-200 bg-red-50 hover:bg-red-100 transition-colors cursor-pointer">
+            <CardContent className="py-3">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-red-800">Top deudores</p>
+                  <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-1">
+                    {summary.topDebtors.map((d) => (
+                      <span key={d.id} className="text-xs text-red-700">
+                        {d.name}: <span className="font-bold">${d.debt.toLocaleString('es-CL')}</span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
       )}
 
       {todaySessions.length === 0 && (

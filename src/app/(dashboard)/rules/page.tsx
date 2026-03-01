@@ -81,7 +81,7 @@ export default async function RulesPage({ searchParams }: PageProps) {
           <p className="text-muted-foreground">Motor de bloqueos automáticos del club</p>
         </div>
         <div className="flex gap-2">
-          <ExportRulesButton rules={rules.map((r) => ({ ...r, condition: r.condition as Record<string, unknown> }))} />
+          <ExportRulesButton rules={rules.map((r) => ({ ...r, condition: r.condition as Record<string, unknown> }))} affected={affected} />
           <NewRuleForm />
         </div>
       </div>

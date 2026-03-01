@@ -380,6 +380,11 @@ export default async function AthletesPage({ searchParams }: PageProps) {
                       </div>
                       <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
                         {athlete.email && <span className="truncate">{athlete.email}</span>}
+                        {athlete.birth_date && (() => {
+                          const dob = new Date(athlete.birth_date + 'T12:00:00')
+                          const age = Math.floor((Date.now() - dob.getTime()) / (365.25 * 24 * 60 * 60 * 1000))
+                          return <span className="shrink-0 text-xs">{age} años</span>
+                        })()}
                         {(() => {
                           const subs = athlete.subscriptions as Array<{ status: string; plans: { name: string } | null }> | null
                           const active = subs?.find((s) => s.status === "active")

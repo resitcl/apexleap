@@ -77,6 +77,14 @@ export default async function InventoryPage({ searchParams }: PageProps) {
     })
   }
 
+  if (sortBy === 'assigned') {
+    items = items.slice().sort((a, b) => {
+      const aA = a.assigned_to ? 1 : 0
+      const bA = b.assigned_to ? 1 : 0
+      return bA - aA
+    })
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -157,6 +165,11 @@ export default async function InventoryPage({ searchParams }: PageProps) {
           <button className={`h-8 px-3 rounded-md border text-xs font-medium transition-colors ${
             sortBy === 'value' ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-input hover:bg-accent'
           }`}>💰 Mayor valor</button>
+        </Link>
+        <Link href={`/dashboard/inventory?${new URLSearchParams({ ...(category ? { category } : {}), ...(condition ? { condition } : {}), ...(search ? { search } : {}), ...(isLowStock ? { lowStock: '1' } : {}), ...(sortBy === 'assigned' ? {} : { sortBy: 'assigned' }) }).toString()}`}>
+          <button className={`h-8 px-3 rounded-md border text-xs font-medium transition-colors ${
+            sortBy === 'assigned' ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-input hover:bg-accent'
+          }`}>🔄 Asignados primero</button>
         </Link>
         {([['', 'Todos'], ['good', '✅ Bueno'], ['fair', '⚠️ Regular'], ['poor', '🔴 Malo'], ['broken', '💀 Roto']] as [string, string][]).map(([val, lbl]) => {
           const isActive = (val === '' && !condition) || condition === val
