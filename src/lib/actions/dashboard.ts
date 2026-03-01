@@ -341,6 +341,30 @@ export async function getMonthlyRevenue(months = 6) {
   return result
 }
 
+export async function getAthletesWithoutPlan() {
+  const clubId = await getClubId()
+  const supabase = await createClient()
+
+  const { data: withPlan } = await supabase
+    .from('subscriptions')
+    .select('athlete_id')
+    .eq('club_id', clubId)
+    .eq('status', 'active')
+
+  const withPlanIds = (withPlan ?? []).map((s) => s.athlete_id).filter(Boolean)
+
+  let query = supabase
+    .from('athletes')
+    .select('id', { count: 'exact', head: true })
+    .eq('club_id', clubId)
+    .eq('status', 'active')
+
+  if (withPlanIds.length > 0) query = query.not('id', 'in', `(${withPlanIds.join(',')})`)
+
+  const { count } = await query
+  return count ?? 0
+}
+
 export async function getExpiredDocuments() {
   const clubId = await getClubId()
   const supabase = await createClient()

@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic"
 
 import Link from "next/link"
 import { redirect } from "next/navigation"
-import { getDashboardSummary, getRecentActivity, getMonthlyRevenue, getTodaySessions, getOverdueAlerts, getUpcomingSchedules, getExpiringSubscriptions, getWeeklyAttendanceRate, getExpiredDocuments } from "@/lib/actions/dashboard"
+import { getDashboardSummary, getRecentActivity, getMonthlyRevenue, getTodaySessions, getOverdueAlerts, getUpcomingSchedules, getExpiringSubscriptions, getWeeklyAttendanceRate, getExpiredDocuments, getAthletesWithoutPlan } from "@/lib/actions/dashboard"
 import { checkUserHasClub } from "@/lib/actions/onboarding"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -29,9 +29,10 @@ export default async function DashboardPage() {
   let expiringSubscriptions: Awaited<ReturnType<typeof getExpiringSubscriptions>> = []
   let weeklyAttendance = { total: 0, valid: 0, rate: 0 }
   let expiredDocs: Awaited<ReturnType<typeof getExpiredDocuments>> = []
+  let athletesWithoutPlan = 0
 
   try {
-    ;[summary, activity, monthlyRevenue, todaySessions, overdueAlerts, upcomingSchedules, expiringSubscriptions, weeklyAttendance, expiredDocs] = await Promise.all([
+    ;[summary, activity, monthlyRevenue, todaySessions, overdueAlerts, upcomingSchedules, expiringSubscriptions, weeklyAttendance, expiredDocs, athletesWithoutPlan] = await Promise.all([
       getDashboardSummary(),
       getRecentActivity(12),
       getMonthlyRevenue(6),
@@ -41,6 +42,7 @@ export default async function DashboardPage() {
       getExpiringSubscriptions(),
       getWeeklyAttendanceRate(),
       getExpiredDocuments(),
+      getAthletesWithoutPlan(),
     ])
   } catch {
     // show zeros on error
@@ -179,6 +181,20 @@ export default async function DashboardPage() {
             </CardContent>
           </Card>
         </Link>
+        {athletesWithoutPlan > 0 && (
+          <Link href="/dashboard/subscriptions">
+            <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Sin Plan</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{athletesWithoutPlan}</div>
+                <p className="text-xs text-muted-foreground">activos sin suscripción</p>
+              </CardContent>
+            </Card>
+          </Link>
+        )}
       </div>
 
       {expiredDocs.length > 0 && (
