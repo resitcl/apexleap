@@ -315,12 +315,14 @@ export default async function AthletesPage({ searchParams }: PageProps) {
                         return null
                       })()}
                       {(() => {
-                        const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
                         const att = athlete.attendance as Array<{ id: string; checked_in_at: string }> | null
+                        const sorted = (att ?? []).slice().sort((a, b) => new Date(b.checked_in_at).getTime() - new Date(a.checked_in_at).getTime())
+                        const last = sorted[0]
+                        const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
                         const checkIns = (att ?? []).filter((a) => new Date(a.checked_in_at) >= thirtyDaysAgo).length
-                        if (checkIns > 0) return (
-                          <span className="text-xs text-muted-foreground" title="Check-ins últimos 30 días">
-                            📋 {checkIns}
+                        if (last) return (
+                          <span className="text-xs text-muted-foreground" title={`Última asistencia · ${checkIns} check-ins en 30 días`}>
+                            📋 {new Date(last.checked_in_at).toLocaleDateString('es-CL', { day: '2-digit', month: 'short' })}
                           </span>
                         )
                         return null
