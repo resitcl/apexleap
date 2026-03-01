@@ -89,6 +89,49 @@ export async function createSubscription(input: SubscriptionInput) {
   return data
 }
 
+export async function renewSubscription(id: string) {
+  const clubId = await getClubId()
+  const supabase = await createClient()
+
+  const { data: existing, error: fetchErr } = await supabase
+    .from('subscriptions')
+    .select('athlete_id, plan_id, payment_method, auto_renew, plans(billing_cycle)')
+    .eq('id', id).eq('club_id', clubId).single()
+  if (fetchErr || !existing) throw new Error('Suscripción no encontrada')
+
+  const startDate = new Date()
+  const startStr = startDate.toISOString().split('T')[0]
+  const plansData = existing.plans as unknown as { billing_cycle: string } | null
+  const billingCycle = plansData?.billing_cycle ?? 'monthly'
+
+  const CYCLE_DAYS: Record<string, number> = {
+    monthly: 30, quarterly: 90, semiannual: 180, annual: 365, single: 0,
+  }
+  const days = CYCLE_DAYS[billingCycle] ?? 30
+  let endStr: string | null = null
+  if (days > 0) {
+    const endDate = new Date(startDate)
+    endDate.setDate(endDate.getDate() + days)
+    endStr = endDate.toISOString().split('T')[0]
+  }
+
+  const { data, error } = await supabase.from('subscriptions').insert({
+    club_id: clubId,
+    athlete_id: existing.athlete_id,
+    plan_id: existing.plan_id,
+    status: 'active',
+    start_date: startStr,
+    end_date: endStr,
+    payment_method: existing.payment_method,
+    auto_renew: existing.auto_renew,
+  }).select().single()
+
+  if (error) throw new Error(error.message)
+  revalidatePath('/dashboard/subscriptions')
+  revalidatePath(`/dashboard/athletes/${existing.athlete_id}`)
+  return data
+}
+
 export async function updateSubscriptionStatus(
   id: string,
   status: 'active' | 'paused' | 'cancelled' | 'expired'

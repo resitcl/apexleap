@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Plus, Users, TrendingUp, PauseCircle, XCircle, AlertTriangle } from "lucide-react"
 import { SubscriptionStatusButton } from "@/components/subscriptions/SubscriptionStatusButton"
+import { RenewSubscriptionButton } from "@/components/subscriptions/RenewSubscriptionButton"
 
 const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   active:    { label: "Activa",     variant: "default" },
@@ -195,6 +196,9 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
                         </span>
                       )}
                       <Badge variant={cfg.variant}>{cfg.label}</Badge>
+                      {(sub.status === 'expired' || sub.status === 'cancelled') && (
+                        <RenewSubscriptionButton subscriptionId={sub.id} />
+                      )}
                       <SubscriptionStatusButton subscriptionId={sub.id} currentStatus={sub.status as "active" | "paused" | "cancelled" | "expired"} />
                     </div>
                   </div>
