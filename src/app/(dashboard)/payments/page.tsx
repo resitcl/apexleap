@@ -93,6 +93,13 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
               ) : null
             })()}
             {allPayments.length > 0 && (() => {
+              const paid = allPayments.filter((p) => p.status === 'paid')
+              const uniqueAthletes = new Set(paid.map((p) => (p.athletes as { id?: string } | null)?.id ?? p.athlete_id).filter(Boolean)).size
+              if (uniqueAthletes < 2) return null
+              const avg = Math.round(paid.reduce((s, p) => s + Number(p.amount), 0) / uniqueAthletes)
+              return <span className="ml-2 text-muted-foreground/70">· prom. ${avg.toLocaleString('es-CL')}/atleta</span>
+            })()}
+            {allPayments.length > 0 && (() => {
               const METHOD_LABELS: Record<string, string> = { cash: 'Efectivo', transfer: 'Transferencia', card: 'Tarjeta', webpay: 'Webpay', mercadopago: 'MercadoPago', flow: 'Flow' }
               const counts: Record<string, number> = {}
               for (const p of allPayments) { if (p.payment_method) counts[p.payment_method] = (counts[p.payment_method] ?? 0) + 1 }

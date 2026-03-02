@@ -172,6 +172,18 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
             <p className="text-xs text-muted-foreground">ingreso mensual recurrente</p>
           </CardContent>
         </Card>
+        {filteredMrr > 0 && (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">ARR proyectado</CardTitle>
+              <TrendingUp className="h-4 w-4 text-violet-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-violet-600">${Math.round(filteredMrr * 12).toLocaleString("es-CL")}</div>
+              <p className="text-xs text-muted-foreground">MRR × 12 meses</p>
+            </CardContent>
+          </Card>
+        )}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Pausadas</CardTitle>

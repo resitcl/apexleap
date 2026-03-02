@@ -719,6 +719,35 @@ export default async function DashboardPage() {
         )
       })()}
 
+      {/* Latest today check-ins widget */}
+      {(() => {
+        const todayStr = new Date().toISOString().split('T')[0]
+        const todayCheckIns = activity
+          .filter((a) => a.type === 'checkin' && a.time.startsWith(todayStr))
+          .slice(0, 5)
+        if (todayCheckIns.length === 0) return null
+        return (
+          <Link href="/dashboard/calendar">
+            <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
+              <CardHeader className="pb-2 pt-4 px-6">
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  <QrCode className="w-4 h-4 text-primary" />
+                  Últimos check-ins de hoy
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pb-4 px-6 space-y-1">
+                {todayCheckIns.map((c) => (
+                  <div key={c.id} className="flex items-center justify-between text-xs">
+                    <span className="font-medium">{c.label}</span>
+                    <span className="text-muted-foreground">{c.sublabel} · {new Date(c.time).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}</span>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          </Link>
+        )
+      })()}
+
       {/* Broken inventory alert */}
       {brokenItems.length > 0 && (
         <Link href="/dashboard/inventory?condition=broken">

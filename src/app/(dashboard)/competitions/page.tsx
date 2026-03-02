@@ -21,7 +21,7 @@ const STATUS_META: Record<string, { label: string; variant: "default" | "seconda
 }
 
 interface PageProps {
-  searchParams: Promise<{ status?: string; page?: string; search?: string; type?: string; location?: string; sport?: string }>
+  searchParams: Promise<{ status?: string; page?: string; search?: string; type?: string; location?: string; sport?: string; sort?: string }>
 }
 
 export default async function CompetitionsPage({ searchParams }: PageProps) {
@@ -31,6 +31,7 @@ export default async function CompetitionsPage({ searchParams }: PageProps) {
   const type     = params.type     ?? ""
   const location = params.location ?? ""
   const sport    = params.sport    ?? ""
+  const sortBy   = params.sort     ?? ""
   const limit    = 20
 
   let competitions: { id: string; name: string; type: string; status: string; sport: string | null; location: string | null; start_date: string; end_date: string | null; rosters: unknown[] }[] = []
@@ -41,6 +42,8 @@ export default async function CompetitionsPage({ searchParams }: PageProps) {
     competitions = result.competitions as typeof competitions
     if (location) competitions = competitions.filter((c) => c.location?.toLowerCase().includes(location.toLowerCase()))
     if (sport)    competitions = competitions.filter((c) => c.sport?.toLowerCase() === sport.toLowerCase())
+    if (sortBy === 'date_asc')  competitions = competitions.slice().sort((a, b) => a.start_date.localeCompare(b.start_date))
+    if (sortBy === 'date_desc') competitions = competitions.slice().sort((a, b) => b.start_date.localeCompare(a.start_date))
     total = result.total
   } catch { /* empty */ }
 
@@ -74,7 +77,14 @@ export default async function CompetitionsPage({ searchParams }: PageProps) {
             )}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
+          {([{ value: '', label: 'Def.' }, { value: 'date_asc', label: '📅 Próxima' }, { value: 'date_desc', label: '📅 Reciente' }]).map(({ value, label }) => (
+            <Link key={value} href={`/dashboard/competitions?${new URLSearchParams({ ...(params.status ? { status: params.status } : {}), ...(search ? { search } : {}), ...(type ? { type } : {}), ...(value ? { sort: value } : {}) }).toString()}`}>
+              <button className={`h-8 px-2.5 rounded-md border text-xs font-medium transition-colors ${
+                (value === '' && !sortBy) || sortBy === value ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-input hover:bg-accent'
+              }`}>{label}</button>
+            </Link>
+          ))}
           <ExportCompetitionsButton competitions={competitions} />
           <NewCompetitionForm />
         </div>
