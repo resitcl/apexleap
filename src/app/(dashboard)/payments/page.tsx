@@ -484,6 +484,9 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
                         {isDuplicate && (
                           <span className="text-xs bg-yellow-100 text-yellow-800 border border-yellow-300 px-1.5 py-0.5 rounded font-medium shrink-0" title="Posible pago duplicado este mes">⚠ Duplicado</span>
                         )}
+                        {payment.status === 'paid' && payment.paid_at && payment.due_date && payment.paid_at < payment.due_date && (
+                          <span className="text-xs bg-green-100 text-green-700 border border-green-300 px-1.5 py-0.5 rounded font-medium shrink-0" title="Pagado antes del vencimiento">✓ Anticipado</span>
+                        )}
                         <span className="text-muted-foreground text-sm">·</span>
                         <span className="text-sm text-muted-foreground truncate">{payment.concept}</span>
                         {(() => {

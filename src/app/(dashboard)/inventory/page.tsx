@@ -168,6 +168,30 @@ export default async function InventoryPage({ searchParams }: PageProps) {
         )
       })()}
 
+      {/* Monthly acquisition value comparison alert */}
+      {(() => {
+        const curMonth  = new Date().toISOString().slice(0, 7)
+        const prevDate  = new Date(); prevDate.setMonth(prevDate.getMonth() - 1)
+        const prevMonth = prevDate.toISOString().slice(0, 7)
+        const value = (month: string) => allItems
+          .filter((i) => (i.purchase_date ?? '').slice(0, 7) === month && i.purchase_price)
+          .reduce((s, i) => s + (i.purchase_price ?? 0) * i.quantity, 0)
+        const cur  = value(curMonth)
+        const prev = value(prevMonth)
+        if (prev === 0 || cur >= prev) return null
+        const drop = Math.round(((prev - cur) / prev) * 100)
+        return (
+          <Card className="border-orange-200 bg-orange-50">
+            <CardContent className="py-3 flex items-center gap-3">
+              <AlertTriangle className="w-5 h-5 text-orange-600 shrink-0" />
+              <p className="text-sm text-orange-800 font-medium">
+                Adquisiciones este mes (${cur.toLocaleString('es-CL')}) son {drop}% menores al mes anterior (${prev.toLocaleString('es-CL')})
+              </p>
+            </CardContent>
+          </Card>
+        )
+      })()}
+
       {/* High-value unassigned alert */}
       {(() => {
         const priced = allItems.filter((i) => !i.assigned_to && i.purchase_price && i.purchase_price > 0)
