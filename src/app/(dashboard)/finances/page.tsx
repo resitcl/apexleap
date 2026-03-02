@@ -101,6 +101,13 @@ export default async function FinancesPage({ searchParams }: PageProps) {
                 </span>
               )
             })()}
+            {coaches.length > 0 && (() => {
+              type CoachRow = typeof coaches[number]
+              const topCoach = coaches.slice().sort((a: CoachRow, b: CoachRow) => Number(b.salary) - Number(a.salary))[0]
+              return topCoach ? (
+                <span className="ml-2 text-sm not-italic text-muted-foreground/70">· Coach: <span className="font-medium text-foreground">{topCoach.name} ${Number(topCoach.salary).toLocaleString('es-CL')}</span></span>
+              ) : null
+            })()}
           </p>
         </div>
         <MonthPicker month={month} tab={tab} />

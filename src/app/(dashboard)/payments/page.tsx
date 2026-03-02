@@ -78,6 +78,23 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
               const top = Object.entries(counts).sort(([,a],[,b]) => b - a)[0]
               return top ? <span className="ml-2 text-muted-foreground/70">· {METHOD_LABELS[top[0]] ?? top[0]} más usado</span> : null
             })()}
+            {allPayments.length > 0 && (() => {
+              type P = typeof allPayments[number]
+              const key = (p: P) => {
+                const id = (p.athletes as { id?: string } | null)?.id ?? p.athlete_id ?? ''
+                const mo = p.due_date ? p.due_date.slice(0, 7) : p.created_at?.slice(0, 7) ?? ''
+                return `${id}::${mo}`
+              }
+              const seen: Record<string, number> = {}
+              for (const p of allPayments) {
+                const k = key(p)
+                seen[k] = (seen[k] ?? 0) + 1
+              }
+              const dupCount = Object.values(seen).filter((c) => c > 1).length
+              return dupCount > 0 ? (
+                <span className="ml-2 text-orange-600 font-medium">· ⚠ {dupCount} posible{dupCount !== 1 ? 's' : ''} duplicado{dupCount !== 1 ? 's' : ''}</span>
+              ) : null
+            })()}
           </p>
         </div>
         <div className="flex gap-2 flex-wrap">

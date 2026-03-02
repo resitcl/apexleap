@@ -107,6 +107,12 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
               <span className="ml-2 text-orange-600 font-medium">· ⚠ {athletesWithoutSub} activo{athletesWithoutSub !== 1 ? 's' : ''} sin suscripción</span>
             )}
             {(() => {
+              const noMethod = allSubs.filter((s) => s.status === 'active' && !s.payment_method).length
+              return noMethod > 0 ? (
+                <span className="ml-2 text-yellow-600 font-medium">· ⚠ {noMethod} activa{noMethod !== 1 ? 's' : ''} sin método de pago</span>
+              ) : null
+            })()}
+            {(() => {
               const counts: Record<string, { name: string; count: number }> = {}
               for (const s of allSubs.filter((s) => s.status === 'active')) {
                 const plan = s.plans as { name: string } | null

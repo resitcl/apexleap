@@ -242,6 +242,27 @@ export default async function DashboardPage() {
             </Card>
           </Link>
         )}
+        {(() => {
+          const withCap = todaySessions.filter((s) => s.capacity && s.capacity > 0)
+          if (withCap.length === 0) return null
+          const avgPct = Math.round(
+            withCap.reduce((sum, s) => sum + (s.todayCheckIns / s.capacity!) * 100, 0) / withCap.length
+          )
+          return (
+            <Link href="/dashboard/calendar">
+              <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Ocupación Hoy</CardTitle>
+                  <Clock className="h-4 w-4 text-blue-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className={`text-2xl font-bold ${avgPct >= 80 ? 'text-red-600' : avgPct >= 50 ? 'text-yellow-600' : 'text-green-600'}`}>{avgPct}%</div>
+                  <p className="text-xs text-muted-foreground">promedio {withCap.length} sesión{withCap.length !== 1 ? 'es' : ''}</p>
+                </CardContent>
+              </Card>
+            </Link>
+          )
+        })()}
         {expiredDocs.length > 0 && (
           <Link href="/dashboard/documents">
             <Card className="hover:bg-accent/50 transition-colors cursor-pointer">

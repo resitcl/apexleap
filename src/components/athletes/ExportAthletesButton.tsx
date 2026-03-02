@@ -43,7 +43,7 @@ export function ExportAthletesButton({ athletes }: Props) {
         webpay: 'Webpay', mercadopago: 'MercadoPago', flow: 'Flow',
       }
 
-      const headers = ['Nombre', 'Email', 'Teléfono', 'RUT/Doc', 'Estado', 'Salud', 'Plan Activo', 'Último Método Pago', 'Streak Semanas', 'Nacimiento', 'Registrado']
+      const headers = ['Nombre', 'Email', 'Teléfono', 'RUT/Doc', 'Estado', 'Salud', 'Plan Activo', 'Último Método Pago', 'Streak Semanas', 'Edad', 'Nacimiento', 'Registrado']
       const rows = athletes.map((a) => {
         const activePlan = (a.subscriptions ?? []).find((s) => s.status === 'active')?.plans?.name ?? ''
         const lastPaid = (a.payments ?? [])
@@ -75,6 +75,7 @@ export function ExportAthletesButton({ athletes }: Props) {
           activePlan,
           lastMethod,
           streak > 0 ? `${streak}` : '0',
+          a.birth_date ? String(Math.floor((Date.now() - new Date(a.birth_date + 'T12:00:00').getTime()) / (1000 * 60 * 60 * 24 * 365.25))) : '',
           a.birth_date ? new Date(a.birth_date + 'T12:00:00').toLocaleDateString('es-CL') : '',
           new Date(a.created_at).toLocaleDateString('es-CL'),
         ]
