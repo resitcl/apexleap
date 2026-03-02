@@ -17,6 +17,7 @@ import {
   BarChart3,
   Dumbbell,
   User,
+  ClipboardList,
 } from "lucide-react"
 import { MobileSidebar } from "@/components/layouts/MobileSidebar"
 import { DesktopNavItem } from "@/components/layouts/DesktopNavItem"
@@ -35,6 +36,7 @@ export const sidebarItems = [
   { href: "/dashboard/calendar",      label: "Calendario",     icon: Calendar },
   { href: "/dashboard/rules",         label: "Reglas",         icon: ShieldCheck },
   { href: "/dashboard/competitions",  label: "Competencias",   icon: Trophy },
+  { href: "/dashboard/rosters",       label: "Nóminas",        icon: ClipboardList },
   { href: "/dashboard/documents",     label: "Documentos",     icon: FileText },
   { href: "/dashboard/inventory",     label: "Inventario",     icon: Package },
   { href: "/dashboard/venues",        label: "Sedes",          icon: MapPin },

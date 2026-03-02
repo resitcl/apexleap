@@ -8,8 +8,9 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog"
 import { UserPlus, X } from "lucide-react"
-import { addAthleteToRoster, removeAthleteFromRoster } from "@/lib/actions/rosters"
-import { getAthletes } from "@/lib/actions/athletes"
+import { addAthleteToRoster, removeAthleteFromRoster, getAthletesSemaforo } from "@/lib/actions/rosters"
+
+type SemaforoAthlete = { id: string; name: string; health_status: string; semaforo: 'green' | 'yellow' | 'red' }
 
 interface RosterAthlete {
   id: string
@@ -30,7 +31,7 @@ export function AddAthleteToRosterButton({ rosterId, competitionId, rosterAthlet
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [removing, setRemoving] = useState<string | null>(null)
-  const [athletes, setAthletes] = useState<{ id: string; name: string }[]>([])
+  const [athletes, setAthletes] = useState<SemaforoAthlete[]>([])
   const [form, setForm] = useState({
     athleteId: '',
     number: '',
@@ -40,9 +41,9 @@ export function AddAthleteToRosterButton({ rosterId, competitionId, rosterAthlet
 
   useEffect(() => {
     if (!open) return
-    getAthletes({ status: 'active', limit: 200 }).then((result) => {
+    getAthletesSemaforo().then((result) => {
       const existing = new Set(rosterAthletes.map((ra) => ra.athletes?.id).filter(Boolean))
-      setAthletes(result.athletes.filter((a) => !existing.has(a.id)).map((a) => ({ id: a.id, name: a.name })))
+      setAthletes(result.filter((a) => !existing.has(a.id)))
     }).catch(() => {})
   }, [open, rosterAthletes])
 
@@ -128,16 +129,33 @@ export function AddAthleteToRosterButton({ rosterId, competitionId, rosterAthlet
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Agregar atleta</p>
               <div className="space-y-1">
                 <Label>Atleta</Label>
-                <select
-                  value={form.athleteId}
-                  onChange={(e) => setForm((f) => ({ ...f, athleteId: e.target.value }))}
-                  className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                >
-                  <option value="">Seleccionar atleta...</option>
-                  {athletes.map((a) => (
-                    <option key={a.id} value={a.id}>{a.name}</option>
-                  ))}
-                </select>
+                <div className="space-y-1 max-h-48 overflow-y-auto border rounded-md">
+                  {athletes.length === 0 && (
+                    <p className="text-xs text-muted-foreground text-center py-3">No hay atletas disponibles</p>
+                  )}
+                  {athletes.map((a) => {
+                    const dot = a.semaforo === 'red' ? 'bg-red-500' : a.semaforo === 'yellow' ? 'bg-yellow-400' : 'bg-green-500'
+                    const isBlocked = a.semaforo === 'red'
+                    const isSelected = form.athleteId === a.id
+                    return (
+                      <button
+                        key={a.id}
+                        type="button"
+                        onClick={() => setForm((f) => ({ ...f, athleteId: isSelected ? '' : a.id }))}
+                        className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left transition-colors border-b last:border-0 ${
+                          isSelected ? 'bg-primary/10 font-medium' : 'hover:bg-accent/50'
+                        }`}
+                      >
+                        <span className={`w-2 h-2 rounded-full shrink-0 ${dot}`} />
+                        <span className={`flex-1 truncate ${isBlocked ? 'text-red-600' : ''}`}>
+                          {a.name}
+                        </span>
+                        {isBlocked && <span className="text-xs text-red-500 shrink-0">🔒</span>}
+                        {a.semaforo === 'yellow' && <span className="text-xs text-yellow-600 shrink-0">⚠</span>}
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">

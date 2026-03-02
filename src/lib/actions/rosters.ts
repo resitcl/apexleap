@@ -86,3 +86,86 @@ export async function removeAthleteFromRoster(params: {
   if (error) throw new Error(error.message)
   revalidatePath(`/dashboard/competitions/${params.competitionId}`)
 }
+
+export async function getAthletesSemaforo() {
+  const clubId = await getClubId()
+  const supabase = await createClient()
+
+  const [athletesRes, overdueRes] = await Promise.all([
+    supabase
+      .from('athletes')
+      .select('id, name, health_status')
+      .eq('club_id', clubId)
+      .eq('status', 'active')
+      .order('name'),
+    supabase
+      .from('payments')
+      .select('athlete_id')
+      .eq('club_id', clubId)
+      .eq('status', 'overdue'),
+  ])
+
+  const overdueIds = new Set((overdueRes.data ?? []).map((p) => p.athlete_id))
+  return (athletesRes.data ?? []).map((a) => {
+    const semaforo: 'green' | 'yellow' | 'red' =
+      a.health_status === 'injured' || overdueIds.has(a.id) ? 'red' :
+      a.health_status === 'observation' ? 'yellow' : 'green'
+    return { id: a.id, name: a.name, health_status: a.health_status as string, semaforo }
+  })
+}
+
+export async function getRostersHub() {
+  const clubId = await getClubId()
+  const supabase = await createClient()
+
+  const today = new Date().toISOString().split('T')[0]
+
+  const [rostersRes, overdueRes] = await Promise.all([
+    supabase
+      .from('rosters')
+      .select(`
+        id, name, match_date, opponent, venue,
+        competitions(id, name, type, status),
+        roster_athletes(
+          id, number, position, is_captain, status,
+          athletes(id, name, health_status)
+        )
+      `)
+      .eq('club_id', clubId)
+      .gte('match_date', today)
+      .order('match_date', { ascending: true })
+      .limit(30),
+
+    supabase
+      .from('payments')
+      .select('athlete_id')
+      .eq('club_id', clubId)
+      .eq('status', 'overdue'),
+  ])
+
+  const overdueIds = new Set((overdueRes.data ?? []).map((p) => p.athlete_id))
+
+  return (rostersRes.data ?? []).map((r) => {
+    type RA = { id: string; number: number | null; position: string | null; is_captain: boolean; status: string; athletes: { id: string; name: string; health_status: string } | null }
+    const athletes = (r.roster_athletes as unknown as RA[]) ?? []
+    const withSem = athletes.map((ra) => {
+      const a = ra.athletes
+      const semaforo: 'green' | 'yellow' | 'red' = !a ? 'green' :
+        a.health_status === 'injured' || overdueIds.has(a.id) ? 'red' :
+        a.health_status === 'observation' ? 'yellow' : 'green'
+      return { ...ra, semaforo }
+    })
+    type CompRaw = { id: string; name: string; type: string; status: string }
+    const comp = (r.competitions as unknown as CompRaw | CompRaw[] | null)
+    const competition = Array.isArray(comp) ? comp[0] ?? null : comp
+    return {
+      id: r.id,
+      name: r.name,
+      match_date: r.match_date as string,
+      opponent: r.opponent as string | null,
+      venue: r.venue as string | null,
+      competition,
+      athletes: withSem,
+    }
+  })
+}
