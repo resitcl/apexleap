@@ -199,6 +199,23 @@ export default async function FinancesPage({ searchParams }: PageProps) {
             <p className="text-xs text-muted-foreground">pagos pendientes</p>
           </CardContent>
         </Card>
+        {expenses.length > 0 && (() => {
+          const maxExp = expenses.slice().sort((a, b) => Number(b.amount) - Number(a.amount))[0]
+          if (!maxExp) return null
+          const CAT_LABEL: Record<string, string> = { rent: 'Arriendo', salary: 'Salarios', supplies: 'Insumos', maintenance: 'Mantención', marketing: 'Marketing', other: 'Otros' }
+          return (
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Mayor Egreso</CardTitle>
+                <TrendingDown className="h-4 w-4 text-red-400" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-red-600">${Number(maxExp.amount).toLocaleString('es-CL')}</div>
+                <p className="text-xs text-muted-foreground truncate">{maxExp.description ?? CAT_LABEL[maxExp.category] ?? maxExp.category}</p>
+              </CardContent>
+            </Card>
+          )
+        })()}
         {coaches.length > 0 && (() => {
           const fixedTotal = coaches
             .filter((c) => c.salary_type === 'fixed' && c.salary_amount)

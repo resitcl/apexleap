@@ -250,6 +250,13 @@ export default async function AthletesPage({ searchParams }: PageProps) {
             {avgAttendanceRate !== null && avgAttendanceRate > 0 && (
               <span className="ml-2 text-muted-foreground/70">· ~{avgAttendanceRate} check-ins/activo (30d)</span>
             )}
+            {(() => {
+              const monthStart = new Date().toISOString().slice(0, 7) + '-01'
+              const newThisMonth = allAthletes.filter((a) => a.created_at && a.created_at >= monthStart).length
+              return newThisMonth > 0 ? (
+                <span className="ml-2 text-green-600 font-medium">· +{newThisMonth} nuevo{newThisMonth !== 1 ? 's' : ''} este mes</span>
+              ) : null
+            })()}
           </p>
         </div>
         <div className="flex gap-2">

@@ -251,11 +251,18 @@ export default async function CalendarPage({ searchParams }: PageProps) {
                   dow === todayDow ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
                 }`}>
                   {DAYS[dow]}
-                  {(byDay[dow]?.length ?? 0) > 0 && (
-                    <span className={`ml-1 text-[10px] font-normal opacity-80`}>
-                      ({byDay[dow].length})
-                    </span>
-                  )}
+                  {(byDay[dow]?.length ?? 0) > 0 && (() => {
+                    const totalMin = (byDay[dow] ?? []).reduce((s, sess) => {
+                      const [sh, sm] = sess.start_time.split(':').map(Number)
+                      const [eh, em] = sess.end_time.split(':').map(Number)
+                      return s + (eh * 60 + em) - (sh * 60 + sm)
+                    }, 0)
+                    return (
+                      <span className="ml-1 text-[10px] font-normal opacity-80">
+                        ({byDay[dow].length}) {totalMin}min
+                      </span>
+                    )
+                  })()}
                   {dow === todayDow && <span className="ml-1">•</span>}
                 </div>
                 <div className="space-y-1 p-1 min-h-24 bg-muted/20 rounded-b-md">

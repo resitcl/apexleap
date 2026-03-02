@@ -528,6 +528,21 @@ export default async function DashboardPage() {
         </Link>
       )}
 
+      {summary.semaforoCount.yellow > 3 && (
+        <Link href="/dashboard/athletes?health=observation">
+          <Card className="border-yellow-200 bg-yellow-50 hover:bg-yellow-100 transition-colors cursor-pointer">
+            <CardContent className="py-3">
+              <div className="flex items-center gap-3">
+                <AlertCircle className="w-5 h-5 text-yellow-600 shrink-0" />
+                <p className="text-sm text-yellow-800 font-medium">
+                  🟡 {summary.semaforoCount.yellow} atletas en observación — seguimiento recomendado
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+      )}
+
       {summary.topDebtors.length > 0 && (
         <Link href="/dashboard/payments?status=overdue">
           <Card className="border-red-200 bg-red-50 hover:bg-red-100 transition-colors cursor-pointer">
