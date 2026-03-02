@@ -115,6 +115,16 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
               const avgPerPayment = Math.round(paid.reduce((s, p) => s + Number(p.amount), 0) / paid.length)
               return <span className="ml-2 text-muted-foreground/70">· prom. ${avgPerPayment.toLocaleString('es-CL')}/pago</span>
             })()}
+            {allPayments.length > 3 && (() => {
+              const methodCount: Record<string, number> = {}
+              for (const p of allPayments.filter((p) => p.status === 'paid' && p.payment_method)) {
+                methodCount[p.payment_method!] = (methodCount[p.payment_method!] ?? 0) + 1
+              }
+              const top = Object.entries(methodCount).sort((a, b) => b[1] - a[1])[0]
+              if (!top) return null
+              const labels: Record<string, string> = { cash: '💵 Efectivo', transfer: '🏦 Transferencia', card: '💳 Tarjeta', webpay: 'Webpay', mercadopago: 'MercadoPago', flow: 'Flow' }
+              return <span className="ml-2 text-muted-foreground/70">· método más usado: <span className="font-medium">{labels[top[0]] ?? top[0]}</span> ({top[1]})</span>
+            })()}
             {allPayments.length > 1 && (() => {
               const withBoth = allPayments.filter((p) => p.status === 'paid' && p.due_date && p.paid_at)
               if (withBoth.length < 3) return null

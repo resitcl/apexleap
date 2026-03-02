@@ -168,6 +168,18 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
               const avg = Math.round(prices.reduce((a, b) => a + b, 0) / prices.length)
               return <span className="ml-2 text-muted-foreground/70">· prom. ${avg.toLocaleString('es-CL')}/suscripción activa</span>
             })()}
+            {(() => {
+              const withDates = allSubs.filter((s) => s.start_date && s.end_date)
+              if (withDates.length < 3) return null
+              const avgDays = Math.round(
+                withDates.reduce((sum, s) => {
+                  const diff = (new Date(s.end_date!).getTime() - new Date(s.start_date).getTime()) / (1000 * 60 * 60 * 24)
+                  return sum + diff
+                }, 0) / withDates.length
+              )
+              if (avgDays <= 0) return null
+              return <span className="ml-2 text-muted-foreground/60">· duración prom. {avgDays}d</span>
+            })()}
           </p>
         </div>
         <div className="flex gap-2">

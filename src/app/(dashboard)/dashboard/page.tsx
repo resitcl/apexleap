@@ -29,6 +29,7 @@ export default async function DashboardPage() {
     topDebtors: [] as { id: string; name: string; debt: number }[],
     totalAllAthletes: 0,
     newThisMonth: 0,
+    cancelledThisMonth: 0,
   }
   let activity: Awaited<ReturnType<typeof getRecentActivity>> = []
   let monthlyRevenue: Awaited<ReturnType<typeof getMonthlyRevenue>> = []
@@ -501,6 +502,25 @@ export default async function DashboardPage() {
                   <AlertCircle className="w-5 h-5 text-blue-600 shrink-0" />
                   <p className="text-sm text-blue-800 font-medium">
                     Sin check-ins registrados esta semana ({summary.totalAthletes} atletas activos)
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+        )
+      })()}
+
+      {summary.cancelledThisMonth > 0 && summary.activeSubscriptions > 0 && (() => {
+        const churnRate = Math.round((summary.cancelledThisMonth / (summary.activeSubscriptions + summary.cancelledThisMonth)) * 100)
+        if (churnRate < 10) return null
+        return (
+          <Link href="/dashboard/subscriptions?status=cancelled">
+            <Card className="border-red-200 bg-red-50 hover:bg-red-100 transition-colors cursor-pointer">
+              <CardContent className="py-3">
+                <div className="flex items-center gap-3">
+                  <AlertCircle className="w-5 h-5 text-red-600 shrink-0" />
+                  <p className="text-sm text-red-800 font-medium">
+                    Churn mensual del {churnRate}% — {summary.cancelledThisMonth} suscripción{summary.cancelledThisMonth !== 1 ? 'es' : ''} cancelada{summary.cancelledThisMonth !== 1 ? 's' : ''} este mes
                   </p>
                 </div>
               </CardContent>

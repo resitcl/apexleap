@@ -896,9 +896,13 @@ export default async function AthletesPage({ searchParams }: PageProps) {
                         const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7)
                         const weekISO = weekAgo.toISOString()
                         const att = athlete.attendance as Array<{ checked_in_at: string }> | null ?? []
-                        const hasWeekly = att.some((r) => r.checked_in_at >= weekISO)
-                        return !hasWeekly ? (
-                          <Badge className="text-xs bg-gray-100 text-gray-500 border-gray-200 hover:bg-gray-100">Sin check-in 7d</Badge>
+                        const lastCheckIn = att.map((r) => r.checked_in_at).sort().at(-1)
+                        const hasWeekly = lastCheckIn && lastCheckIn >= weekISO
+                        if (hasWeekly) {
+                          return <Badge className="text-xs bg-green-50 text-green-600 border-green-200 hover:bg-green-50">✓ {new Date(lastCheckIn).toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit' })}</Badge>
+                        }
+                        return lastCheckIn ? (
+                          <Badge className="text-xs bg-gray-100 text-gray-500 border-gray-200 hover:bg-gray-100">Últ. {new Date(lastCheckIn).toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit' })}</Badge>
                         ) : null
                       })()}
                       {(() => {
