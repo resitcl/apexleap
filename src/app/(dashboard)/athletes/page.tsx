@@ -129,6 +129,18 @@ export default async function AthletesPage({ searchParams }: PageProps) {
     })
   }
 
+  if (sort === 'last_payment') {
+    athletes = athletes.slice().sort((a, b) => {
+      const lastA = (a.payments as Array<{ status: string; paid_at: string | null }> | null ?? [])
+        .filter((p) => p.status === 'paid' && p.paid_at)
+        .reduce<string>((max, p) => (p.paid_at! > max ? p.paid_at! : max), '')
+      const lastB = (b.payments as Array<{ status: string; paid_at: string | null }> | null ?? [])
+        .filter((p) => p.status === 'paid' && p.paid_at)
+        .reduce<string>((max, p) => (p.paid_at! > max ? p.paid_at! : max), '')
+      return lastB.localeCompare(lastA)
+    })
+  }
+
   if (showInactive) {
     athletes = athletes.filter((a) => {
       const att = a.attendance as Array<{ checked_in_at: string }> | null
@@ -505,7 +517,8 @@ export default async function AthletesPage({ searchParams }: PageProps) {
             { value: 'created_at', label: '🕐 Más recientes' },
             { value: 'debt',           label: '� Mayor deuda' },
             { value: 'paid',           label: '✅ Mayor pagado' },
-            { value: 'last_attendance', label: '� Última asistencia' },
+            { value: 'last_attendance', label: '📋 Última asistencia' },
+            { value: 'last_payment',   label: '💳 Último pago' },
             { value: 'docs',           label: '📄 Más documentos' },
           ]).map(({ value, label }) => (
             <Link key={value} href={`/dashboard/athletes?${new URLSearchParams({

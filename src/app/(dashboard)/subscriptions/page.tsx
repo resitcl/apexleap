@@ -273,6 +273,29 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
             </Card>
           )
         })()}
+        {(() => {
+          const curMonth = new Date().toISOString().slice(0, 7)
+          const cancelledThisMonth = allSubs.filter((s) =>
+            s.status === 'cancelled' &&
+            (s as { updated_at?: string }).updated_at?.startsWith(curMonth)
+          ).length
+          if (cancelledThisMonth === 0) return null
+          const churnRate = stats.active + cancelledThisMonth > 0
+            ? Math.round((cancelledThisMonth / (stats.active + cancelledThisMonth)) * 100)
+            : 0
+          return (
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Churn Mensual</CardTitle>
+                <XCircle className="h-4 w-4 text-orange-500" />
+              </CardHeader>
+              <CardContent>
+                <div className={`text-2xl font-bold ${churnRate >= 10 ? 'text-red-600' : churnRate >= 5 ? 'text-orange-600' : 'text-yellow-600'}`}>{churnRate}%</div>
+                <p className="text-xs text-muted-foreground">{cancelledThisMonth} cancelada{cancelledThisMonth !== 1 ? 's' : ''} este mes</p>
+              </CardContent>
+            </Card>
+          )
+        })()}
       </div>
 
       {/* Active subscriptions by plan */}

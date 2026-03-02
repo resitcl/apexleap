@@ -402,6 +402,9 @@ export default async function InventoryPage({ searchParams }: PageProps) {
                       </div>
                       <div className="flex gap-3 text-xs text-muted-foreground mt-0.5 flex-wrap">
                         <span>{meta?.label ?? item.category}</span>
+                        {item.purchase_price && item.purchase_price > 0 && (
+                          <span className="text-muted-foreground/80">${Number(item.purchase_price).toLocaleString('es-CL')}</span>
+                        )}
                         {item.serial_number && <span>S/N: {item.serial_number}</span>}
                         {assigned && (
                           <Link href={`/dashboard/athletes/${assigned.id}`} className="hover:underline text-primary">
