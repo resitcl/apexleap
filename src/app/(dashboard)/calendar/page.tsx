@@ -293,6 +293,16 @@ export default async function CalendarPage({ searchParams }: PageProps) {
                           {!venue && (
                             <Badge variant="outline" className="text-xs text-orange-600 border-orange-300">Sin sede</Badge>
                           )}
+                          {s.capacity && s.capacity > 0 && (() => {
+                            const attCount = ((s.attendance as Array<{ id: string }> | null) ?? []).length
+                            const pct = Math.round((attCount / s.capacity) * 100)
+                            if (pct < 90) return null
+                            return (
+                              <Badge variant="destructive" className="text-xs">
+                                {pct >= 100 ? '🔴 Aforo completo' : `🟡 ${pct}% lleno`}
+                              </Badge>
+                            )
+                          })()}
                         </div>
                         <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
                           <span className="flex items-center gap-1">
