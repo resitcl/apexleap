@@ -73,7 +73,9 @@ export default async function CompetitionsPage({ searchParams }: PageProps) {
               <span className="ml-2 text-muted-foreground/70">· promedio {(rosters / competitions.length).toFixed(1)} por competencia</span>
             )}
             {uniqueSports.length > 0 && (
-              <span className="ml-2 text-muted-foreground/70">· {uniqueSports.length} deporte{uniqueSports.length !== 1 ? 's' : ''}</span>
+              <span className="ml-2 text-muted-foreground/70">
+                · {uniqueSports.length <= 3 ? uniqueSports.join(', ') : `${uniqueSports.slice(0, 3).join(', ')} +${uniqueSports.length - 3}`}
+              </span>
             )}
           </p>
         </div>

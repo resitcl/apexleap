@@ -415,11 +415,21 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
                 if (id) debtByAthlete[id] = (debtByAthlete[id] ?? 0) + Number(p.amount)
               }
             }
+            const dupKeys = new Set<string>()
+            const keyCounts: Record<string, number> = {}
+            for (const p of allPayments) {
+              const athleteId = (p.athletes as { id: string } | null)?.id ?? p.athlete_id ?? ''
+              const month = p.due_date?.slice(0, 7) ?? ''
+              const key = `${athleteId}|${month}`
+              keyCounts[key] = (keyCounts[key] ?? 0) + 1
+              if (keyCounts[key] > 1) dupKeys.add(key)
+            }
             return payments.map((payment) => {
             const athlete = payment.athletes as { id: string; name: string; photo_url: string | null } | null
             const cfg = STATUS_CONFIG[payment.status] ?? { label: payment.status, variant: 'outline' as const }
             const athleteDebt = athlete ? (debtByAthlete[athlete.id] ?? 0) : 0
             const showDebt = athleteDebt > Number(payment.amount) && (payment.status === 'pending' || payment.status === 'overdue')
+            const isDuplicate = dupKeys.has(`${athlete?.id ?? payment.athlete_id ?? ''}|${payment.due_date?.slice(0, 7) ?? ''}`)
 
             return (
               <Card key={payment.id}>
@@ -445,6 +455,9 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
                           <span className="text-xs text-red-600 font-medium">
                             (total: ${athleteDebt.toLocaleString('es-CL')})
                           </span>
+                        )}
+                        {isDuplicate && (
+                          <span className="text-xs bg-yellow-100 text-yellow-800 border border-yellow-300 px-1.5 py-0.5 rounded font-medium shrink-0" title="Posible pago duplicado este mes">⚠ Duplicado</span>
                         )}
                         <span className="text-muted-foreground text-sm">·</span>
                         <span className="text-sm text-muted-foreground truncate">{payment.concept}</span>

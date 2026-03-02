@@ -175,6 +175,19 @@ export default async function AthletesPage({ searchParams }: PageProps) {
               ) : null
             })()}
             {(() => {
+              const sixtyDaysAgo = new Date(); sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60)
+              const sixtyISO = sixtyDaysAgo.toISOString()
+              const dormant = allAthletes.filter((a) => {
+                if (a.status !== 'active') return false
+                const att = a.attendance as Array<{ checked_in_at: string }> | null ?? []
+                const last = att.reduce<string | null>((max, r) => (!max || r.checked_in_at > max ? r.checked_in_at : max), null)
+                return !last || last < sixtyISO
+              }).length
+              return dormant > 0 ? (
+                <span className="ml-2 text-muted-foreground/70">· {dormant} sin asistencia en 60d</span>
+              ) : null
+            })()}
+            {(() => {
               const noPhoto = allAthletes.filter((a) => a.status === 'active' && !a.photo_url).length
               return noPhoto > 0 ? (
                 <span className="ml-2 text-muted-foreground/60">· {noPhoto} sin foto</span>

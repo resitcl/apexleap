@@ -344,6 +344,21 @@ export default async function DashboardPage() {
         </Card>
       )}
 
+      {summary.totalAthletes > 0 && todaySessions.length === 0 && (
+        <Link href="/dashboard/calendar">
+          <Card className="border-blue-200 bg-blue-50 hover:bg-blue-100 transition-colors cursor-pointer">
+            <CardContent className="py-3">
+              <div className="flex items-center gap-3">
+                <Clock className="w-5 h-5 text-blue-600 shrink-0" />
+                <p className="text-sm text-blue-800 font-medium">
+                  No hay sesiones programadas para hoy — ¿falta configurar el horario?
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+      )}
+
       {monthlyRevenue.length >= 2 && (() => {
         const cur  = monthlyRevenue[monthlyRevenue.length - 1]
         const prev = monthlyRevenue[monthlyRevenue.length - 2]
