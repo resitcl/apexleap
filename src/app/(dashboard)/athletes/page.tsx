@@ -213,6 +213,17 @@ export default async function AthletesPage({ searchParams }: PageProps) {
                 <span className="ml-2 text-muted-foreground/60">· {noPhoto} sin foto</span>
               ) : null
             })()}
+            {totalDebt > 0 && (() => {
+              const debtors = allAthletes.filter((a) => {
+                const pmts = a.payments as Array<{ status: string; amount: number }> | null ?? []
+                return pmts.some((p) => p.status === 'overdue')
+              })
+              if (debtors.length === 0) return null
+              const avg = Math.round(totalDebt / debtors.length)
+              return (
+                <span className="ml-2 text-red-600/80">· prom. deuda ${avg.toLocaleString('es-CL')}/moroso</span>
+              )
+            })()}
           </p>
         </div>
         <div className="flex gap-2">

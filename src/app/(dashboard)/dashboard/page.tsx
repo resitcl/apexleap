@@ -82,6 +82,15 @@ export default async function DashboardPage() {
           <h1 className="text-3xl font-bold">Dashboard</h1>
           <p className="text-muted-foreground">
             {new Date().toLocaleDateString("es-CL", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
+            {activity.length > 0 && (() => {
+              const last = activity[0]
+              return (
+                <span className="ml-2 text-sm">
+                  · última actividad: <span className="font-medium">{last.label}</span>
+                  <span className="text-muted-foreground/70 ml-1">({new Date(last.time).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })})</span>
+                </span>
+              )
+            })()}
           </p>
         </div>
         <Link href="/dashboard/athletes/new">

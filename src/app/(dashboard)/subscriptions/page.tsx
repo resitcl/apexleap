@@ -90,6 +90,8 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
   const in30 = new Date(now); in30.setDate(in30.getDate() + 30)
   const expiringIn7  = allSubs.filter((s) => s.status === 'active' && s.end_date && new Date(s.end_date) <= in7  && new Date(s.end_date) >= now).length
   const expiringIn30 = allSubs.filter((s) => s.status === 'active' && s.end_date && new Date(s.end_date) <= in30 && new Date(s.end_date) >= now).length
+  const thirtyDaysAgo = new Date(now); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+  const longExpired = allSubs.filter((s) => s.status === 'expired' && s.end_date && new Date(s.end_date) < thirtyDaysAgo)
 
   return (
     <div className="space-y-6">
@@ -149,6 +151,21 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
           </Link>
         </div>
       </div>
+
+      {longExpired.length > 0 && (
+        <Link href="/dashboard/subscriptions?status=expired">
+          <Card className="border-red-200 bg-red-50 hover:bg-red-100 transition-colors cursor-pointer">
+            <CardContent className="py-3">
+              <div className="flex items-center gap-3">
+                <XCircle className="w-5 h-5 text-red-600 shrink-0" />
+                <p className="text-sm text-red-800 font-medium">
+                  {longExpired.length} suscripción{longExpired.length !== 1 ? 'es' : ''} vencida{longExpired.length !== 1 ? 's' : ''} hace más de 30 días sin renovar
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+      )}
 
       {/* KPIs */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

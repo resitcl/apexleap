@@ -91,6 +91,19 @@ export default async function FinancesPage({ searchParams }: PageProps) {
                 </span>
               )
             })()}
+            {coaches.length > 0 && (() => {
+              const withSalary = coaches
+                .filter((c) => c.salary_type === 'fixed' && c.salary_amount)
+                .map((c) => ({ name: c.name, cost: Number(c.salary_amount) }))
+                .sort((a, b) => b.cost - a.cost)
+                .slice(0, 3)
+              if (withSalary.length === 0) return null
+              return (
+                <span className="ml-2 text-sm not-italic text-muted-foreground/80">
+                  · Coaches: {withSalary.map((c) => `${c.name.split(' ')[0]} $${c.cost.toLocaleString('es-CL')}`).join(', ')}
+                </span>
+              )
+            })()}
             {(() => {
               const top3 = Object.entries(summary.byCategory)
                 .sort(([,a],[,b]) => b - a)
