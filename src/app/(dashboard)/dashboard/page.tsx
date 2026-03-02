@@ -199,6 +199,31 @@ export default async function DashboardPage() {
             </CardContent>
           </Card>
         </Link>
+        {weeklyByDay.length > 1 && (() => {
+          const todayISO = new Date().toISOString().split('T')[0]
+          const todayData = weeklyByDay.find((d) => d.date === todayISO)
+          const pastDays  = weeklyByDay.filter((d) => d.date < todayISO && d.total > 0)
+          if (!todayData || pastDays.length === 0) return null
+          const avg = Math.round(pastDays.reduce((s, d) => s + d.total, 0) / pastDays.length)
+          const diff = todayData.total - avg
+          const color = diff >= 0 ? 'text-green-600' : 'text-yellow-600'
+          return (
+            <Link href="/dashboard/attendance">
+              <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Check-ins Hoy</CardTitle>
+                  <QrCode className="h-4 w-4 text-primary" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{todayData.total}</div>
+                  <p className={`text-xs font-medium ${color}`}>
+                    {diff >= 0 ? '+' : ''}{diff} vs prom. semanal ({avg}/día)
+                  </p>
+                </CardContent>
+              </Card>
+            </Link>
+          )
+        })()}
         <Link href="/dashboard/payments?status=overdue">
           <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
             <CardHeader className="flex flex-row items-center justify-between pb-2">

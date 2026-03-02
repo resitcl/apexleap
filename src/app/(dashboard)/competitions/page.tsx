@@ -207,6 +207,15 @@ export default async function CompetitionsPage({ searchParams }: PageProps) {
                   <div className="flex gap-2 flex-wrap mt-1">
                     <Badge variant="outline" className="text-xs">{TYPE_LABELS[comp.type] ?? comp.type}</Badge>
                     {comp.sport && <Badge variant="outline" className="text-xs">{comp.sport}</Badge>}
+                    {(() => {
+                      const uniqueAthletes = new Set(
+                        (comp.rosters as Array<{ athlete_id?: string }> ?? [])
+                          .map((r) => r.athlete_id).filter(Boolean)
+                      ).size
+                      return uniqueAthletes > 0 ? (
+                        <Badge variant="secondary" className="text-xs">👤 {uniqueAthletes} atleta{uniqueAthletes !== 1 ? 's' : ''}</Badge>
+                      ) : null
+                    })()}
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-1.5 pt-0">

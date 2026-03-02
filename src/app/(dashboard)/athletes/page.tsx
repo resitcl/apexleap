@@ -91,6 +91,16 @@ export default async function AthletesPage({ searchParams }: PageProps) {
     })
   }
 
+  if (sort === 'paid') {
+    athletes = athletes.slice().sort((a, b) => {
+      const paidA = (a.payments as Array<{ status: string; amount: number }> | null ?? [])
+        .filter((p) => p.status === 'paid').reduce((s, p) => s + Number(p.amount), 0)
+      const paidB = (b.payments as Array<{ status: string; amount: number }> | null ?? [])
+        .filter((p) => p.status === 'paid').reduce((s, p) => s + Number(p.amount), 0)
+      return paidB - paidA
+    })
+  }
+
   if (sort === 'docs') {
     athletes = athletes.slice().sort((a, b) => {
       const docsA = (a.documents as unknown[] | null ?? []).length
@@ -410,10 +420,10 @@ export default async function AthletesPage({ searchParams }: PageProps) {
           {([
             { value: '', label: 'Nombre A-Z' },
             { value: 'created_at', label: '🕐 Más recientes' },
-            { value: 'status', label: '📊 Estado' },
-            { value: 'last_attendance', label: '📋 Última asistencia' },
-            { value: 'debt', label: '💰 Mayor deuda' },
-            { value: 'docs', label: '📄 Más documentos' },
+            { value: 'debt',           label: '� Mayor deuda' },
+            { value: 'paid',           label: '✅ Mayor pagado' },
+            { value: 'last_attendance', label: '� Última asistencia' },
+            { value: 'docs',           label: '📄 Más documentos' },
           ]).map(({ value, label }) => (
             <Link key={value} href={`/dashboard/athletes?${new URLSearchParams({
               ...(params.search    ? { search:    params.search }    : {}),
