@@ -26,7 +26,7 @@ const CYCLE_LABELS: Record<string, string> = {
 }
 
 interface PageProps {
-  searchParams: Promise<{ status?: string; page?: string; planId?: string; search?: string; expiring?: string }>
+  searchParams: Promise<{ status?: string; page?: string; planId?: string; search?: string; expiring?: string; method?: string }>
 }
 
 export default async function SubscriptionsPage({ searchParams }: PageProps) {
@@ -35,6 +35,7 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
   const planId   = params.planId   ?? ""
   const search   = params.search   ?? ""
   const expiring = params.expiring ?? ""
+  const method   = params.method   ?? ""
 
   let subs: Awaited<ReturnType<typeof getSubscriptions>>["subscriptions"] = []
   let allSubs: Awaited<ReturnType<typeof getSubscriptions>>["subscriptions"] = []
@@ -54,8 +55,14 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
       getPlans(),
       getAthletes({ limit: 500 }),
     ])
-    subs = result.subscriptions
-    allSubs = allResult.subscriptions
+    let sList = result.subscriptions
+    let aList  = allResult.subscriptions
+    if (method) {
+      sList = sList.filter((s) => s.payment_method === method)
+      aList  = aList.filter((s) => s.payment_method === method)
+    }
+    subs = sList
+    allSubs = aList
     total = result.total
     stats = statsResult
     plans = plansResult.map((p) => ({ id: p.id, name: p.name }))
@@ -249,6 +256,16 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
               ))}
             </select>
           )}
+          <select name="method" defaultValue={method}
+            className="h-8 px-2 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring">
+            <option value="">Cualquier método</option>
+            <option value="cash">Efectivo</option>
+            <option value="transfer">Transferencia</option>
+            <option value="card">Tarjeta</option>
+            <option value="webpay">Webpay</option>
+            <option value="mercadopago">MercadoPago</option>
+            <option value="flow">Flow</option>
+          </select>
           <select name="expiring" defaultValue={expiring}
             className="h-8 px-2 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring">
             <option value="">Cualquier vencimiento</option>
@@ -256,7 +273,7 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
             <option value="30">Vence en 30 días</option>
           </select>
           <button type="submit" className="h-8 px-3 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90">Filtrar</button>
-          {(planId || search || expiring) && (
+          {(planId || search || expiring || method) && (
             <Link href={`/dashboard/subscriptions${params.status ? `?status=${params.status}` : ''}`}
               className="text-xs text-muted-foreground hover:text-foreground">
               ✕ Limpiar

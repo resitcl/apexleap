@@ -102,6 +102,15 @@ export default async function FinancesPage({ searchParams }: PageProps) {
                 </span>
               )
             })()}
+            {chartData.length >= 2 && (() => {
+              const peakMonth = chartData.slice().sort((a, b) => b.expenses - a.expenses)[0]
+              if (!peakMonth || peakMonth.expenses === 0) return null
+              return (
+                <span className="ml-2 text-sm not-italic text-muted-foreground/70">
+                  · Pico egreso: <span className="font-medium text-foreground">{peakMonth.label} ${peakMonth.expenses.toLocaleString('es-CL')}</span>
+                </span>
+              )
+            })()}
             {coaches.length > 0 && (() => {
               type CoachRow = typeof coaches[number]
               const topCoach = coaches.slice().sort((a: CoachRow, b: CoachRow) => Number(b.salary) - Number(a.salary))[0]

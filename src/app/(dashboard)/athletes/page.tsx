@@ -449,15 +449,20 @@ export default async function AthletesPage({ searchParams }: PageProps) {
                           return <span className="shrink-0 text-xs">{age} años</span>
                         })()}
                         {(() => {
-                          const subs = athlete.subscriptions as Array<{ status: string; plans: { name: string } | null }> | null
-                          const active = subs?.find((s) => s.status === "active")
-                          return active?.plans ? (
-                            <span className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded font-medium shrink-0">
-                              {active.plans.name}
-                            </span>
-                          ) : (
-                            <span className="text-xs bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded font-medium shrink-0">Sin plan</span>
-                          )
+                          const subs = athlete.subscriptions as Array<{ status: string; plans: { name: string } | null }> | null ?? []
+                          const active    = subs.find((s) => s.status === "active")
+                          const expired   = subs.find((s) => s.status === "expired")
+                          const paused    = subs.find((s) => s.status === "paused")
+                          const cancelled = subs.find((s) => s.status === "cancelled")
+                          if (active?.plans)
+                            return <span className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded font-medium shrink-0">{active.plans.name}</span>
+                          if (expired)
+                            return <span className="text-xs bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-medium shrink-0">Vencida</span>
+                          if (paused)
+                            return <span className="text-xs bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded font-medium shrink-0">Pausada</span>
+                          if (cancelled)
+                            return <span className="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-medium shrink-0">Cancelada</span>
+                          return <span className="text-xs bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded font-medium shrink-0">Sin plan</span>
                         })()}
                       </div>
                     </div>

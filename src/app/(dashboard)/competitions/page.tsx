@@ -60,7 +60,12 @@ export default async function CompetitionsPage({ searchParams }: PageProps) {
               const s = STATUS_META[params.status]
               return s ? <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20">{s.label}</span> : null
             })()}
-            {rosters > 0 && <span className="ml-2 font-medium text-primary">· {rosters} inscrito{rosters !== 1 ? 's' : ''} en nóminas</span>}
+            {rosters > 0 && <span className="ml-2 font-medium text-primary">· {rosters} inscripcion{rosters !== 1 ? 'es' : ''} en nóminas</span>}
+            {(() => {
+              const allRosters = competitions.flatMap((c) => c.rosters as Array<{ athlete_id?: string }> ?? [])
+              const unique = new Set(allRosters.map((r) => r.athlete_id).filter(Boolean)).size
+              return unique > 0 ? <span className="ml-2 text-muted-foreground/70">· {unique} atleta{unique !== 1 ? 's' : ''} únicos</span> : null
+            })()}
             {competitions.length > 0 && rosters > 0 && (
               <span className="ml-2 text-muted-foreground/70">· promedio {(rosters / competitions.length).toFixed(1)} por competencia</span>
             )}

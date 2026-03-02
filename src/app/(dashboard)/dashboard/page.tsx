@@ -269,6 +269,22 @@ export default async function DashboardPage() {
             </Link>
           )
         })()}
+        {summary.totalAthletes > 0 && summary.monthlyIncome > 0 && (
+          <Link href="/dashboard/payments">
+            <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Pago Prom./Atleta</CardTitle>
+                <CreditCard className="h-4 w-4 text-indigo-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-indigo-600">
+                  ${Math.round(summary.monthlyIncome / summary.totalAthletes).toLocaleString('es-CL')}
+                </div>
+                <p className="text-xs text-muted-foreground">ingreso mensual ÷ activos</p>
+              </CardContent>
+            </Card>
+          </Link>
+        )}
         {expiredDocs.length > 0 && (
           <Link href="/dashboard/documents">
             <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
