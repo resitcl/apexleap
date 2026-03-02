@@ -701,6 +701,16 @@ export default async function AthletesPage({ searchParams }: PageProps) {
                         return null
                       })()}
                       {(() => {
+                        const docs = athlete.documents as Array<{ expiry_date: string | null }> | null ?? []
+                        const todayStr = new Date().toISOString().split('T')[0]
+                        const expired = docs.filter((d) => d.expiry_date && d.expiry_date < todayStr).length
+                        return expired > 0 ? (
+                          <Badge className="text-xs bg-orange-100 text-orange-700 border-orange-200 hover:bg-orange-100">
+                            📄 {expired} doc{expired > 1 ? 's' : ''} vencido{expired > 1 ? 's' : ''}
+                          </Badge>
+                        ) : null
+                      })()}
+                      {(() => {
                         const subs = athlete.subscriptions as Array<{ status: string; plans: { name: string } | null }> | null
                         const active = (subs ?? []).find((s) => s.status === 'active')
                         if (!active) return null

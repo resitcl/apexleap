@@ -517,6 +517,15 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
                       </div>
                       <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
                         <span>Vence: {new Date(payment.due_date).toLocaleDateString('es-CL')}</span>
+                        {payment.status === 'overdue' && (() => {
+                          const days = Math.floor((Date.now() - new Date(payment.due_date).getTime()) / 86400000)
+                          if (days <= 0) return null
+                          return (
+                            <span className={`font-medium ${days > 30 ? 'text-red-600' : 'text-orange-500'}`}>
+                              {days}d mora
+                            </span>
+                          )
+                        })()}
                         {payment.paid_at && (
                           <span>Pagado: {new Date(payment.paid_at).toLocaleDateString('es-CL')}</span>
                         )}
