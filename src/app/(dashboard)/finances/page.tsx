@@ -519,6 +519,31 @@ export default async function FinancesPage({ searchParams }: PageProps) {
               ))}
             </CardContent>
           </Card>
+        {expenses.length > 0 && (
+          <Card className="md:col-span-2">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Top 3 egresos del mes</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {expenses
+                  .slice()
+                  .sort((a, b) => Number(b.amount) - Number(a.amount))
+                  .slice(0, 3)
+                  .map((exp, i) => (
+                    <div key={exp.id} className="flex items-center justify-between gap-3 text-sm border-b border-border pb-2 last:border-0 last:pb-0">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="font-bold text-muted-foreground w-5 shrink-0">{i + 1}.</span>
+                        <span className="truncate">{exp.concept}</span>
+                        <span className="text-xs text-muted-foreground shrink-0">{CATEGORY_LABELS[exp.category] ?? exp.category}</span>
+                      </div>
+                      <span className="font-bold text-red-600 shrink-0">−${Number(exp.amount).toLocaleString('es-CL')}</span>
+                    </div>
+                  ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
         </div>
         )
       })()}

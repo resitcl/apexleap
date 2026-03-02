@@ -251,6 +251,20 @@ export default async function AthletesPage({ searchParams }: PageProps) {
               <span className="ml-2 text-muted-foreground/70">· ~{avgAttendanceRate} check-ins/activo (30d)</span>
             )}
             {(() => {
+              const active = allAthletes.filter((a) => a.status === 'active')
+              if (active.length === 0) return null
+              const monthStart = new Date().toISOString().slice(0, 7)
+              const totalPaid = active.reduce((sum, a) => {
+                const pmts = a.payments as Array<{ status: string; amount: number; paid_at?: string | null }> | null ?? []
+                return sum + pmts
+                  .filter((p) => p.status === 'paid' && p.paid_at && p.paid_at.startsWith(monthStart))
+                  .reduce((s, p) => s + Number(p.amount), 0)
+              }, 0)
+              if (totalPaid === 0) return null
+              const avg = Math.round(totalPaid / active.length)
+              return <span className="ml-2 text-green-600/80">· ${avg.toLocaleString('es-CL')}/activo este mes</span>
+            })()}
+            {(() => {
               const monthStart = new Date().toISOString().slice(0, 7) + '-01'
               const newThisMonth = allAthletes.filter((a) => a.created_at && a.created_at >= monthStart).length
               return newThisMonth > 0 ? (

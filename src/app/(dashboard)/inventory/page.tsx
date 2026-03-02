@@ -401,6 +401,11 @@ export default async function InventoryPage({ searchParams }: PageProps) {
                             → {assigned.name}
                           </Link>
                         )}
+                        {assigned && item.updated_at && (
+                          <span title="Último movimiento">
+                            asignado {new Date(item.updated_at).toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: '2-digit' })}
+                          </span>
+                        )}
                       </div>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
