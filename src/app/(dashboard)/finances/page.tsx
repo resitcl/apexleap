@@ -188,6 +188,21 @@ export default async function FinancesPage({ searchParams }: PageProps) {
         </Card>
       </div>
 
+      {/* Alert if expenses exceed income */}
+      {summary.totalExpenses > 0 && summary.totalIncome > 0 && summary.totalExpenses > summary.totalIncome && (
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="py-3">
+            <div className="flex items-center gap-3">
+              <TrendingDown className="w-5 h-5 text-red-600 shrink-0" />
+              <p className="text-sm text-red-800 font-medium">
+                ⚠ Los egresos (${summary.totalExpenses.toLocaleString('es-CL')}) superan los ingresos (${summary.totalIncome.toLocaleString('es-CL')}) este mes
+                <span className="ml-1 font-normal">— déficit de ${(summary.totalExpenses - summary.totalIncome).toLocaleString('es-CL')}</span>
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Avg monthly expense KPI */}
       {chartData.length >= 2 && (() => {
         const months = chartData.filter((m) => m.expenses > 0)

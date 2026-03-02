@@ -202,6 +202,24 @@ export default async function DashboardPage() {
             </CardContent>
           </Card>
         </Link>
+        {upcomingSchedules.length > 0 && (() => {
+          const totalWeekly = upcomingSchedules.reduce((s, d) => s + d.sessions.length, 0)
+          if (totalWeekly === 0) return null
+          return (
+            <Link href="/dashboard/calendar">
+              <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Sesiones Activas</CardTitle>
+                  <ClipboardCheck className="h-4 w-4 text-indigo-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{totalWeekly}</div>
+                  <p className="text-xs text-muted-foreground">en los próximos 7 días</p>
+                </CardContent>
+              </Card>
+            </Link>
+          )
+        })()}
         {weeklyByDay.length > 1 && (() => {
           const todayISO = new Date().toISOString().split('T')[0]
           const todayData = weeklyByDay.find((d) => d.date === todayISO)

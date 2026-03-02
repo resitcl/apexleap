@@ -525,6 +525,9 @@ export default async function AthletesPage({ searchParams }: PageProps) {
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-semibold truncate">{athlete.name}</span>
                         <HealthStatusBadge status={athlete.health_status} />
+                        {athlete.photo_url && (
+                          <span className="text-[10px] text-green-600 bg-green-50 px-1 py-0.5 rounded" title="Tiene foto de perfil">📷</span>
+                        )}
                       </div>
                       <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
                         {athlete.email && <span className="truncate">{athlete.email}</span>}
