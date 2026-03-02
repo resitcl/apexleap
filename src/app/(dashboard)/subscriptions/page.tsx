@@ -26,7 +26,7 @@ const CYCLE_LABELS: Record<string, string> = {
 }
 
 interface PageProps {
-  searchParams: Promise<{ status?: string; page?: string; planId?: string; search?: string; expiring?: string; method?: string; sort?: string; priceMin?: string; priceMax?: string }>
+  searchParams: Promise<{ status?: string; page?: string; planId?: string; search?: string; expiring?: string; method?: string; sort?: string; priceMin?: string; priceMax?: string; startFrom?: string; startTo?: string }>
 }
 
 export default async function SubscriptionsPage({ searchParams }: PageProps) {
@@ -41,6 +41,8 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
   const priceMaxStr = params.priceMax ?? ""
   const priceMin  = priceMinStr ? Number(priceMinStr) : undefined
   const priceMax  = priceMaxStr ? Number(priceMaxStr) : undefined
+  const startFrom = params.startFrom ?? ""
+  const startTo   = params.startTo   ?? ""
 
   let subs: Awaited<ReturnType<typeof getSubscriptions>>["subscriptions"] = []
   let allSubs: Awaited<ReturnType<typeof getSubscriptions>>["subscriptions"] = []
@@ -74,6 +76,8 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
       const f = (s: typeof sList[number]) => { const p = (s.plans as { price?: number } | null)?.price ?? 0; return p <= priceMax }
       sList = sList.filter(f); aList = aList.filter(f)
     }
+    if (startFrom) { sList = sList.filter((s) => s.start_date >= startFrom); aList = aList.filter((s) => s.start_date >= startFrom) }
+    if (startTo)   { sList = sList.filter((s) => s.start_date <= startTo);   aList = aList.filter((s) => s.start_date <= startTo)   }
     if (sortBy === 'expiring') {
       sList = sList.slice().sort((a, b) => {
         const dA = a.end_date ?? '9999-12-31'
@@ -453,8 +457,13 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
             className="h-8 px-3 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring w-24" />
           <input type="number" name="priceMax" defaultValue={priceMaxStr} min={0} placeholder="Precio máx."
             className="h-8 px-3 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring w-24" />
+          <span className="text-xs text-muted-foreground font-medium">Inicio:</span>
+          <input type="date" name="startFrom" defaultValue={startFrom}
+            className="h-8 px-2 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring" />
+          <input type="date" name="startTo" defaultValue={startTo}
+            className="h-8 px-2 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring" />
           <button type="submit" className="h-8 px-3 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90">Filtrar</button>
-          {(planId || search || expiring || method || priceMinStr || priceMaxStr) && (
+          {(planId || search || expiring || method || priceMinStr || priceMaxStr || startFrom || startTo) && (
             <Link href={`/dashboard/subscriptions${params.status ? `?status=${params.status}` : ''}`}
               className="text-xs text-muted-foreground hover:text-foreground">✕ Limpiar</Link>
           )}

@@ -933,6 +933,22 @@ export default async function DashboardPage() {
                 <span>Ingresos Últimos 6 Meses</span>
                 <span className="text-sm font-normal text-muted-foreground">
                   Total: ${monthlyRevenue.reduce((s, m) => s + m.amount, 0).toLocaleString("es-CL")}
+                  {(() => {
+                    const cur = monthlyRevenue[monthlyRevenue.length - 1]
+                    const prev = monthlyRevenue.length >= 2 ? monthlyRevenue[monthlyRevenue.length - 2] : null
+                    if (!cur || cur.amount === 0) return null
+                    const dayOfMonth = new Date().getDate()
+                    const daysInMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate()
+                    const dailyRate = cur.amount / dayOfMonth
+                    const projected = Math.round(dailyRate * daysInMonth)
+                    const meta = prev && prev.amount > 0 ? prev.amount : null
+                    return (
+                      <span className="ml-2 text-xs">
+                        · ${Math.round(dailyRate).toLocaleString('es-CL')}/día
+                        {meta && <span className={projected >= meta ? ' text-green-600' : ' text-orange-500'}> · proy. ${projected.toLocaleString('es-CL')}</span>}
+                      </span>
+                    )
+                  })()}
                 </span>
               </CardTitle>
             </CardHeader>

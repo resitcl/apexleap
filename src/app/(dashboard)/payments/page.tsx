@@ -377,6 +377,22 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
         )
       })()}
 
+      {/* Alerta pagos sin vencimiento */}
+      {allPayments.length > 0 && (() => {
+        const noDue = allPayments.filter((p) => p.status === 'pending' && !p.due_date)
+        if (noDue.length <= 10) return null
+        return (
+          <Card className="border-yellow-200 bg-yellow-50">
+            <CardContent className="py-3 flex items-center gap-3">
+              <Clock className="w-5 h-5 text-yellow-600 shrink-0" />
+              <p className="text-sm text-yellow-800 font-medium">
+                {noDue.length} pagos pendientes sin fecha de vencimiento asignada
+              </p>
+            </CardContent>
+          </Card>
+        )
+      })()}
+
       {/* Top pagadores */}
       {allPayments.length > 5 && (() => {
         const paidMap: Record<string, { name: string; id: string; total: number }> = {}
