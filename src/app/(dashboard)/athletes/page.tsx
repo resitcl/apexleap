@@ -582,10 +582,11 @@ export default async function AthletesPage({ searchParams }: PageProps) {
                             if (streak > 52) break
                           }
 
+                          const avgPerWeek = +(allAtt.length / (monthsSpan * 4.3)).toFixed(1)
                           return (
                             <span className="text-xs text-muted-foreground" title={`Última: ${new Date(last.checked_in_at).toLocaleDateString('es-CL')} · ${checkIns} en 30d · ~${avgPerMonth}/mes`}>
                               📋 {new Date(last.checked_in_at).toLocaleDateString('es-CL', { day: '2-digit', month: 'short' })}
-                              {avgPerMonth > 0 && <span className="ml-1 text-primary">~{avgPerMonth}/mes</span>}
+                              {avgPerWeek > 0 && <span className="ml-1 text-primary">~{avgPerWeek}/sem</span>}
                               {streak >= 2 && <span className="ml-1 text-orange-500 font-medium">🔥{streak}s</span>}
                             </span>
                           )

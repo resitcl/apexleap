@@ -188,6 +188,30 @@ export default async function FinancesPage({ searchParams }: PageProps) {
         </Card>
       </div>
 
+      {/* Avg monthly expense KPI */}
+      {chartData.length >= 2 && (() => {
+        const months = chartData.filter((m) => m.expenses > 0)
+        if (months.length < 2) return null
+        const avg = Math.round(months.reduce((s, m) => s + m.expenses, 0) / months.length)
+        const cur = chartData[chartData.length - 1]?.expenses ?? 0
+        const diff = cur - avg
+        const color = diff <= 0 ? 'text-green-600' : 'text-red-600'
+        return (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Prom. Egreso Mensual</CardTitle>
+              <TrendingDown className="h-4 w-4 text-red-400" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">${avg.toLocaleString('es-CL')}</div>
+              <p className={`text-xs font-medium mt-0.5 ${color}`}>
+                Este mes: ${cur.toLocaleString('es-CL')} ({diff >= 0 ? '+' : ''}{Math.round((diff / avg) * 100)}%)
+              </p>
+            </CardContent>
+          </Card>
+        )
+      })()}
+
       {/* Avg expense per category KPI */}
       {expenses.length > 0 && (() => {
         const byCat = expenses.reduce<Record<string, { sum: number; count: number }>>((acc, e) => {

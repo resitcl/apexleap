@@ -344,6 +344,26 @@ export default async function DashboardPage() {
         </Card>
       )}
 
+      {overdueAlerts.length > 3 && (
+        <Link href="/dashboard/payments?status=overdue">
+          <Card className="border-orange-200 bg-orange-50 hover:bg-orange-100 transition-colors cursor-pointer">
+            <CardContent className="py-3">
+              <div className="flex items-center gap-3">
+                <AlertCircle className="w-5 h-5 text-orange-600 shrink-0" />
+                <p className="text-sm text-orange-800 font-medium">
+                  {overdueAlerts.length} pagos vencidos sin gestionar — revisión recomendada
+                  {overdueAlerts.length <= 5 && (
+                    <span className="ml-1 font-normal">
+                      ({overdueAlerts.slice(0, 3).map((a) => (a as { name?: string }).name ?? '').filter(Boolean).join(', ')}{overdueAlerts.length > 3 ? '...' : ''})
+                    </span>
+                  )}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+      )}
+
       {summary.totalAthletes > 0 && todaySessions.length === 0 && (
         <Link href="/dashboard/calendar">
           <Card className="border-blue-200 bg-blue-50 hover:bg-blue-100 transition-colors cursor-pointer">
