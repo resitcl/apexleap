@@ -241,6 +241,12 @@ export default async function AthletesPage({ searchParams }: PageProps) {
               <span className="ml-2 text-orange-600 font-medium">· {expiredDocsCount} doc{expiredDocsCount !== 1 ? 's' : ''} vencido{expiredDocsCount !== 1 ? 's' : ''}</span>
             )}
             {(() => {
+              const curMonth = new Date().toISOString().slice(0, 7)
+              const newMonth = allAthletes.filter((a) => (a.created_at ?? '').startsWith(curMonth)).length
+              if (newMonth === 0) return null
+              return <span className="ml-2 text-green-600 font-medium">· +{newMonth} nuevo{newMonth !== 1 ? 's' : ''} este mes</span>
+            })()}
+            {(() => {
               const withAge = allAthletes.filter((a) => a.birth_date)
               if (withAge.length < 2) return null
               const now = Date.now()

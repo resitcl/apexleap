@@ -30,6 +30,7 @@ export default async function DashboardPage() {
     totalAllAthletes: 0,
     newThisMonth: 0,
     cancelledThisMonth: 0,
+    prevMonthIncome: 0,
   }
   let activity: Awaited<ReturnType<typeof getRecentActivity>> = []
   let monthlyRevenue: Awaited<ReturnType<typeof getMonthlyRevenue>> = []
@@ -149,6 +150,16 @@ export default async function DashboardPage() {
                 {summary.totalAthletes > 0 && summary.monthlyIncome > 0 && (
                   <span className="ml-1 text-muted-foreground/70">· ${Math.round(summary.monthlyIncome / summary.totalAthletes).toLocaleString('es-CL')}/atleta</span>
                 )}
+                {summary.prevMonthIncome > 0 && (() => {
+                  const diff = summary.monthlyIncome - summary.prevMonthIncome
+                  const pct = Math.round((diff / summary.prevMonthIncome) * 100)
+                  if (pct === 0) return null
+                  return (
+                    <span className={`ml-1 font-medium ${pct > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {pct > 0 ? '▲' : '▼'}{Math.abs(pct)}% vs mes anterior
+                    </span>
+                  )
+                })()}
               </p>
             </CardContent>
           </Card>

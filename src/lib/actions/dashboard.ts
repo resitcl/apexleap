@@ -153,6 +153,12 @@ export async function getDashboardSummary() {
   const curMonth = new Date().toISOString().slice(0, 7)
   const newThisMonth = athletes.filter((a) => (a.created_at ?? '').startsWith(curMonth)).length
 
+  const prevMonthDate = new Date(today.getFullYear(), today.getMonth() - 1, 1)
+  const prevMonth = `${prevMonthDate.getFullYear()}-${String(prevMonthDate.getMonth() + 1).padStart(2, '0')}`
+  const prevMonthIncome = payments
+    .filter((p) => p.status === 'paid' && p.paid_at && p.paid_at.startsWith(prevMonth))
+    .reduce((sum, p) => sum + Number(p.amount), 0)
+
   // Top 3 athletes by attendance this month
   const attRows = topAttendanceResult.data ?? []
   const attByAthlete = attRows.reduce<Record<string, { id: string; name: string; count: number; health_status: string }>>((acc, r) => {
@@ -180,6 +186,7 @@ export async function getDashboardSummary() {
     topDebtors,
     newThisMonth,
     cancelledThisMonth,
+    prevMonthIncome,
   }
 }
 

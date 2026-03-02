@@ -364,6 +364,28 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
           )
         })()}
         {allPayments.length > 0 && (() => {
+          const recovered = allPayments.filter((p) =>
+            p.status === 'paid' && p.paid_at && p.due_date && p.paid_at.split('T')[0] > p.due_date
+          ).length
+          const totalDue = allPayments.filter((p) =>
+            (p.status === 'paid' && p.due_date) || p.status === 'overdue'
+          ).length
+          if (totalDue < 3 || recovered === 0) return null
+          const rate = Math.round((recovered / totalDue) * 100)
+          return (
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Tasa Recuperación</CardTitle>
+                <TrendingUp className="h-4 w-4 text-purple-500" />
+              </CardHeader>
+              <CardContent>
+                <div className={`text-2xl font-bold ${rate >= 50 ? 'text-purple-600' : 'text-orange-600'}`}>{rate}%</div>
+                <p className="text-xs text-muted-foreground">{recovered} mora{recovered !== 1 ? 's' : ''} recuperada{recovered !== 1 ? 's' : ''}</p>
+              </CardContent>
+            </Card>
+          )
+        })()}
+        {allPayments.length > 0 && (() => {
           const todayStr = new Date().toISOString().split('T')[0]
           const todayPaid = allPayments.filter((p) => p.status === 'paid' && p.paid_at?.startsWith(todayStr))
           if (todayPaid.length === 0) return null

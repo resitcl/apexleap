@@ -260,6 +260,26 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
         </Link>
       )}
 
+      {(() => {
+        const todayISO = new Date().toISOString().split('T')[0]
+        const future = allSubs.filter((s) => s.status === 'active' && s.start_date && s.start_date > todayISO)
+        if (future.length === 0) return null
+        return (
+          <Card className="border-blue-200 bg-blue-50">
+            <CardContent className="py-3 flex items-center gap-3">
+              <AlertTriangle className="w-5 h-5 text-blue-600 shrink-0" />
+              <p className="text-sm text-blue-800 font-medium">
+                {future.length} suscripción{future.length !== 1 ? 'es' : ''} activa{future.length !== 1 ? 's' : ''} con fecha de inicio en el futuro:{' '}
+                {future.slice(0, 2).map((s) => {
+                  const ath = s.athletes as { name?: string } | null
+                  return ath?.name ?? '—'
+                }).join(', ')}{future.length > 2 ? `… +${future.length - 2}` : ''}
+              </p>
+            </CardContent>
+          </Card>
+        )
+      })()}
+
       {/* KPIs */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
