@@ -346,6 +346,38 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
         )
       })()}
 
+      {/* Top pagadores */}
+      {allPayments.length > 5 && (() => {
+        const paidMap: Record<string, { name: string; id: string; total: number }> = {}
+        for (const p of allPayments.filter((p) => p.status === 'paid')) {
+          const ath = p.athletes as { id: string; name: string } | null
+          if (!ath) continue
+          if (!paidMap[ath.id]) paidMap[ath.id] = { id: ath.id, name: ath.name, total: 0 }
+          paidMap[ath.id].total += Number(p.amount)
+        }
+        const top = Object.values(paidMap).sort((a, b) => b.total - a.total).slice(0, 3)
+        if (top.length === 0) return null
+        return (
+          <Card className="border-green-100 bg-green-50/40">
+            <CardContent className="py-3">
+              <div className="flex items-center gap-3">
+                <CheckCircle className="w-5 h-5 text-green-600 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-green-800 mb-1">Top pagadores (acumulado)</p>
+                  <div className="flex flex-wrap gap-x-4 gap-y-0.5">
+                    {top.map((d) => (
+                      <span key={d.id} className="text-xs text-green-700">
+                        {d.name}: <span className="font-bold">${d.total.toLocaleString('es-CL')}</span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )
+      })()}
+
       {/* 60d overdue alert */}
       {allPayments.length > 0 && (() => {
         const sixtyAgo = new Date(); sixtyAgo.setDate(sixtyAgo.getDate() - 60)

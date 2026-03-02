@@ -45,6 +45,7 @@ export default async function DashboardPage() {
   let brokenItems: { id: string; name: string }[] = []
   let coaches: { id: string; name: string }[] = []
   let dormantCount = 0
+  let staleItemsCount = 0
 
   try {
     ;[summary, activity, monthlyRevenue, todaySessions, overdueAlerts, upcomingSchedules, expiringSubscriptions, weeklyAttendance, weeklyByDay, expiredDocs, athletesWithoutPlan, retention, coaches] = await Promise.all([
@@ -69,6 +70,9 @@ export default async function DashboardPage() {
     }))
     const invResult = await getInventoryItems({ condition: 'broken', limit: 100 })
     brokenItems = (invResult.items ?? []).map((i) => ({ id: i.id, name: i.name }))
+    const allInvResult = await getInventoryItems({ limit: 2000 })
+    const ninetyAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString()
+    staleItemsCount = (allInvResult.items ?? []).filter((i) => (i.updated_at ?? i.created_at ?? '') < ninetyAgo).length
   } catch {
     // show zeros on error
   }
@@ -1015,6 +1019,21 @@ export default async function DashboardPage() {
           </Card>
         )
       })()}
+
+      {staleItemsCount > 0 && (
+        <Link href="/dashboard/inventory">
+          <Card className="border-slate-200 bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer">
+            <CardContent className="py-3">
+              <div className="flex items-center gap-3">
+                <Clock className="w-5 h-5 text-slate-500 shrink-0" />
+                <p className="text-sm text-slate-700 font-medium">
+                  {staleItemsCount} ítem{staleItemsCount !== 1 ? 's' : ''} de inventario sin revisar en más de 90 días
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+      )}
 
       {/* Broken inventory alert */}
       {brokenItems.length > 0 && (

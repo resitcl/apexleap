@@ -133,7 +133,21 @@ export default async function InventoryPage({ searchParams }: PageProps) {
               const withPrice = allItems.filter((i) => i.purchase_price && i.purchase_price > 0)
               if (withPrice.length < 2) return null
               const avg = Math.round(withPrice.reduce((s, i) => s + (i.purchase_price ?? 0), 0) / withPrice.length)
-              return <span className="ml-2 text-muted-foreground/70">· prom. ${avg.toLocaleString('es-CL')}/ítem</span>
+              const topCat = Object.entries(CATEGORY_META)
+                .map(([key, meta]) => {
+                  const catItems = withPrice.filter((i) => i.category === key)
+                  if (catItems.length === 0) return null
+                  const catAvg = Math.round(catItems.reduce((s, i) => s + (i.purchase_price ?? 0), 0) / catItems.length)
+                  return { label: meta.label, avg: catAvg }
+                })
+                .filter(Boolean)
+                .sort((a, b) => (b?.avg ?? 0) - (a?.avg ?? 0))[0]
+              return (
+                <span className="ml-2 text-muted-foreground/70">
+                  · prom. ${avg.toLocaleString('es-CL')}/ítem
+                  {topCat && <span className="ml-1 text-muted-foreground/50">(más caro: {topCat.label} ${topCat.avg.toLocaleString('es-CL')})</span>}
+                </span>
+              )
             })()}
             {(() => {
               const assigned = allItems.filter((i) => i.assigned_to).length
