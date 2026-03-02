@@ -199,6 +199,28 @@ export default async function FinancesPage({ searchParams }: PageProps) {
             <p className="text-xs text-muted-foreground">pagos pendientes</p>
           </CardContent>
         </Card>
+        {coaches.length > 0 && (() => {
+          const fixedTotal = coaches
+            .filter((c) => c.salary_type === 'fixed' && c.salary_amount)
+            .reduce((s, c) => s + Number(c.salary_amount), 0)
+          const perSession = coaches
+            .filter((c) => c.salary_type === 'per_session' && c.salary_amount)
+            .reduce((s, c) => s + Number(c.salary_amount), 0)
+          const total = fixedTotal + perSession
+          if (total === 0) return null
+          return (
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Nómina Mensual</CardTitle>
+                <Users className="h-4 w-4 text-violet-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-violet-600">${total.toLocaleString('es-CL')}</div>
+                <p className="text-xs text-muted-foreground">{coaches.length} coach{coaches.length !== 1 ? 'es' : ''} · fijo + sesiones</p>
+              </CardContent>
+            </Card>
+          )
+        })()}
       </div>
 
       {/* Alert if expenses exceed income */}

@@ -344,25 +344,33 @@ export default async function DashboardPage() {
             </Card>
           </Link>
         )}
-        {expiredDocs.length > 0 && (
-          <Link href="/dashboard/documents">
-            <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Docs Vencidos</CardTitle>
-                <FileWarning className="h-4 w-4 text-yellow-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-yellow-600">
-                  {expiredDocs.filter((d) => d.isExpired).length}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {expiredDocs.filter((d) => !d.isExpired).length > 0 && `+${expiredDocs.filter((d) => !d.isExpired).length} por vencer`}
-                  {expiredDocs.filter((d) => !d.isExpired).length === 0 && 'documentos vencidos'}
-                </p>
-              </CardContent>
-            </Card>
-          </Link>
-        )}
+        {expiredDocs.length > 0 && (() => {
+          const in7 = new Date(); in7.setDate(in7.getDate() + 7)
+          const in7ISO = in7.toISOString().split('T')[0]
+          const today = new Date().toISOString().split('T')[0]
+          const expiredCount = expiredDocs.filter((d) => d.isExpired).length
+          const thisWeek = expiredDocs.filter((d) => !d.isExpired && d.expiry_date >= today && d.expiry_date <= in7ISO).length
+          const later = expiredDocs.filter((d) => !d.isExpired && d.expiry_date > in7ISO).length
+          return (
+            <Link href="/dashboard/documents">
+              <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Docs Vencidos</CardTitle>
+                  <FileWarning className="h-4 w-4 text-yellow-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-yellow-600">{expiredCount}</div>
+                  <p className="text-xs text-muted-foreground">
+                    {thisWeek > 0 && <span className="text-orange-600 font-medium">+{thisWeek} esta semana</span>}
+                    {thisWeek > 0 && later > 0 && ' · '}
+                    {later > 0 && `+${later} este mes`}
+                    {thisWeek === 0 && later === 0 && 'documentos vencidos'}
+                  </p>
+                </CardContent>
+              </Card>
+            </Link>
+          )
+        })()}
       </div>
 
       {/* Weekly attendance bar chart */}
