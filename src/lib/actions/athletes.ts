@@ -172,3 +172,18 @@ export async function deleteAthlete(id: string) {
 
   revalidatePath('/dashboard/athletes')
 }
+
+export async function bulkUpdateAthleteStatus(ids: string[], status: 'active' | 'inactive' | 'suspended') {
+  const clubId = await getClubId()
+  const supabase = await createClient()
+
+  const { error } = await supabase
+    .from('athletes')
+    .update({ status, updated_at: new Date().toISOString() })
+    .in('id', ids)
+    .eq('club_id', clubId)
+
+  if (error) throw new Error(error.message)
+  revalidatePath('/dashboard/athletes')
+  return { updated: ids.length }
+}

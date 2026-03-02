@@ -11,6 +11,7 @@ import { UserPlus, Search, AlertCircle } from "lucide-react"
 import { AthletesSearch } from "@/components/athletes/AthletesSearch"
 import { HealthStatusBadge } from "@/components/athletes/HealthStatusBadge"
 import { ExportAthletesButton } from "@/components/athletes/ExportAthletesButton"
+import { BulkActionsWrapper } from "@/components/athletes/BulkActionsWrapper"
 
 interface PageProps {
   searchParams: Promise<{
@@ -555,6 +556,9 @@ export default async function AthletesPage({ searchParams }: PageProps) {
           </Card>
         )
       })()}
+
+      {/* Bulk Actions */}
+      <BulkActionsWrapper athletes={athletes.map((a) => ({ id: a.id, name: a.name, photo_url: (a as { photo_url?: string | null }).photo_url ?? null, status: a.status, health_status: a.health_status }))} />
 
       {/* Search and Filters */}
       <div className="space-y-3">
