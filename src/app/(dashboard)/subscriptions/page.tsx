@@ -143,6 +143,15 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
                 <span className="ml-2 text-primary font-medium">· {top.name} ({top.count})</span>
               ) : null
             })()}
+            {(() => {
+              const active = allSubs.filter((s) => s.status === 'active')
+              const prices = active
+                .map((s) => (s.plans as { price?: number } | null)?.price ?? 0)
+                .filter((p) => p > 0)
+              if (prices.length === 0) return null
+              const avg = Math.round(prices.reduce((a, b) => a + b, 0) / prices.length)
+              return <span className="ml-2 text-muted-foreground/70">· prom. ${avg.toLocaleString('es-CL')}/suscripción activa</span>
+            })()}
           </p>
         </div>
         <div className="flex gap-2">
