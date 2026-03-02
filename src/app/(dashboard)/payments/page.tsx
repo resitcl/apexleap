@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Plus, DollarSign, Clock, AlertTriangle, TrendingUp } from "lucide-react"
+import { Plus, DollarSign, Clock, AlertTriangle, TrendingUp, CheckCircle } from "lucide-react"
 import { PaymentsFilter } from "@/components/payments/PaymentsFilter"
 import { MarkAsPaidButton } from "@/components/payments/MarkAsPaidButton"
 import { ExportPaymentsButton } from "@/components/payments/ExportPaymentsButton"
@@ -282,6 +282,24 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
               <CardContent>
                 <div className={`text-2xl font-bold ${rate >= 80 ? 'text-green-600' : rate >= 60 ? 'text-yellow-600' : 'text-red-600'}`}>{rate}%</div>
                 <p className="text-xs text-muted-foreground">{paid} de {total} pagados</p>
+              </CardContent>
+            </Card>
+          )
+        })()}
+        {allPayments.length > 0 && (() => {
+          const todayStr = new Date().toISOString().split('T')[0]
+          const todayPaid = allPayments.filter((p) => p.status === 'paid' && p.paid_at?.startsWith(todayStr))
+          if (todayPaid.length === 0) return null
+          const todayAmt = todayPaid.reduce((s, p) => s + Number(p.amount), 0)
+          return (
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Cobrado Hoy</CardTitle>
+                <CheckCircle className="h-4 w-4 text-green-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-600">{todayPaid.length}</div>
+                <p className="text-xs text-muted-foreground">${todayAmt.toLocaleString('es-CL')} en {todayPaid.length} pago{todayPaid.length !== 1 ? 's' : ''}</p>
               </CardContent>
             </Card>
           )

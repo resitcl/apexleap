@@ -153,10 +153,11 @@ export default async function InventoryPage({ searchParams }: PageProps) {
               ) : null
             })()}
             {(() => {
-              const priciest = allItems.filter((i) => i.purchase_price).slice().sort((a, b) => (b.purchase_price ?? 0) - (a.purchase_price ?? 0))[0]
-              return priciest ? (
-                <span className="ml-2 text-muted-foreground/60">· Más caro: {priciest.name} (${Number(priciest.purchase_price).toLocaleString('es-CL')})</span>
-              ) : null
+              const withVal = allItems.filter((i) => i.purchase_price && i.purchase_price > 0)
+              if (withVal.length === 0) return null
+              const top = withVal.slice().sort((a, b) => (b.purchase_price ?? 0) * b.quantity - (a.purchase_price ?? 0) * a.quantity)[0]
+              const val = (top.purchase_price ?? 0) * top.quantity
+              return <span className="ml-2 text-muted-foreground/60">· Mayor valor: {top.name} (${val.toLocaleString('es-CL')})</span>
             })()}
             {(() => {
               const good = allItems.filter((i) => i.condition === 'good').length
