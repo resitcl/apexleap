@@ -707,6 +707,15 @@ export default async function AthletesPage({ searchParams }: PageProps) {
                         )
                         return null
                       })()}
+                      {athlete.status === 'active' && (() => {
+                        const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7)
+                        const weekISO = weekAgo.toISOString()
+                        const att = athlete.attendance as Array<{ checked_in_at: string }> | null ?? []
+                        const hasWeekly = att.some((r) => r.checked_in_at >= weekISO)
+                        return !hasWeekly ? (
+                          <Badge className="text-xs bg-gray-100 text-gray-500 border-gray-200 hover:bg-gray-100">Sin check-in 7d</Badge>
+                        ) : null
+                      })()}
                       {(() => {
                         const docs = athlete.documents as Array<{ expiry_date: string | null }> | null ?? []
                         const todayStr = new Date().toISOString().split('T')[0]

@@ -167,6 +167,21 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
         </Link>
       )}
 
+      {stats.active > 4 && expiringIn7 > 0 && Math.round((expiringIn7 / stats.active) * 100) >= 20 && (
+        <Link href="/dashboard/subscriptions?expiring=7">
+          <Card className="border-orange-200 bg-orange-50 hover:bg-orange-100 transition-colors cursor-pointer">
+            <CardContent className="py-3">
+              <div className="flex items-center gap-3">
+                <AlertTriangle className="w-5 h-5 text-orange-600 shrink-0" />
+                <p className="text-sm text-orange-800 font-medium">
+                  {expiringIn7} suscripciones ({Math.round((expiringIn7 / stats.active) * 100)}% de activas) vencen esta semana
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+      )}
+
       {/* KPIs */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
