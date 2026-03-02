@@ -27,11 +27,11 @@ const CONDITION_LABEL: Record<string, string> = {
 }
 
 interface PageProps {
-  searchParams: Promise<{ category?: string; condition?: string; lowStock?: string; search?: string; page?: string; athleteId?: string; priceMin?: string; priceMax?: string; sortBy?: string; serialSearch?: string }>
+  searchParams: Promise<{ category?: string; condition?: string; lowStock?: string; search?: string; page?: string; athleteId?: string; priceMin?: string; priceMax?: string; sortBy?: string; serialSearch?: string; dateFrom?: string; dateTo?: string }>
 }
 
 export default async function InventoryPage({ searchParams }: PageProps) {
-  const { category, condition, lowStock, search, page: pageStr, athleteId, priceMin: priceMinStr, priceMax: priceMaxStr, sortBy, serialSearch } = await searchParams
+  const { category, condition, lowStock, search, page: pageStr, athleteId, priceMin: priceMinStr, priceMax: priceMaxStr, sortBy, serialSearch, dateFrom, dateTo } = await searchParams
   const isLowStock = lowStock === '1'
   const page = Number(pageStr ?? 1)
   const limit = 50
@@ -90,6 +90,15 @@ export default async function InventoryPage({ searchParams }: PageProps) {
       const dA = a.purchase_date ?? ''
       const dB = b.purchase_date ?? ''
       return dB.localeCompare(dA)
+    })
+  }
+
+  if (dateFrom || dateTo) {
+    items = items.filter((i) => {
+      if (!i.purchase_date) return false
+      if (dateFrom && i.purchase_date < dateFrom) return false
+      if (dateTo && i.purchase_date > dateTo) return false
+      return true
     })
   }
 
@@ -298,6 +307,8 @@ export default async function InventoryPage({ searchParams }: PageProps) {
         {condition && <input type="hidden" name="condition" value={condition} />}
         {isLowStock && <input type="hidden" name="lowStock" value="1" />}
         {sortBy && <input type="hidden" name="sortBy" value={sortBy} />}
+        {dateFrom && <input type="hidden" name="dateFrom" value={dateFrom} />}
+        {dateTo && <input type="hidden" name="dateTo" value={dateTo} />}
         <input type="text" name="search" defaultValue={search ?? ''} placeholder="Buscar ítem..."
           className="h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring w-52" />
         {athleteList.length > 0 && (
@@ -309,6 +320,10 @@ export default async function InventoryPage({ searchParams }: PageProps) {
             ))}
           </select>
         )}
+        <input type="date" name="dateFrom" defaultValue={dateFrom ?? ''}
+          className="h-9 px-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring w-34" title="Fecha compra desde" />
+        <input type="date" name="dateTo" defaultValue={dateTo ?? ''}
+          className="h-9 px-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring w-34" title="Fecha compra hasta" />
         <input type="text" name="serialSearch" defaultValue={serialSearch ?? ''} placeholder="N° serie..."
           className="h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring w-32" />
         <input type="number" name="priceMin" defaultValue={priceMinStr ?? ''} min={0} placeholder="Precio mín."
@@ -316,7 +331,7 @@ export default async function InventoryPage({ searchParams }: PageProps) {
         <input type="number" name="priceMax" defaultValue={priceMaxStr ?? ''} min={0} placeholder="Precio máx."
           className="h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring w-28" />
         <button type="submit" className="h-9 px-4 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">Buscar</button>
-        {(search || athleteId || priceMinStr || priceMaxStr) && (
+        {(search || athleteId || priceMinStr || priceMaxStr || dateFrom || dateTo || serialSearch) && (
           <Link href={`/dashboard/inventory?${new URLSearchParams({ ...(category ? { category } : {}), ...(condition ? { condition } : {}), ...(isLowStock ? { lowStock: '1' } : {}) }).toString()}`}
             className="text-xs text-muted-foreground hover:text-foreground">✕ Limpiar</Link>
         )}
