@@ -812,6 +812,14 @@ export default async function AthletesPage({ searchParams }: PageProps) {
                         )
                       })()}
                       {(() => {
+                        if (!athlete.birth_date) return null
+                        const curMonth = new Date().getMonth()
+                        const birthMonth = new Date(athlete.birth_date + 'T12:00:00').getMonth()
+                        if (birthMonth !== curMonth) return null
+                        const day = new Date(athlete.birth_date + 'T12:00:00').getDate()
+                        return <span className="text-xs font-medium text-pink-600" title={`Cumpleaños: ${day}/${birthMonth + 1}`}>🎂 Cumpleaños</span>
+                      })()}
+                      {(() => {
                         const rosters = athlete.rosters as Array<{ competitions: { id: string; name: string; start_date: string } | null }> | null ?? []
                         const comps = rosters
                           .map((r) => r.competitions)

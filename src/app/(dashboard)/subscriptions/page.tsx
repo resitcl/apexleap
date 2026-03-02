@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Plus, Users, TrendingUp, PauseCircle, XCircle, AlertTriangle, DollarSign } from "lucide-react"
+import { Plus, Users, TrendingUp, PauseCircle, XCircle, AlertTriangle, DollarSign, Clock } from "lucide-react"
 import { SubscriptionStatusButton } from "@/components/subscriptions/SubscriptionStatusButton"
 import { RenewSubscriptionButton } from "@/components/subscriptions/RenewSubscriptionButton"
 import { ExportSubscriptionsButton } from "@/components/subscriptions/ExportSubscriptionsButton"
@@ -174,6 +174,31 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
           </Card>
         </Link>
       )}
+
+      {(() => {
+        const sixMonthsAgo = new Date(now); sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
+        const stale = allSubs.filter((s) =>
+          s.status === 'active' &&
+          s.start_date &&
+          new Date(s.start_date) < sixMonthsAgo &&
+          (!s.end_date || new Date(s.end_date) >= now)
+        )
+        if (stale.length === 0) return null
+        return (
+          <Link href="/dashboard/subscriptions?status=active">
+            <Card className="border-amber-200 bg-amber-50 hover:bg-amber-100 transition-colors cursor-pointer">
+              <CardContent className="py-3">
+                <div className="flex items-center gap-3">
+                  <Clock className="w-5 h-5 text-amber-600 shrink-0" />
+                  <p className="text-sm text-amber-800 font-medium">
+                    {stale.length} suscripción{stale.length !== 1 ? 'es' : ''} activa{stale.length !== 1 ? 's' : ''} lleva{stale.length !== 1 ? 'n' : ''} más de 6 meses sin renovarse
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+        )
+      })()}
 
       {stats.active > 4 && expiringIn7 > 0 && Math.round((expiringIn7 / stats.active) * 100) >= 20 && (
         <Link href="/dashboard/subscriptions?expiring=7">

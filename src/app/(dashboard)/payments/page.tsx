@@ -579,8 +579,8 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
                             other: 'bg-gray-100 text-gray-600',
                           }
                           const METHOD_LABEL: Record<string, string> = {
-                            cash: 'Efectivo', transfer: 'Transfer.', webpay: 'Webpay',
-                            flow: 'Flow', mercadopago: 'MP', khipu: 'Khipu', other: 'Otro',
+                            cash: '💵 Efectivo', transfer: '🏦 Transfer.', webpay: '💳 Webpay',
+                            flow: '⚡ Flow', mercadopago: '🛒 MP', khipu: '🔗 Khipu', other: '📋 Otro',
                           }
                           const style = METHOD_STYLE[payment.payment_method] ?? 'bg-gray-100 text-gray-600'
                           const label = METHOD_LABEL[payment.payment_method] ?? payment.payment_method

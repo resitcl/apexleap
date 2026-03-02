@@ -93,6 +93,11 @@ export default async function InventoryPage({ searchParams }: PageProps) {
     })
   }
 
+  if (sortBy === 'category') {
+    const CAT_ORDER: Record<string, number> = { equipment: 0, uniform: 1, infrastructure: 2, other: 3 }
+    items = items.slice().sort((a, b) => (CAT_ORDER[a.category] ?? 9) - (CAT_ORDER[b.category] ?? 9))
+  }
+
   if (serialSearch) {
     items = items.filter((i) => i.serial_number && i.serial_number.toLowerCase().includes(serialSearch.toLowerCase()))
   }
@@ -343,6 +348,11 @@ export default async function InventoryPage({ searchParams }: PageProps) {
           <button className={`h-8 px-3 rounded-md border text-xs font-medium transition-colors ${
             sortBy === 'condition' ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-input hover:bg-accent'
           }`}>⚠ Peor condición</button>
+        </Link>
+        <Link href={`/dashboard/inventory?${new URLSearchParams({ ...(condition ? { condition } : {}), ...(search ? { search } : {}), ...(isLowStock ? { lowStock: '1' } : {}), ...(sortBy === 'category' ? {} : { sortBy: 'category' }) }).toString()}`}>
+          <button className={`h-8 px-3 rounded-md border text-xs font-medium transition-colors ${
+            sortBy === 'category' ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-input hover:bg-accent'
+          }`}>📂 Por categoría</button>
         </Link>
         {([['', 'Todos'], ['good', '✅ Bueno'], ['fair', '⚠️ Regular'], ['poor', '🔴 Malo'], ['broken', '💀 Roto']] as [string, string][]).map(([val, lbl]) => {
           const isActive = (val === '' && !condition) || condition === val
