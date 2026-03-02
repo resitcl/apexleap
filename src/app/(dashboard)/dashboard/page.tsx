@@ -146,6 +146,9 @@ export default async function DashboardPage() {
               </div>
               <p className="text-xs text-muted-foreground">
                 {new Date().toLocaleDateString("es-CL", { month: "long", year: "numeric" })}
+                {summary.totalAthletes > 0 && summary.monthlyIncome > 0 && (
+                  <span className="ml-1 text-muted-foreground/70">· ${Math.round(summary.monthlyIncome / summary.totalAthletes).toLocaleString('es-CL')}/atleta</span>
+                )}
               </p>
             </CardContent>
           </Card>

@@ -367,6 +367,24 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
         })()}
       </div>
 
+      {/* Alerta total vencido > MRR */}
+      {(() => {
+        const overdue = summary.total_overdue
+        const mrr = summary.total_collected
+        if (overdue === 0 || mrr === 0 || overdue <= mrr) return null
+        const pct = Math.round((overdue / mrr) * 100)
+        return (
+          <Card className="border-red-200 bg-red-50">
+            <CardContent className="py-3 flex items-center gap-3">
+              <AlertTriangle className="w-5 h-5 text-red-600 shrink-0" />
+              <p className="text-sm text-red-800 font-medium">
+                ⚠ El total vencido (${overdue.toLocaleString('es-CL')}) supera el cobrado del mes ({pct}% del cobrado)
+              </p>
+            </CardContent>
+          </Card>
+        )
+      })()}
+
       {/* Top morosos */}
       {allPayments.length > 0 && (() => {
         const debtMap: Record<string, { name: string; id: string; debt: number }> = {}

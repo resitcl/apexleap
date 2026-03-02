@@ -317,6 +317,22 @@ export default async function InventoryPage({ searchParams }: PageProps) {
       })()}
 
       {(() => {
+        const noPrice = allItems.filter((i) => !i.purchase_price && i.is_active !== false)
+        if (noPrice.length < 3) return null
+        return (
+          <Card className="border-slate-200 bg-slate-50">
+            <CardContent className="py-3 flex items-center gap-3">
+              <AlertTriangle className="w-5 h-5 text-slate-500 shrink-0" />
+              <p className="text-sm text-slate-700 font-medium">
+                {noPrice.length} ítem{noPrice.length !== 1 ? 's' : ''} sin precio de compra registrado:{' '}
+                {noPrice.slice(0, 3).map((i) => i.name).join(', ')}{noPrice.length > 3 ? `… +${noPrice.length - 3}` : ''}
+              </p>
+            </CardContent>
+          </Card>
+        )
+      })()}
+
+      {(() => {
         const zeroStock = allItems.filter((i) => i.quantity === 0)
         if (zeroStock.length === 0) return null
         return (

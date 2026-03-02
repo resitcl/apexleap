@@ -987,15 +987,17 @@ export default async function AthletesPage({ searchParams }: PageProps) {
                         return <span className="text-xs font-medium text-pink-600" title={`Cumpleaños: ${day}/${birthMonth + 1}`}>🎂 Cumpleaños</span>
                       })()}
                       {(() => {
+                        const todayISO = new Date().toISOString().split('T')[0]
                         const rosters = athlete.rosters as Array<{ competitions: { id: string; name: string; start_date: string } | null }> | null ?? []
                         const comps = rosters
                           .map((r) => r.competitions)
-                          .filter(Boolean) as Array<{ id: string; name: string; start_date: string }>
+                          .filter((c): c is { id: string; name: string; start_date: string } => !!c && c.start_date >= todayISO)
+                          .sort((a, b) => a.start_date.localeCompare(b.start_date))
                         if (comps.length === 0) return null
-                        const last = comps.sort((a, b) => b.start_date.localeCompare(a.start_date))[0]
+                        const next = comps[0]
                         return (
-                          <span className="text-xs text-muted-foreground" title={last.name}>
-                            🏆 {last.name.length > 18 ? last.name.slice(0, 18) + '…' : last.name} ({new Date(last.start_date).toLocaleDateString('es-CL', { day: '2-digit', month: 'short' })})
+                          <span className="text-xs text-purple-600 font-medium" title={next.name}>
+                            🏆 {next.name.length > 18 ? next.name.slice(0, 18) + '…' : next.name} ({new Date(next.start_date).toLocaleDateString('es-CL', { day: '2-digit', month: 'short' })})
                           </span>
                         )
                       })()}
