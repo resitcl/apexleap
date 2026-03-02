@@ -442,6 +442,12 @@ export default async function InventoryPage({ searchParams }: PageProps) {
                         {(item as { notes?: string | null }).notes && (
                           <Badge className="text-xs bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-100" title={(item as { notes?: string | null }).notes ?? ''}>📝 Nota</Badge>
                         )}
+                        {item.purchase_date && (() => {
+                          const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7)
+                          return new Date(item.purchase_date) >= weekAgo ? (
+                            <Badge className="text-xs bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-100">🛒 Compra reciente</Badge>
+                          ) : null
+                        })()}
                         {assigned && item.updated_at && (() => {
                           const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7)
                           return new Date(item.updated_at) >= weekAgo ? (

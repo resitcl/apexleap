@@ -258,6 +258,13 @@ export default async function AthletesPage({ searchParams }: PageProps) {
                 <span className="ml-2 text-muted-foreground/60">· {noPhoto} sin foto</span>
               ) : null
             })()}
+            {(() => {
+              const curMonth = new Date().toISOString().slice(0, 7)
+              const newThisMonth = allAthletes.filter((a) => (a.created_at ?? '').startsWith(curMonth)).length
+              return newThisMonth > 0 ? (
+                <span className="ml-2 text-blue-600 font-medium">· +{newThisMonth} incorporado{newThisMonth !== 1 ? 's' : ''} este mes</span>
+              ) : null
+            })()}
             {totalDebt > 0 && (() => {
               const debtors = allAthletes.filter((a) => {
                 const pmts = a.payments as Array<{ status: string; amount: number }> | null ?? []
