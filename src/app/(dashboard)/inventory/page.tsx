@@ -217,6 +217,28 @@ export default async function InventoryPage({ searchParams }: PageProps) {
                 <span className="ml-2 text-muted-foreground/50 text-xs">· {byCategory.join(' · ')}</span>
               ) : null
             })()}
+            {(() => {
+              const CONDITIONS = [
+                { key: 'good',   label: 'Bueno',  color: 'text-green-600' },
+                { key: 'fair',   label: 'Regular', color: 'text-yellow-600' },
+                { key: 'poor',   label: 'Malo',   color: 'text-orange-600' },
+                { key: 'broken', label: 'Roto',   color: 'text-red-600' },
+              ]
+              const parts = CONDITIONS.map(({ key, label, color }) => {
+                const val = allItems
+                  .filter((i) => i.condition === key && i.purchase_price)
+                  .reduce((s, i) => s + (i.purchase_price ?? 0) * i.quantity, 0)
+                return val > 0 ? { label, val, color } : null
+              }).filter(Boolean) as { label: string; val: number; color: string }[]
+              if (parts.length === 0) return null
+              return (
+                <span className="ml-2 text-xs">
+                  {parts.map((p, idx) => (
+                    <span key={p.label}>{idx > 0 && <span className="text-muted-foreground/50"> · </span>}<span className={p.color}>{p.label}: ${p.val.toLocaleString('es-CL')}</span></span>
+                  ))}
+                </span>
+              )
+            })()}
           </p>
         </div>
         <div className="flex gap-2">

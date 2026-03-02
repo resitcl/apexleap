@@ -115,6 +115,21 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
               const avgPerPayment = Math.round(paid.reduce((s, p) => s + Number(p.amount), 0) / paid.length)
               return <span className="ml-2 text-muted-foreground/70">· prom. ${avgPerPayment.toLocaleString('es-CL')}/pago</span>
             })()}
+            {allPayments.length > 1 && (() => {
+              const withBoth = allPayments.filter((p) => p.status === 'paid' && p.due_date && p.paid_at)
+              if (withBoth.length < 3) return null
+              const avgDays = Math.round(
+                withBoth.reduce((s, p) => {
+                  const due  = new Date(p.due_date!).getTime()
+                  const paid = new Date(p.paid_at!).getTime()
+                  return s + (paid - due) / (1000 * 60 * 60 * 24)
+                }, 0) / withBoth.length
+              )
+              if (avgDays === 0) return null
+              const color = avgDays > 0 ? 'text-orange-600' : 'text-green-600'
+              const label = avgDays > 0 ? `+${avgDays}d tarde` : `${Math.abs(avgDays)}d adelantado`
+              return <span className={`ml-2 font-medium ${color}`}>· prom. {label} al pagar</span>
+            })()}
             {allPayments.length > 0 && (() => {
               const curMonth  = new Date().toISOString().slice(0, 7)
               const prevDate  = new Date(); prevDate.setMonth(prevDate.getMonth() - 1)
