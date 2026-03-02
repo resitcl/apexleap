@@ -34,7 +34,8 @@ export default async function CompetitionsPage({ searchParams }: PageProps) {
   const sortBy   = params.sort     ?? ""
   const limit    = 20
 
-  let competitions: { id: string; name: string; type: string; status: string; sport: string | null; location: string | null; start_date: string; end_date: string | null; rosters: unknown[] }[] = []
+  type RosterEntry = { id: string; name: string | null; roster_athletes: { id: string; athletes: { id: string; name: string } | null }[] }
+  let competitions: { id: string; name: string; type: string; status: string; sport: string | null; location: string | null; start_date: string; end_date: string | null; rosters: RosterEntry[] }[] = []
   let total = 0
 
   try {

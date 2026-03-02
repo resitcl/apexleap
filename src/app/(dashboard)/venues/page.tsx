@@ -28,6 +28,7 @@ export default async function VenuesPage() {
     }, {})
 
   const active = venues.filter((v) => v.is_active).length
+  const maxCapVenue = venues.filter((v) => v.is_active && v.capacity).reduce<typeof venues[number] | null>((best, v) => (!best || (v.capacity ?? 0) > (best.capacity ?? 0) ? v : best), null)
 
   return (
     <div className="space-y-6">
@@ -86,6 +87,9 @@ export default async function VenuesPage() {
                   {venue.is_home_venue && <Home className="w-4 h-4 text-primary shrink-0" />}
                   <span className="truncate">{venue.name}</span>
                   {!venue.is_active && <Badge variant="secondary" className="text-xs ml-auto">Inactiva</Badge>}
+                  {maxCapVenue && venue.id === maxCapVenue.id && venue.is_active && (
+                    <Badge className="text-xs ml-auto bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-100">🏟 Mayor aforo</Badge>
+                  )}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
