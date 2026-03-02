@@ -401,6 +401,16 @@ export default async function AthletesPage({ searchParams }: PageProps) {
 
                     <div className="flex items-center gap-2 shrink-0">
                       {(() => {
+                        const comps = (athlete as Record<string, unknown>).rosters as Array<{ id: string }> | null
+                        const total = (comps ?? []).length
+                        if (total === 0) return null
+                        return (
+                          <span className="text-xs font-medium text-violet-600 bg-violet-50 px-1.5 py-0.5 rounded" title={`${total} competencia${total !== 1 ? 's' : ''} participadas`}>
+                            🏆{total}
+                          </span>
+                        )
+                      })()}
+                      {(() => {
                         const att = athlete.attendance as Array<{ id: string; checked_in_at: string }> | null
                         const total = (att ?? []).length
                         if (total === 0) return null

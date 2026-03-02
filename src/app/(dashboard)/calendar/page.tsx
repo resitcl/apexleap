@@ -80,6 +80,12 @@ export default async function CalendarPage({ searchParams }: PageProps) {
             {totalAttendancesAllTime > 0 && (
               <span className="ml-2 text-primary font-medium">· {totalAttendancesAllTime.toLocaleString('es-CL')} check-ins totales</span>
             )}
+            {(() => {
+              const inactive = schedules.filter((s) => !s.is_active).length
+              return inactive > 0 ? (
+                <span className="ml-2 text-yellow-600 font-medium">· {inactive} sesión{inactive !== 1 ? 'es' : ''} inactiva{inactive !== 1 ? 's' : ''}</span>
+              ) : null
+            })()}
             {todayOccupation.capacity > 0 && (() => {
               const pct = Math.round((todayOccupation.checkins / todayOccupation.capacity) * 100)
               const color = pct >= 80 ? 'text-red-600' : pct >= 50 ? 'text-yellow-600' : 'text-green-600'

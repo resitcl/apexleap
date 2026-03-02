@@ -71,7 +71,17 @@ export default async function DocumentsPage({ searchParams }: PageProps) {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-3xl font-bold">Documentos</h1>
-          <p className="text-muted-foreground">{docs.length} documento{docs.length !== 1 ? "s" : ""} registrado{docs.length !== 1 ? "s" : ""}</p>
+          <p className="text-muted-foreground">
+            {docs.length} documento{docs.length !== 1 ? "s" : ""} registrado{docs.length !== 1 ? "s" : ""}
+            {(() => {
+              const uniqueAthletes = new Set(docs.map((d) => (d.athletes as { id: string } | null)?.id).filter(Boolean)).size
+              return uniqueAthletes > 0 ? (
+                <span className="ml-2 font-medium text-primary">· {uniqueAthletes} atleta{uniqueAthletes !== 1 ? 's' : ''} con documentos</span>
+              ) : null
+            })()}
+            {expired > 0 && <span className="ml-2 text-red-600 font-medium">· {expired} vencido{expired !== 1 ? 's' : ''}</span>}
+            {expiringSoon > 0 && <span className="ml-2 text-yellow-600 font-medium">· {expiringSoon} vence{expiringSoon !== 1 ? 'n' : ''} en 30 días</span>}
+          </p>
         </div>
         <div className="flex gap-2 flex-wrap">
         <ExportDocumentsButton

@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic"
 import Link from "next/link"
 import { getSubscriptions, getSubscriptionStats } from "@/lib/actions/subscriptions"
 import { getPlans } from "@/lib/actions/plans"
+import { getAthletes } from "@/lib/actions/athletes"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -40,22 +41,27 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
   let total = 0
   let stats = { active: 0, paused: 0, cancelled: 0, expired: 0, mrr: 0 }
   let plans: Array<{ id: string; name: string }> = []
+  let athletesWithoutSub = 0
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
   try {
     const filterParams = { status: params.status, planId: planId || undefined, search: search || undefined, expiringIn: expiring ? Number(expiring) : undefined }
-    const [result, allResult, statsResult, plansResult] = await Promise.all([
+    const [result, allResult, statsResult, plansResult, athletesResult] = await Promise.all([
       getSubscriptions({ ...filterParams, page, limit: 25 }),
       getSubscriptions({ ...filterParams, page: 1, limit: 1000 }),
       getSubscriptionStats(),
       getPlans(),
+      getAthletes({ limit: 500 }),
     ])
     subs = result.subscriptions
     allSubs = allResult.subscriptions
     total = result.total
     stats = statsResult
     plans = plansResult.map((p) => ({ id: p.id, name: p.name }))
+    const activeAthleteIds = new Set(athletesResult.athletes.filter((a) => a.status === 'active').map((a) => a.id))
+    const withActiveSub = new Set(allResult.subscriptions.filter((s) => s.status === 'active').map((s) => s.athlete_id))
+    athletesWithoutSub = [...activeAthleteIds].filter((id) => !withActiveSub.has(id)).length
   } catch {
     // show empty state
   }
@@ -96,6 +102,9 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
             )}
             {expiringIn7 === 0 && expiringIn30 > 0 && (
               <span className="ml-2 text-yellow-600 font-medium">· {expiringIn30} vence{expiringIn30 > 1 ? 'n' : ''} este mes</span>
+            )}
+            {athletesWithoutSub > 0 && (
+              <span className="ml-2 text-orange-600 font-medium">· ⚠ {athletesWithoutSub} activo{athletesWithoutSub !== 1 ? 's' : ''} sin suscripción</span>
             )}
           </p>
         </div>

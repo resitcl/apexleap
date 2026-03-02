@@ -25,7 +25,7 @@ const SALARY_TYPE_LABELS: Record<string, string> = {
 }
 
 interface PageProps {
-  searchParams: Promise<{ month?: string; tab?: string; category?: string; amountMin?: string; amountMax?: string }>
+  searchParams: Promise<{ month?: string; tab?: string; category?: string; amountMin?: string; amountMax?: string; dateFrom?: string; dateTo?: string }>
 }
 
 export default async function FinancesPage({ searchParams }: PageProps) {
@@ -35,6 +35,8 @@ export default async function FinancesPage({ searchParams }: PageProps) {
   const category  = params.category  ?? ""
   const amountMin = params.amountMin ? Number(params.amountMin) : undefined
   const amountMax = params.amountMax ? Number(params.amountMax) : undefined
+  const dateFrom  = params.dateFrom  ?? ''
+  const dateTo    = params.dateTo    ?? ''
 
   let summary = { totalIncome: 0, totalExpenses: 0, pendingIncome: 0, netBalance: 0, byCategory: {} as Record<string, number>, month }
   let prevSummary = { totalIncome: 0, totalExpenses: 0, pendingIncome: 0, netBalance: 0, byCategory: {} as Record<string, number>, month: '' }
@@ -61,6 +63,8 @@ export default async function FinancesPage({ searchParams }: PageProps) {
     expenses = e.expenses
       .filter((ex) => amountMin === undefined || Number(ex.amount) >= amountMin)
       .filter((ex) => amountMax === undefined || Number(ex.amount) <= amountMax)
+      .filter((ex) => !dateFrom || ex.date >= dateFrom)
+      .filter((ex) => !dateTo   || ex.date <= dateTo)
     coaches = c
     chartData = ch
   } catch { /* show zeros */ }
@@ -401,6 +405,16 @@ export default async function FinancesPage({ searchParams }: PageProps) {
               <input type="hidden" name="tab" value="expenses" />
               <input type="hidden" name="month" value={month} />
               {category && <input type="hidden" name="category" value={category} />}
+              <div className="flex flex-col gap-0.5">
+                <label className="text-xs text-muted-foreground">Desde</label>
+                <input type="date" name="dateFrom" defaultValue={dateFrom}
+                  className="h-8 px-2 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring w-32" />
+              </div>
+              <div className="flex flex-col gap-0.5">
+                <label className="text-xs text-muted-foreground">Hasta</label>
+                <input type="date" name="dateTo" defaultValue={dateTo}
+                  className="h-8 px-2 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring w-32" />
+              </div>
               <div className="flex flex-col gap-0.5">
                 <label className="text-xs text-muted-foreground">Monto mín.</label>
                 <input type="number" name="amountMin" defaultValue={amountMin ?? ''} min={0} placeholder="0"
