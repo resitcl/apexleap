@@ -25,6 +25,8 @@ interface PageProps {
     minAtt?: string
     ageMin?: string
     ageMax?: string
+    debtMin?: string
+    debtMax?: string
   }>
 }
 
@@ -34,8 +36,10 @@ export default async function AthletesPage({ searchParams }: PageProps) {
   const sort = params.sort ?? ""
   const showInactive = params.inactive === '1'
   const minAtt = params.minAtt ? Number(params.minAtt) : undefined
-  const ageMin = params.ageMin ? Number(params.ageMin) : undefined
-  const ageMax = params.ageMax ? Number(params.ageMax) : undefined
+  const ageMin  = params.ageMin  ? Number(params.ageMin)  : undefined
+  const ageMax  = params.ageMax  ? Number(params.ageMax)  : undefined
+  const debtMin = params.debtMin ? Number(params.debtMin) : undefined
+  const debtMax = params.debtMax ? Number(params.debtMax) : undefined
 
   let athletes: Awaited<ReturnType<typeof getAthletes>>["athletes"] = []
   let allAthletes: Awaited<ReturnType<typeof getAthletes>>["athletes"] = []
@@ -110,6 +114,16 @@ export default async function AthletesPage({ searchParams }: PageProps) {
       const att = a.attendance as Array<{ checked_in_at: string }> | null
       const last = (att ?? []).reduce<string | null>((max, r) => (!max || r.checked_in_at > max ? r.checked_in_at : max), null)
       return a.status === 'active' && (!last || last < thirtyDaysAgoISO)
+    })
+  }
+
+  if (debtMin !== undefined || debtMax !== undefined) {
+    athletes = athletes.filter((a) => {
+      const pmts = a.payments as Array<{ status: string; amount: number }> | null ?? []
+      const debt = pmts.filter((p) => p.status === 'overdue').reduce((s, p) => s + Number(p.amount), 0)
+      if (debtMin !== undefined && debt < debtMin) return false
+      if (debtMax !== undefined && debt > debtMax) return false
+      return true
     })
   }
 
@@ -251,6 +265,25 @@ export default async function AthletesPage({ searchParams }: PageProps) {
               className="h-8 w-16 px-2 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring" />
             <button type="submit" className="h-8 px-2.5 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90">OK</button>
             {params.minAtt && (
+              <Link href={`/dashboard/athletes?${new URLSearchParams({ ...(params.search ? { search: params.search } : {}), ...(params.status ? { status: params.status } : {}), ...(params.health ? { health: params.health } : {}), ...(params.planId ? { planId: params.planId } : {}), ...(params.subStatus ? { subStatus: params.subStatus } : {}), ...(sort ? { sort } : {}) }).toString()}`}
+                className="text-xs text-muted-foreground hover:text-foreground">✕</Link>
+            )}
+          </form>
+          <form method="get" action="/dashboard/athletes" className="flex items-center gap-1.5">
+            {params.search    && <input type="hidden" name="search"    value={params.search} />}
+            {params.status    && <input type="hidden" name="status"    value={params.status} />}
+            {params.health    && <input type="hidden" name="health"    value={params.health} />}
+            {params.planId    && <input type="hidden" name="planId"    value={params.planId} />}
+            {params.subStatus && <input type="hidden" name="subStatus" value={params.subStatus} />}
+            {sort             && <input type="hidden" name="sort"      value={sort} />}
+            <span className="text-xs text-muted-foreground whitespace-nowrap">Deuda min:</span>
+            <input type="number" name="debtMin" defaultValue={params.debtMin ?? ''} min={0} placeholder="0"
+              className="h-8 w-20 px-2 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring" />
+            <span className="text-xs text-muted-foreground">-</span>
+            <input type="number" name="debtMax" defaultValue={params.debtMax ?? ''} min={0} placeholder="∞"
+              className="h-8 w-20 px-2 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring" />
+            <button type="submit" className="h-8 px-2.5 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90">OK</button>
+            {(params.debtMin || params.debtMax) && (
               <Link href={`/dashboard/athletes?${new URLSearchParams({ ...(params.search ? { search: params.search } : {}), ...(params.status ? { status: params.status } : {}), ...(params.health ? { health: params.health } : {}), ...(params.planId ? { planId: params.planId } : {}), ...(params.subStatus ? { subStatus: params.subStatus } : {}), ...(sort ? { sort } : {}) }).toString()}`}
                 className="text-xs text-muted-foreground hover:text-foreground">✕</Link>
             )}

@@ -155,6 +155,30 @@ export default async function InventoryPage({ searchParams }: PageProps) {
         )
       })()}
 
+      {/* High-value unassigned alert */}
+      {(() => {
+        const priced = allItems.filter((i) => !i.assigned_to && i.purchase_price && i.purchase_price > 0)
+        if (priced.length === 0) return null
+        const sorted = priced.slice().sort((a, b) => (b.purchase_price ?? 0) - (a.purchase_price ?? 0))
+        const median = sorted[Math.floor(sorted.length / 2)]?.purchase_price ?? 0
+        const threshold = Math.max(median * 2, 50000)
+        const highValue = sorted.filter((i) => (i.purchase_price ?? 0) >= threshold)
+        if (highValue.length === 0) return null
+        return (
+          <Card className="border-yellow-200 bg-yellow-50">
+            <CardContent className="py-3">
+              <div className="flex items-center gap-3">
+                <span className="text-yellow-600 text-lg">⚠</span>
+                <p className="text-sm text-yellow-800 font-medium">
+                  {highValue.length} ítem{highValue.length !== 1 ? 's' : ''} de alto valor sin asignar
+                  {highValue.length <= 2 && <span className="ml-1 font-normal">— {highValue.map((i) => `${i.name} ($${Number(i.purchase_price).toLocaleString('es-CL')})`).join(', ')}</span>}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )
+      })()}
+
       {/* Search */}
       <form method="get" action="/dashboard/inventory" className="flex flex-wrap items-center gap-2">
         {category  && <input type="hidden" name="category"  value={category} />}

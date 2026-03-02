@@ -83,8 +83,13 @@ export default async function FinancesPage({ searchParams }: PageProps) {
             {monthLabel}
             {summary.totalIncome > 0 && summary.totalExpenses > 0 && (() => {
               const ratio = (summary.totalIncome / summary.totalExpenses).toFixed(2)
+              const expPct = Math.round((summary.totalExpenses / summary.totalIncome) * 100)
               const color = Number(ratio) >= 1 ? 'text-green-600' : 'text-red-600'
-              return <span className={`ml-2 text-sm font-semibold not-italic ${color}`}>· ratio {ratio}x</span>
+              return (
+                <span className={`ml-2 text-sm font-semibold not-italic ${color}`}>
+                  · {expPct}% egresos/ingresos (ratio {ratio}x)
+                </span>
+              )
             })()}
             {(() => {
               const top3 = Object.entries(summary.byCategory)
