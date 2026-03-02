@@ -165,6 +165,12 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
               )
             })()}
             {allPayments.length > 0 && (() => {
+              const overdue = allPayments.filter((p) => p.status === 'overdue')
+              if (overdue.length < 2) return null
+              const avg = Math.round(overdue.reduce((s, p) => s + Number(p.amount), 0) / overdue.length)
+              return <span className="ml-2 text-red-600/80">· prom. vencido: ${avg.toLocaleString('es-CL')}</span>
+            })()}
+            {allPayments.length > 0 && (() => {
               const curMonth = new Date().toISOString().slice(0, 7)
               const cancelled = allPayments.filter((p) => p.status === 'cancelled' && p.created_at?.startsWith(curMonth)).length
               if (cancelled === 0) return null

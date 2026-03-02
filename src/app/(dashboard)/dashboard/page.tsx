@@ -532,6 +532,25 @@ export default async function DashboardPage() {
         )
       })()}
 
+      {summary.totalAthletes > 4 && summary.semaforoCount.red > 0 && (() => {
+        const pct = Math.round((summary.semaforoCount.red / summary.totalAthletes) * 100)
+        if (pct < 20) return null
+        return (
+          <Link href="/dashboard/athletes?health=injured">
+            <Card className="border-red-200 bg-red-50 hover:bg-red-100 transition-colors cursor-pointer">
+              <CardContent className="py-3">
+                <div className="flex items-center gap-3">
+                  <AlertCircle className="w-5 h-5 text-red-600 shrink-0" />
+                  <p className="text-sm text-red-800 font-medium">
+                    {pct}% de atletas en semáforo rojo ({summary.semaforoCount.red} de {summary.totalAthletes})
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+        )
+      })()}
+
       {summary.totalAthletes > 4 && summary.activeSubscriptions < summary.totalAthletes * 0.5 && (
         <Link href="/dashboard/subscriptions">
           <Card className="border-yellow-200 bg-yellow-50 hover:bg-yellow-100 transition-colors cursor-pointer">
