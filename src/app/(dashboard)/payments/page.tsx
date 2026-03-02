@@ -346,6 +346,27 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
         )
       })()}
 
+      {/* 60d overdue alert */}
+      {allPayments.length > 0 && (() => {
+        const sixtyAgo = new Date(); sixtyAgo.setDate(sixtyAgo.getDate() - 60)
+        const sixtyISO = sixtyAgo.toISOString().split('T')[0]
+        const critical = allPayments.filter((p) => p.status === 'overdue' && p.due_date && p.due_date < sixtyISO)
+        if (critical.length === 0) return null
+        const amt = critical.reduce((s, p) => s + Number(p.amount), 0)
+        return (
+          <Link href="/dashboard/payments?status=overdue">
+            <Card className="border-red-300 bg-red-50 hover:bg-red-100 transition-colors cursor-pointer">
+              <CardContent className="py-3 flex items-center gap-3">
+                <AlertTriangle className="w-5 h-5 text-red-700 shrink-0" />
+                <p className="text-sm text-red-900 font-medium">
+                  {critical.length} pago{critical.length !== 1 ? 's' : ''} con mora crítica (+60 días) · ${amt.toLocaleString('es-CL')}
+                </p>
+              </CardContent>
+            </Card>
+          </Link>
+        )
+      })()}
+
       {/* Pending by month */}
       {allPayments.length > 0 && (() => {
         const pending = allPayments.filter((p) => p.status === 'pending' || p.status === 'overdue')

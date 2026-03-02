@@ -231,6 +231,14 @@ export default async function AthletesPage({ searchParams }: PageProps) {
               <span className="ml-2 text-orange-600 font-medium">· {expiredDocsCount} doc{expiredDocsCount !== 1 ? 's' : ''} vencido{expiredDocsCount !== 1 ? 's' : ''}</span>
             )}
             {(() => {
+              const withDocs = allAthletes.filter((a) => {
+                const docs = a.documents as Array<{ id: string; expiry_date?: string | null }> | null ?? []
+                return docs.length > 0 && !docs.some((d) => d.expiry_date && d.expiry_date < today)
+              }).length
+              if (withDocs === 0) return null
+              return <span className="ml-2 text-green-600/80">· {withDocs} con docs al día</span>
+            })()}
+            {(() => {
               const totalComps = allAthletes.reduce((sum, a) => {
                 const rosters = (a as Record<string, unknown>).rosters as unknown[] | null
                 return sum + (rosters ?? []).length
