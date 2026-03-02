@@ -190,6 +190,103 @@ export async function getDashboardSummary() {
   }
 }
 
+export async function getCoachDashboard() {
+  const clubId = await getClubId()
+  const supabase = await createClient()
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const tomorrow = new Date(today)
+  tomorrow.setDate(tomorrow.getDate() + 1)
+  const todayStr = today.toISOString().split('T')[0]
+  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1).toISOString()
+  const todayDow = today.getDay()
+
+  const [athletesRes, overdueRes, attendanceTodayRes, sessionsRes, monthAttRes] = await Promise.all([
+    supabase
+      .from('athletes')
+      .select('id, name, health_status, status, photo_url, notes, birth_date')
+      .eq('club_id', clubId)
+      .eq('status', 'active')
+      .order('name'),
+
+    supabase
+      .from('payments')
+      .select('athlete_id')
+      .eq('club_id', clubId)
+      .eq('status', 'overdue'),
+
+    supabase
+      .from('attendance')
+      .select('id, athlete_id, is_valid, checked_in_at, athletes(id, name, health_status, photo_url)')
+      .eq('club_id', clubId)
+      .gte('checked_in_at', today.toISOString())
+      .lt('checked_in_at', tomorrow.toISOString())
+      .order('checked_in_at', { ascending: false }),
+
+    supabase
+      .from('schedules')
+      .select('id, name, start_time, end_time, capacity, coach_id')
+      .eq('club_id', clubId)
+      .eq('is_active', true)
+      .contains('day_of_week', [todayDow])
+      .order('start_time'),
+
+    supabase
+      .from('attendance')
+      .select('athlete_id')
+      .eq('club_id', clubId)
+      .eq('is_valid', true)
+      .gte('checked_in_at', monthStart),
+  ])
+
+  const overdueIds = new Set((overdueRes.data ?? []).map((p) => p.athlete_id))
+  const monthAttCounts = (monthAttRes.data ?? []).reduce<Record<string, number>>((acc, r) => {
+    acc[r.athlete_id] = (acc[r.athlete_id] ?? 0) + 1
+    return acc
+  }, {})
+
+  const athletes = (athletesRes.data ?? []).map((a) => {
+    const isOverdue = overdueIds.has(a.id)
+    const isInjured = a.health_status === 'injured'
+    const isObservation = a.health_status === 'observation'
+    const semaforo: 'green' | 'yellow' | 'red' = isInjured || isOverdue ? 'red' : isObservation ? 'yellow' : 'green'
+    return {
+      ...a,
+      semaforo,
+      monthCheckIns: monthAttCounts[a.id] ?? 0,
+    }
+  })
+
+  const checkedInTodayIds = new Set(
+    (attendanceTodayRes.data ?? []).filter((a) => a.is_valid).map((a) => a.athlete_id)
+  )
+
+  const sessions = (sessionsRes.data ?? []).map((s) => ({
+    id: s.id,
+    name: s.name,
+    start_time: s.start_time as string,
+    end_time: s.end_time as string,
+    capacity: s.capacity as number | null,
+  }))
+
+  const nowTime = today.toTimeString().slice(0, 5)
+  const nextSession = sessions.find((s) => s.start_time >= nowTime) ?? sessions[sessions.length - 1] ?? null
+
+  return {
+    athletes,
+    checkedInTodayIds: [...checkedInTodayIds],
+    attendanceToday: attendanceTodayRes.data ?? [],
+    sessions,
+    nextSession,
+    semaforoCount: {
+      green: athletes.filter((a) => a.semaforo === 'green').length,
+      yellow: athletes.filter((a) => a.semaforo === 'yellow').length,
+      red: athletes.filter((a) => a.semaforo === 'red').length,
+    },
+  }
+}
+
 export async function getRecentActivity(limit = 10) {
   const clubId = await getClubId()
   const supabase = await createClient()
@@ -552,6 +649,88 @@ export async function getExpiredDocuments() {
     isExpired: (d.expiry_date as string) < today,
     athletes: (Array.isArray(d.athletes) ? d.athletes[0] : d.athletes) as { id: string; name: string } | null,
   }))
+}
+
+export async function getAthletePortal() {
+  const { userId } = await auth()
+  if (!userId) throw new Error('No autorizado')
+
+  const supabase = await createClient()
+
+  const { data: userClub } = await supabase
+    .from('user_clubs')
+    .select('club_id')
+    .eq('user_id', userId)
+    .eq('is_active', true)
+    .single()
+
+  if (!userClub) throw new Error('Club no encontrado')
+  const clubId = userClub.club_id as string
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const tomorrow = new Date(today)
+  tomorrow.setDate(tomorrow.getDate() + 1)
+  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1).toISOString()
+  const todayDow = today.getDay()
+
+  const { data: clerkUser } = await supabase.auth.getUser()
+  const clerkEmail = clerkUser?.user?.email ?? null
+
+  const { data: athletesByEmail } = clerkEmail
+    ? await supabase.from('athletes').select('id').eq('club_id', clubId).eq('email', clerkEmail).limit(1)
+    : { data: null }
+
+  const athleteId = athletesByEmail?.[0]?.id ?? null
+
+  if (!athleteId) {
+    const [attTodayRes, sessionsRes] = await Promise.all([
+      supabase.from('attendance').select('id, is_valid, checked_in_at, athletes(id, name, health_status)').eq('club_id', clubId).gte('checked_in_at', today.toISOString()).lt('checked_in_at', tomorrow.toISOString()).order('checked_in_at', { ascending: false }).limit(20),
+      supabase.from('schedules').select('id, name, start_time, end_time, capacity').eq('club_id', clubId).eq('is_active', true).contains('day_of_week', [todayDow]).order('start_time').limit(10),
+    ])
+    return {
+      athlete: null,
+      attendanceToday: attTodayRes.data ?? [],
+      sessions: (sessionsRes.data ?? []).map((s) => ({ id: s.id, name: s.name, start_time: s.start_time as string, end_time: s.end_time as string, capacity: s.capacity as number | null })),
+      monthCheckIns: 0,
+      semaforo: 'green' as const,
+      upcomingComps: [],
+    }
+  }
+
+  const [athleteRes, attTodayRes, monthAttRes, sessionsRes, rostersRes] = await Promise.all([
+    supabase.from('athletes').select('*, subscriptions(id, status, start_date, end_date, plans(id, name, price, billing_cycle)), payments(id, concept, amount, status, due_date, paid_at), documents(id, name, status, expiry_date)').eq('id', athleteId).eq('club_id', clubId).single(),
+    supabase.from('attendance').select('id, is_valid, checked_in_at').eq('club_id', clubId).eq('athlete_id', athleteId).gte('checked_in_at', today.toISOString()).lt('checked_in_at', tomorrow.toISOString()),
+    supabase.from('attendance').select('id, is_valid').eq('club_id', clubId).eq('athlete_id', athleteId).gte('checked_in_at', monthStart),
+    supabase.from('schedules').select('id, name, start_time, end_time, capacity').eq('club_id', clubId).eq('is_active', true).contains('day_of_week', [todayDow]).order('start_time').limit(10),
+    supabase.from('rosters').select('id, competitions(id, name, type, start_date, location)').eq('athlete_id', athleteId),
+  ])
+
+  const athlete = athleteRes.data
+  const overduePayments = ((athlete as { payments?: { status: string }[] } | null)?.payments ?? []).filter((p) => p.status === 'overdue')
+  const semaforo: 'green' | 'yellow' | 'red' =
+    athlete?.health_status === 'injured' || overduePayments.length > 0 ? 'red' :
+    athlete?.health_status === 'observation' ? 'yellow' : 'green'
+
+  const monthCheckIns = (monthAttRes.data ?? []).filter((r) => r.is_valid).length
+
+  type RosterComp = { id: string; name: string; type: string; start_date: string; location: string | null }
+  const todayISO = new Date().toISOString().split('T')[0]
+  const upcomingComps = (rostersRes.data ?? []).flatMap((r) => {
+    const raw = (r as unknown as { competitions: RosterComp | RosterComp[] | null }).competitions
+    const comp = Array.isArray(raw) ? raw[0] ?? null : raw
+    if (!comp || comp.start_date < todayISO) return []
+    return [comp]
+  }).sort((a, b) => a.start_date.localeCompare(b.start_date))
+
+  return {
+    athlete,
+    attendanceToday: attTodayRes.data ?? [],
+    sessions: (sessionsRes.data ?? []).map((s) => ({ id: s.id, name: s.name, start_time: s.start_time as string, end_time: s.end_time as string, capacity: s.capacity as number | null })),
+    monthCheckIns,
+    semaforo,
+    upcomingComps,
+  }
 }
 
 export async function getDormantAthletes(days = 30) {

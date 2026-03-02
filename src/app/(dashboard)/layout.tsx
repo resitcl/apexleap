@@ -15,6 +15,8 @@ import {
   ShieldCheck,
   Repeat2,
   BarChart3,
+  Dumbbell,
+  User,
 } from "lucide-react"
 import { MobileSidebar } from "@/components/layouts/MobileSidebar"
 import { DesktopNavItem } from "@/components/layouts/DesktopNavItem"
@@ -22,6 +24,8 @@ import { getSidebarAlerts } from "@/lib/actions/alerts"
 
 export const sidebarItems = [
   { href: "/dashboard",               label: "Dashboard",      icon: LayoutDashboard },
+  { href: "/dashboard/coach",          label: "Entrenador",     icon: Dumbbell },
+  { href: "/dashboard/athlete",        label: "Mi Portal",      icon: User },
   { href: "/dashboard/athletes",      label: "Alumnos",        icon: Users },
   { href: "/dashboard/plans",         label: "Planes",         icon: BookOpen },
   { href: "/dashboard/subscriptions", label: "Suscripciones",  icon: Repeat2 },
