@@ -58,6 +58,11 @@ export default async function AttendancePage({ searchParams }: PageProps) {
           <h1 className="text-3xl font-bold">Asistencia</h1>
           <p className="text-muted-foreground">
             {new Date().toLocaleDateString("es-CL", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
+            {todayRecords.length > 0 && (() => {
+              const pct = Math.round((validToday / todayRecords.length) * 100)
+              const color = pct >= 80 ? 'text-green-600' : pct >= 50 ? 'text-yellow-600' : 'text-red-600'
+              return <span className={`ml-2 font-medium ${color}`}>· {pct}% válidos hoy ({validToday}/{todayRecords.length})</span>
+            })()}
           </p>
         </div>
         <ManualCheckInButton athletes={athletes} />

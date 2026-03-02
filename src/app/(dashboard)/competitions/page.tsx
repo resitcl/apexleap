@@ -201,6 +201,10 @@ export default async function CompetitionsPage({ searchParams }: PageProps) {
                       {new Date(comp.start_date + "T12:00:00").toLocaleDateString("es-CL")}
                       {comp.end_date ? ` → ${new Date(comp.end_date + "T12:00:00").toLocaleDateString("es-CL")}` : ""}
                     </span>
+                    {comp.status === 'upcoming' && (() => {
+                      const days = Math.ceil((new Date(comp.start_date + 'T12:00:00').getTime() - Date.now()) / 86400000)
+                      return days > 0 ? <span className="ml-1 text-xs font-medium text-primary">({days}d)</span> : null
+                    })()}
                   </div>
                   <div className="flex items-center justify-between pt-1">
                     {rosterCount > 0 ? (() => {

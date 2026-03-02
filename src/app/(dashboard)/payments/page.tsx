@@ -352,9 +352,19 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
         </Card>
       ) : (
         <div className="space-y-2">
-          {payments.map((payment) => {
+          {(() => {
+            const debtByAthlete: Record<string, number> = {}
+            for (const p of allPayments) {
+              if (p.status === 'pending' || p.status === 'overdue') {
+                const id = (p.athletes as { id: string } | null)?.id ?? p.athlete_id ?? ''
+                if (id) debtByAthlete[id] = (debtByAthlete[id] ?? 0) + Number(p.amount)
+              }
+            }
+            return payments.map((payment) => {
             const athlete = payment.athletes as { id: string; name: string; photo_url: string | null } | null
             const cfg = STATUS_CONFIG[payment.status] ?? { label: payment.status, variant: 'outline' as const }
+            const athleteDebt = athlete ? (debtByAthlete[athlete.id] ?? 0) : 0
+            const showDebt = athleteDebt > Number(payment.amount) && (payment.status === 'pending' || payment.status === 'overdue')
 
             return (
               <Card key={payment.id}>
@@ -375,6 +385,11 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
                           >
                             {athlete.name}
                           </Link>
+                        )}
+                        {showDebt && (
+                          <span className="text-xs text-red-600 font-medium">
+                            (total: ${athleteDebt.toLocaleString('es-CL')})
+                          </span>
                         )}
                         <span className="text-muted-foreground text-sm">·</span>
                         <span className="text-sm text-muted-foreground truncate">{payment.concept}</span>
@@ -431,7 +446,8 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
                 </CardContent>
               </Card>
             )
-          })}
+          })
+          })()}
         </div>
       )}
 
