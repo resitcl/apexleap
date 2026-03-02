@@ -783,6 +783,37 @@ export default async function DashboardPage() {
         )
       })()}
 
+      {/* Top debtors widget */}
+      {overdueAlerts.length > 0 && (() => {
+        const byAthlete: Record<string, { name: string; id: string; debt: number }> = {}
+        for (const a of overdueAlerts) {
+          const athlete = a.athletes
+          if (!athlete) continue
+          if (!byAthlete[athlete.id]) byAthlete[athlete.id] = { id: athlete.id, name: athlete.name, debt: 0 }
+          byAthlete[athlete.id].debt += Number(a.amount)
+        }
+        const top3 = Object.values(byAthlete).sort((a, b) => b.debt - a.debt).slice(0, 3)
+        if (top3.length === 0) return null
+        return (
+          <Card>
+            <CardHeader className="pb-2 pt-4 px-6">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                <CreditCard className="w-4 h-4 text-orange-500" />
+                Top deudores
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pb-4 px-6 space-y-1">
+              {top3.map((d) => (
+                <Link key={d.id} href={`/dashboard/athletes/${d.id}`} className="flex items-center justify-between text-xs hover:bg-accent/50 rounded px-1 py-0.5 transition-colors">
+                  <span className="font-medium">{d.name}</span>
+                  <span className="text-red-600 font-semibold">${d.debt.toLocaleString('es-CL')}</span>
+                </Link>
+              ))}
+            </CardContent>
+          </Card>
+        )
+      })()}
+
       {/* Broken inventory alert */}
       {brokenItems.length > 0 && (
         <Link href="/dashboard/inventory?condition=broken">

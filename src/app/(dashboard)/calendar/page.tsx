@@ -109,6 +109,14 @@ export default async function CalendarPage({ searchParams }: PageProps) {
                 <span className="ml-2 text-primary font-medium">· Próxima: {next.name} {next.start_time.slice(0,5)}</span>
               ) : null
             })()}
+            {todaySessions.length > 0 && (() => {
+              const earliest = todaySessions
+                .filter((s) => s.start_time)
+                .slice().sort((a, b) => a.start_time.localeCompare(b.start_time))[0]
+              return earliest ? (
+                <span className="ml-2 text-muted-foreground/70">· Hoy desde {earliest.start_time.slice(0, 5)}</span>
+              ) : null
+            })()}
             {(() => {
               const withTimes = schedules.filter((s) => s.is_active && s.start_time && s.end_time)
               if (withTimes.length === 0) return null

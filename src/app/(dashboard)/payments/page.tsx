@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Plus, DollarSign, Clock, AlertTriangle } from "lucide-react"
+import { Plus, DollarSign, Clock, AlertTriangle, TrendingUp } from "lucide-react"
 import { PaymentsFilter } from "@/components/payments/PaymentsFilter"
 import { MarkAsPaidButton } from "@/components/payments/MarkAsPaidButton"
 import { ExportPaymentsButton } from "@/components/payments/ExportPaymentsButton"
@@ -196,6 +196,24 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
             <p className="text-xs text-muted-foreground">{summary.count_overdue} cuotas morosas</p>
           </CardContent>
         </Card>
+        {allPayments.length > 0 && (() => {
+          const paid  = allPayments.filter((p) => p.status === 'paid').length
+          const total = allPayments.filter((p) => ['paid','pending','overdue'].includes(p.status)).length
+          if (total === 0) return null
+          const rate = Math.round((paid / total) * 100)
+          return (
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Tasa de Cobro</CardTitle>
+                <TrendingUp className="h-4 w-4 text-blue-500" />
+              </CardHeader>
+              <CardContent>
+                <div className={`text-2xl font-bold ${rate >= 80 ? 'text-green-600' : rate >= 60 ? 'text-yellow-600' : 'text-red-600'}`}>{rate}%</div>
+                <p className="text-xs text-muted-foreground">{paid} de {total} pagados</p>
+              </CardContent>
+            </Card>
+          )
+        })()}
       </div>
 
       {/* Pending by month */}

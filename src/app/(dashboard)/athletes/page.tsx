@@ -117,6 +117,16 @@ export default async function AthletesPage({ searchParams }: PageProps) {
     })
   }
 
+  if (ageMin !== undefined || ageMax !== undefined) {
+    athletes = athletes.filter((a) => {
+      if (!a.birth_date) return ageMin === undefined
+      const age = Math.floor((Date.now() - new Date(a.birth_date + 'T12:00:00').getTime()) / (365.25 * 24 * 60 * 60 * 1000))
+      if (ageMin !== undefined && age < ageMin) return false
+      if (ageMax !== undefined && age > ageMax) return false
+      return true
+    })
+  }
+
   if (debtMin !== undefined || debtMax !== undefined) {
     athletes = athletes.filter((a) => {
       const pmts = a.payments as Array<{ status: string; amount: number }> | null ?? []
@@ -278,6 +288,25 @@ export default async function AthletesPage({ searchParams }: PageProps) {
               className="h-8 w-16 px-2 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring" />
             <button type="submit" className="h-8 px-2.5 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90">OK</button>
             {params.minAtt && (
+              <Link href={`/dashboard/athletes?${new URLSearchParams({ ...(params.search ? { search: params.search } : {}), ...(params.status ? { status: params.status } : {}), ...(params.health ? { health: params.health } : {}), ...(params.planId ? { planId: params.planId } : {}), ...(params.subStatus ? { subStatus: params.subStatus } : {}), ...(sort ? { sort } : {}) }).toString()}`}
+                className="text-xs text-muted-foreground hover:text-foreground">✕</Link>
+            )}
+          </form>
+          <form method="get" action="/dashboard/athletes" className="flex items-center gap-1.5">
+            {params.search    && <input type="hidden" name="search"    value={params.search} />}
+            {params.status    && <input type="hidden" name="status"    value={params.status} />}
+            {params.health    && <input type="hidden" name="health"    value={params.health} />}
+            {params.planId    && <input type="hidden" name="planId"    value={params.planId} />}
+            {params.subStatus && <input type="hidden" name="subStatus" value={params.subStatus} />}
+            {sort             && <input type="hidden" name="sort"      value={sort} />}
+            <span className="text-xs text-muted-foreground whitespace-nowrap">Edad:</span>
+            <input type="number" name="ageMin" defaultValue={params.ageMin ?? ''} min={0} max={99} placeholder="Min"
+              className="h-8 w-16 px-2 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring" />
+            <span className="text-xs text-muted-foreground">-</span>
+            <input type="number" name="ageMax" defaultValue={params.ageMax ?? ''} min={0} max={99} placeholder="Max"
+              className="h-8 w-16 px-2 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring" />
+            <button type="submit" className="h-8 px-2.5 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90">OK</button>
+            {(params.ageMin || params.ageMax) && (
               <Link href={`/dashboard/athletes?${new URLSearchParams({ ...(params.search ? { search: params.search } : {}), ...(params.status ? { status: params.status } : {}), ...(params.health ? { health: params.health } : {}), ...(params.planId ? { planId: params.planId } : {}), ...(params.subStatus ? { subStatus: params.subStatus } : {}), ...(sort ? { sort } : {}) }).toString()}`}
                 className="text-xs text-muted-foreground hover:text-foreground">✕</Link>
             )}

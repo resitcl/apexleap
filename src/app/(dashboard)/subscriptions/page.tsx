@@ -343,7 +343,13 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
                         )}
                       </div>
                       <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground flex-wrap">
-                        <span>Desde {new Date(sub.start_date).toLocaleDateString("es-CL")}</span>
+                        <span>
+                          Desde {new Date(sub.start_date).toLocaleDateString("es-CL")}
+                          {sub.status === 'active' && (() => {
+                            const days = Math.floor((today.getTime() - new Date(sub.start_date).getTime()) / 86400000)
+                            return days > 0 ? <span className="ml-1 text-primary font-medium">({days}d activa)</span> : null
+                          })()}
+                        </span>
                         {sub.end_date && <span>Hasta {new Date(sub.end_date).toLocaleDateString("es-CL")}</span>}
                         {daysLeft !== null && daysLeft >= 0 && (
                           <span className={expiringSoon ? 'text-yellow-600 font-medium' : 'text-muted-foreground'}>
