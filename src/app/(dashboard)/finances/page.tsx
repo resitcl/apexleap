@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic"
 
 import Link from "next/link"
 import { getFinanceSummary, getExpenses, getCoaches, getMonthlyFinanceChart } from "@/lib/actions/finances"
+import { ExportExpensesButton } from "@/components/finances/ExportExpensesButton"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -391,7 +392,8 @@ export default async function FinancesPage({ searchParams }: PageProps) {
             )
           })()}
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 items-center">
+              <ExportExpensesButton expenses={expenses} month={month} />
               {([["", "Todas"], ["rent", "🏠 Arriendo"], ["salary", "👔 Salarios"], ["supplies", "📦 Insumos"], ["maintenance", "🔧 Mantención"], ["marketing", "📣 Marketing"], ["other", "📁 Otros"]] as const).map(([val, lbl]) => (
                 <a key={val} href={`/dashboard/finances?tab=expenses&month=${month}${val ? `&category=${val}` : ''}${amountMin !== undefined ? `&amountMin=${amountMin}` : ''}${amountMax !== undefined ? `&amountMax=${amountMax}` : ''}`}>
                   <button className={`h-8 px-3 rounded-md border text-xs font-medium transition-colors ${

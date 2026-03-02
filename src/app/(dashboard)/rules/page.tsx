@@ -82,7 +82,11 @@ export default async function RulesPage({ searchParams }: PageProps) {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-3xl font-bold">Reglas</h1>
-          <p className="text-muted-foreground">Motor de bloqueos automáticos del club</p>
+          <p className="text-muted-foreground">
+            Motor de bloqueos automáticos del club
+            {active > 0 && <span className="ml-2 text-green-600 font-medium">· {active} activa{active !== 1 ? 's' : ''}</span>}
+            {inactive > 0 && <span className="ml-2 text-muted-foreground/60">· {inactive} inactiva{inactive !== 1 ? 's' : ''}</span>}
+          </p>
         </div>
         <div className="flex gap-2">
           <ExportRulesButton rules={rules.map((r) => ({ ...r, condition: r.condition as Record<string, unknown> }))} affected={affected} />

@@ -106,6 +106,20 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
             {athletesWithoutSub > 0 && (
               <span className="ml-2 text-orange-600 font-medium">· ⚠ {athletesWithoutSub} activo{athletesWithoutSub !== 1 ? 's' : ''} sin suscripción</span>
             )}
+            {(() => {
+              const counts: Record<string, { name: string; count: number }> = {}
+              for (const s of allSubs.filter((s) => s.status === 'active')) {
+                const plan = s.plans as { name: string } | null
+                if (!plan) continue
+                const key = plan.name
+                if (!counts[key]) counts[key] = { name: plan.name, count: 0 }
+                counts[key].count++
+              }
+              const top = Object.values(counts).sort((a, b) => b.count - a.count)[0]
+              return top ? (
+                <span className="ml-2 text-primary font-medium">· {top.name} ({top.count})</span>
+              ) : null
+            })()}
           </p>
         </div>
         <div className="flex gap-2">

@@ -278,6 +278,27 @@ export default async function DashboardPage() {
         </Card>
       )}
 
+      {monthlyRevenue.length >= 2 && (() => {
+        const cur  = monthlyRevenue[monthlyRevenue.length - 1]
+        const prev = monthlyRevenue[monthlyRevenue.length - 2]
+        if (!cur || !prev || prev.amount === 0 || cur.amount >= prev.amount) return null
+        const drop = Math.round(((prev.amount - cur.amount) / prev.amount) * 100)
+        return (
+          <Link href={`/dashboard/finances`}>
+            <Card className="border-yellow-200 bg-yellow-50 hover:bg-yellow-100 transition-colors cursor-pointer">
+              <CardContent className="py-3">
+                <div className="flex items-center gap-3">
+                  <TrendingUp className="w-5 h-5 text-yellow-600 shrink-0 rotate-180" />
+                  <p className="text-sm text-yellow-800 font-medium">
+                    Ingresos bajaron {drop}% vs {prev.month} — ${cur.amount.toLocaleString('es-CL')} vs ${prev.amount.toLocaleString('es-CL')}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+        )
+      })()}
+
       {summary.topDebtors.length > 0 && (
         <Link href="/dashboard/payments?status=overdue">
           <Card className="border-red-200 bg-red-50 hover:bg-red-100 transition-colors cursor-pointer">
