@@ -731,6 +731,16 @@ export default async function AthletesPage({ searchParams }: PageProps) {
                         )
                       })()}
                       {(() => {
+                        const pmts = athlete.payments as Array<{ status: string; amount: number }> | null ?? []
+                        const debt = pmts.filter((p) => p.status === 'overdue').reduce((s, p) => s + Number(p.amount), 0)
+                        if (debt === 0) return null
+                        return (
+                          <span className="text-xs font-medium text-red-600 bg-red-50 px-1.5 py-0.5 rounded" title={`Deuda vencida: $${debt.toLocaleString('es-CL')}`}>
+                            💸${Math.round(debt / 1000)}k
+                          </span>
+                        )
+                      })()}
+                      {(() => {
                         const att = athlete.attendance as Array<{ id: string; checked_in_at: string }> | null
                         const total = (att ?? []).length
                         if (total === 0) return null

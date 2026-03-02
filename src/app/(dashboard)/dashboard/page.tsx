@@ -28,6 +28,7 @@ export default async function DashboardPage() {
     activeSubscriptions: 0,
     topDebtors: [] as { id: string; name: string; debt: number }[],
     totalAllAthletes: 0,
+    newThisMonth: 0,
   }
   let activity: Awaited<ReturnType<typeof getRecentActivity>> = []
   let monthlyRevenue: Awaited<ReturnType<typeof getMonthlyRevenue>> = []
@@ -120,6 +121,9 @@ export default async function DashboardPage() {
               )}
               {summary.activeSubscriptions > 0 && (
                 <span className="ml-1.5 text-green-600 font-medium">· {summary.activeSubscriptions} con plan</span>
+              )}
+              {summary.newThisMonth > 0 && (
+                <span className="ml-1.5 text-blue-600 font-medium">· +{summary.newThisMonth} este mes</span>
               )}
             </p>
           </CardContent>

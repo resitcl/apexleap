@@ -39,7 +39,7 @@ export async function getDashboardSummary() {
     // Athletes by health/status
     supabase
       .from('athletes')
-      .select('id, status, health_status')
+      .select('id, status, health_status, created_at')
       .eq('club_id', clubId),
 
     // All payments for MRR + monthly income
@@ -140,6 +140,9 @@ export async function getDashboardSummary() {
       }, {})
   ).sort((a, b) => b.debt - a.debt).slice(0, 3)
 
+  const curMonth = new Date().toISOString().slice(0, 7)
+  const newThisMonth = athletes.filter((a) => (a.created_at ?? '').startsWith(curMonth)).length
+
   // Top 3 athletes by attendance this month
   const attRows = topAttendanceResult.data ?? []
   const attByAthlete = attRows.reduce<Record<string, { id: string; name: string; count: number; health_status: string }>>((acc, r) => {
@@ -165,6 +168,7 @@ export async function getDashboardSummary() {
     topAthletes,
     activeSubscriptions,
     topDebtors,
+    newThisMonth,
   }
 }
 
