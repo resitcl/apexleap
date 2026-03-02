@@ -100,6 +100,16 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
               return <span className="ml-2 text-muted-foreground/70">· prom. ${avg.toLocaleString('es-CL')}/atleta</span>
             })()}
             {allPayments.length > 0 && (() => {
+              const curMonth  = new Date().toISOString().slice(0, 7)
+              const prevDate  = new Date(); prevDate.setMonth(prevDate.getMonth() - 1)
+              const prevMonth = prevDate.toISOString().slice(0, 7)
+              const cur  = allPayments.filter((p) => p.status === 'paid' && p.paid_at?.startsWith(curMonth)).reduce((s, p) => s + Number(p.amount), 0)
+              const prev = allPayments.filter((p) => p.status === 'paid' && p.paid_at?.startsWith(prevMonth)).reduce((s, p) => s + Number(p.amount), 0)
+              if (prev === 0 || cur >= prev) return null
+              const drop = Math.round(((prev - cur) / prev) * 100)
+              return <span className="ml-2 text-red-500 font-medium">· ▼{drop}% vs mes anterior</span>
+            })()}
+            {allPayments.length > 0 && (() => {
               const METHOD_LABELS: Record<string, string> = { cash: 'Efectivo', transfer: 'Transfer.', card: 'Tarjeta', webpay: 'Webpay', mercadopago: 'MP', flow: 'Flow' }
               const totals: Record<string, number> = {}
               for (const p of allPayments.filter((p) => p.status === 'paid' && p.payment_method)) {

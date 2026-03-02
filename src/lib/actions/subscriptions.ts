@@ -51,7 +51,7 @@ export async function getSubscriptions(params?: {
 
   let query = supabase
     .from('subscriptions')
-    .select('*, athletes(id, name, photo_url, health_status, status), plans(id, name, price, billing_cycle)', { count: 'exact' })
+    .select('*, athletes(id, name, email, photo_url, health_status, status), plans(id, name, price, billing_cycle)', { count: 'exact' })
     .eq('club_id', clubId)
     .order('created_at', { ascending: false })
     .range(from, to)

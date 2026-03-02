@@ -462,7 +462,7 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
       ) : (
         <div className="space-y-2">
           {subs.map((sub) => {
-            const athlete = sub.athletes as { id: string; name: string; photo_url: string | null } | null
+            const athlete = sub.athletes as { id: string; name: string; email?: string | null; photo_url: string | null } | null
             const plan = sub.plans as { id: string; name: string; price: number; billing_cycle: string } | null
             const cfg = STATUS_CONFIG[sub.status] ?? STATUS_CONFIG.cancelled
 
@@ -496,6 +496,7 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
                         )}
                       </div>
                       <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground flex-wrap">
+                        {athlete?.email && <span className="truncate max-w-[180px]">{athlete.email}</span>}
                         <span>
                           Desde {new Date(sub.start_date).toLocaleDateString("es-CL")}
                           {sub.status === 'active' && (() => {

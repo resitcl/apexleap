@@ -213,6 +213,23 @@ export default async function InventoryPage({ searchParams }: PageProps) {
         )
       })()}
 
+      {(() => {
+        if (allItems.length < 5) return null
+        const curMonth = new Date().toISOString().slice(0, 7)
+        const purchased = allItems.filter((i) => (i.purchase_date ?? '').startsWith(curMonth)).length
+        if (purchased > 0) return null
+        const withDates = allItems.filter((i) => i.purchase_date).length
+        if (withDates < 3) return null
+        return (
+          <Card className="border-slate-100 bg-slate-50/60">
+            <CardContent className="py-2.5 flex items-center gap-3">
+              <Package className="w-4 h-4 text-slate-400 shrink-0" />
+              <p className="text-xs text-slate-600">Sin compras de inventario registradas este mes</p>
+            </CardContent>
+          </Card>
+        )
+      })()}
+
       {lowStockItems.length > 0 && (
         <Card className="border-yellow-200 bg-yellow-50">
           <CardContent className="py-3 flex items-center gap-3">
