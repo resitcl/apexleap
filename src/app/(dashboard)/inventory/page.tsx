@@ -202,6 +202,13 @@ export default async function InventoryPage({ searchParams }: PageProps) {
                 <span className="ml-2 text-muted-foreground/60">· {thisYear} adquirido{thisYear !== 1 ? 's' : ''} en {curYear}{rest > 0 && thisMonth > 0 ? ` (+${thisMonth} este mes)` : ''}</span>
               )
             })()}
+            {allItems.length > 0 && (() => {
+              const assigned = allItems.filter((i) => i.assigned_to).length
+              const pct = Math.round((assigned / allItems.length) * 100)
+              return pct > 0 ? (
+                <span className="ml-2 text-muted-foreground/60">· {pct}% asignado{pct !== 1 ? 's' : ''} ({assigned}/{allItems.length})</span>
+              ) : null
+            })()}
             {newestItem?.created_at && (
               <span className="ml-2 text-muted-foreground/60">
                 · Último: {newestItem.name} ({new Date(newestItem.created_at).toLocaleDateString('es-CL')})

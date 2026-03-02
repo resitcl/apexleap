@@ -201,6 +201,22 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
               if (failedCount === 0) return null
               return <span className="ml-2 text-red-600 font-medium">· {failedCount} fallido{failedCount !== 1 ? 's' : ''} este mes</span>
             })()}
+            {allPayments.length > 3 && (() => {
+              const byAthlete: Record<string, { name: string; total: number }> = {}
+              for (const p of allPayments.filter((p) => p.status === 'paid')) {
+                const ath = p.athletes as { id?: string; name?: string } | null
+                if (!ath?.id) continue
+                if (!byAthlete[ath.id]) byAthlete[ath.id] = { name: ath.name ?? ath.id, total: 0 }
+                byAthlete[ath.id].total += Number(p.amount)
+              }
+              const top = Object.values(byAthlete).sort((a, b) => b.total - a.total).slice(0, 2)
+              if (top.length === 0) return null
+              return (
+                <span className="ml-2 text-muted-foreground/60">
+                  · Top: {top.map((a) => `${a.name.split(' ')[0]} $${Math.round(a.total / 1000)}k`).join(', ')}
+                </span>
+              )
+            })()}
           </p>
         </div>
         <div className="flex gap-2 flex-wrap">

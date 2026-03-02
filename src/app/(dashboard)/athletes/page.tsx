@@ -28,6 +28,7 @@ interface PageProps {
     debtMin?: string
     debtMax?: string
     expiredDocs?: string
+    debtOld60?: string
   }>
 }
 
@@ -42,6 +43,7 @@ export default async function AthletesPage({ searchParams }: PageProps) {
   const debtMin = params.debtMin ? Number(params.debtMin) : undefined
   const debtMax = params.debtMax ? Number(params.debtMax) : undefined
   const filterExpiredDocs = params.expiredDocs === '1'
+  const filterDebtOld60 = params.debtOld60 === '1'
 
   let athletes: Awaited<ReturnType<typeof getAthletes>>["athletes"] = []
   let allAthletes: Awaited<ReturnType<typeof getAthletes>>["athletes"] = []
@@ -176,6 +178,14 @@ export default async function AthletesPage({ searchParams }: PageProps) {
     athletes = athletes.filter((a) => {
       const docs = a.documents as Array<{ expiry_date: string | null }> | null ?? []
       return docs.some((d) => d.expiry_date && d.expiry_date < todayStr)
+    })
+  }
+
+  if (filterDebtOld60) {
+    const sixtyAgo = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+    athletes = athletes.filter((a) => {
+      const pmts = a.payments as Array<{ status: string; due_date?: string | null }> | null ?? []
+      return pmts.some((p) => p.status === 'overdue' && p.due_date && p.due_date < sixtyAgo)
     })
   }
 
@@ -668,6 +678,22 @@ export default async function AthletesPage({ searchParams }: PageProps) {
               }`}>{label}</button>
             </Link>
           ))}
+        </div>
+        <div className="flex flex-wrap gap-2 items-center">
+          <span className="text-xs text-muted-foreground font-medium">Pagos:</span>
+          <Link href={`/dashboard/athletes?${new URLSearchParams({
+            ...(params.search    ? { search:    params.search }    : {}),
+            ...(params.status    ? { status:    params.status }    : {}),
+            ...(params.health    ? { health:    params.health }    : {}),
+            ...(params.planId    ? { planId:    params.planId }    : {}),
+            ...(params.subStatus ? { subStatus: params.subStatus } : {}),
+            ...(sort             ? { sort }                        : {}),
+            ...(filterDebtOld60  ? {} : { debtOld60: '1' }),
+          }).toString()}`}>
+            <button className={`h-7 px-2.5 rounded-md border text-xs font-medium transition-colors ${
+              filterDebtOld60 ? 'bg-red-500 text-white border-red-500' : 'bg-background border-input hover:bg-accent'
+            }`}>💸 Deuda +60d</button>
+          </Link>
         </div>
         <div className="flex flex-wrap gap-2 items-center">
           <span className="text-xs text-muted-foreground font-medium">Documentos:</span>
