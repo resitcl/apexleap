@@ -87,6 +87,14 @@ export default async function AthletesPage({ searchParams }: PageProps) {
     })
   }
 
+  if (sort === 'docs') {
+    athletes = athletes.slice().sort((a, b) => {
+      const docsA = (a.documents as unknown[] | null ?? []).length
+      const docsB = (b.documents as unknown[] | null ?? []).length
+      return docsB - docsA
+    })
+  }
+
   if (sort === 'last_attendance') {
     athletes = athletes.slice().sort((a, b) => {
       const lastA = (a.attendance as Array<{ checked_in_at: string }> | null ?? [])
@@ -330,6 +338,7 @@ export default async function AthletesPage({ searchParams }: PageProps) {
             { value: 'status', label: '📊 Estado' },
             { value: 'last_attendance', label: '📋 Última asistencia' },
             { value: 'debt', label: '💰 Mayor deuda' },
+            { value: 'docs', label: '📄 Más documentos' },
           ]).map(({ value, label }) => (
             <Link key={value} href={`/dashboard/athletes?${new URLSearchParams({
               ...(params.search    ? { search:    params.search }    : {}),

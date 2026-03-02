@@ -84,6 +84,15 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
               return paidTotal > 0 ? ` · $${paidTotal.toLocaleString('es-CL')} cobrado` : null
             })()}
             {allPayments.length > 0 && (() => {
+              const curMonth = new Date().toISOString().slice(0, 7)
+              const monthTotal = allPayments
+                .filter((p) => p.status === 'paid' && p.paid_at && p.paid_at.slice(0, 7) === curMonth)
+                .reduce((s, p) => s + Number(p.amount), 0)
+              return monthTotal > 0 ? (
+                <span className="ml-2 text-green-600 font-medium">· ${monthTotal.toLocaleString('es-CL')} este mes</span>
+              ) : null
+            })()}
+            {allPayments.length > 0 && (() => {
               const METHOD_LABELS: Record<string, string> = { cash: 'Efectivo', transfer: 'Transferencia', card: 'Tarjeta', webpay: 'Webpay', mercadopago: 'MercadoPago', flow: 'Flow' }
               const counts: Record<string, number> = {}
               for (const p of allPayments) { if (p.payment_method) counts[p.payment_method] = (counts[p.payment_method] ?? 0) + 1 }

@@ -31,9 +31,11 @@ interface Props {
 
 export function ExportInventoryButton({ items }: Props) {
   function handleExport() {
-    const headers = ['Nombre', 'Categoría', 'Condición', 'Cantidad', 'Stock mín.', 'Precio unit.', 'Valor total', 'Asignado a', 'N° Serie', 'Fecha compra', 'Notas']
+    const headers = ['Nombre', 'Categoría', 'Condición', 'Cantidad', 'Stock mín.', 'Precio unit.', 'Valor total', 'Asignado a', 'Valor asignado', 'N° Serie', 'Fecha compra', 'Notas']
     const rows = items.map((item) => {
       const totalValue = item.purchase_price != null ? item.purchase_price * item.quantity : null
+      const assignedTo = (item.athletes as { name: string } | null)?.name ?? ''
+      const assignedValue = assignedTo && item.purchase_price != null ? String(item.purchase_price * item.quantity) : ''
       return [
         item.name,
         CATEGORY_LABELS[item.category] ?? item.category,
@@ -42,7 +44,8 @@ export function ExportInventoryButton({ items }: Props) {
         String(item.quantity_min),
         item.purchase_price != null ? String(item.purchase_price) : '',
         totalValue != null ? String(totalValue) : '',
-        (item.athletes as { name: string } | null)?.name ?? '',
+        assignedTo,
+        assignedValue,
         item.serial_number ?? '',
         item.purchase_date ?? '',
         item.notes ?? '',

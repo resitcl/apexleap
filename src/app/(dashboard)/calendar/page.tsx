@@ -22,11 +22,11 @@ const DAY_COLORS = [
 ]
 
 interface PageProps {
-  searchParams: Promise<{ venueId?: string }>
+  searchParams: Promise<{ venueId?: string; dow?: string }>
 }
 
 export default async function CalendarPage({ searchParams }: PageProps) {
-  const { venueId } = await searchParams
+  const { venueId, dow } = await searchParams
   let schedules: Awaited<ReturnType<typeof getSchedules>> = []
   let venues: { id: string; name: string }[] = []
   let error: string | null = null
@@ -42,9 +42,13 @@ export default async function CalendarPage({ searchParams }: PageProps) {
     error = e instanceof Error ? e.message : "Error al cargar horarios"
   }
 
+  const filteredSchedules = dow !== undefined
+    ? schedules.filter((s) => (s.day_of_week as number[]).includes(Number(dow)))
+    : schedules
+
   // Group by day_of_week, sorted by start_time
   const byDay: Record<number, typeof schedules> = {}
-  for (const s of schedules) {
+  for (const s of filteredSchedules) {
     const days = s.day_of_week as number[]
     for (const d of days) {
       if (!byDay[d]) byDay[d] = []
@@ -129,6 +133,22 @@ export default async function CalendarPage({ searchParams }: PageProps) {
             </Button>
           </Link>
         </div>
+      </div>
+
+      <div className="flex flex-wrap gap-2 items-center">
+        <span className="text-xs text-muted-foreground font-medium">Día:</span>
+        <Link href={`/dashboard/calendar${venueId ? `?venueId=${venueId}` : ''}`}>
+          <button className={`h-7 px-2.5 rounded-md border text-xs font-medium transition-colors ${
+            dow === undefined ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-input hover:bg-accent'
+          }`}>Todos</button>
+        </Link>
+        {DAYS.map((label, d) => (
+          <Link key={d} href={`/dashboard/calendar?${new URLSearchParams({ ...(venueId ? { venueId } : {}), dow: String(d) }).toString()}`}>
+            <button className={`h-7 px-2.5 rounded-md border text-xs font-medium transition-colors ${
+              dow === String(d) ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-input hover:bg-accent'
+            }`}>{label}</button>
+          </Link>
+        ))}
       </div>
 
       {venues.length > 0 && (

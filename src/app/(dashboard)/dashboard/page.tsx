@@ -4,6 +4,7 @@ import Link from "next/link"
 import { redirect } from "next/navigation"
 import { getDashboardSummary, getRecentActivity, getMonthlyRevenue, getTodaySessions, getOverdueAlerts, getUpcomingSchedules, getExpiringSubscriptions, getWeeklyAttendanceRate, getExpiredDocuments, getAthletesWithoutPlan, getWeeklyAttendanceByDay, getMonthlyRetentionRate } from "@/lib/actions/dashboard"
 import { checkUserHasClub } from "@/lib/actions/onboarding"
+import { getCompetitions } from "@/lib/actions/competitions"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -37,6 +38,7 @@ export default async function DashboardPage() {
   let expiredDocs: Awaited<ReturnType<typeof getExpiredDocuments>> = []
   let athletesWithoutPlan = 0
   let retention: Awaited<ReturnType<typeof getMonthlyRetentionRate>> = null
+  let upcomingComps: { id: string; name: string; type: string; start_date: string; location: string | null }[] = []
 
   try {
     ;[summary, activity, monthlyRevenue, todaySessions, overdueAlerts, upcomingSchedules, expiringSubscriptions, weeklyAttendance, weeklyByDay, expiredDocs, athletesWithoutPlan, retention] = await Promise.all([
@@ -53,6 +55,10 @@ export default async function DashboardPage() {
       getAthletesWithoutPlan(),
       getMonthlyRetentionRate(),
     ])
+    const compResult = await getCompetitions({ status: 'upcoming', limit: 5 })
+    upcomingComps = compResult.competitions.map((c) => ({
+      id: c.id, name: c.name, type: c.type, start_date: c.start_date, location: c.location ?? null,
+    }))
   } catch {
     // show zeros on error
   }
@@ -692,6 +698,30 @@ export default async function DashboardPage() {
           </Card>
         )
       })()}
+
+      {/* Upcoming competitions widget */}
+      {upcomingComps.length > 0 && (
+        <Link href="/dashboard/competitions?status=upcoming">
+          <Card className="border-violet-200 bg-violet-50 hover:bg-violet-100 transition-colors cursor-pointer">
+            <CardHeader className="pb-2 pt-4 px-6">
+              <CardTitle className="text-sm font-semibold text-violet-800 flex items-center gap-2">
+                🏆 {upcomingComps.length} competencia{upcomingComps.length !== 1 ? 's' : ''} próxima{upcomingComps.length !== 1 ? 's' : ''}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pb-4 px-6 space-y-1">
+              {upcomingComps.map((c) => (
+                <div key={c.id} className="flex items-center justify-between gap-2 text-xs text-violet-700">
+                  <span className="font-medium truncate">{c.name}</span>
+                  <span className="shrink-0 text-violet-500">
+                    {new Date(c.start_date).toLocaleDateString('es-CL', { day: 'numeric', month: 'short' })}
+                    {c.location && ` · ${c.location}`}
+                  </span>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        </Link>
+      )}
 
       {/* Expiring subscriptions alert */}
       {expiringSubscriptions.length > 0 && (
