@@ -62,7 +62,9 @@ export default async function DashboardLayout({
   }
 
   const sidebarItemsWithBadges = sidebarItems.map((item) => ({
-    ...item,
+    href:  item.href,
+    label: item.label,
+    icon:  <item.icon className="w-4 h-4 shrink-0" />,
     badge: badgeMap[item.href] ?? 0,
   }))
 

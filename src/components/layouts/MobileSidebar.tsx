@@ -4,12 +4,12 @@ import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Menu, X } from "lucide-react"
-import type { LucideIcon } from "lucide-react"
+import type { ReactNode } from "react"
 
 interface SidebarItem {
   href: string
   label: string
-  icon: LucideIcon
+  icon: ReactNode
   badge?: number
 }
 
@@ -79,7 +79,7 @@ export function MobileSidebar({ items }: Props) {
                         : "text-muted-foreground hover:text-foreground hover:bg-accent"
                     }`}
                   >
-                    <item.icon className="w-4 h-4 shrink-0" />
+                    {item.icon}
                     <span className="flex-1">{item.label}</span>
                     {item.badge && item.badge > 0 ? (
                       <span className="bg-destructive text-destructive-foreground text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shrink-0">
