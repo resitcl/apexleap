@@ -401,6 +401,26 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
         )
       })()}
 
+      {/* Alerta pagos pending con due_date pasada */}
+      {(() => {
+        const todayISO = new Date().toISOString().split('T')[0]
+        const stale = allPayments.filter((p) => p.status === 'pending' && p.due_date && p.due_date < todayISO)
+        if (stale.length === 0) return null
+        const amt = stale.reduce((s, p) => s + Number(p.amount), 0)
+        return (
+          <Link href="/dashboard/payments?status=pending">
+            <Card className="border-orange-200 bg-orange-50 hover:bg-orange-100 transition-colors cursor-pointer">
+              <CardContent className="py-3 flex items-center gap-3">
+                <AlertTriangle className="w-5 h-5 text-orange-600 shrink-0" />
+                <p className="text-sm text-orange-800 font-medium">
+                  {stale.length} pago{stale.length !== 1 ? 's' : ''} pendiente{stale.length !== 1 ? 's' : ''} con vencimiento pasado (${amt.toLocaleString('es-CL')})
+                </p>
+              </CardContent>
+            </Card>
+          </Link>
+        )
+      })()}
+
       {/* Top morosos */}
       {allPayments.length > 0 && (() => {
         const debtMap: Record<string, { name: string; id: string; debt: number }> = {}

@@ -161,6 +161,16 @@ export default async function InventoryPage({ searchParams }: PageProps) {
               )
             })()}
             {(() => {
+              const withMin = allItems.filter((i) => i.quantity_min && i.quantity_min > 0).length
+              if (withMin === 0) return null
+              const belowMin = allItems.filter((i) => i.quantity_min && i.quantity_min > 0 && i.quantity <= i.quantity_min).length
+              return (
+                <span className={`ml-2 ${belowMin > 0 ? 'text-red-600 font-medium' : 'text-muted-foreground/60'}`}>
+                  · {withMin} c/stock mín{belowMin > 0 ? ` (${belowMin} bajo mín)` : ''}
+                </span>
+              )
+            })()}
+            {(() => {
               const broken = allItems.filter((i) => i.condition === 'broken').length
               return broken > 0 ? (
                 <span className="ml-2 text-red-600 font-medium">· {broken} roto{broken !== 1 ? 's' : ''} ⚠</span>

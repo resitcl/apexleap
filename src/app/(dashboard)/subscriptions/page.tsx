@@ -130,6 +130,14 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
                 · MRR filtrado: ${Math.round(filteredMrr).toLocaleString('es-CL')}
               </span>
             )}
+            {(() => {
+              const curMonth = new Date().toISOString().slice(0, 7)
+              const pausedMonth = allSubs.filter((s) =>
+                s.status === 'paused' && (s as { updated_at?: string }).updated_at?.startsWith(curMonth)
+              ).length
+              if (pausedMonth === 0) return null
+              return <span className="ml-2 text-blue-600 font-medium">· {pausedMonth} pausada{pausedMonth !== 1 ? 's' : ''} este mes</span>
+            })()}
             {expiringIn7 > 0 && (
               <span className="ml-2 text-red-600 font-medium">· {expiringIn7} vence{expiringIn7 > 1 ? 'n' : ''} esta semana</span>
             )}

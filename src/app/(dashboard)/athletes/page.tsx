@@ -994,6 +994,11 @@ export default async function AthletesPage({ searchParams }: PageProps) {
                           </Badge>
                         ) : null
                       })()}
+                      {!athlete.email && (
+                        <span className="text-xs text-muted-foreground/70 bg-slate-100 px-1.5 py-0.5 rounded" title="Sin email registrado">
+                          ✉ —
+                        </span>
+                      )}
                       {(() => {
                         const subs = athlete.subscriptions as Array<{ status: string; plans: { name: string } | null }> | null
                         const active = (subs ?? []).find((s) => s.status === 'active')
