@@ -87,6 +87,26 @@ export async function removeAthleteFromRoster(params: {
   revalidatePath(`/dashboard/competitions/${params.competitionId}`)
 }
 
+export async function updateRosterScore(params: {
+  rosterId: string
+  competitionId: string
+  homeScore: number
+  awayScore: number
+  status: 'upcoming' | 'live' | 'finished'
+}) {
+  const clubId = await getClubId()
+  const supabase = await createClient()
+  const scoreData = JSON.stringify({ home: params.homeScore, away: params.awayScore, status: params.status, updatedAt: new Date().toISOString() })
+  const { error } = await supabase
+    .from('rosters')
+    .update({ notes: scoreData })
+    .eq('id', params.rosterId)
+    .eq('club_id', clubId)
+  if (error) throw new Error(error.message)
+  revalidatePath(`/dashboard/competitions/${params.competitionId}`)
+  revalidatePath('/dashboard/rosters')
+}
+
 export async function getAthletesSemaforo() {
   const clubId = await getClubId()
   const supabase = await createClient()

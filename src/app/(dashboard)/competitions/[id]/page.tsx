@@ -15,6 +15,7 @@ import { EditCompetitionButton } from "@/components/competitions/EditCompetition
 import { AddAthleteToRosterButton } from "@/components/competitions/AddAthleteToRosterButton"
 import { NewRosterButton } from "@/components/competitions/NewRosterButton"
 import { DeleteRosterButton } from "@/components/competitions/DeleteRosterButton"
+import { LiveScoreButton } from "@/components/competitions/LiveScoreButton"
 
 const TYPE_LABELS: Record<string, string> = {
   tournament: "Torneo", league: "Liga", friendly: "Amistoso", championship: "Campeonato",
@@ -48,6 +49,10 @@ export default async function CompetitionDetailPage({ params }: PageProps) {
     .eq("club_id", userClub.club_id)
     .single()
   if (compErr || !comp) notFound()
+
+  const { data: clubData } = await supabase
+    .from("user_clubs").select("clubs(name)").eq("user_id", userId).eq("is_active", true).single()
+  const clubName = ((clubData?.clubs as unknown) as { name: string } | null)?.name ?? "Local"
 
   const { data: rosters } = await supabase
     .from("rosters")
@@ -159,6 +164,15 @@ export default async function CompetitionDetailPage({ params }: PageProps) {
                         {confirmed > 0 && (
                           <Badge variant="default" className="text-xs">{confirmed} confirmados</Badge>
                         )}
+                        <LiveScoreButton
+                          rosterId={roster.id}
+                          competitionId={id}
+                          clubName={clubName}
+                          opponent={roster.opponent ?? null}
+                          initialScore={(() => {
+                            try { return JSON.parse(roster.notes ?? '') } catch { return null }
+                          })()}
+                        />
                         <ExportRosterButton
                           roster={{ ...roster, roster_athletes: athletes }}
                           competitionName={comp.name}
