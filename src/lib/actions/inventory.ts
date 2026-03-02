@@ -41,7 +41,7 @@ export async function getInventoryItems(filters?: { category?: string; condition
   const to    = from + limit - 1
   let q = supabase
     .from('inventory_items')
-    .select('*, athletes(id, name)', { count: 'exact' })
+    .select('*, athletes(id, name, status)', { count: 'exact' })
     .eq('club_id', clubId)
   if (filters?.category)  q = q.eq('category', filters.category)
   if (filters?.condition) q = q.eq('condition', filters.condition)

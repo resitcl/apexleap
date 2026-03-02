@@ -26,7 +26,7 @@ const CYCLE_LABELS: Record<string, string> = {
 }
 
 interface PageProps {
-  searchParams: Promise<{ status?: string; page?: string; planId?: string; search?: string; expiring?: string; method?: string; sort?: string }>
+  searchParams: Promise<{ status?: string; page?: string; planId?: string; search?: string; expiring?: string; method?: string; sort?: string; priceMin?: string; priceMax?: string }>
 }
 
 export default async function SubscriptionsPage({ searchParams }: PageProps) {
@@ -35,8 +35,12 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
   const planId   = params.planId   ?? ""
   const search   = params.search   ?? ""
   const expiring = params.expiring ?? ""
-  const method   = params.method   ?? ""
-  const sortBy   = params.sort     ?? ""
+  const method    = params.method    ?? ""
+  const sortBy    = params.sort      ?? ""
+  const priceMinStr = params.priceMin ?? ""
+  const priceMaxStr = params.priceMax ?? ""
+  const priceMin  = priceMinStr ? Number(priceMinStr) : undefined
+  const priceMax  = priceMaxStr ? Number(priceMaxStr) : undefined
 
   let subs: Awaited<ReturnType<typeof getSubscriptions>>["subscriptions"] = []
   let allSubs: Awaited<ReturnType<typeof getSubscriptions>>["subscriptions"] = []
@@ -61,6 +65,14 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
     if (method) {
       sList = sList.filter((s) => s.payment_method === method)
       aList  = aList.filter((s) => s.payment_method === method)
+    }
+    if (priceMin !== undefined) {
+      const f = (s: typeof sList[number]) => { const p = (s.plans as { price?: number } | null)?.price ?? 0; return p >= priceMin }
+      sList = sList.filter(f); aList = aList.filter(f)
+    }
+    if (priceMax !== undefined) {
+      const f = (s: typeof sList[number]) => { const p = (s.plans as { price?: number } | null)?.price ?? 0; return p <= priceMax }
+      sList = sList.filter(f); aList = aList.filter(f)
     }
     if (sortBy === 'expiring') {
       sList = sList.slice().sort((a, b) => {
@@ -437,12 +449,14 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
             <option value="7">Vence en 7 días</option>
             <option value="30">Vence en 30 días</option>
           </select>
+          <input type="number" name="priceMin" defaultValue={priceMinStr} min={0} placeholder="Precio mín."
+            className="h-8 px-3 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring w-24" />
+          <input type="number" name="priceMax" defaultValue={priceMaxStr} min={0} placeholder="Precio máx."
+            className="h-8 px-3 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring w-24" />
           <button type="submit" className="h-8 px-3 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90">Filtrar</button>
-          {(planId || search || expiring || method) && (
+          {(planId || search || expiring || method || priceMinStr || priceMaxStr) && (
             <Link href={`/dashboard/subscriptions${params.status ? `?status=${params.status}` : ''}`}
-              className="text-xs text-muted-foreground hover:text-foreground">
-              ✕ Limpiar
-            </Link>
+              className="text-xs text-muted-foreground hover:text-foreground">✕ Limpiar</Link>
           )}
         </form>
       </div>

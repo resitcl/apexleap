@@ -99,6 +99,12 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
               const avg = Math.round(paid.reduce((s, p) => s + Number(p.amount), 0) / uniqueAthletes)
               return <span className="ml-2 text-muted-foreground/70">· prom. ${avg.toLocaleString('es-CL')}/atleta</span>
             })()}
+            {allPayments.length > 1 && (() => {
+              const paid = allPayments.filter((p) => p.status === 'paid')
+              if (paid.length < 2) return null
+              const avgPerPayment = Math.round(paid.reduce((s, p) => s + Number(p.amount), 0) / paid.length)
+              return <span className="ml-2 text-muted-foreground/70">· prom. ${avgPerPayment.toLocaleString('es-CL')}/pago</span>
+            })()}
             {allPayments.length > 0 && (() => {
               const curMonth  = new Date().toISOString().slice(0, 7)
               const prevDate  = new Date(); prevDate.setMonth(prevDate.getMonth() - 1)

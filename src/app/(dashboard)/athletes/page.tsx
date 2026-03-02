@@ -231,6 +231,15 @@ export default async function AthletesPage({ searchParams }: PageProps) {
               <span className="ml-2 text-orange-600 font-medium">· {expiredDocsCount} doc{expiredDocsCount !== 1 ? 's' : ''} vencido{expiredDocsCount !== 1 ? 's' : ''}</span>
             )}
             {(() => {
+              const withAge = allAthletes.filter((a) => a.birth_date)
+              if (withAge.length < 2) return null
+              const now = Date.now()
+              const avgAge = Math.round(withAge.reduce((sum, a) => {
+                return sum + Math.floor((now - new Date(a.birth_date! + 'T12:00:00').getTime()) / (365.25 * 24 * 60 * 60 * 1000))
+              }, 0) / withAge.length)
+              return <span className="ml-2 text-muted-foreground/70">· edad prom. {avgAge} años</span>
+            })()}
+            {(() => {
               const withDocs = allAthletes.filter((a) => {
                 const docs = a.documents as Array<{ id: string; expiry_date?: string | null }> | null ?? []
                 return docs.length > 0 && !docs.some((d) => d.expiry_date && d.expiry_date < today)

@@ -266,6 +266,25 @@ export default async function InventoryPage({ searchParams }: PageProps) {
         )
       })()}
 
+      {(() => {
+        const inactiveAssigned = allItems.filter((i) => {
+          const ath = i.athletes as { id: string; status?: string } | null
+          return ath && (ath.status === 'inactive' || ath.status === 'suspended')
+        })
+        if (inactiveAssigned.length === 0) return null
+        return (
+          <Card className="border-orange-200 bg-orange-50">
+            <CardContent className="py-3 flex items-center gap-3">
+              <AlertTriangle className="w-5 h-5 text-orange-600 shrink-0" />
+              <p className="text-sm text-orange-800 font-medium">
+                {inactiveAssigned.length} ítem{inactiveAssigned.length !== 1 ? 's' : ''} asignado{inactiveAssigned.length !== 1 ? 's' : ''} a atleta{inactiveAssigned.length !== 1 ? 's' : ''} dado{inactiveAssigned.length !== 1 ? 's' : ''} de baja:{' '}
+                {inactiveAssigned.slice(0, 3).map((i) => i.name).join(', ')}{inactiveAssigned.length > 3 ? '…' : ''}
+              </p>
+            </CardContent>
+          </Card>
+        )
+      })()}
+
       {lowStockItems.length > 0 && (
         <Card className="border-yellow-200 bg-yellow-50">
           <CardContent className="py-3 flex items-center gap-3">
