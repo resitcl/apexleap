@@ -71,6 +71,13 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
               const paidTotal = allPayments.filter(p => p.status === 'paid').reduce((s, p) => s + Number(p.amount), 0)
               return paidTotal > 0 ? ` · $${paidTotal.toLocaleString('es-CL')} cobrado` : null
             })()}
+            {allPayments.length > 0 && (() => {
+              const METHOD_LABELS: Record<string, string> = { cash: 'Efectivo', transfer: 'Transferencia', card: 'Tarjeta', webpay: 'Webpay', mercadopago: 'MercadoPago', flow: 'Flow' }
+              const counts: Record<string, number> = {}
+              for (const p of allPayments) { if (p.payment_method) counts[p.payment_method] = (counts[p.payment_method] ?? 0) + 1 }
+              const top = Object.entries(counts).sort(([,a],[,b]) => b - a)[0]
+              return top ? <span className="ml-2 text-muted-foreground/70">· {METHOD_LABELS[top[0]] ?? top[0]} más usado</span> : null
+            })()}
           </p>
         </div>
         <div className="flex gap-2 flex-wrap">

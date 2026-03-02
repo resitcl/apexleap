@@ -129,6 +129,12 @@ export default async function AthletesPage({ searchParams }: PageProps) {
             {expiredDocsCount > 0 && (
               <span className="ml-2 text-orange-600 font-medium">· {expiredDocsCount} doc{expiredDocsCount !== 1 ? 's' : ''} vencido{expiredDocsCount !== 1 ? 's' : ''}</span>
             )}
+            {(() => {
+              const noPhoto = allAthletes.filter((a) => a.status === 'active' && !a.photo_url).length
+              return noPhoto > 0 ? (
+                <span className="ml-2 text-muted-foreground/60">· {noPhoto} sin foto</span>
+              ) : null
+            })()}
           </p>
         </div>
         <div className="flex gap-2">

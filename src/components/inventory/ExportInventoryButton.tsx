@@ -31,19 +31,23 @@ interface Props {
 
 export function ExportInventoryButton({ items }: Props) {
   function handleExport() {
-    const headers = ['Nombre', 'Categoría', 'Condición', 'Cantidad', 'Stock mín.', 'Asignado a', 'N° Serie', 'Precio compra', 'Fecha compra', 'Notas']
-    const rows = items.map((item) => [
-      item.name,
-      CATEGORY_LABELS[item.category] ?? item.category,
-      CONDITION_LABELS[item.condition] ?? item.condition,
-      String(item.quantity),
-      String(item.quantity_min),
-      (item.athletes as { name: string } | null)?.name ?? '',
-      item.serial_number ?? '',
-      item.purchase_price != null ? String(item.purchase_price) : '',
-      item.purchase_date ?? '',
-      item.notes ?? '',
-    ])
+    const headers = ['Nombre', 'Categoría', 'Condición', 'Cantidad', 'Stock mín.', 'Precio unit.', 'Valor total', 'Asignado a', 'N° Serie', 'Fecha compra', 'Notas']
+    const rows = items.map((item) => {
+      const totalValue = item.purchase_price != null ? item.purchase_price * item.quantity : null
+      return [
+        item.name,
+        CATEGORY_LABELS[item.category] ?? item.category,
+        CONDITION_LABELS[item.condition] ?? item.condition,
+        String(item.quantity),
+        String(item.quantity_min),
+        item.purchase_price != null ? String(item.purchase_price) : '',
+        totalValue != null ? String(totalValue) : '',
+        (item.athletes as { name: string } | null)?.name ?? '',
+        item.serial_number ?? '',
+        item.purchase_date ?? '',
+        item.notes ?? '',
+      ]
+    })
 
     const csv = [headers, ...rows]
       .map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(','))

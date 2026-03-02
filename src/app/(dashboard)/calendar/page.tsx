@@ -91,6 +91,16 @@ export default async function CalendarPage({ searchParams }: PageProps) {
               const color = pct >= 80 ? 'text-red-600' : pct >= 50 ? 'text-yellow-600' : 'text-green-600'
               return <span className={`ml-2 font-medium ${color}`}>· Hoy {pct}% ocupado ({todayOccupation.checkins}/{todayOccupation.capacity})</span>
             })()}
+            {(() => {
+              const withTimes = schedules.filter((s) => s.is_active && s.start_time && s.end_time)
+              if (withTimes.length === 0) return null
+              const avgMins = withTimes.reduce((sum, s) => {
+                const [sh, sm] = s.start_time.split(':').map(Number)
+                const [eh, em] = s.end_time!.split(':').map(Number)
+                return sum + (eh * 60 + em) - (sh * 60 + sm)
+              }, 0) / withTimes.length
+              return <span className="ml-2 text-muted-foreground/60">· {Math.round(avgMins)} min promedio</span>
+            })()}
           </p>
         </div>
         <div className="flex gap-2">

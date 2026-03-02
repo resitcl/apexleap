@@ -7,7 +7,7 @@ import { checkUserHasClub } from "@/lib/actions/onboarding"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Users, DollarSign, ClipboardCheck, AlertCircle, UserPlus, CreditCard, QrCode, UserCheck, TrendingUp, FileWarning } from "lucide-react"
+import { Users, DollarSign, ClipboardCheck, AlertCircle, UserPlus, CreditCard, QrCode, UserCheck, TrendingUp, FileWarning, Clock } from "lucide-react"
 
 export default async function DashboardPage() {
   const hasClub = await checkUserHasClub().catch(() => false)
@@ -299,6 +299,37 @@ export default async function DashboardPage() {
           </Card>
         </Link>
       )}
+
+      {(() => {
+        const withCap = todaySessions.filter((s) => s.capacity && s.capacity > 0)
+        const lowOcc = withCap
+          .map((s) => ({ ...s, pct: Math.round((s.todayCheckIns / s.capacity!) * 100) }))
+          .filter((s) => s.pct < 50)
+          .sort((a, b) => a.pct - b.pct)
+          .slice(0, 3)
+        if (lowOcc.length === 0) return null
+        return (
+          <Link href="/dashboard/calendar">
+            <Card className="border-blue-200 bg-blue-50 hover:bg-blue-100 transition-colors cursor-pointer">
+              <CardContent className="py-3">
+                <div className="flex items-start gap-3">
+                  <Clock className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-blue-800">Sesiones con baja ocupación hoy</p>
+                    <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-1">
+                      {lowOcc.map((s) => (
+                        <span key={s.id} className="text-xs text-blue-700">
+                          {s.name} {s.start_time.slice(0,5)}: <span className="font-bold">{s.pct}%</span> ({s.todayCheckIns}/{s.capacity})
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+        )
+      })()}
 
       {todaySessions.length === 0 && (
         <Link href="/dashboard/calendar">
