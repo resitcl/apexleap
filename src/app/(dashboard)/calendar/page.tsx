@@ -85,6 +85,12 @@ export default async function CalendarPage({ searchParams }: PageProps) {
               <span className="ml-2 text-primary font-medium">· {totalAttendancesAllTime.toLocaleString('es-CL')} check-ins totales</span>
             )}
             {(() => {
+              const activeSessions = schedules.filter((s) => s.is_active)
+              if (activeSessions.length === 0 || totalAttendancesAllTime === 0) return null
+              const avg = Math.round(totalAttendancesAllTime / activeSessions.length)
+              return <span className="ml-2 text-muted-foreground/70">· ~{avg} check-ins/sesión</span>
+            })()}
+            {(() => {
               const inactive = schedules.filter((s) => !s.is_active).length
               return inactive > 0 ? (
                 <span className="ml-2 text-yellow-600 font-medium">· {inactive} sesión{inactive !== 1 ? 'es' : ''} inactiva{inactive !== 1 ? 's' : ''}</span>

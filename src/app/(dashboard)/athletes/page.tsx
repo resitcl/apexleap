@@ -337,6 +337,29 @@ export default async function AthletesPage({ searchParams }: PageProps) {
             </div>
           </CardContent>
         </Card>
+        {(() => {
+          const active = allAthletes.filter((a) => a.status === 'active')
+          if (active.length === 0) return null
+          const withSub = active.filter((a) => {
+            const subs = a.subscriptions as Array<{ status: string }> | null ?? []
+            return subs.some((s) => s.status === 'active')
+          }).length
+          const pct = Math.round((withSub / active.length) * 100)
+          return (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Con Plan</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-blue-500" />
+                  <span className={`text-2xl font-bold ${pct >= 80 ? 'text-green-600' : pct >= 60 ? 'text-yellow-600' : 'text-red-600'}`}>{pct}%</span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">{withSub}/{active.length} activos</p>
+              </CardContent>
+            </Card>
+          )
+        })()}
       </div>
 
       {(() => {

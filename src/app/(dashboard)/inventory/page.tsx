@@ -175,6 +175,24 @@ export default async function InventoryPage({ searchParams }: PageProps) {
         </div>
       </div>
 
+      {(() => {
+        const assignable = allItems.filter((i) => i.category === 'equipment' || i.category === 'uniform')
+        if (assignable.length < 5) return null
+        const unassigned = assignable.filter((i) => !i.assigned_to).length
+        const pct = Math.round((unassigned / assignable.length) * 100)
+        if (pct < 20) return null
+        return (
+          <Card className="border-slate-200 bg-slate-50">
+            <CardContent className="py-3 flex items-center gap-3">
+              <Package className="w-5 h-5 text-slate-600 shrink-0" />
+              <p className="text-sm text-slate-800 font-medium">
+                {pct}% del inventario asignable ({unassigned}/{assignable.length} ítems) no tiene asignación
+              </p>
+            </CardContent>
+          </Card>
+        )
+      })()}
+
       {lowStockItems.length > 0 && (
         <Card className="border-yellow-200 bg-yellow-50">
           <CardContent className="py-3 flex items-center gap-3">
