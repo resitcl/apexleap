@@ -674,6 +674,16 @@ export default async function AthletesPage({ searchParams }: PageProps) {
                         )
                         return null
                       })()}
+                      {(() => {
+                        const subs = athlete.subscriptions as Array<{ status: string; plans: { name: string } | null }> | null
+                        const active = (subs ?? []).find((s) => s.status === 'active')
+                        if (!active) return null
+                        return (
+                          <Badge className="text-xs bg-green-100 text-green-700 border-green-200 hover:bg-green-100">
+                            ✓ {active.plans?.name ?? 'Plan activo'}
+                          </Badge>
+                        )
+                      })()}
                       <Badge variant={athlete.status === "active" ? "default" : "secondary"}>
                         {athlete.status === "active" ? "Activo" : athlete.status === "inactive" ? "Inactivo" : "Suspendido"}
                       </Badge>

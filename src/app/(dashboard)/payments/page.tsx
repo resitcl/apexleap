@@ -204,6 +204,25 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
           </CardContent>
         </Card>
         {allPayments.length > 0 && (() => {
+          const thirtyAgo = new Date(); thirtyAgo.setDate(thirtyAgo.getDate() - 30)
+          const thirtyISO = thirtyAgo.toISOString().split('T')[0]
+          const old = allPayments.filter((p) => p.status === 'overdue' && p.due_date && p.due_date < thirtyISO)
+          if (old.length === 0) return null
+          const oldAmt = old.reduce((s, p) => s + Number(p.amount), 0)
+          return (
+            <Card className="border-red-100">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Vencidos +30d</CardTitle>
+                <AlertTriangle className="h-4 w-4 text-red-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-red-700">{old.length}</div>
+                <p className="text-xs text-muted-foreground">${oldAmt.toLocaleString('es-CL')} en mora crítica</p>
+              </CardContent>
+            </Card>
+          )
+        })()}
+        {allPayments.length > 0 && (() => {
           const paid  = allPayments.filter((p) => p.status === 'paid').length
           const total = allPayments.filter((p) => ['paid','pending','overdue'].includes(p.status)).length
           if (total === 0) return null

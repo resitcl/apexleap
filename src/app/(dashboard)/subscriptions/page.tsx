@@ -281,6 +281,24 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
             </Link>
           ))}
         </div>
+        {(() => {
+          const methods = [...new Set(allSubs.map((s) => s.payment_method).filter(Boolean))] as string[]
+          if (methods.length < 2) return null
+          const METHOD_LABELS: Record<string, string> = { cash: 'Efectivo', transfer: 'Transferencia', card: 'Tarjeta', webpay: 'Webpay', mercadopago: 'MP', flow: 'Flow' }
+          return (
+            <div className="flex flex-wrap gap-2 items-center w-full">
+              <span className="text-xs text-muted-foreground font-medium">Método:</span>
+              <Link href={`/dashboard/subscriptions?${new URLSearchParams({ ...(params.status ? { status: params.status } : {}), ...(planId ? { planId } : {}), ...(search ? { search } : {}) }).toString()}`}>
+                <button className={`h-7 px-2.5 rounded-md border text-xs font-medium transition-colors ${!method ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-input hover:bg-accent'}`}>Todos</button>
+              </Link>
+              {methods.map((m) => (
+                <Link key={m} href={`/dashboard/subscriptions?${new URLSearchParams({ ...(params.status ? { status: params.status } : {}), ...(planId ? { planId } : {}), ...(search ? { search } : {}), method: m }).toString()}`}>
+                  <button className={`h-7 px-2.5 rounded-md border text-xs font-medium transition-colors ${method === m ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-input hover:bg-accent'}`}>{METHOD_LABELS[m] ?? m}</button>
+                </Link>
+              ))}
+            </div>
+          )
+        })()}
         <form method="get" action="/dashboard/subscriptions" className="flex flex-wrap items-center gap-2">
           {params.status && <input type="hidden" name="status" value={params.status} />}
           <input

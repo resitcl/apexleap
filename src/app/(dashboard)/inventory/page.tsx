@@ -329,6 +329,12 @@ export default async function InventoryPage({ searchParams }: PageProps) {
                           {CONDITION_LABEL[item.condition] ?? item.condition}
                         </Badge>
                         {isLow && <Badge variant="secondary" className="text-xs text-yellow-700 bg-yellow-100">⚠ Stock bajo</Badge>}
+                        {assigned && item.updated_at && (() => {
+                          const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7)
+                          return new Date(item.updated_at) >= weekAgo ? (
+                            <Badge className="text-xs bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-100">🆕 Esta semana</Badge>
+                          ) : null
+                        })()}
                       </div>
                       <div className="flex gap-3 text-xs text-muted-foreground mt-0.5 flex-wrap">
                         <span>{meta?.label ?? item.category}</span>
