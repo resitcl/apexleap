@@ -729,9 +729,19 @@ export default async function FinancesPage({ searchParams }: PageProps) {
                             <Badge variant="outline" className="text-xs">{coach.specialty}</Badge>
                           )}
                         </div>
-                        <div className="text-xs text-muted-foreground mt-0.5 flex gap-3">
+                        <div className="text-xs text-muted-foreground mt-0.5 flex gap-3 flex-wrap">
                           {coach.email && <span>{coach.email}</span>}
                           <span>{SALARY_TYPE_LABELS[coach.salary_type]}{coach.salary_amount ? `: $${Number(coach.salary_amount).toLocaleString("es-CL")}` : ""}</span>
+                          {(() => {
+                            const curMonth = new Date().toISOString().slice(0, 7)
+                            const coachExpenses = expenses.filter((e) =>
+                              e.paid_to && e.paid_to.toLowerCase().includes(coach.name.toLowerCase()) &&
+                              e.date.startsWith(curMonth)
+                            )
+                            if (coachExpenses.length === 0) return null
+                            const total = coachExpenses.reduce((s, e) => s + Number(e.amount), 0)
+                            return <span className="text-violet-600 font-medium">· ${total.toLocaleString('es-CL')} egresos este mes</span>
+                          })()}
                         </div>
                       </div>
                       <EditCoachButton coach={coach} />

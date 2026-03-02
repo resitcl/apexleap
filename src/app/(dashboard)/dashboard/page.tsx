@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic"
 
 import Link from "next/link"
 import { redirect } from "next/navigation"
-import { getDashboardSummary, getRecentActivity, getMonthlyRevenue, getTodaySessions, getOverdueAlerts, getUpcomingSchedules, getExpiringSubscriptions, getWeeklyAttendanceRate, getExpiredDocuments, getAthletesWithoutPlan, getWeeklyAttendanceByDay, getMonthlyRetentionRate } from "@/lib/actions/dashboard"
+import { getDashboardSummary, getRecentActivity, getMonthlyRevenue, getTodaySessions, getOverdueAlerts, getUpcomingSchedules, getExpiringSubscriptions, getWeeklyAttendanceRate, getExpiredDocuments, getAthletesWithoutPlan, getWeeklyAttendanceByDay, getMonthlyRetentionRate, getDormantAthletes } from "@/lib/actions/dashboard"
 import { checkUserHasClub } from "@/lib/actions/onboarding"
 import { getCompetitions } from "@/lib/actions/competitions"
 import { getCoaches } from "@/lib/actions/finances"
@@ -43,6 +43,7 @@ export default async function DashboardPage() {
   let upcomingComps: { id: string; name: string; type: string; start_date: string; location: string | null }[] = []
   let brokenItems: { id: string; name: string }[] = []
   let coaches: { id: string; name: string }[] = []
+  let dormantCount = 0
 
   try {
     ;[summary, activity, monthlyRevenue, todaySessions, overdueAlerts, upcomingSchedules, expiringSubscriptions, weeklyAttendance, weeklyByDay, expiredDocs, athletesWithoutPlan, retention, coaches] = await Promise.all([
@@ -60,6 +61,7 @@ export default async function DashboardPage() {
       getMonthlyRetentionRate(),
       getCoaches(),
     ])
+    dormantCount = await getDormantAthletes()
     const compResult = await getCompetitions({ status: 'upcoming', limit: 5 })
     upcomingComps = compResult.competitions.map((c) => ({
       id: c.id, name: c.name, type: c.type, start_date: c.start_date, location: c.location ?? null,
@@ -453,6 +455,21 @@ export default async function DashboardPage() {
                 <Users className="w-5 h-5 text-amber-600 shrink-0" />
                 <p className="text-sm text-amber-800 font-medium">
                   {athletesWithoutPlan} atletas activos sin plan de suscripción asignado
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+      )}
+
+      {dormantCount > 0 && (
+        <Link href="/dashboard/athletes">
+          <Card className="border-slate-200 bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer">
+            <CardContent className="py-3">
+              <div className="flex items-center gap-3">
+                <Clock className="w-5 h-5 text-slate-500 shrink-0" />
+                <p className="text-sm text-slate-700 font-medium">
+                  {dormantCount} atleta{dormantCount !== 1 ? 's' : ''} sin check-in en más de 30 días
                 </p>
               </div>
             </CardContent>

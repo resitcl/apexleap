@@ -531,3 +531,23 @@ export async function getExpiredDocuments() {
     athletes: (Array.isArray(d.athletes) ? d.athletes[0] : d.athletes) as { id: string; name: string } | null,
   }))
 }
+
+export async function getDormantAthletes() {
+  const clubId = await getClubId()
+  const supabase = await createClient()
+  const thirtyAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+
+  const { data: athletes } = await supabase
+    .from('athletes')
+    .select('id, name, attendance(checked_in_at)')
+    .eq('club_id', clubId)
+    .eq('status', 'active')
+
+  if (!athletes) return 0
+  return athletes.filter((a) => {
+    const att = (a.attendance as Array<{ checked_in_at: string }> | null) ?? []
+    if (att.length === 0) return false
+    const last = att.reduce((max, r) => r.checked_in_at > max ? r.checked_in_at : max, '')
+    return last < thirtyAgo
+  }).length
+}
