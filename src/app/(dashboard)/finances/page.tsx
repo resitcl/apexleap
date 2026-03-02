@@ -489,6 +489,24 @@ export default async function FinancesPage({ searchParams }: PageProps) {
       {/* Expenses Tab */}
       {tab === "expenses" && (
         <div className="space-y-4">
+          {(() => {
+            const CAT_LABEL: Record<string, string> = { rent: '🏠 Arriendo', salary: '👔 Salarios', supplies: '📦 Insumos', maintenance: '🔧 Mantención', marketing: '📣 Marketing', other: '📁 Otros' }
+            const cats = Object.keys(CAT_LABEL)
+            return (
+              <div className="flex flex-wrap gap-2 items-center">
+                <span className="text-xs text-muted-foreground font-medium">Categoría:</span>
+                {(['', ...cats]).map((cat) => (
+                  <Link key={cat || '_all'} href={`/dashboard/finances?tab=expenses&month=${month}${cat ? `&category=${cat}` : ''}`}>
+                    <button className={`h-7 px-2.5 rounded-md border text-xs font-medium transition-colors ${
+                      (cat === '' && !category) || category === cat
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'bg-background border-input hover:bg-accent'
+                    }`}>{cat ? (CAT_LABEL[cat] ?? cat) : 'Todas'}</button>
+                  </Link>
+                ))}
+              </div>
+            )
+          })()}
           {expenses.length > 0 && (() => {
             const totalAmt = expenses.reduce((s, e) => s + Number(e.amount), 0)
             const byCat = expenses.reduce<Record<string, number>>((acc, e) => {

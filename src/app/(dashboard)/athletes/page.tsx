@@ -101,6 +101,16 @@ export default async function AthletesPage({ searchParams }: PageProps) {
     })
   }
 
+  if (sort === 'debt') {
+    athletes = athletes.slice().sort((a, b) => {
+      const debtA = (a.payments as Array<{ status: string; amount: number }> | null ?? [])
+        .filter((p) => p.status === 'overdue').reduce((s, p) => s + Number(p.amount), 0)
+      const debtB = (b.payments as Array<{ status: string; amount: number }> | null ?? [])
+        .filter((p) => p.status === 'overdue').reduce((s, p) => s + Number(p.amount), 0)
+      return debtB - debtA
+    })
+  }
+
   if (sort === 'docs') {
     athletes = athletes.slice().sort((a, b) => {
       const docsA = (a.documents as unknown[] | null ?? []).length
