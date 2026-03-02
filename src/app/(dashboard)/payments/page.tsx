@@ -16,7 +16,7 @@ import { DeletePaymentButton } from "@/components/payments/DeletePaymentButton"
 import { EditPaymentButton } from "@/components/payments/EditPaymentButton"
 
 interface PageProps {
-  searchParams: Promise<{ status?: string; page?: string; from?: string; to?: string; athleteId?: string; search?: string; athleteName?: string; amountMin?: string; amountMax?: string; paymentMethod?: string; paidFrom?: string; paidTo?: string }>
+  searchParams: Promise<{ status?: string; page?: string; from?: string; to?: string; athleteId?: string; search?: string; athleteName?: string; amountMin?: string; amountMax?: string; paymentMethod?: string; paidFrom?: string; paidTo?: string; dueFrom?: string; dueTo?: string }>
 }
 
 const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
@@ -40,6 +40,8 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
   const paymentMethod  = params.paymentMethod  ?? ""
   const paidFrom       = params.paidFrom       ?? ""
   const paidTo         = params.paidTo         ?? ""
+  const dueFrom        = params.dueFrom        ?? ""
+  const dueTo          = params.dueTo          ?? ""
 
   let payments: Awaited<ReturnType<typeof getPayments>>["payments"] = []
   let allPayments: Awaited<ReturnType<typeof getPayments>>["payments"] = []
@@ -62,6 +64,14 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
     if (paidTo) {
       pList = pList.filter((p) => p.paid_at && p.paid_at.slice(0,10) <= paidTo)
       pAll  = pAll.filter((p) => p.paid_at && p.paid_at.slice(0,10) <= paidTo)
+    }
+    if (dueFrom) {
+      pList = pList.filter((p) => p.due_date && p.due_date >= dueFrom)
+      pAll  = pAll.filter((p) => p.due_date && p.due_date >= dueFrom)
+    }
+    if (dueTo) {
+      pList = pList.filter((p) => p.due_date && p.due_date <= dueTo)
+      pAll  = pAll.filter((p) => p.due_date && p.due_date <= dueTo)
     }
     payments = pList
     allPayments = pAll
@@ -523,7 +533,7 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
       {/* Filters */}
       <div className="flex flex-wrap items-end gap-3">
         <Suspense fallback={null}>
-          <PaymentsFilter currentStatus={params.status} currentMethod={paymentMethod || undefined} currentFrom={params.from} currentTo={params.to} />
+          <PaymentsFilter currentStatus={params.status} currentMethod={paymentMethod || undefined} currentFrom={params.from} currentTo={params.to} currentDueFrom={dueFrom || undefined} currentDueTo={dueTo || undefined} />
         </Suspense>
         <form method="get" action="/dashboard/payments" className="flex flex-wrap items-end gap-2">
           {params.status && <input type="hidden" name="status" value={params.status} />}

@@ -217,7 +217,12 @@ export default async function DashboardPage() {
                 weeklyAttendance.rate >= 80 ? 'text-green-600' :
                 weeklyAttendance.rate >= 50 ? 'text-yellow-600' : 'text-red-600'
               }`}>{weeklyAttendance.rate}%</div>
-              <p className="text-xs text-muted-foreground">{weeklyAttendance.valid} válidos de {weeklyAttendance.total} check-ins</p>
+              <p className="text-xs text-muted-foreground">
+                {weeklyAttendance.valid} válidos de {weeklyAttendance.total} check-ins
+                {summary.totalAthletes > 0 && weeklyAttendance.valid > 0 && (
+                  <span className="ml-1 text-muted-foreground/70">· {(weeklyAttendance.valid / summary.totalAthletes).toFixed(1)} ses/atleta</span>
+                )}
+              </p>
             </CardContent>
           </Card>
         </Link>

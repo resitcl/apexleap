@@ -444,6 +444,32 @@ export default async function AthletesPage({ searchParams }: PageProps) {
         )
       })()}
 
+      {(() => {
+        const fourteenAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString()
+        const noCheckIn = allAthletes.filter((a) => {
+          if (a.status !== 'active') return false
+          const att = (a.attendance as Array<{ checked_in_at: string }> | null) ?? []
+          if (att.length === 0) return false
+          const last = att.map((r) => r.checked_in_at).sort().at(-1)
+          return !last || last < fourteenAgo
+        })
+        if (noCheckIn.length === 0) return null
+        return (
+          <Link href="/dashboard/athletes?sort=last_attendance">
+            <Card className="border-yellow-200 bg-yellow-50 hover:bg-yellow-100 transition-colors cursor-pointer">
+              <CardContent className="py-3">
+                <div className="flex items-center gap-3">
+                  <AlertCircle className="w-5 h-5 text-yellow-600 shrink-0" />
+                  <p className="text-sm text-yellow-800 font-medium">
+                    {noCheckIn.length} atleta{noCheckIn.length !== 1 ? 's' : ''} activo{noCheckIn.length !== 1 ? 's' : ''} sin check-in en los últimos 14 días
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+        )
+      })()}
+
       {/* Search and Filters */}
       <div className="space-y-3">
         <div className="flex items-center gap-3 flex-wrap">

@@ -26,9 +26,11 @@ interface Props {
   currentMethod?: string
   currentFrom?: string
   currentTo?: string
+  currentDueFrom?: string
+  currentDueTo?: string
 }
 
-export function PaymentsFilter({ currentStatus, currentMethod, currentFrom, currentTo }: Props) {
+export function PaymentsFilter({ currentStatus, currentMethod, currentFrom, currentTo, currentDueFrom, currentDueTo }: Props) {
   const router = useRouter()
   const pathname = usePathname()
   const sp = useSearchParams()
@@ -88,6 +90,25 @@ export function PaymentsFilter({ currentStatus, currentMethod, currentFrom, curr
         />
         {(currentFrom || currentTo) && (
           <Button variant="ghost" size="sm" onClick={() => router.push(buildUrl({ from: null, to: null }))} className="gap-1 text-muted-foreground h-7">
+            <X className="w-3 h-3" />
+          </Button>
+        )}
+      </div>
+      <div className="flex flex-wrap gap-2 items-center">
+        <span className="text-xs text-muted-foreground font-medium">Vencimiento:</span>
+        <input
+          type="date" defaultValue={currentDueFrom ?? ''}
+          className="h-7 px-2 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-1 focus:ring-ring"
+          onChange={(e) => router.push(buildUrl({ dueFrom: e.target.value || null }))}
+        />
+        <span className="text-xs text-muted-foreground">→</span>
+        <input
+          type="date" defaultValue={currentDueTo ?? ''}
+          className="h-7 px-2 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-1 focus:ring-ring"
+          onChange={(e) => router.push(buildUrl({ dueTo: e.target.value || null }))}
+        />
+        {(currentDueFrom || currentDueTo) && (
+          <Button variant="ghost" size="sm" onClick={() => router.push(buildUrl({ dueFrom: null, dueTo: null }))} className="gap-1 text-muted-foreground h-7">
             <X className="w-3 h-3" />
           </Button>
         )}

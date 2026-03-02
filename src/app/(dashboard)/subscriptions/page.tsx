@@ -521,6 +521,24 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
                           if (!lastPaid) return null
                           return <span>Último pago: {new Date(lastPaid).toLocaleDateString('es-CL')}</span>
                         })()}
+                        {(() => {
+                          const pmts = (sub.payments as Array<{ paid_at: string | null; status: string }> | null) ?? []
+                          const paidMonths = pmts
+                            .filter((p) => p.status === 'paid' && p.paid_at)
+                            .map((p) => p.paid_at!.slice(0, 7))
+                            .filter((v, i, a) => a.indexOf(v) === i)
+                            .sort()
+                          if (paidMonths.length < 2) return null
+                          let streak = 1
+                          for (let i = paidMonths.length - 1; i > 0; i--) {
+                            const cur  = new Date(paidMonths[i] + '-01')
+                            const prev = new Date(paidMonths[i - 1] + '-01')
+                            const diff = (cur.getFullYear() - prev.getFullYear()) * 12 + cur.getMonth() - prev.getMonth()
+                            if (diff === 1) streak++; else break
+                          }
+                          if (streak < 2) return null
+                          return <span className="text-green-600 font-medium">🔥 {streak} meses seguidos</span>
+                        })()}
                         <span>
                           Desde {new Date(sub.start_date).toLocaleDateString("es-CL")}
                           {sub.status === 'active' && (() => {

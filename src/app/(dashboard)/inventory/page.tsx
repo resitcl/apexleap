@@ -197,6 +197,16 @@ export default async function InventoryPage({ searchParams }: PageProps) {
               </span>
             )}
             {(() => {
+              const assigned = allItems.filter((i) => i.assigned_to)
+              if (assigned.length === 0) return null
+              const top3 = assigned.slice(0, 3).map((i) => i.name)
+              return (
+                <span className="ml-2 text-muted-foreground/60">
+                  · Top asignados: {top3.join(', ')}{assigned.length > 3 ? ` +${assigned.length - 3}` : ''}
+                </span>
+              )
+            })()}
+            {(() => {
               const byCategory = Object.entries(CATEGORY_META).map(([key, meta]) => {
                 const val = allItems
                   .filter((i) => i.category === key && i.purchase_price)
