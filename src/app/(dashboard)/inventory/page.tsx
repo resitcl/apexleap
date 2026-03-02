@@ -132,6 +132,17 @@ export default async function InventoryPage({ searchParams }: PageProps) {
                 · Último: {newestItem.name} ({new Date(newestItem.created_at).toLocaleDateString('es-CL')})
               </span>
             )}
+            {(() => {
+              const byCategory = Object.entries(CATEGORY_META).map(([key, meta]) => {
+                const val = allItems
+                  .filter((i) => i.category === key && i.purchase_price)
+                  .reduce((s, i) => s + (i.purchase_price ?? 0) * i.quantity, 0)
+                return val > 0 ? `${meta.label}: $${val.toLocaleString('es-CL')}` : null
+              }).filter(Boolean)
+              return byCategory.length > 0 ? (
+                <span className="ml-2 text-muted-foreground/50 text-xs">· {byCategory.join(' · ')}</span>
+              ) : null
+            })()}
           </p>
         </div>
         <div className="flex gap-2">

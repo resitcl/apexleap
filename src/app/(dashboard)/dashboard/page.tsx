@@ -427,6 +427,25 @@ export default async function DashboardPage() {
         </Link>
       )}
 
+      {summary.totalAthletes > 4 && weeklyByDay.length > 0 && (() => {
+        const weekTotal = weeklyByDay.reduce((s, d) => s + d.total, 0)
+        if (weekTotal > 0) return null
+        return (
+          <Link href="/dashboard/attendance">
+            <Card className="border-blue-200 bg-blue-50 hover:bg-blue-100 transition-colors cursor-pointer">
+              <CardContent className="py-3">
+                <div className="flex items-center gap-3">
+                  <AlertCircle className="w-5 h-5 text-blue-600 shrink-0" />
+                  <p className="text-sm text-blue-800 font-medium">
+                    Sin check-ins registrados esta semana ({summary.totalAthletes} atletas activos)
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+        )
+      })()}
+
       {summary.totalAthletes > 4 && summary.activeSubscriptions < summary.totalAthletes * 0.5 && (
         <Link href="/dashboard/subscriptions">
           <Card className="border-yellow-200 bg-yellow-50 hover:bg-yellow-100 transition-colors cursor-pointer">

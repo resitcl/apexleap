@@ -165,6 +165,19 @@ export default async function AthletesPage({ searchParams }: PageProps) {
     return sum + pmts.filter((p) => p.status === 'overdue').reduce((s, p) => s + Number(p.amount), 0)
   }, 0)
 
+  const avgAttendanceRate = (() => {
+    const active = allAthletes.filter((a) => a.status === 'active')
+    if (active.length === 0) return null
+    const thirtyAgo = new Date(); thirtyAgo.setDate(thirtyAgo.getDate() - 30)
+    const thirtyISO = thirtyAgo.toISOString()
+    const rates = active.map((a) => {
+      const att = a.attendance as Array<{ checked_in_at: string }> | null ?? []
+      return att.filter((r) => r.checked_in_at >= thirtyISO).length
+    })
+    const avg = rates.reduce((s, r) => s + r, 0) / active.length
+    return +avg.toFixed(1)
+  })()
+
   const today = new Date().toISOString().split('T')[0]
   const expiredDocsCount = allAthletes.reduce((sum, a) => {
     const docs = a.documents as Array<{ id: string; expiry_date: string | null }> | null ?? []
@@ -224,6 +237,9 @@ export default async function AthletesPage({ searchParams }: PageProps) {
                 <span className="ml-2 text-red-600/80">· prom. deuda ${avg.toLocaleString('es-CL')}/moroso</span>
               )
             })()}
+            {avgAttendanceRate !== null && avgAttendanceRate > 0 && (
+              <span className="ml-2 text-muted-foreground/70">· ~{avgAttendanceRate} check-ins/activo (30d)</span>
+            )}
           </p>
         </div>
         <div className="flex gap-2">

@@ -233,6 +233,23 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
             <p className="text-xs text-muted-foreground">canceladas / expiradas</p>
           </CardContent>
         </Card>
+        {(() => {
+          const base = stats.active + stats.cancelled
+          if (base < 2) return null
+          const rate = Math.round((stats.active / base) * 100)
+          return (
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Tasa Renovación</CardTitle>
+                <TrendingUp className="h-4 w-4 text-violet-500" />
+              </CardHeader>
+              <CardContent>
+                <div className={`text-2xl font-bold ${rate >= 70 ? 'text-green-600' : rate >= 50 ? 'text-yellow-600' : 'text-red-600'}`}>{rate}%</div>
+                <p className="text-xs text-muted-foreground">{stats.active} activas de {base} totales</p>
+              </CardContent>
+            </Card>
+          )
+        })()}
       </div>
 
       {/* Active subscriptions by plan */}
