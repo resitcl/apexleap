@@ -46,6 +46,18 @@ export default async function VenuesPage() {
                 <span className="ml-2 text-muted-foreground/70">· {totalSessions} sesión{totalSessions !== 1 ? 'es' : ''} activa{totalSessions !== 1 ? 's' : ''}</span>
               ) : null
             })()}
+            {(() => {
+              const withCap = venues.filter((v) => v.is_active && v.capacity && v.capacity > 0)
+              if (withCap.length === 0) return null
+              const utilPcts = withCap.map((v) => {
+                const sessions = sessionsByVenue[v.id] ?? 0
+                const maxPossible = v.capacity! * 7
+                return sessions > 0 ? Math.min(Math.round((sessions / maxPossible) * 100), 100) : 0
+              })
+              const avgUtil = Math.round(utilPcts.reduce((s, p) => s + p, 0) / utilPcts.length)
+              const color = avgUtil >= 70 ? 'text-green-600' : avgUtil >= 40 ? 'text-yellow-600' : 'text-muted-foreground/70'
+              return <span className={`ml-2 ${color}`}>· utilización ~{avgUtil}%</span>
+            })()}
           </p>
         </div>
         <div className="flex gap-2">

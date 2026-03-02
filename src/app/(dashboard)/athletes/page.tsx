@@ -574,8 +574,16 @@ export default async function AthletesPage({ searchParams }: PageProps) {
                         )
                       })()}
                       {(() => {
-                        const docs = athlete.documents as Array<{ id: string }> | null
-                        const docCount = (docs ?? []).length
+                        const docs = athlete.documents as Array<{ id: string; expiry_date?: string | null }> | null
+                        const docList = docs ?? []
+                        const docCount = docList.length
+                        const today = new Date().toISOString().split('T')[0]
+                        const expired = docList.filter((d) => d.expiry_date && d.expiry_date < today).length
+                        if (expired > 0) return (
+                          <span className="text-xs text-red-600 font-medium bg-red-50 px-1.5 py-0.5 rounded" title={`${expired} doc${expired !== 1 ? 's' : ''} vencido${expired !== 1 ? 's' : ''}`}>
+                            📄⚠{expired}
+                          </span>
+                        )
                         if (docCount > 0) return (
                           <span className="text-xs text-muted-foreground" title={`${docCount} documento${docCount !== 1 ? 's' : ''}`}>
                             📄 {docCount}

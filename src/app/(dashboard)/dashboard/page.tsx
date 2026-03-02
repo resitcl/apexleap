@@ -5,6 +5,7 @@ import { redirect } from "next/navigation"
 import { getDashboardSummary, getRecentActivity, getMonthlyRevenue, getTodaySessions, getOverdueAlerts, getUpcomingSchedules, getExpiringSubscriptions, getWeeklyAttendanceRate, getExpiredDocuments, getAthletesWithoutPlan, getWeeklyAttendanceByDay, getMonthlyRetentionRate } from "@/lib/actions/dashboard"
 import { checkUserHasClub } from "@/lib/actions/onboarding"
 import { getCompetitions } from "@/lib/actions/competitions"
+import { getCoaches } from "@/lib/actions/finances"
 import { getInventoryItems } from "@/lib/actions/inventory"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -41,9 +42,10 @@ export default async function DashboardPage() {
   let retention: Awaited<ReturnType<typeof getMonthlyRetentionRate>> = null
   let upcomingComps: { id: string; name: string; type: string; start_date: string; location: string | null }[] = []
   let brokenItems: { id: string; name: string }[] = []
+  let coaches: { id: string; name: string }[] = []
 
   try {
-    ;[summary, activity, monthlyRevenue, todaySessions, overdueAlerts, upcomingSchedules, expiringSubscriptions, weeklyAttendance, weeklyByDay, expiredDocs, athletesWithoutPlan, retention] = await Promise.all([
+    ;[summary, activity, monthlyRevenue, todaySessions, overdueAlerts, upcomingSchedules, expiringSubscriptions, weeklyAttendance, weeklyByDay, expiredDocs, athletesWithoutPlan, retention, coaches] = await Promise.all([
       getDashboardSummary(),
       getRecentActivity(12),
       getMonthlyRevenue(6),
@@ -56,6 +58,7 @@ export default async function DashboardPage() {
       getExpiredDocuments(),
       getAthletesWithoutPlan(),
       getMonthlyRetentionRate(),
+      getCoaches(),
     ])
     const compResult = await getCompetitions({ status: 'upcoming', limit: 5 })
     upcomingComps = compResult.competitions.map((c) => ({
@@ -382,6 +385,22 @@ export default async function DashboardPage() {
                       ({overdueAlerts.slice(0, 3).map((a) => (a as { name?: string }).name ?? '').filter(Boolean).join(', ')}{overdueAlerts.length > 3 ? '...' : ''})
                     </span>
                   )}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+      )}
+
+      {coaches.length > 0 && todaySessions.length === 0 && (
+        <Link href="/dashboard/finances">
+          <Card className="border-purple-200 bg-purple-50 hover:bg-purple-100 transition-colors cursor-pointer">
+            <CardContent className="py-3">
+              <div className="flex items-center gap-3">
+                <Users className="w-5 h-5 text-purple-600 shrink-0" />
+                <p className="text-sm text-purple-800 font-medium">
+                  {coaches.length} coach{coaches.length !== 1 ? 'es' : ''} sin sesiones asignadas hoy
+                  {coaches.length <= 3 && <span className="ml-1 font-normal">— {coaches.map((c) => c.name).join(', ')}</span>}
                 </p>
               </div>
             </CardContent>

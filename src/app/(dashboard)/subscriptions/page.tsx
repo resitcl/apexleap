@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Plus, Users, TrendingUp, PauseCircle, XCircle, AlertTriangle } from "lucide-react"
+import { Plus, Users, TrendingUp, PauseCircle, XCircle, AlertTriangle, DollarSign } from "lucide-react"
 import { SubscriptionStatusButton } from "@/components/subscriptions/SubscriptionStatusButton"
 import { RenewSubscriptionButton } from "@/components/subscriptions/RenewSubscriptionButton"
 import { ExportSubscriptionsButton } from "@/components/subscriptions/ExportSubscriptionsButton"
@@ -172,6 +172,18 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
             <p className="text-xs text-muted-foreground">ingreso mensual recurrente</p>
           </CardContent>
         </Card>
+        {stats.active > 0 && stats.mrr > 0 && (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Ingreso Promedio</CardTitle>
+              <DollarSign className="h-4 w-4 text-green-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">${Math.round(stats.mrr / stats.active).toLocaleString('es-CL')}</div>
+              <p className="text-xs text-muted-foreground">por suscriptor activo/mes</p>
+            </CardContent>
+          </Card>
+        )}
         {filteredMrr > 0 && (
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
