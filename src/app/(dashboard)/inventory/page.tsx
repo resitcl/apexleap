@@ -231,6 +231,22 @@ export default async function InventoryPage({ searchParams }: PageProps) {
         )
       })()}
 
+      {(() => {
+        const zeroStock = allItems.filter((i) => i.quantity === 0)
+        if (zeroStock.length === 0) return null
+        return (
+          <Card className="border-red-200 bg-red-50">
+            <CardContent className="py-3 flex items-center gap-3">
+              <AlertTriangle className="w-5 h-5 text-red-600 shrink-0" />
+              <p className="text-sm text-red-800 font-medium">
+                {zeroStock.length} ítem{zeroStock.length > 1 ? 's' : ''} sin stock (0 unidades):{' '}
+                {zeroStock.slice(0, 3).map((i: { name: string }) => i.name).join(', ')}{zeroStock.length > 3 ? '…' : ''}
+              </p>
+            </CardContent>
+          </Card>
+        )
+      })()}
+
       {lowStockItems.length > 0 && (
         <Card className="border-yellow-200 bg-yellow-50">
           <CardContent className="py-3 flex items-center gap-3">

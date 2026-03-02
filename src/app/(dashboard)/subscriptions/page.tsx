@@ -497,6 +497,16 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
                       </div>
                       <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground flex-wrap">
                         {athlete?.email && <span className="truncate max-w-[180px]">{athlete.email}</span>}
+                        {(() => {
+                          const pmts = (sub.payments as Array<{ paid_at: string | null; status: string }> | null) ?? []
+                          const lastPaid = pmts
+                            .filter((p) => p.status === 'paid' && p.paid_at)
+                            .map((p) => p.paid_at!)
+                            .sort()
+                            .at(-1)
+                          if (!lastPaid) return null
+                          return <span>Último pago: {new Date(lastPaid).toLocaleDateString('es-CL')}</span>
+                        })()}
                         <span>
                           Desde {new Date(sub.start_date).toLocaleDateString("es-CL")}
                           {sub.status === 'active' && (() => {
