@@ -9,6 +9,7 @@ import { CheckSquare, Users, TrendingUp } from "lucide-react"
 import { ManualCheckInButton } from "@/components/attendance/ManualCheckInButton"
 import { QRCheckInDisplay } from "@/components/attendance/QRCheckInDisplay"
 import { ExportAttendanceButton } from "@/components/attendance/ExportAttendanceButton"
+import { JustifyAttendanceButton } from "@/components/attendance/JustifyAttendanceButton"
 import { getAthletes } from "@/lib/actions/athletes"
 import { getSchedules } from "@/lib/actions/schedules"
 
@@ -352,9 +353,16 @@ export default async function AttendancePage({ searchParams }: PageProps) {
                             {record.check_in_lat && " · 📍 GPS"}
                           </p>
                         </div>
-                        <Badge variant={record.is_valid ? "default" : "destructive"} className="text-xs shrink-0">
-                          {record.is_valid ? "Válido" : "Inválido"}
-                        </Badge>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <Badge variant={record.is_valid ? "default" : "destructive"} className="text-xs">
+                            {record.is_valid ? (record.notes ? "Justificado" : "Válido") : "Inválido"}
+                          </Badge>
+                          <JustifyAttendanceButton
+                            attendanceId={record.id}
+                            isValid={record.is_valid ?? false}
+                            currentNotes={record.notes as string | null}
+                          />
+                        </div>
                       </div>
                     </CardContent>
                   </Card>

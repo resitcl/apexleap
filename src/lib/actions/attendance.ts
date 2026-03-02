@@ -122,6 +122,30 @@ export async function checkIn(params: {
   return data
 }
 
+export async function justifyAttendance(params: { attendanceId: string; reason: string }) {
+  const clubId = await getClubId()
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('attendance')
+    .update({ notes: params.reason, is_valid: true })
+    .eq('id', params.attendanceId)
+    .eq('club_id', clubId)
+  if (error) throw new Error(error.message)
+  revalidatePath('/dashboard/attendance')
+}
+
+export async function markAttendanceInvalid(params: { attendanceId: string }) {
+  const clubId = await getClubId()
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('attendance')
+    .update({ is_valid: false })
+    .eq('id', params.attendanceId)
+    .eq('club_id', clubId)
+  if (error) throw new Error(error.message)
+  revalidatePath('/dashboard/attendance')
+}
+
 export async function getAthleteAttendanceRate(athleteId: string, days = 30) {
   const clubId = await getClubId()
   const supabase = await createClient()
