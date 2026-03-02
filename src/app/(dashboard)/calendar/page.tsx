@@ -6,7 +6,7 @@ import { getVenues } from "@/lib/actions/venues"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Clock, MapPin, Users, Pencil } from "lucide-react"
+import { Plus, Clock, MapPin, Users, Pencil, AlertCircle } from "lucide-react"
 import { DeleteScheduleButton } from "@/components/calendar/DeleteScheduleButton"
 import { ExportSchedulesButton } from "@/components/calendar/ExportSchedulesButton"
 
@@ -176,6 +176,41 @@ export default async function CalendarPage({ searchParams }: PageProps) {
           ))}
         </div>
       )}
+
+      {(() => {
+        const active = schedules.filter((s) => s.is_active)
+        const overlaps: string[] = []
+        for (let i = 0; i < active.length; i++) {
+          for (let j = i + 1; j < active.length; j++) {
+            const a = active[i], b = active[j]
+            const sharedDays = (a.day_of_week as number[]).filter((d) => (b.day_of_week as number[]).includes(d))
+            if (sharedDays.length === 0) continue
+            const aStart = a.start_time, aEnd = a.end_time, bStart = b.start_time, bEnd = b.end_time
+            if (aStart < bEnd && bStart < aEnd) {
+              overlaps.push(`${a.name} ↔ ${b.name}`)
+            }
+          }
+        }
+        if (overlaps.length === 0) return null
+        return (
+          <Card className="border-orange-200 bg-orange-50">
+            <CardContent className="py-3">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-orange-600 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm text-orange-800 font-medium">Sesiones solapadas detectadas:</p>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {overlaps.slice(0, 3).map((o, i) => (
+                      <span key={i} className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded">{o}</span>
+                    ))}
+                    {overlaps.length > 3 && <span className="text-xs text-orange-600">+{overlaps.length - 3} más</span>}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )
+      })()}
 
       {error ? (
         <Card>

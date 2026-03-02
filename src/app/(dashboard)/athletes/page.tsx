@@ -775,6 +775,19 @@ export default async function AthletesPage({ searchParams }: PageProps) {
                           </Badge>
                         )
                       })()}
+                      {(() => {
+                        const rosters = athlete.rosters as Array<{ competitions: { id: string; name: string; start_date: string } | null }> | null ?? []
+                        const comps = rosters
+                          .map((r) => r.competitions)
+                          .filter(Boolean) as Array<{ id: string; name: string; start_date: string }>
+                        if (comps.length === 0) return null
+                        const last = comps.sort((a, b) => b.start_date.localeCompare(a.start_date))[0]
+                        return (
+                          <span className="text-xs text-muted-foreground" title={last.name}>
+                            🏆 {last.name.length > 18 ? last.name.slice(0, 18) + '…' : last.name} ({new Date(last.start_date).toLocaleDateString('es-CL', { day: '2-digit', month: 'short' })})
+                          </span>
+                        )
+                      })()}
                       <Badge variant={athlete.status === "active" ? "default" : "secondary"}>
                         {athlete.status === "active" ? "Activo" : athlete.status === "inactive" ? "Inactivo" : "Suspendido"}
                       </Badge>
