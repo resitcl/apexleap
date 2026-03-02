@@ -66,7 +66,7 @@ export async function getDashboardSummary() {
     // Top attendance this month
     supabase
       .from('attendance')
-      .select('athlete_id, athletes(id, name)')
+      .select('athlete_id, athletes(id, name, health_status)')
       .eq('club_id', clubId)
       .eq('is_valid', true)
       .gte('checked_in_at', monthStart),
@@ -142,10 +142,10 @@ export async function getDashboardSummary() {
 
   // Top 3 athletes by attendance this month
   const attRows = topAttendanceResult.data ?? []
-  const attByAthlete = attRows.reduce<Record<string, { id: string; name: string; count: number }>>((acc, r) => {
-    const ath = r.athletes as unknown as { id: string; name: string } | null
+  const attByAthlete = attRows.reduce<Record<string, { id: string; name: string; count: number; health_status: string }>>((acc, r) => {
+    const ath = r.athletes as unknown as { id: string; name: string; health_status: string } | null
     if (!ath) return acc
-    if (!acc[ath.id]) acc[ath.id] = { id: ath.id, name: ath.name, count: 0 }
+    if (!acc[ath.id]) acc[ath.id] = { id: ath.id, name: ath.name, count: 0, health_status: ath.health_status ?? 'healthy' }
     acc[ath.id].count++
     return acc
   }, {})

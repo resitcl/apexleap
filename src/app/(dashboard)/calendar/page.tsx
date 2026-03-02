@@ -271,6 +271,9 @@ export default async function CalendarPage({ searchParams }: PageProps) {
                       <div className="p-1.5 rounded bg-background border hover:border-primary transition-colors text-xs">
                         <p className="font-medium truncate">{s.name}</p>
                         <p className="text-muted-foreground">{s.start_time.slice(0, 5)}–{s.end_time.slice(0, 5)}</p>
+                        {(s.venues as { name: string } | null)?.name && (
+                          <p className="text-[10px] text-muted-foreground/70 truncate">📍 {(s.venues as { name: string }).name}</p>
+                        )}
                         {s.capacity && (() => {
                           const n = ((s.attendance as Array<{ id: string }> | null) ?? []).length
                           const p = Math.round((n / s.capacity) * 100)

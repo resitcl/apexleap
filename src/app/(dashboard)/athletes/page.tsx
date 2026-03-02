@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { UserPlus, Search } from "lucide-react"
+import { UserPlus, Search, AlertCircle } from "lucide-react"
 import { AthletesSearch } from "@/components/athletes/AthletesSearch"
 import { HealthStatusBadge } from "@/components/athletes/HealthStatusBadge"
 import { ExportAthletesButton } from "@/components/athletes/ExportAthletesButton"
@@ -312,6 +312,31 @@ export default async function AthletesPage({ searchParams }: PageProps) {
           </CardContent>
         </Card>
       </div>
+
+      {(() => {
+        const active = allAthletes.filter((a) => a.status === 'active')
+        if (active.length < 5) return null
+        const withOverdue = active.filter((a) => {
+          const pmts = a.payments as Array<{ status: string }> | null ?? []
+          return pmts.some((p) => p.status === 'overdue')
+        }).length
+        const pct = Math.round((withOverdue / active.length) * 100)
+        if (pct < 30) return null
+        return (
+          <a href="/dashboard/athletes?sort=debt">
+            <Card className="border-red-200 bg-red-50 hover:bg-red-100 transition-colors cursor-pointer">
+              <CardContent className="py-3">
+                <div className="flex items-center gap-3">
+                  <AlertCircle className="w-5 h-5 text-red-600 shrink-0" />
+                  <p className="text-sm text-red-800 font-medium">
+                    {pct}% de atletas activos ({withOverdue}/{active.length}) tienen pagos vencidos
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </a>
+        )
+      })()}
 
       {/* Search and Filters */}
       <div className="space-y-3">

@@ -216,6 +216,26 @@ export default async function FinancesPage({ searchParams }: PageProps) {
             </Card>
           )
         })()}
+        {summary.totalIncome > 0 && summary.totalExpenses > 0 && (() => {
+          const ratio = summary.totalIncome / summary.totalExpenses
+          const pct = Math.round(ratio * 100)
+          return (
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Ratio I/E</CardTitle>
+                <TrendingUp className="h-4 w-4 text-teal-500" />
+              </CardHeader>
+              <CardContent>
+                <div className={`text-2xl font-bold ${ratio >= 1.5 ? 'text-green-600' : ratio >= 1 ? 'text-yellow-600' : 'text-red-600'}`}>
+                  {ratio.toFixed(2)}x
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {pct >= 100 ? `+${pct - 100}% sobre egresos` : `${100 - pct}% bajo egresos`}
+                </p>
+              </CardContent>
+            </Card>
+          )
+        })()}
         {coaches.length > 0 && (() => {
           const fixedTotal = coaches
             .filter((c) => c.salary_type === 'fixed' && c.salary_amount)

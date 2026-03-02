@@ -752,17 +752,22 @@ export default async function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              {summary.topAthletes.map((ath, i) => (
-                <div key={ath.id} className="flex items-center justify-between gap-3 text-sm">
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-muted-foreground w-5 text-right">{i + 1}.</span>
-                    <Link href={`/dashboard/athletes/${ath.id}`} className="font-medium hover:underline">{ath.name}</Link>
+              {summary.topAthletes.map((ath, i) => {
+                const HEALTH = (ath as { health_status?: string }).health_status
+                const healthBadge = HEALTH === 'injured' ? '🔴' : HEALTH === 'observation' ? '🟡' : null
+                return (
+                  <div key={ath.id} className="flex items-center justify-between gap-3 text-sm">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-muted-foreground w-5 text-right">{i + 1}.</span>
+                      <Link href={`/dashboard/athletes/${ath.id}`} className="font-medium hover:underline">{ath.name}</Link>
+                      {healthBadge && <span title={HEALTH}>{healthBadge}</span>}
+                    </div>
+                    <span className="text-xs font-semibold bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                      {ath.count} check-ins
+                    </span>
                   </div>
-                  <span className="text-xs font-semibold bg-primary/10 text-primary px-2 py-0.5 rounded-full">
-                    {ath.count} check-ins
-                  </span>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </CardContent>
         </Card>

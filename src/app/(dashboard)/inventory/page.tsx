@@ -112,6 +112,12 @@ export default async function InventoryPage({ searchParams }: PageProps) {
               return totalValue > 0 ? <span className="ml-2 text-green-600 font-medium">· Valor total: ${totalValue.toLocaleString('es-CL')}</span> : null
             })()}
             {(() => {
+              const withPrice = allItems.filter((i) => i.purchase_price && i.purchase_price > 0)
+              if (withPrice.length < 2) return null
+              const avg = Math.round(withPrice.reduce((s, i) => s + (i.purchase_price ?? 0), 0) / withPrice.length)
+              return <span className="ml-2 text-muted-foreground/70">· prom. ${avg.toLocaleString('es-CL')}/ítem</span>
+            })()}
+            {(() => {
               const assigned = allItems.filter((i) => i.assigned_to).length
               const tot = allItems.length
               if (tot === 0) return null
