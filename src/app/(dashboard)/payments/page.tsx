@@ -278,6 +278,38 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
         })()}
       </div>
 
+      {/* Top morosos */}
+      {allPayments.length > 0 && (() => {
+        const debtMap: Record<string, { name: string; id: string; debt: number }> = {}
+        for (const p of allPayments.filter((p) => p.status === 'overdue')) {
+          const ath = p.athletes as { id: string; name: string } | null
+          if (!ath) continue
+          if (!debtMap[ath.id]) debtMap[ath.id] = { id: ath.id, name: ath.name, debt: 0 }
+          debtMap[ath.id].debt += Number(p.amount)
+        }
+        const top = Object.values(debtMap).sort((a, b) => b.debt - a.debt).slice(0, 3)
+        if (top.length === 0) return null
+        return (
+          <Card className="border-red-100 bg-red-50/40">
+            <CardContent className="py-3">
+              <div className="flex items-center gap-3">
+                <AlertTriangle className="w-5 h-5 text-red-600 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-red-800 mb-1">Top morosos</p>
+                  <div className="flex flex-wrap gap-x-4 gap-y-0.5">
+                    {top.map((d) => (
+                      <span key={d.id} className="text-xs text-red-700">
+                        {d.name}: <span className="font-bold">${d.debt.toLocaleString('es-CL')}</span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )
+      })()}
+
       {/* Pending by month */}
       {allPayments.length > 0 && (() => {
         const pending = allPayments.filter((p) => p.status === 'pending' || p.status === 'overdue')

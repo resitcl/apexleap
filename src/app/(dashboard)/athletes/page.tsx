@@ -27,6 +27,7 @@ interface PageProps {
     ageMax?: string
     debtMin?: string
     debtMax?: string
+    expiredDocs?: string
   }>
 }
 
@@ -40,6 +41,7 @@ export default async function AthletesPage({ searchParams }: PageProps) {
   const ageMax  = params.ageMax  ? Number(params.ageMax)  : undefined
   const debtMin = params.debtMin ? Number(params.debtMin) : undefined
   const debtMax = params.debtMax ? Number(params.debtMax) : undefined
+  const filterExpiredDocs = params.expiredDocs === '1'
 
   let athletes: Awaited<ReturnType<typeof getAthletes>>["athletes"] = []
   let allAthletes: Awaited<ReturnType<typeof getAthletes>>["athletes"] = []
@@ -166,6 +168,14 @@ export default async function AthletesPage({ searchParams }: PageProps) {
       if (debtMin !== undefined && debt < debtMin) return false
       if (debtMax !== undefined && debt > debtMax) return false
       return true
+    })
+  }
+
+  if (filterExpiredDocs) {
+    const todayStr = new Date().toISOString().split('T')[0]
+    athletes = athletes.filter((a) => {
+      const docs = a.documents as Array<{ expiry_date: string | null }> | null ?? []
+      return docs.some((d) => d.expiry_date && d.expiry_date < todayStr)
     })
   }
 
@@ -532,6 +542,22 @@ export default async function AthletesPage({ searchParams }: PageProps) {
               }`}>{label}</button>
             </Link>
           ))}
+        </div>
+        <div className="flex flex-wrap gap-2 items-center">
+          <span className="text-xs text-muted-foreground font-medium">Documentos:</span>
+          <Link href={`/dashboard/athletes?${new URLSearchParams({
+            ...(params.search    ? { search:    params.search }    : {}),
+            ...(params.status    ? { status:    params.status }    : {}),
+            ...(params.health    ? { health:    params.health }    : {}),
+            ...(params.planId    ? { planId:    params.planId }    : {}),
+            ...(params.subStatus ? { subStatus: params.subStatus } : {}),
+            ...(sort             ? { sort }                        : {}),
+            ...(filterExpiredDocs ? {} : { expiredDocs: '1' }),
+          }).toString()}`}>
+            <button className={`h-7 px-2.5 rounded-md border text-xs font-medium transition-colors ${
+              filterExpiredDocs ? 'bg-orange-500 text-white border-orange-500' : 'bg-background border-input hover:bg-accent'
+            }`}>📄 Con docs vencidos</button>
+          </Link>
         </div>
         <div className="flex flex-wrap gap-2 items-center">
           <span className="text-xs text-muted-foreground font-medium">Orden:</span>

@@ -159,6 +159,12 @@ export default async function InventoryPage({ searchParams }: PageProps) {
               ) : null
             })()}
             {(() => {
+              const good = allItems.filter((i) => i.condition === 'good').length
+              if (allItems.length === 0) return null
+              const pct = Math.round((good / allItems.length) * 100)
+              return <span className={`ml-2 font-medium ${pct >= 70 ? 'text-green-600' : pct >= 40 ? 'text-yellow-600' : 'text-red-600'}`}>· {pct}% en buen estado</span>
+            })()}
+            {(() => {
               const curMonth = new Date().toISOString().slice(0, 7)
               const thisMonth = allItems.filter((i) => (i.purchase_date ?? '').startsWith(curMonth)).length
               return thisMonth > 0 ? (
