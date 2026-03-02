@@ -339,6 +339,21 @@ export default async function DashboardPage() {
         )
       })()}
 
+      {summary.semaforoCount.red > 0 && (
+        <Link href="/dashboard/athletes?health=injured">
+          <Card className="border-red-200 bg-red-50 hover:bg-red-100 transition-colors cursor-pointer">
+            <CardContent className="py-3">
+              <div className="flex items-center gap-3">
+                <UserCheck className="w-5 h-5 text-red-600 shrink-0" />
+                <p className="text-sm text-red-800 font-medium">
+                  {summary.semaforoCount.red} atleta{summary.semaforoCount.red !== 1 ? 's' : ''} con semáforo rojo — revisar lesiones y bloqueos
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+      )}
+
       {summary.topDebtors.length > 0 && (
         <Link href="/dashboard/payments?status=overdue">
           <Card className="border-red-200 bg-red-50 hover:bg-red-100 transition-colors cursor-pointer">

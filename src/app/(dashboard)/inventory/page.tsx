@@ -108,6 +108,12 @@ export default async function InventoryPage({ searchParams }: PageProps) {
                 <span className="ml-2 text-red-600 font-medium">· {broken} roto{broken !== 1 ? 's' : ''} ⚠</span>
               ) : null
             })()}
+            {(() => {
+              const priciest = allItems.filter((i) => i.purchase_price).slice().sort((a, b) => (b.purchase_price ?? 0) - (a.purchase_price ?? 0))[0]
+              return priciest ? (
+                <span className="ml-2 text-muted-foreground/60">· Más caro: {priciest.name} (${Number(priciest.purchase_price).toLocaleString('es-CL')})</span>
+              ) : null
+            })()}
             {newestItem?.created_at && (
               <span className="ml-2 text-muted-foreground/60">
                 · Último: {newestItem.name} ({new Date(newestItem.created_at).toLocaleDateString('es-CL')})

@@ -15,6 +15,7 @@ import { EditCoachButton } from "@/components/finances/EditCoachButton"
 import { DeleteExpenseButton } from "@/components/finances/DeleteExpenseButton"
 import { EditExpenseButton } from "@/components/finances/EditExpenseButton"
 import { MonthPicker } from "@/components/finances/MonthPicker"
+import { ExportCoachesButton } from "@/components/finances/ExportCoachesButton"
 
 const CATEGORY_LABELS: Record<string, string> = {
   rent: "Arriendo", salary: "Salarios", supplies: "Insumos",
@@ -530,7 +531,10 @@ export default async function FinancesPage({ searchParams }: PageProps) {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">{coaches.filter((c) => c.is_active).length} entrenadores activos</p>
-            <NewCoachForm />
+            <div className="flex gap-2">
+              <ExportCoachesButton coaches={coaches.map((c) => ({ ...c, salary: undefined, salary_type: c.salary_type ?? '', salary_amount: c.salary_amount ?? null }))} />
+              <NewCoachForm />
+            </div>
           </div>
 
           {coaches.length === 0 ? (

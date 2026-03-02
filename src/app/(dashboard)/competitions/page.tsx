@@ -56,6 +56,10 @@ export default async function CompetitionsPage({ searchParams }: PageProps) {
           <h1 className="text-3xl font-bold">Competencias</h1>
           <p className="text-muted-foreground">
             Ligas, torneos y nóminas matchday
+            {params.status && (() => {
+              const s = STATUS_META[params.status]
+              return s ? <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20">{s.label}</span> : null
+            })()}
             {rosters > 0 && <span className="ml-2 font-medium text-primary">· {rosters} inscrito{rosters !== 1 ? 's' : ''} en nóminas</span>}
             {competitions.length > 0 && rosters > 0 && (
               <span className="ml-2 text-muted-foreground/70">· promedio {(rosters / competitions.length).toFixed(1)} por competencia</span>
