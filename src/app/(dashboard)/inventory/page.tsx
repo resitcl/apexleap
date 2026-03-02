@@ -144,6 +144,13 @@ export default async function InventoryPage({ searchParams }: PageProps) {
                 <span className="ml-2 text-muted-foreground/60">· Más caro: {priciest.name} (${Number(priciest.purchase_price).toLocaleString('es-CL')})</span>
               ) : null
             })()}
+            {(() => {
+              const curMonth = new Date().toISOString().slice(0, 7)
+              const thisMonth = allItems.filter((i) => (i.purchase_date ?? '').startsWith(curMonth)).length
+              return thisMonth > 0 ? (
+                <span className="ml-2 text-blue-600 font-medium">· +{thisMonth} adquirido{thisMonth !== 1 ? 's' : ''} este mes</span>
+              ) : null
+            })()}
             {newestItem?.created_at && (
               <span className="ml-2 text-muted-foreground/60">
                 · Último: {newestItem.name} ({new Date(newestItem.created_at).toLocaleDateString('es-CL')})
