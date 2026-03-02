@@ -165,6 +165,12 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
               )
             })()}
             {allPayments.length > 0 && (() => {
+              const curMonth = new Date().toISOString().slice(0, 7)
+              const cancelled = allPayments.filter((p) => p.status === 'cancelled' && p.created_at?.startsWith(curMonth)).length
+              if (cancelled === 0) return null
+              return <span className="ml-2 text-muted-foreground/70">· {cancelled} cancelado{cancelled !== 1 ? 's' : ''} este mes</span>
+            })()}
+            {allPayments.length > 0 && (() => {
               type P = typeof allPayments[number]
               const key = (p: P) => {
                 const id = (p.athletes as { id?: string } | null)?.id ?? p.athlete_id ?? ''

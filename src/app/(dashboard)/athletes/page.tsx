@@ -417,6 +417,28 @@ export default async function AthletesPage({ searchParams }: PageProps) {
             </Card>
           )
         })()}
+        {(() => {
+          const highDebt = allAthletes.filter((a) => {
+            const pmts = a.payments as Array<{ status: string; amount: number }> | null ?? []
+            const total = pmts.filter((p) => p.status === 'overdue').reduce((s, p) => s + Number(p.amount), 0)
+            return total > 50000
+          })
+          if (highDebt.length === 0) return null
+          return (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Deuda &gt;$50k</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-red-500" />
+                  <span className="text-2xl font-bold text-red-600">{highDebt.length}</span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">atleta{highDebt.length !== 1 ? 's' : ''} c/deuda alta</p>
+              </CardContent>
+            </Card>
+          )
+        })()}
       </div>
 
       {(() => {

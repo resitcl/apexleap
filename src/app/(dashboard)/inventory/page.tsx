@@ -294,6 +294,23 @@ export default async function InventoryPage({ searchParams }: PageProps) {
       })()}
 
       {(() => {
+        const serials = allItems.map((i) => (i as { serial_number?: string | null }).serial_number).filter(Boolean) as string[]
+        const dupes = serials.filter((s, i, a) => a.indexOf(s) !== i)
+        if (dupes.length === 0) return null
+        const dupeItems = allItems.filter((i) => dupes.includes((i as { serial_number?: string | null }).serial_number ?? ''))
+        return (
+          <Card className="border-orange-200 bg-orange-50">
+            <CardContent className="py-3 flex items-center gap-3">
+              <AlertTriangle className="w-5 h-5 text-orange-600 shrink-0" />
+              <p className="text-sm text-orange-800 font-medium">
+                {[...new Set(dupes)].length} número{[...new Set(dupes)].length !== 1 ? 's' : ''} de serie duplicado{[...new Set(dupes)].length !== 1 ? 's' : ''}: {dupeItems.slice(0, 3).map((i) => i.name).join(', ')}{dupeItems.length > 3 ? '…' : ''}
+              </p>
+            </CardContent>
+          </Card>
+        )
+      })()}
+
+      {(() => {
         const zeroStock = allItems.filter((i) => i.quantity === 0)
         if (zeroStock.length === 0) return null
         return (

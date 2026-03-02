@@ -223,6 +223,9 @@ export default async function DashboardPage() {
                 {summary.totalAthletes > 0 && weeklyAttendance.valid > 0 && (
                   <span className="ml-1 text-muted-foreground/70">· {(weeklyAttendance.valid / summary.totalAthletes).toFixed(1)} ses/atleta</span>
                 )}
+                {weeklyAttendance.rate > 0 && (
+                  <span className="ml-1 text-muted-foreground/60">· ~{weeklyAttendance.rate}% prom. mensual</span>
+                )}
               </p>
             </CardContent>
           </Card>
