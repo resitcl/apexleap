@@ -173,6 +173,31 @@ export default async function FinancesPage({ searchParams }: PageProps) {
         </Card>
       </div>
 
+      {/* Avg expense per category KPI */}
+      {expenses.length > 0 && (() => {
+        const byCat = expenses.reduce<Record<string, { sum: number; count: number }>>((acc, e) => {
+          if (!acc[e.category]) acc[e.category] = { sum: 0, count: 0 }
+          acc[e.category].sum += Number(e.amount)
+          acc[e.category].count++
+          return acc
+        }, {})
+        const cats = Object.entries(byCat)
+        if (cats.length < 2) return null
+        const CAT_LABEL: Record<string, string> = { rent: '🏠', salary: '👔', supplies: '📦', maintenance: '🔧', marketing: '📣', other: '📁' }
+        return (
+          <div className="flex flex-wrap gap-3">
+            {cats.map(([cat, { sum, count }]) => (
+              <div key={cat} className="flex items-center gap-2 px-3 py-2 rounded-lg border bg-muted/40 text-sm">
+                <span>{CAT_LABEL[cat] ?? '📁'}</span>
+                <span className="text-muted-foreground">{CATEGORY_LABELS[cat] ?? cat}:</span>
+                <span className="font-semibold">${Math.round(sum / count).toLocaleString('es-CL')}</span>
+                <span className="text-xs text-muted-foreground">prom. ({count})</span>
+              </div>
+            ))}
+          </div>
+        )
+      })()}
+
       {/* Coaches Payroll KPI */}
       {coaches.length > 0 && (() => {
         type Coach = { is_active: boolean; salary_type: string; salary_amount: number | null }

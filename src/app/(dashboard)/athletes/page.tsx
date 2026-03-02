@@ -144,6 +144,15 @@ export default async function AthletesPage({ searchParams }: PageProps) {
               <span className="ml-2 text-orange-600 font-medium">· {expiredDocsCount} doc{expiredDocsCount !== 1 ? 's' : ''} vencido{expiredDocsCount !== 1 ? 's' : ''}</span>
             )}
             {(() => {
+              const totalComps = allAthletes.reduce((sum, a) => {
+                const rosters = (a as Record<string, unknown>).rosters as unknown[] | null
+                return sum + (rosters ?? []).length
+              }, 0)
+              return totalComps > 0 ? (
+                <span className="ml-2 text-violet-600 font-medium">· 🏆 {totalComps} participaciones</span>
+              ) : null
+            })()}
+            {(() => {
               const noPhoto = allAthletes.filter((a) => a.status === 'active' && !a.photo_url).length
               return noPhoto > 0 ? (
                 <span className="ml-2 text-muted-foreground/60">· {noPhoto} sin foto</span>

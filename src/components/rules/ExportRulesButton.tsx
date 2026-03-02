@@ -18,6 +18,7 @@ interface Rule {
 interface Props {
   rules: Rule[]
   affected?: Record<string, number>
+  lastTrigger?: Record<string, string | null>
 }
 
 const TYPE_LABELS: Record<string, string> = {
@@ -37,23 +38,27 @@ function formatCondition(cond: Record<string, unknown>): string {
     .join('; ')
 }
 
-export function ExportRulesButton({ rules, affected = {} }: Props) {
+export function ExportRulesButton({ rules, affected = {}, lastTrigger = {} }: Props) {
   const [loading, setLoading] = useState(false)
 
   function handleExport() {
     if (rules.length === 0) { toast.error('Sin reglas para exportar'); return }
     setLoading(true)
     try {
-      const headers = ['Nombre', 'Tipo', 'Severidad', 'Acción', 'Activa', 'Afectados', 'Condición']
-      const rows = rules.map((r) => [
-        r.name,
-        TYPE_LABELS[r.type]     ?? r.type,
-        SEVERITY_LABELS[r.severity] ?? r.severity,
-        ACTION_LABELS[r.action] ?? r.action,
-        r.is_active ? 'Sí' : 'No',
-        String(affected[r.type] ?? 0),
-        r.condition ? formatCondition(r.condition) : '',
-      ])
+      const headers = ['Nombre', 'Tipo', 'Severidad', 'Acción', 'Activa', 'Afectados', 'Última Activación', 'Condición']
+      const rows = rules.map((r) => {
+        const last = lastTrigger[r.type]
+        return [
+          r.name,
+          TYPE_LABELS[r.type]     ?? r.type,
+          SEVERITY_LABELS[r.severity] ?? r.severity,
+          ACTION_LABELS[r.action] ?? r.action,
+          r.is_active ? 'Sí' : 'No',
+          String(affected[r.type] ?? 0),
+          last ? new Date(last).toLocaleDateString('es-CL') : '',
+          r.condition ? formatCondition(r.condition) : '',
+        ]
+      })
 
       const csv = [headers, ...rows]
         .map((row) => row.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(','))

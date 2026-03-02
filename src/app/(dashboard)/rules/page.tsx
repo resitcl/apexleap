@@ -89,7 +89,7 @@ export default async function RulesPage({ searchParams }: PageProps) {
           </p>
         </div>
         <div className="flex gap-2">
-          <ExportRulesButton rules={rules.map((r) => ({ ...r, condition: r.condition as Record<string, unknown> }))} affected={affected} />
+          <ExportRulesButton rules={rules.map((r) => ({ ...r, condition: r.condition as Record<string, unknown> }))} affected={affected} lastTrigger={lastTrigger} />
           <NewRuleForm />
         </div>
       </div>

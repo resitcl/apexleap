@@ -16,7 +16,7 @@ import { DeletePaymentButton } from "@/components/payments/DeletePaymentButton"
 import { EditPaymentButton } from "@/components/payments/EditPaymentButton"
 
 interface PageProps {
-  searchParams: Promise<{ status?: string; page?: string; from?: string; to?: string; athleteId?: string; search?: string; athleteName?: string; amountMin?: string; amountMax?: string; paymentMethod?: string }>
+  searchParams: Promise<{ status?: string; page?: string; from?: string; to?: string; athleteId?: string; search?: string; athleteName?: string; amountMin?: string; amountMax?: string; paymentMethod?: string; paidFrom?: string; paidTo?: string }>
 }
 
 const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
@@ -38,6 +38,8 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
   const amountMin      = params.amountMin      ?? ""
   const amountMax      = params.amountMax      ?? ""
   const paymentMethod  = params.paymentMethod  ?? ""
+  const paidFrom       = params.paidFrom       ?? ""
+  const paidTo         = params.paidTo         ?? ""
 
   let payments: Awaited<ReturnType<typeof getPayments>>["payments"] = []
   let allPayments: Awaited<ReturnType<typeof getPayments>>["payments"] = []
@@ -51,8 +53,18 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
       getPayments({ status: params.status, page: 1, limit: 1000, from: from || undefined, to: to || undefined, athleteId: athleteId || undefined, search: search || undefined, athleteName: athleteName || undefined, amountMin: amountMin ? Number(amountMin) : undefined, amountMax: amountMax ? Number(amountMax) : undefined, paymentMethod: paymentMethod || undefined }),
       getPaymentSummary(),
     ])
-    payments = result.payments
-    allPayments = allResult.payments
+    let pList = result.payments
+    let pAll  = allResult.payments
+    if (paidFrom) {
+      pList = pList.filter((p) => p.paid_at && p.paid_at >= paidFrom)
+      pAll  = pAll.filter((p) => p.paid_at && p.paid_at >= paidFrom)
+    }
+    if (paidTo) {
+      pList = pList.filter((p) => p.paid_at && p.paid_at.slice(0,10) <= paidTo)
+      pAll  = pAll.filter((p) => p.paid_at && p.paid_at.slice(0,10) <= paidTo)
+    }
+    payments = pList
+    allPayments = pAll
     total = result.total
     summary = summaryResult
   } catch (e) {
@@ -325,6 +337,16 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
               className="h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring w-28" />
           </div>
           <div className="flex flex-col gap-1">
+            <label className="text-xs text-muted-foreground font-medium">Pagado desde</label>
+            <input type="date" name="paidFrom" defaultValue={paidFrom}
+              className="h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs text-muted-foreground font-medium">Pagado hasta</label>
+            <input type="date" name="paidTo" defaultValue={paidTo}
+              className="h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+          </div>
+          <div className="flex flex-col gap-1">
             <label className="text-xs text-muted-foreground font-medium">Método</label>
             <select name="paymentMethod" defaultValue={paymentMethod}
               className="h-9 px-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring">
@@ -342,7 +364,7 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
             className="h-9 px-4 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
             Filtrar
           </button>
-          {(from || to || search || athleteName || amountMin || amountMax || paymentMethod) && (
+          {(from || to || search || athleteName || amountMin || amountMax || paymentMethod || paidFrom || paidTo) && (
             <Link href={`/dashboard/payments${params.status ? `?status=${params.status}` : ''}`}
               className="h-9 px-3 rounded-md border border-input bg-background text-sm font-medium hover:bg-accent transition-colors flex items-center">
               ✕ Limpiar

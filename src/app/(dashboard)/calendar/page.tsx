@@ -270,6 +270,9 @@ export default async function CalendarPage({ searchParams }: PageProps) {
                           <Badge variant={s.access_rule === "open" ? "secondary" : "outline"} className="text-xs">
                             {s.access_rule === "open" ? "Abierta" : s.access_rule === "subscription" ? "Suscripción" : "Perfil"}
                           </Badge>
+                          {!venue && (
+                            <Badge variant="outline" className="text-xs text-orange-600 border-orange-300">Sin sede</Badge>
+                          )}
                         </div>
                         <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
                           <span className="flex items-center gap-1">
