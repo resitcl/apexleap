@@ -166,7 +166,7 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
       )}
 
       {/* Summary KPIs */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Recaudado</CardTitle>
@@ -203,6 +203,23 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
             <p className="text-xs text-muted-foreground">{summary.count_overdue} cuotas morosas</p>
           </CardContent>
         </Card>
+        {allPayments.length > 0 && (() => {
+          const paidThisMonth = allPayments.filter((p) => p.status === 'paid' && p.paid_at && p.paid_at.startsWith(new Date().toISOString().slice(0, 7)))
+          if (paidThisMonth.length === 0) return null
+          const avg = Math.round(paidThisMonth.reduce((s, p) => s + Number(p.amount), 0) / paidThisMonth.length)
+          return (
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Pago Promedio</CardTitle>
+                <DollarSign className="h-4 w-4 text-indigo-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-indigo-600">${avg.toLocaleString('es-CL')}</div>
+                <p className="text-xs text-muted-foreground">{paidThisMonth.length} pagos cobrados este mes</p>
+              </CardContent>
+            </Card>
+          )
+        })()}
         {allPayments.length > 0 && (() => {
           const thirtyAgo = new Date(); thirtyAgo.setDate(thirtyAgo.getDate() - 30)
           const thirtyISO = thirtyAgo.toISOString().split('T')[0]

@@ -26,7 +26,7 @@ const CYCLE_LABELS: Record<string, string> = {
 }
 
 interface PageProps {
-  searchParams: Promise<{ status?: string; page?: string; planId?: string; search?: string; expiring?: string; method?: string }>
+  searchParams: Promise<{ status?: string; page?: string; planId?: string; search?: string; expiring?: string; method?: string; sort?: string }>
 }
 
 export default async function SubscriptionsPage({ searchParams }: PageProps) {
@@ -36,6 +36,7 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
   const search   = params.search   ?? ""
   const expiring = params.expiring ?? ""
   const method   = params.method   ?? ""
+  const sortBy   = params.sort     ?? ""
 
   let subs: Awaited<ReturnType<typeof getSubscriptions>>["subscriptions"] = []
   let allSubs: Awaited<ReturnType<typeof getSubscriptions>>["subscriptions"] = []
@@ -60,6 +61,13 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
     if (method) {
       sList = sList.filter((s) => s.payment_method === method)
       aList  = aList.filter((s) => s.payment_method === method)
+    }
+    if (sortBy === 'expiring') {
+      sList = sList.slice().sort((a, b) => {
+        const dA = a.end_date ?? '9999-12-31'
+        const dB = b.end_date ?? '9999-12-31'
+        return dA.localeCompare(dB)
+      })
     }
     subs = sList
     allSubs = aList
@@ -331,6 +339,15 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
             </div>
           )
         })()}
+        <div className="flex flex-wrap gap-2 items-center w-full">
+          <span className="text-xs text-muted-foreground font-medium">Orden:</span>
+          <Link href={`/dashboard/subscriptions?${new URLSearchParams({ ...(params.status ? { status: params.status } : {}), ...(planId ? { planId } : {}), ...(search ? { search } : {}), ...(method ? { method } : {}) }).toString()}`}>
+            <button className={`h-7 px-2.5 rounded-md border text-xs font-medium transition-colors ${!sortBy ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-input hover:bg-accent'}`}>Predeterminado</button>
+          </Link>
+          <Link href={`/dashboard/subscriptions?${new URLSearchParams({ ...(params.status ? { status: params.status } : {}), ...(planId ? { planId } : {}), ...(search ? { search } : {}), ...(method ? { method } : {}), sort: 'expiring' }).toString()}`}>
+            <button className={`h-7 px-2.5 rounded-md border text-xs font-medium transition-colors ${sortBy === 'expiring' ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-input hover:bg-accent'}`}>📅 Por vencer</button>
+          </Link>
+        </div>
         <form method="get" action="/dashboard/subscriptions" className="flex flex-wrap items-center gap-2">
           {params.status && <input type="hidden" name="status" value={params.status} />}
           <input

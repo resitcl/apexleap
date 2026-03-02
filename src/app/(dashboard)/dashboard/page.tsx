@@ -495,6 +495,21 @@ export default async function DashboardPage() {
         </Link>
       )}
 
+      {summary.mrr > 0 && summary.monthlyIncome < summary.mrr * 0.7 && (
+        <Link href="/dashboard/finances">
+          <Card className="border-orange-200 bg-orange-50 hover:bg-orange-100 transition-colors cursor-pointer">
+            <CardContent className="py-3">
+              <div className="flex items-center gap-3">
+                <TrendingUp className="w-5 h-5 text-orange-600 shrink-0" />
+                <p className="text-sm text-orange-800 font-medium">
+                  Ingresos del mes (${summary.monthlyIncome.toLocaleString('es-CL')}) por debajo del MRR esperado (${Math.round(summary.mrr).toLocaleString('es-CL')})
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+      )}
+
       {summary.totalAthletes > 0 && todaySessions.length === 0 && (
         <Link href="/dashboard/calendar">
           <Card className="border-blue-200 bg-blue-50 hover:bg-blue-100 transition-colors cursor-pointer">
