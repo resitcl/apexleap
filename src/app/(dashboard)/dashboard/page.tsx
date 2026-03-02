@@ -5,6 +5,7 @@ import { redirect } from "next/navigation"
 import { getDashboardSummary, getRecentActivity, getMonthlyRevenue, getTodaySessions, getOverdueAlerts, getUpcomingSchedules, getExpiringSubscriptions, getWeeklyAttendanceRate, getExpiredDocuments, getAthletesWithoutPlan, getWeeklyAttendanceByDay, getMonthlyRetentionRate } from "@/lib/actions/dashboard"
 import { checkUserHasClub } from "@/lib/actions/onboarding"
 import { getCompetitions } from "@/lib/actions/competitions"
+import { getInventoryItems } from "@/lib/actions/inventory"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -39,6 +40,7 @@ export default async function DashboardPage() {
   let athletesWithoutPlan = 0
   let retention: Awaited<ReturnType<typeof getMonthlyRetentionRate>> = null
   let upcomingComps: { id: string; name: string; type: string; start_date: string; location: string | null }[] = []
+  let brokenItems: { id: string; name: string }[] = []
 
   try {
     ;[summary, activity, monthlyRevenue, todaySessions, overdueAlerts, upcomingSchedules, expiringSubscriptions, weeklyAttendance, weeklyByDay, expiredDocs, athletesWithoutPlan, retention] = await Promise.all([
@@ -59,6 +61,8 @@ export default async function DashboardPage() {
     upcomingComps = compResult.competitions.map((c) => ({
       id: c.id, name: c.name, type: c.type, start_date: c.start_date, location: c.location ?? null,
     }))
+    const invResult = await getInventoryItems({ condition: 'broken', limit: 100 })
+    brokenItems = (invResult.items ?? []).map((i) => ({ id: i.id, name: i.name }))
   } catch {
     // show zeros on error
   }
@@ -714,6 +718,25 @@ export default async function DashboardPage() {
           </Card>
         )
       })()}
+
+      {/* Broken inventory alert */}
+      {brokenItems.length > 0 && (
+        <Link href="/dashboard/inventory?condition=broken">
+          <Card className="border-red-200 bg-red-50 hover:bg-red-100 transition-colors cursor-pointer">
+            <CardContent className="py-3">
+              <div className="flex items-center gap-3">
+                <AlertCircle className="w-5 h-5 text-red-600 shrink-0" />
+                <p className="text-sm text-red-800 font-medium">
+                  {brokenItems.length} ítem{brokenItems.length !== 1 ? 's' : ''} en mal estado (roto{brokenItems.length !== 1 ? 's' : ''})
+                  {brokenItems.length <= 3 && (
+                    <span className="ml-1 font-normal">— {brokenItems.map((i) => i.name).join(', ')}</span>
+                  )}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+      )}
 
       {/* Upcoming competitions widget */}
       {upcomingComps.length > 0 && (

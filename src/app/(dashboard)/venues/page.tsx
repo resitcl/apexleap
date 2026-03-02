@@ -40,6 +40,12 @@ export default async function VenuesPage() {
               const totalCap = venues.filter((v) => v.is_active && v.capacity).reduce((sum, v) => sum + (v.capacity ?? 0), 0)
               return totalCap > 0 ? <span className="ml-2 font-medium">· {totalCap} personas de aforo total</span> : null
             })()}
+            {(() => {
+              const totalSessions = Object.values(sessionsByVenue).reduce((s, n) => s + n, 0)
+              return totalSessions > 0 ? (
+                <span className="ml-2 text-muted-foreground/70">· {totalSessions} sesión{totalSessions !== 1 ? 'es' : ''} activa{totalSessions !== 1 ? 's' : ''}</span>
+              ) : null
+            })()}
           </p>
         </div>
         <div className="flex gap-2">
