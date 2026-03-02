@@ -276,6 +276,18 @@ export default async function AthletesPage({ searchParams }: PageProps) {
                 <span className="ml-2 text-muted-foreground/60">· prom. {months} mes{months !== 1 ? 'es' : ''} activo</span>
               ) : null
             })()}
+            {(() => {
+              const thirtyAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+              const withAtt = allAthletes.filter((a) => a.status === 'active' && (a.attendance as unknown[])?.length)
+              if (withAtt.length < 3) return null
+              const avgCheckins = +(withAtt.reduce((sum, a) => {
+                const att = (a.attendance as Array<{ checked_in_at: string }> | null) ?? []
+                return sum + att.filter((r) => r.checked_in_at >= thirtyAgo).length
+              }, 0) / withAtt.length).toFixed(1)
+              return avgCheckins > 0 ? (
+                <span className="ml-2 text-muted-foreground/60">· prom. {avgCheckins} check-ins/atleta/30d</span>
+              ) : null
+            })()}
             {totalDebt > 0 && (() => {
               const debtors = allAthletes.filter((a) => {
                 const pmts = a.payments as Array<{ status: string; amount: number }> | null ?? []
