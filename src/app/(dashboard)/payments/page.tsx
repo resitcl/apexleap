@@ -423,6 +423,22 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
         )
       })()}
 
+      {/* Alerta pagos sin método de pago */}
+      {allPayments.length > 0 && (() => {
+        const noMethod = allPayments.filter((p) => p.status === 'paid' && !p.payment_method)
+        if (noMethod.length < 3) return null
+        return (
+          <Card className="border-slate-200 bg-slate-50">
+            <CardContent className="py-3 flex items-center gap-3">
+              <AlertTriangle className="w-5 h-5 text-slate-500 shrink-0" />
+              <p className="text-sm text-slate-700 font-medium">
+                {noMethod.length} pago{noMethod.length !== 1 ? 's' : ''} cobrado{noMethod.length !== 1 ? 's' : ''} sin método de pago registrado
+              </p>
+            </CardContent>
+          </Card>
+        )
+      })()}
+
       {/* Alerta pagos pending con due_date pasada */}
       {(() => {
         const todayISO = new Date().toISOString().split('T')[0]

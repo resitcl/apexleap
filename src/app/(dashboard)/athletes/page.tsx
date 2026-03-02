@@ -539,6 +539,23 @@ export default async function AthletesPage({ searchParams }: PageProps) {
         )
       })()}
 
+      {(() => {
+        const noEmerg = allAthletes.filter((a) => a.status === 'active' && !(a as { emergency_phone?: string }).emergency_phone)
+        if (noEmerg.length < 3) return null
+        const pct = Math.round((noEmerg.length / allAthletes.filter((a) => a.status === 'active').length) * 100)
+        if (pct < 30) return null
+        return (
+          <Card className="border-slate-200 bg-slate-50">
+            <CardContent className="py-3 flex items-center gap-3">
+              <AlertCircle className="w-5 h-5 text-slate-500 shrink-0" />
+              <p className="text-sm text-slate-700 font-medium">
+                {noEmerg.length} atleta{noEmerg.length !== 1 ? 's' : ''} activo{noEmerg.length !== 1 ? 's' : ''} ({pct}%) sin teléfono de emergencia registrado
+              </p>
+            </CardContent>
+          </Card>
+        )
+      })()}
+
       {/* Search and Filters */}
       <div className="space-y-3">
         <div className="flex items-center gap-3 flex-wrap">
