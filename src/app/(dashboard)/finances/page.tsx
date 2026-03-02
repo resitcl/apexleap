@@ -15,7 +15,6 @@ import { EditCoachButton } from "@/components/finances/EditCoachButton"
 import { DeleteExpenseButton } from "@/components/finances/DeleteExpenseButton"
 import { EditExpenseButton } from "@/components/finances/EditExpenseButton"
 import { MonthPicker } from "@/components/finances/MonthPicker"
-import { ExportExpensesButton } from "@/components/finances/ExportExpensesButton"
 
 const CATEGORY_LABELS: Record<string, string> = {
   rent: "Arriendo", salary: "Salarios", supplies: "Insumos",
@@ -375,20 +374,35 @@ export default async function FinancesPage({ searchParams }: PageProps) {
               acc[e.category] = (acc[e.category] ?? 0) + Number(e.amount)
               return acc
             }, {})
-            const top3 = Object.entries(byCat).sort((a, b) => b[1] - a[1]).slice(0, 3)
+            const sorted = Object.entries(byCat).sort((a, b) => b[1] - a[1])
+            const maxAmt = sorted[0]?.[1] ?? 1
             const CAT_LABEL: Record<string, string> = { rent: '🏠 Arriendo', salary: '👔 Salarios', supplies: '📦 Insumos', maintenance: '🔧 Mantención', marketing: '📣 Marketing', other: '📁 Otros' }
+            const CAT_COLOR: Record<string, string> = { rent: 'bg-blue-400', salary: 'bg-violet-400', supplies: 'bg-orange-400', maintenance: 'bg-yellow-400', marketing: 'bg-pink-400', other: 'bg-gray-400' }
             return (
-              <div className="flex flex-wrap items-center gap-4 text-sm">
-                <span className="text-muted-foreground">
-                  Total: <span className="font-semibold text-foreground">${totalAmt.toLocaleString('es-CL')}</span>
-                  {' · '}{expenses.length} egreso{expenses.length !== 1 ? 's' : ''}
-                </span>
-                {top3.map(([cat, amt]) => (
-                  <span key={cat} className="text-xs bg-muted px-2 py-0.5 rounded font-medium">
-                    {CAT_LABEL[cat] ?? cat}: ${amt.toLocaleString('es-CL')} ({Math.round((amt / totalAmt) * 100)}%)
-                  </span>
-                ))}
-              </div>
+              <Card>
+                <CardContent className="pt-4 pb-3">
+                  <p className="text-xs text-muted-foreground font-medium mb-3">
+                    Egresos por categoría · Total: <span className="text-foreground font-semibold">${totalAmt.toLocaleString('es-CL')}</span>
+                    {' · '}{expenses.length} egreso{expenses.length !== 1 ? 's' : ''}
+                  </p>
+                  <div className="space-y-2">
+                    {sorted.map(([cat, amt]) => (
+                      <div key={cat} className="flex items-center gap-3">
+                        <span className="text-xs text-muted-foreground w-32 shrink-0">{CAT_LABEL[cat] ?? cat}</span>
+                        <div className="flex-1 bg-muted rounded-full overflow-hidden h-3">
+                          <div
+                            className={`h-3 rounded-full ${CAT_COLOR[cat] ?? 'bg-primary'} transition-all`}
+                            style={{ width: `${Math.max(2, Math.round((amt / maxAmt) * 100))}%` }}
+                          />
+                        </div>
+                        <span className="text-xs font-medium w-28 text-right shrink-0">
+                          ${amt.toLocaleString('es-CL')} ({Math.round((amt / totalAmt) * 100)}%)
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
             )
           })()}
           <div className="flex flex-wrap items-center justify-between gap-3">

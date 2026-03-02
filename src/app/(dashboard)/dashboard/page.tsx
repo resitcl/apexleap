@@ -242,6 +242,25 @@ export default async function DashboardPage() {
             </Card>
           </Link>
         )}
+        {expiredDocs.length > 0 && (
+          <Link href="/dashboard/documents">
+            <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Docs Vencidos</CardTitle>
+                <FileWarning className="h-4 w-4 text-yellow-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-yellow-600">
+                  {expiredDocs.filter((d) => d.isExpired).length}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {expiredDocs.filter((d) => !d.isExpired).length > 0 && `+${expiredDocs.filter((d) => !d.isExpired).length} por vencer`}
+                  {expiredDocs.filter((d) => !d.isExpired).length === 0 && 'documentos vencidos'}
+                </p>
+              </CardContent>
+            </Card>
+          </Link>
+        )}
       </div>
 
       {/* Weekly attendance bar chart */}

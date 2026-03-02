@@ -92,6 +92,20 @@ export default async function CalendarPage({ searchParams }: PageProps) {
               return <span className={`ml-2 font-medium ${color}`}>· Hoy {pct}% ocupado ({todayOccupation.checkins}/{todayOccupation.capacity})</span>
             })()}
             {(() => {
+              const nowMins = new Date().getHours() * 60 + new Date().getMinutes()
+              const next = todaySessions
+                .filter((s) => s.start_time)
+                .map((s) => {
+                  const [h, m] = s.start_time.split(':').map(Number)
+                  return { ...s, startMins: h * 60 + m }
+                })
+                .filter((s) => s.startMins > nowMins)
+                .sort((a, b) => a.startMins - b.startMins)[0]
+              return next ? (
+                <span className="ml-2 text-primary font-medium">· Próxima: {next.name} {next.start_time.slice(0,5)}</span>
+              ) : null
+            })()}
+            {(() => {
               const withTimes = schedules.filter((s) => s.is_active && s.start_time && s.end_time)
               if (withTimes.length === 0) return null
               const avgMins = withTimes.reduce((sum, s) => {

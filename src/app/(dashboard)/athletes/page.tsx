@@ -23,6 +23,8 @@ interface PageProps {
     sort?: string
     inactive?: string
     minAtt?: string
+    ageMin?: string
+    ageMax?: string
   }>
 }
 
@@ -32,6 +34,8 @@ export default async function AthletesPage({ searchParams }: PageProps) {
   const sort = params.sort ?? ""
   const showInactive = params.inactive === '1'
   const minAtt = params.minAtt ? Number(params.minAtt) : undefined
+  const ageMin = params.ageMin ? Number(params.ageMin) : undefined
+  const ageMax = params.ageMax ? Number(params.ageMax) : undefined
 
   let athletes: Awaited<ReturnType<typeof getAthletes>>["athletes"] = []
   let allAthletes: Awaited<ReturnType<typeof getAthletes>>["athletes"] = []
@@ -62,6 +66,16 @@ export default async function AthletesPage({ searchParams }: PageProps) {
   }
 
   const thirtyDaysAgoISO = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+
+  if (ageMin !== undefined || ageMax !== undefined) {
+    athletes = athletes.filter((a) => {
+      if (!a.birth_date) return false
+      const age = Math.floor((Date.now() - new Date(a.birth_date).getTime()) / (1000 * 60 * 60 * 24 * 365.25))
+      if (ageMin !== undefined && age < ageMin) return false
+      if (ageMax !== undefined && age > ageMax) return false
+      return true
+    })
+  }
 
   if (sort === 'debt') {
     athletes = athletes.slice().sort((a, b) => {
@@ -324,6 +338,31 @@ export default async function AthletesPage({ searchParams }: PageProps) {
             </Link>
           ))}
         </div>
+        <form method="get" action="/dashboard/athletes" className="flex items-center gap-2 flex-wrap">
+          {params.search    && <input type="hidden" name="search"    value={params.search} />}
+          {params.status    && <input type="hidden" name="status"    value={params.status} />}
+          {params.health    && <input type="hidden" name="health"    value={params.health} />}
+          {params.planId    && <input type="hidden" name="planId"    value={params.planId} />}
+          {params.subStatus && <input type="hidden" name="subStatus" value={params.subStatus} />}
+          {sort             && <input type="hidden" name="sort"      value={sort} />}
+          <span className="text-xs text-muted-foreground font-medium">Edad:</span>
+          <input type="number" name="ageMin" defaultValue={params.ageMin ?? ''} min={0} max={100} placeholder="Mín."
+            className="h-7 px-2 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring w-16" />
+          <span className="text-xs text-muted-foreground">–</span>
+          <input type="number" name="ageMax" defaultValue={params.ageMax ?? ''} min={0} max={100} placeholder="Máx."
+            className="h-7 px-2 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring w-16" />
+          <button type="submit" className="h-7 px-3 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors">Filtrar</button>
+          {(ageMin !== undefined || ageMax !== undefined) && (
+            <a href={`/dashboard/athletes?${new URLSearchParams({
+              ...(params.search    ? { search:    params.search }    : {}),
+              ...(params.status    ? { status:    params.status }    : {}),
+              ...(params.health    ? { health:    params.health }    : {}),
+              ...(params.planId    ? { planId:    params.planId }    : {}),
+              ...(params.subStatus ? { subStatus: params.subStatus } : {}),
+              ...(sort             ? { sort }                        : {}),
+            }).toString()}`} className="text-xs text-muted-foreground hover:text-foreground">✕ Limpiar edad</a>
+          )}
+        </form>
       </div>
 
       {/* Athletes List */}
