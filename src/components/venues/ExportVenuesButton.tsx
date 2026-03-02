@@ -15,6 +15,7 @@ interface Venue {
   lng: number | null
   geofence_radius: number | null
   is_active: boolean
+  activeSessions?: number
 }
 
 export function ExportVenuesButton({ venues }: { venues: Venue[] }) {
@@ -24,12 +25,13 @@ export function ExportVenuesButton({ venues }: { venues: Venue[] }) {
     if (venues.length === 0) { toast.error('Sin sedes para exportar'); return }
     setLoading(true)
     try {
-      const headers = ['Nombre', 'Dirección', 'Ciudad', 'Capacidad', 'Latitud', 'Longitud', 'Radio Geofence (m)', 'Activa']
+      const headers = ['Nombre', 'Dirección', 'Ciudad', 'Capacidad', 'Sesiones Activas', 'Latitud', 'Longitud', 'Radio Geofence (m)', 'Activa']
       const rows = venues.map((v) => [
         v.name,
         v.address ?? '',
         v.city ?? '',
         v.capacity != null ? String(v.capacity) : '',
+        String(v.activeSessions ?? 0),
         v.lat != null ? String(v.lat) : '',
         v.lng != null ? String(v.lng) : '',
         v.geofence_radius != null ? String(v.geofence_radius) : '',

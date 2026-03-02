@@ -86,6 +86,7 @@ export async function getDashboardSummary() {
   const activeSubscriptions = activeSubsResult.count ?? 0
 
   // KPIs
+  const totalAllAthletes = athletes.length
   const totalAthletes = athletes.filter((a) => a.status === 'active').length
 
   const mrr = payments
@@ -154,6 +155,7 @@ export async function getDashboardSummary() {
 
   return {
     totalAthletes,
+    totalAllAthletes,
     mrr,
     monthlyIncome,
     pendingAmount,

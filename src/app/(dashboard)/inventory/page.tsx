@@ -102,6 +102,12 @@ export default async function InventoryPage({ searchParams }: PageProps) {
                 <span className="ml-2 text-muted-foreground/70">· {unassigned} sin asignar</span>
               ) : null
             })()}
+            {(() => {
+              const broken = allItems.filter((i) => i.condition === 'broken').length
+              return broken > 0 ? (
+                <span className="ml-2 text-red-600 font-medium">· {broken} roto{broken !== 1 ? 's' : ''} ⚠</span>
+              ) : null
+            })()}
             {newestItem?.created_at && (
               <span className="ml-2 text-muted-foreground/60">
                 · Último: {newestItem.name} ({new Date(newestItem.created_at).toLocaleDateString('es-CL')})

@@ -24,6 +24,7 @@ export default async function DashboardPage() {
     topAthletes: [] as { id: string; name: string; count: number }[],
     activeSubscriptions: 0,
     topDebtors: [] as { id: string; name: string; debt: number }[],
+    totalAllAthletes: 0,
   }
   let activity: Awaited<ReturnType<typeof getRecentActivity>> = []
   let monthlyRevenue: Awaited<ReturnType<typeof getMonthlyRevenue>> = []
@@ -88,7 +89,11 @@ export default async function DashboardPage() {
           <CardContent>
             <div className="text-2xl font-bold">{summary.totalAthletes}</div>
             <p className="text-xs text-muted-foreground">
-              registrados en el club
+              {summary.totalAllAthletes > 0 && (
+                <span className="font-medium text-foreground">
+                  {Math.round((summary.totalAthletes / summary.totalAllAthletes) * 100)}% activos
+                </span>
+              )}
               {summary.activeSubscriptions > 0 && (
                 <span className="ml-1.5 text-green-600 font-medium">· {summary.activeSubscriptions} con plan</span>
               )}

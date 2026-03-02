@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic"
 
 import { getVenues } from "@/lib/actions/venues"
+import { getSchedules } from "@/lib/actions/schedules"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { MapPin, Navigation, Users, Home, Clock } from "lucide-react"
@@ -12,10 +13,19 @@ import { ExportVenuesButton } from "@/components/venues/ExportVenuesButton"
 
 export default async function VenuesPage() {
   let venues: Awaited<ReturnType<typeof getVenues>> = []
+  let schedules: Awaited<ReturnType<typeof getSchedules>> = []
 
   try {
-    venues = await getVenues()
+    ;[venues, schedules] = await Promise.all([getVenues(), getSchedules()])
   } catch { /* show empty */ }
+
+  const sessionsByVenue = schedules
+    .filter((s) => s.is_active)
+    .reduce<Record<string, number>>((acc, s) => {
+      const vid = (s.venues as { id: string } | null)?.id ?? ''
+      if (vid) acc[vid] = (acc[vid] ?? 0) + 1
+      return acc
+    }, {})
 
   const active = venues.filter((v) => v.is_active).length
 
@@ -33,7 +43,7 @@ export default async function VenuesPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <ExportVenuesButton venues={venues} />
+          <ExportVenuesButton venues={venues.map((v) => ({ ...v, activeSessions: sessionsByVenue[v.id] ?? 0 }))} />
           <NewVenueForm />
         </div>
       </div>
