@@ -208,6 +208,12 @@ export default async function InventoryPage({ searchParams }: PageProps) {
               </span>
             )}
             {(() => {
+              const assigned = allItems.filter((i) => i.assigned_to && i.purchase_price && i.purchase_price > 0)
+              if (assigned.length < 2) return null
+              const avg = Math.round(assigned.reduce((s, i) => s + (i.purchase_price ?? 0) * i.quantity, 0) / assigned.length)
+              return <span className="ml-2 text-muted-foreground/60">· prom. ${avg.toLocaleString('es-CL')}/asignado</span>
+            })()}
+            {(() => {
               const assigned = allItems.filter((i) => i.assigned_to)
               if (assigned.length === 0) return null
               const top3 = assigned.slice(0, 3).map((i) => i.name)

@@ -492,6 +492,37 @@ export default async function AthletesPage({ searchParams }: PageProps) {
         )
       })()}
 
+      {(() => {
+        const thirtyAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+        const noSub = allAthletes.filter((a) => {
+          if (a.status !== 'active') return false
+          const subs = (a.subscriptions as Array<{ status: string; end_date?: string | null }> | null) ?? []
+          const hasActive = subs.some((s) => s.status === 'active')
+          if (hasActive) return false
+          const lastExpired = subs
+            .filter((s) => s.end_date)
+            .map((s) => s.end_date!)
+            .sort()
+            .at(-1)
+          return !lastExpired || lastExpired < thirtyAgo
+        })
+        if (noSub.length === 0) return null
+        return (
+          <Link href="/dashboard/athletes?subStatus=&sort=">
+            <Card className="border-orange-200 bg-orange-50 hover:bg-orange-100 transition-colors cursor-pointer">
+              <CardContent className="py-3">
+                <div className="flex items-center gap-3">
+                  <AlertCircle className="w-5 h-5 text-orange-600 shrink-0" />
+                  <p className="text-sm text-orange-800 font-medium">
+                    {noSub.length} atleta{noSub.length !== 1 ? 's' : ''} activo{noSub.length !== 1 ? 's' : ''} sin suscripción hace más de 30 días
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+        )
+      })()}
+
       {/* Search and Filters */}
       <div className="space-y-3">
         <div className="flex items-center gap-3 flex-wrap">

@@ -381,9 +381,9 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
                   <p className="text-sm font-semibold text-red-800 mb-1">Top morosos</p>
                   <div className="flex flex-wrap gap-x-4 gap-y-0.5">
                     {top.map((d) => (
-                      <span key={d.id} className="text-xs text-red-700">
+                      <Link key={d.id} href={`/dashboard/payments?status=overdue&athleteId=${d.id}&athleteName=${encodeURIComponent(d.name)}`} className="text-xs text-red-700 hover:text-red-900 hover:underline">
                         {d.name}: <span className="font-bold">${d.debt.toLocaleString('es-CL')}</span>
-                      </span>
+                      </Link>
                     ))}
                   </div>
                 </div>
