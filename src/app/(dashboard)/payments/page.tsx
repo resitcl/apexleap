@@ -659,6 +659,54 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
         )
       })()}
 
+      {/* Gráfico pagos por mes */}
+      {allPayments.length > 0 && (() => {
+        const now = new Date()
+        const months: { key: string; label: string }[] = []
+        for (let i = 5; i >= 0; i--) {
+          const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+          const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+          const label = d.toLocaleDateString('es-CL', { month: 'short' })
+          months.push({ key, label })
+        }
+        const byMonth = months.map(({ key, label }) => {
+          const paid   = allPayments.filter((p) => p.status === 'paid'    && p.paid_at?.startsWith(key)).reduce((s, p) => s + Number(p.amount), 0)
+          const overdue = allPayments.filter((p) => p.status === 'overdue' && (p.due_date ?? '').startsWith(key)).reduce((s, p) => s + Number(p.amount), 0)
+          return { key, label, paid, overdue }
+        })
+        const maxVal = Math.max(...byMonth.map((m) => m.paid + m.overdue), 1)
+        if (byMonth.every((m) => m.paid === 0 && m.overdue === 0)) return null
+        return (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Cobrado vs Vencido por Mes</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-end gap-2 h-24">
+                {byMonth.map((m, i) => {
+                  const paidH  = Math.max(m.paid   > 0 ? Math.round((m.paid   / maxVal) * 88) : 0, m.paid   > 0 ? 4 : 0)
+                  const overdH = Math.max(m.overdue > 0 ? Math.round((m.overdue / maxVal) * 88) : 0, m.overdue > 0 ? 4 : 0)
+                  const isCur = i === 5
+                  return (
+                    <div key={m.key} className="flex-1 flex flex-col items-center gap-1">
+                      <div className="flex flex-col-reverse w-full gap-px items-center">
+                        {paidH  > 0 && <div className={`w-full rounded-t-sm ${isCur ? 'bg-green-500' : 'bg-green-400/60'}`} style={{ height: paidH }} />}
+                        {overdH > 0 && <div className="w-full bg-red-400/60 rounded-sm" style={{ height: overdH }} />}
+                      </div>
+                      <span className="text-[10px] text-muted-foreground">{m.label}</span>
+                    </div>
+                  )
+                })}
+              </div>
+              <div className="flex gap-4 mt-2 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-green-500 inline-block" />Cobrado</span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-red-400/60 inline-block" />Vencido</span>
+              </div>
+            </CardContent>
+          </Card>
+        )
+      })()}
+
       {/* Filters */}
       <div className="flex flex-wrap items-end gap-3">
         <Suspense fallback={null}>

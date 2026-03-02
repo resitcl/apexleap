@@ -364,6 +364,30 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
           )
         })()}
         {(() => {
+          const cancelled = allSubs.filter((s) => s.status === 'cancelled' && s.start_date && s.end_date)
+          if (cancelled.length < 2) return null
+          const avgDays = Math.round(
+            cancelled.reduce((sum, s) => {
+              const diff = new Date(s.end_date!).getTime() - new Date(s.start_date!).getTime()
+              return sum + diff / (1000 * 60 * 60 * 24)
+            }, 0) / cancelled.length
+          )
+          if (avgDays <= 0) return null
+          const avgMonths = Math.round(avgDays / 30)
+          return (
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Dur. Prom. Canceladas</CardTitle>
+                <XCircle className="h-4 w-4 text-slate-400" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-slate-600">{avgMonths}m</div>
+                <p className="text-xs text-muted-foreground">{cancelled.length} canceladas · {avgDays}d promedio</p>
+              </CardContent>
+            </Card>
+          )
+        })()}
+        {(() => {
           const curMonth = new Date().toISOString().slice(0, 7)
           const cancelledThisMonth = allSubs.filter((s) =>
             s.status === 'cancelled' &&

@@ -1006,12 +1006,13 @@ export default async function AthletesPage({ searchParams }: PageProps) {
                         </span>
                       )}
                       {(() => {
-                        const subs = athlete.subscriptions as Array<{ status: string; plans: { name: string } | null }> | null
+                        const subs = athlete.subscriptions as Array<{ status: string; plans: { name: string; price?: number } | null }> | null
                         const active = (subs ?? []).find((s) => s.status === 'active')
                         if (!active) return null
+                        const price = active.plans?.price
                         return (
                           <Badge className="text-xs bg-green-100 text-green-700 border-green-200 hover:bg-green-100">
-                            ✓ {active.plans?.name ?? 'Plan activo'}
+                            ✓ {active.plans?.name ?? 'Plan activo'}{price ? ` · $${Math.round(price / 1000)}k` : ''}
                           </Badge>
                         )
                       })()}

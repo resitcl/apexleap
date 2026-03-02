@@ -212,6 +212,12 @@ export default async function InventoryPage({ searchParams }: PageProps) {
                 <span className="ml-2 text-muted-foreground/60">· {thisYear} adquirido{thisYear !== 1 ? 's' : ''} en {curYear}{rest > 0 && thisMonth > 0 ? ` (+${thisMonth} este mes)` : ''}</span>
               )
             })()}
+            {(() => {
+              const withPrice = allItems.filter((i) => i.purchase_price && i.purchase_price > 0 && i.is_active !== false)
+              if (withPrice.length === 0) return null
+              const total = withPrice.reduce((s, i) => s + (i.purchase_price ?? 0) * i.quantity, 0)
+              return <span className="ml-2 text-muted-foreground/60">· Total inventario: ${total.toLocaleString('es-CL')}</span>
+            })()}
             {allItems.length > 0 && (() => {
               const assigned = allItems.filter((i) => i.assigned_to).length
               const pct = Math.round((assigned / allItems.length) * 100)

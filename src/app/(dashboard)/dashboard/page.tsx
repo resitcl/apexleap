@@ -10,7 +10,7 @@ import { getInventoryItems } from "@/lib/actions/inventory"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Users, DollarSign, ClipboardCheck, AlertCircle, UserPlus, CreditCard, QrCode, UserCheck, TrendingUp, FileWarning, Clock } from "lucide-react"
+import { Users, DollarSign, ClipboardCheck, AlertCircle, AlertTriangle, UserPlus, CreditCard, QrCode, UserCheck, TrendingUp, FileWarning, Clock } from "lucide-react"
 
 export default async function DashboardPage() {
   const hasClub = await checkUserHasClub().catch(() => false)
@@ -47,6 +47,7 @@ export default async function DashboardPage() {
   let brokenItems: { id: string; name: string }[] = []
   let coaches: { id: string; name: string }[] = []
   let dormantCount = 0
+  let dormantCount14 = 0
   let staleItemsCount = 0
 
   try {
@@ -65,7 +66,8 @@ export default async function DashboardPage() {
       getMonthlyRetentionRate(),
       getCoaches(),
     ])
-    dormantCount = await getDormantAthletes()
+    dormantCount = await getDormantAthletes(30)
+    dormantCount14 = await getDormantAthletes(14)
     const compResult = await getCompetitions({ status: 'upcoming', limit: 5 })
     upcomingComps = compResult.competitions.map((c) => ({
       id: c.id, name: c.name, type: c.type, start_date: c.start_date, location: c.location ?? null,
@@ -486,6 +488,21 @@ export default async function DashboardPage() {
                 <Users className="w-5 h-5 text-amber-600 shrink-0" />
                 <p className="text-sm text-amber-800 font-medium">
                   {athletesWithoutPlan} atletas activos sin plan de suscripción asignado
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+      )}
+
+      {summary.totalAthletes > 4 && dormantCount14 > 0 && Math.round((dormantCount14 / summary.totalAthletes) * 100) >= 30 && (
+        <Link href="/dashboard/athletes?inactive=1">
+          <Card className="border-orange-200 bg-orange-50 hover:bg-orange-100 transition-colors cursor-pointer">
+            <CardContent className="py-3">
+              <div className="flex items-center gap-3">
+                <AlertTriangle className="w-5 h-5 text-orange-600 shrink-0" />
+                <p className="text-sm text-orange-800 font-medium">
+                  {Math.round((dormantCount14 / summary.totalAthletes) * 100)}% de atletas ({dormantCount14}) sin check-in en los últimos 14 días
                 </p>
               </div>
             </CardContent>
