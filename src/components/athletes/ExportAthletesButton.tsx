@@ -18,6 +18,7 @@ interface Athlete {
   subscriptions?: Array<{ status: string; plans: { name: string } | null }> | null
   payments?: Array<{ status: string; paid_at: string | null; payment_method: string | null }> | null
   attendance?: Array<{ checked_in_at: string }> | null
+  rosters?: Array<{ id: string; competitions: { id: string; name: string; start_date: string } | null }> | null
 }
 
 interface Props {
@@ -43,7 +44,7 @@ export function ExportAthletesButton({ athletes }: Props) {
         webpay: 'Webpay', mercadopago: 'MercadoPago', flow: 'Flow',
       }
 
-      const headers = ['Nombre', 'Email', 'Teléfono', 'RUT/Doc', 'Estado', 'Salud', 'Plan Activo', 'Asistencias Totales', 'Último Método Pago', 'Streak Semanas', 'Edad', 'Nacimiento', 'Registrado']
+      const headers = ['Nombre', 'Email', 'Teléfono', 'RUT/Doc', 'Estado', 'Salud', 'Plan Activo', 'Asistencias Totales', 'Último Método Pago', 'Streak Semanas', 'Edad', 'Nacimiento', 'Registrado', 'Última Competencia', 'Fecha Competencia']
       const rows = athletes.map((a) => {
         const activePlan = (a.subscriptions ?? []).find((s) => s.status === 'active')?.plans?.name ?? ''
         const lastPaid = (a.payments ?? [])
@@ -79,6 +80,16 @@ export function ExportAthletesButton({ athletes }: Props) {
           a.birth_date ? String(Math.floor((Date.now() - new Date(a.birth_date + 'T12:00:00').getTime()) / (1000 * 60 * 60 * 24 * 365.25))) : '',
           a.birth_date ? new Date(a.birth_date + 'T12:00:00').toLocaleDateString('es-CL') : '',
           new Date(a.created_at).toLocaleDateString('es-CL'),
+          (() => {
+            const comps = (a.rosters ?? []).map((r) => r.competitions).filter(Boolean) as Array<{ name: string; start_date: string }>
+            const last = comps.sort((x, y) => y.start_date.localeCompare(x.start_date))[0]
+            return last?.name ?? ''
+          })(),
+          (() => {
+            const comps = (a.rosters ?? []).map((r) => r.competitions).filter(Boolean) as Array<{ name: string; start_date: string }>
+            const last = comps.sort((x, y) => y.start_date.localeCompare(x.start_date))[0]
+            return last ? new Date(last.start_date + 'T12:00:00').toLocaleDateString('es-CL') : ''
+          })(),
         ]
       })
 

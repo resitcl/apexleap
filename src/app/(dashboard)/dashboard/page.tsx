@@ -410,6 +410,21 @@ export default async function DashboardPage() {
         </Link>
       )}
 
+      {summary.totalAthletes > 4 && summary.activeSubscriptions < summary.totalAthletes * 0.5 && (
+        <Link href="/dashboard/subscriptions">
+          <Card className="border-yellow-200 bg-yellow-50 hover:bg-yellow-100 transition-colors cursor-pointer">
+            <CardContent className="py-3">
+              <div className="flex items-center gap-3">
+                <AlertCircle className="w-5 h-5 text-yellow-600 shrink-0" />
+                <p className="text-sm text-yellow-800 font-medium">
+                  Solo {summary.activeSubscriptions} de {summary.totalAthletes} atletas activos tienen suscripción ({Math.round((summary.activeSubscriptions / summary.totalAthletes) * 100)}%)
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+      )}
+
       {coaches.length > 0 && todaySessions.length === 0 && (
         <Link href="/dashboard/finances">
           <Card className="border-purple-200 bg-purple-50 hover:bg-purple-100 transition-colors cursor-pointer">

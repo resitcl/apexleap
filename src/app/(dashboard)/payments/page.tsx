@@ -100,11 +100,18 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
               return <span className="ml-2 text-muted-foreground/70">· prom. ${avg.toLocaleString('es-CL')}/atleta</span>
             })()}
             {allPayments.length > 0 && (() => {
-              const METHOD_LABELS: Record<string, string> = { cash: 'Efectivo', transfer: 'Transferencia', card: 'Tarjeta', webpay: 'Webpay', mercadopago: 'MercadoPago', flow: 'Flow' }
-              const counts: Record<string, number> = {}
-              for (const p of allPayments) { if (p.payment_method) counts[p.payment_method] = (counts[p.payment_method] ?? 0) + 1 }
-              const top = Object.entries(counts).sort(([,a],[,b]) => b - a)[0]
-              return top ? <span className="ml-2 text-muted-foreground/70">· {METHOD_LABELS[top[0]] ?? top[0]} más usado</span> : null
+              const METHOD_LABELS: Record<string, string> = { cash: 'Efectivo', transfer: 'Transfer.', card: 'Tarjeta', webpay: 'Webpay', mercadopago: 'MP', flow: 'Flow' }
+              const totals: Record<string, number> = {}
+              for (const p of allPayments.filter((p) => p.status === 'paid' && p.payment_method)) {
+                totals[p.payment_method!] = (totals[p.payment_method!] ?? 0) + Number(p.amount)
+              }
+              const sorted = Object.entries(totals).sort(([,a],[,b]) => b - a).slice(0, 2)
+              if (sorted.length === 0) return null
+              return (
+                <span className="ml-2 text-muted-foreground/70">
+                  · {sorted.map(([m, amt]) => `${METHOD_LABELS[m] ?? m}: $${amt.toLocaleString('es-CL')}`).join(' · ')}
+                </span>
+              )
             })()}
             {allPayments.length > 0 && (() => {
               type P = typeof allPayments[number]

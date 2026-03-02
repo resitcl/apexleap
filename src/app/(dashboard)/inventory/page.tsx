@@ -85,6 +85,14 @@ export default async function InventoryPage({ searchParams }: PageProps) {
     })
   }
 
+  if (sortBy === 'purchase_date') {
+    items = items.slice().sort((a, b) => {
+      const dA = a.purchase_date ?? ''
+      const dB = b.purchase_date ?? ''
+      return dB.localeCompare(dA)
+    })
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -227,6 +235,11 @@ export default async function InventoryPage({ searchParams }: PageProps) {
           <button className={`h-8 px-3 rounded-md border text-xs font-medium transition-colors ${
             sortBy === 'assigned' ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-input hover:bg-accent'
           }`}>🔄 Asignados primero</button>
+        </Link>
+        <Link href={`/dashboard/inventory?${new URLSearchParams({ ...(category ? { category } : {}), ...(condition ? { condition } : {}), ...(search ? { search } : {}), ...(isLowStock ? { lowStock: '1' } : {}), ...(sortBy === 'purchase_date' ? {} : { sortBy: 'purchase_date' }) }).toString()}`}>
+          <button className={`h-8 px-3 rounded-md border text-xs font-medium transition-colors ${
+            sortBy === 'purchase_date' ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-input hover:bg-accent'
+          }`}>📅 Última compra</button>
         </Link>
         {([['', 'Todos'], ['good', '✅ Bueno'], ['fair', '⚠️ Regular'], ['poor', '🔴 Malo'], ['broken', '💀 Roto']] as [string, string][]).map(([val, lbl]) => {
           const isActive = (val === '' && !condition) || condition === val
