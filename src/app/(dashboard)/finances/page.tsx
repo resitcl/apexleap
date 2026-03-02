@@ -80,6 +80,11 @@ export default async function FinancesPage({ searchParams }: PageProps) {
           <h1 className="text-3xl font-bold">Administración Financiera</h1>
           <p className="text-muted-foreground capitalize">
             {monthLabel}
+            {summary.totalIncome > 0 && summary.totalExpenses > 0 && (() => {
+              const ratio = (summary.totalIncome / summary.totalExpenses).toFixed(2)
+              const color = Number(ratio) >= 1 ? 'text-green-600' : 'text-red-600'
+              return <span className={`ml-2 text-sm font-semibold not-italic ${color}`}>· ratio {ratio}x</span>
+            })()}
             {(() => {
               const top3 = Object.entries(summary.byCategory)
                 .sort(([,a],[,b]) => b - a)

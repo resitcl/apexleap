@@ -66,8 +66,12 @@ export default async function RulesPage({ searchParams }: PageProps) {
   const active = rules.filter((r) => r.is_active).length
   const inactive = rules.filter((r) => !r.is_active).length
 
+  const SEVERITY_ORDER: Record<string, number> = { high: 0, medium: 1, low: 2 }
   type Rule = typeof rules[number]
-  const grouped = rules.reduce((acc: Record<string, Rule[]>, r: Rule) => {
+  const sortedRules = [...rules].sort((a, b) =>
+    (SEVERITY_ORDER[a.severity] ?? 3) - (SEVERITY_ORDER[b.severity] ?? 3)
+  )
+  const grouped = sortedRules.reduce((acc: Record<string, Rule[]>, r: Rule) => {
     if (!acc[r.type]) acc[r.type] = []
     acc[r.type].push(r)
     return acc

@@ -21,7 +21,7 @@ const STATUS_META: Record<string, { label: string; variant: "default" | "seconda
 }
 
 interface PageProps {
-  searchParams: Promise<{ status?: string; page?: string; search?: string; type?: string; location?: string }>
+  searchParams: Promise<{ status?: string; page?: string; search?: string; type?: string; location?: string; sport?: string }>
 }
 
 export default async function CompetitionsPage({ searchParams }: PageProps) {
@@ -30,6 +30,7 @@ export default async function CompetitionsPage({ searchParams }: PageProps) {
   const search   = params.search   ?? ""
   const type     = params.type     ?? ""
   const location = params.location ?? ""
+  const sport    = params.sport    ?? ""
   const limit    = 20
 
   let competitions: { id: string; name: string; type: string; status: string; sport: string | null; location: string | null; start_date: string; end_date: string | null; rosters: unknown[] }[] = []
@@ -37,15 +38,16 @@ export default async function CompetitionsPage({ searchParams }: PageProps) {
 
   try {
     const result = await getCompetitions({ status: params.status, search: search || undefined, type: type || undefined, page, limit })
-    // client-side location filter (location is a free text field)
-    if (location) competitions = (result.competitions as typeof competitions).filter((c) => c.location?.toLowerCase().includes(location.toLowerCase()))
-    else competitions = result.competitions as typeof competitions
+    competitions = result.competitions as typeof competitions
+    if (location) competitions = competitions.filter((c) => c.location?.toLowerCase().includes(location.toLowerCase()))
+    if (sport)    competitions = competitions.filter((c) => c.sport?.toLowerCase() === sport.toLowerCase())
     total = result.total
   } catch { /* empty */ }
 
   const active   = competitions.filter((c) => c.status === "active").length
   const upcoming = competitions.filter((c) => c.status === "upcoming").length
   const rosters  = competitions.reduce((sum, c) => sum + ((c.rosters as unknown[])?.length ?? 0), 0)
+  const uniqueSports = [...new Set(competitions.map((c) => c.sport).filter(Boolean))] as string[]
 
   return (
     <div className="space-y-6">
@@ -57,6 +59,9 @@ export default async function CompetitionsPage({ searchParams }: PageProps) {
             {rosters > 0 && <span className="ml-2 font-medium text-primary">· {rosters} inscrito{rosters !== 1 ? 's' : ''} en nóminas</span>}
             {competitions.length > 0 && rosters > 0 && (
               <span className="ml-2 text-muted-foreground/70">· promedio {(rosters / competitions.length).toFixed(1)} por competencia</span>
+            )}
+            {uniqueSports.length > 0 && (
+              <span className="ml-2 text-muted-foreground/70">· {uniqueSports.length} deporte{uniqueSports.length !== 1 ? 's' : ''}</span>
             )}
           </p>
         </div>
@@ -116,6 +121,25 @@ export default async function CompetitionsPage({ searchParams }: PageProps) {
             </Link>
           ))}
         </div>
+        {uniqueSports.length > 1 && (
+          <div className="flex flex-wrap gap-2">
+            <span className="text-xs text-muted-foreground font-medium self-center">Deporte:</span>
+            {(['', ...uniqueSports]).map((sport) => (
+              <Link key={sport || '_all'} href={`/dashboard/competitions?${new URLSearchParams({
+                ...(params.status ? { status: params.status } : {}),
+                ...(type          ? { type }                  : {}),
+                ...(search        ? { search }               : {}),
+                ...(sport         ? { sport }                : {}),
+              }).toString()}`}>
+                <button className={`h-7 px-2.5 rounded-md border text-xs font-medium transition-colors ${
+                  (sport === '' && !params.sport) || params.sport === sport
+                    ? 'bg-primary text-primary-foreground border-primary'
+                    : 'bg-background border-input hover:bg-accent'
+                }`}>{sport || 'Todos'}</button>
+              </Link>
+            ))}
+          </div>
+        )}
         <form method="get" action="/dashboard/competitions" className="flex items-center gap-2">
           {params.status && <input type="hidden" name="status" value={params.status} />}
           {type && <input type="hidden" name="type" value={type} />}

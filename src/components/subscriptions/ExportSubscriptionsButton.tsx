@@ -33,16 +33,25 @@ export function ExportSubscriptionsButton({ subscriptions }: Props) {
     if (subscriptions.length === 0) { toast.error('Sin suscripciones para exportar'); return }
     setLoading(true)
     try {
-      const headers = ['Alumno', 'Plan', 'Ciclo', 'Precio', 'Estado', 'Inicio', 'Vencimiento']
-      const rows = subscriptions.map((s) => [
-        s.athletes?.name ?? '',
-        s.plans?.name ?? '',
-        CYCLE_LABELS[s.plans?.billing_cycle ?? ''] ?? (s.plans?.billing_cycle ?? ''),
-        s.plans?.price != null ? String(s.plans.price) : '',
-        STATUS_LABELS[s.status] ?? s.status,
-        s.start_date ? new Date(s.start_date + 'T12:00:00').toLocaleDateString('es-CL') : '',
-        s.end_date   ? new Date(s.end_date   + 'T12:00:00').toLocaleDateString('es-CL') : 'Sin fecha',
-      ])
+      const today = new Date(); today.setHours(0,0,0,0)
+      const headers = ['Alumno', 'Plan', 'Ciclo', 'Precio', 'Estado', 'Inicio', 'Vencimiento', 'Días hasta vencimiento']
+      const rows = subscriptions.map((s) => {
+        let daysLeft = ''
+        if (s.end_date) {
+          const end = new Date(s.end_date + 'T12:00:00')
+          daysLeft = String(Math.round((end.getTime() - today.getTime()) / 86400000))
+        }
+        return [
+          s.athletes?.name ?? '',
+          s.plans?.name ?? '',
+          CYCLE_LABELS[s.plans?.billing_cycle ?? ''] ?? (s.plans?.billing_cycle ?? ''),
+          s.plans?.price != null ? String(s.plans.price) : '',
+          STATUS_LABELS[s.status] ?? s.status,
+          s.start_date ? new Date(s.start_date + 'T12:00:00').toLocaleDateString('es-CL') : '',
+          s.end_date   ? new Date(s.end_date   + 'T12:00:00').toLocaleDateString('es-CL') : 'Sin fecha',
+          daysLeft,
+        ]
+      })
 
       const csv = [headers, ...rows]
         .map((row) => row.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(','))
