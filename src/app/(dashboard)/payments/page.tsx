@@ -140,6 +140,14 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
                 <span className="ml-2 text-orange-600 font-medium">· ⚠ {dupCount} posible{dupCount !== 1 ? 's' : ''} duplicado{dupCount !== 1 ? 's' : ''}</span>
               ) : null
             })()}
+            {allPayments.length > 0 && (() => {
+              const curMonth = new Date().toISOString().slice(0, 7)
+              const failedCount = allPayments.filter((p) =>
+                p.status === 'failed' && (p.created_at ?? '').startsWith(curMonth)
+              ).length
+              if (failedCount === 0) return null
+              return <span className="ml-2 text-red-600 font-medium">· {failedCount} fallido{failedCount !== 1 ? 's' : ''} este mes</span>
+            })()}
           </p>
         </div>
         <div className="flex gap-2 flex-wrap">
