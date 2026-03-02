@@ -133,6 +133,22 @@ export default async function InventoryPage({ searchParams }: PageProps) {
         </Card>
       )}
 
+      {(() => {
+        const brokenItems = allItems.filter((i) => i.condition === 'broken')
+        if (brokenItems.length === 0) return null
+        return (
+          <Card className="border-red-200 bg-red-50">
+            <CardContent className="py-3 flex items-center gap-3">
+              <Package className="w-5 h-5 text-red-600 shrink-0" />
+              <p className="text-sm text-red-800 font-medium">
+                {brokenItems.length} ítem{brokenItems.length > 1 ? 's' : ''} roto{brokenItems.length > 1 ? 's' : ''}:{' '}
+                {brokenItems.map((i) => i.name).join(', ')}
+              </p>
+            </CardContent>
+          </Card>
+        )
+      })()}
+
       {/* Search */}
       <form method="get" action="/dashboard/inventory" className="flex flex-wrap items-center gap-2">
         {category  && <input type="hidden" name="category"  value={category} />}

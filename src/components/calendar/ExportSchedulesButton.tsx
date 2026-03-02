@@ -15,7 +15,7 @@ interface Schedule {
   capacity: number | null
   description: string | null
   is_active: boolean
-  attendance?: unknown[]
+  attendance?: Array<{ id: string; checked_in_at: string; athletes?: { name: string } | null }>
 }
 
 const DAYS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
@@ -27,12 +27,16 @@ export function ExportSchedulesButton({ schedules }: { schedules: Schedule[] }) 
     if (schedules.length === 0) { toast.error('Sin sesiones para exportar'); return }
     setLoading(true)
     try {
-      const headers = ['Nombre', 'Días', 'Inicio', 'Fin', 'Sede', 'Capacidad', 'Total Check-ins', 'Ocupación %', 'Descripción', 'Activa']
+      const headers = ['Nombre', 'Días', 'Inicio', 'Fin', 'Sede', 'Capacidad', 'Total Check-ins', 'Ocupación %', 'Asistentes', 'Descripción', 'Activa']
       const rows = schedules.map((s) => {
         const totalAtt = s.attendance?.length ?? 0
         const occPct = s.capacity && s.capacity > 0
           ? Math.round((totalAtt / s.capacity) * 100)
           : null
+        const attendeeNames = (s.attendance ?? [])
+          .map((a) => a.athletes?.name ?? '')
+          .filter(Boolean)
+          .join('; ')
         return [
           s.name,
           (s.day_of_week as number[]).map((d) => DAYS[d] ?? d).join(', '),
@@ -42,6 +46,7 @@ export function ExportSchedulesButton({ schedules }: { schedules: Schedule[] }) 
           s.capacity != null ? String(s.capacity) : '',
           String(totalAtt),
           occPct != null ? `${occPct}%` : '',
+          attendeeNames,
           s.description ?? '',
           s.is_active ? 'Sí' : 'No',
         ]
