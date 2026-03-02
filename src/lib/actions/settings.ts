@@ -2,7 +2,7 @@
 
 import { auth } from '@clerk/nextjs/server'
 import { revalidatePath } from 'next/cache'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { z } from 'zod'
 
 const clubSchema = z.object({
@@ -26,7 +26,7 @@ export type ClubInput = z.infer<typeof clubSchema>
 async function getClubId() {
   const { userId } = await auth()
   if (!userId) throw new Error('No autorizado')
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { data, error } = await supabase
     .from('user_clubs')
     .select('club_id')
@@ -39,7 +39,7 @@ async function getClubId() {
 
 export async function getClubSettings() {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { data, error } = await supabase
     .from('clubs')
     .select('*')
@@ -51,7 +51,7 @@ export async function getClubSettings() {
 
 export async function updateClubSettings(input: Partial<ClubInput>) {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const { data, error } = await supabase
     .from('clubs')
@@ -67,7 +67,7 @@ export async function updateClubSettings(input: Partial<ClubInput>) {
 
 export async function deleteClub(confirmName: string) {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const { data: club } = await supabase
     .from('clubs').select('name').eq('id', clubId).single()

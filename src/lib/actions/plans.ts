@@ -2,7 +2,7 @@
 
 import { auth } from '@clerk/nextjs/server'
 import { revalidatePath } from 'next/cache'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { z } from 'zod'
 
 const planSchema = z.object({
@@ -25,7 +25,7 @@ async function getClubId() {
   const { userId } = await auth()
   if (!userId) throw new Error('No autorizado')
 
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { data, error } = await supabase
     .from('user_clubs')
     .select('club_id')
@@ -39,7 +39,7 @@ async function getClubId() {
 
 export async function getPlans() {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const { data, error } = await supabase
     .from('plans')
@@ -53,7 +53,7 @@ export async function getPlans() {
 
 export async function getPlanById(id: string) {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const { data, error } = await supabase
     .from('plans')
@@ -69,7 +69,7 @@ export async function getPlanById(id: string) {
 export async function createPlan(input: PlanInput) {
   const clubId = await getClubId()
   const parsed = planSchema.parse(input)
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const { data, error } = await supabase
     .from('plans')
@@ -84,7 +84,7 @@ export async function createPlan(input: PlanInput) {
 
 export async function updatePlan(id: string, input: Partial<PlanInput>) {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const { data, error } = await supabase
     .from('plans')
@@ -102,7 +102,7 @@ export async function updatePlan(id: string, input: Partial<PlanInput>) {
 
 export async function deletePlan(id: string) {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const { error } = await supabase
     .from('plans')

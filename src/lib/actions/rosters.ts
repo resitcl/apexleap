@@ -2,12 +2,12 @@
 
 import { auth } from '@clerk/nextjs/server'
 import { revalidatePath } from 'next/cache'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 
 async function getClubId() {
   const { userId } = await auth()
   if (!userId) throw new Error('No autorizado')
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { data, error } = await supabase
     .from('user_clubs').select('club_id').eq('user_id', userId).eq('is_active', true).single()
   if (error || !data) throw new Error('Club no encontrado')
@@ -22,7 +22,7 @@ export async function createRoster(params: {
   venue?: string | null
 }) {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { data, error } = await supabase.from('rosters').insert({
     competition_id: params.competitionId,
     club_id: clubId,
@@ -38,7 +38,7 @@ export async function createRoster(params: {
 
 export async function deleteRoster(rosterId: string, competitionId: string) {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { error } = await supabase.from('rosters').delete()
     .eq('id', rosterId).eq('club_id', clubId)
   if (error) throw new Error(error.message)
@@ -54,7 +54,7 @@ export async function addAthleteToRoster(params: {
   isCaptain?: boolean
 }) {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const { data: roster } = await supabase
     .from('rosters').select('id').eq('id', params.rosterId).eq('club_id', clubId).single()
@@ -81,7 +81,7 @@ export async function removeAthleteFromRoster(params: {
   competitionId: string
 }) {
   await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { error } = await supabase.from('roster_athletes').delete().eq('id', params.rosterAthleteId)
   if (error) throw new Error(error.message)
   revalidatePath(`/dashboard/competitions/${params.competitionId}`)
@@ -95,7 +95,7 @@ export async function updateRosterScore(params: {
   status: 'upcoming' | 'live' | 'finished'
 }) {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const scoreData = JSON.stringify({ home: params.homeScore, away: params.awayScore, status: params.status, updatedAt: new Date().toISOString() })
   const { error } = await supabase
     .from('rosters')
@@ -109,7 +109,7 @@ export async function updateRosterScore(params: {
 
 export async function getAthletesSemaforo() {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const [athletesRes, overdueRes] = await Promise.all([
     supabase
@@ -136,7 +136,7 @@ export async function getAthletesSemaforo() {
 
 export async function getRostersHub() {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const today = new Date().toISOString().split('T')[0]
 

@@ -2,7 +2,7 @@
 
 import { auth } from '@clerk/nextjs/server'
 import { revalidatePath } from 'next/cache'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { z } from 'zod'
 
 const athleteSchema = z.object({
@@ -26,7 +26,7 @@ async function getClubId() {
   const { userId } = await auth()
   if (!userId) throw new Error('No autorizado')
 
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { data, error } = await supabase
     .from('user_clubs')
     .select('club_id')
@@ -49,7 +49,7 @@ export async function getAthletes(params?: {
   sort?: string
 }) {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const page = params?.page ?? 1
   const limit = params?.limit ?? 20
@@ -98,7 +98,7 @@ export async function getAthletes(params?: {
 
 export async function getAthleteById(id: string) {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const { data, error } = await supabase
     .from('athletes')
@@ -121,7 +121,7 @@ export async function getAthleteById(id: string) {
 export async function createAthlete(input: AthleteInput) {
   const clubId = await getClubId()
   const parsed = athleteSchema.parse(input)
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const { data, error } = await supabase
     .from('athletes')
@@ -141,7 +141,7 @@ export async function createAthlete(input: AthleteInput) {
 
 export async function updateAthlete(id: string, input: Partial<AthleteInput>) {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const { data, error } = await supabase
     .from('athletes')
@@ -160,7 +160,7 @@ export async function updateAthlete(id: string, input: Partial<AthleteInput>) {
 
 export async function deleteAthlete(id: string) {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const { error } = await supabase
     .from('athletes')
@@ -175,7 +175,7 @@ export async function deleteAthlete(id: string) {
 
 export async function bulkUpdateAthleteStatus(ids: string[], status: 'active' | 'inactive' | 'suspended') {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const { error } = await supabase
     .from('athletes')

@@ -2,7 +2,7 @@
 
 import { auth } from '@clerk/nextjs/server'
 import { revalidatePath } from 'next/cache'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { z } from 'zod'
 
 const paymentSchema = z.object({
@@ -23,7 +23,7 @@ export type PaymentInput = z.infer<typeof paymentSchema>
 async function getClubId() {
   const { userId } = await auth()
   if (!userId) throw new Error('No autorizado')
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { data, error } = await supabase
     .from('user_clubs')
     .select('club_id')
@@ -48,7 +48,7 @@ export async function getPayments(params?: {
   paymentMethod?: string
 }) {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const page = params?.page ?? 1
   const limit = params?.limit ?? 25
@@ -86,7 +86,7 @@ export async function getPayments(params?: {
 
 export async function getPaymentSummary() {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const { data, error } = await supabase
     .from('payments')
@@ -117,7 +117,7 @@ export async function getPaymentSummary() {
 export async function createPayment(input: PaymentInput) {
   const clubId = await getClubId()
   const parsed = paymentSchema.parse(input)
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const { data, error } = await supabase
     .from('payments')
@@ -133,7 +133,7 @@ export async function createPayment(input: PaymentInput) {
 
 export async function markAsPaid(id: string, method: string, paidAt?: string) {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const { data, error } = await supabase
     .from('payments')
@@ -155,7 +155,7 @@ export async function markAsPaid(id: string, method: string, paidAt?: string) {
 
 export async function updatePayment(id: string, input: { concept?: string; amount?: number; due_date?: string; notes?: string | null; type?: string; payment_method?: string | null }) {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { error } = await supabase.from('payments')
     .update({ ...input, updated_at: new Date().toISOString() })
     .eq('id', id).eq('club_id', clubId)
@@ -168,7 +168,7 @@ export async function updatePaymentStatus(
   status: 'pending' | 'paid' | 'overdue' | 'failed' | 'cancelled'
 ) {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const { data, error } = await supabase
     .from('payments')
@@ -185,7 +185,7 @@ export async function updatePaymentStatus(
 
 export async function deletePayment(id: string) {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { error } = await supabase
     .from('payments').delete().eq('id', id).eq('club_id', clubId)
   if (error) throw new Error(error.message)
@@ -194,7 +194,7 @@ export async function deletePayment(id: string) {
 
 export async function bulkMarkAsPaid(ids: string[], method = 'manual') {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const { error, count } = await supabase
     .from('payments')

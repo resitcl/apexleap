@@ -1,12 +1,12 @@
 'use server'
 
 import { auth } from '@clerk/nextjs/server'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 
 async function getClubId() {
   const { userId } = await auth()
   if (!userId) throw new Error('No autorizado')
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { data, error } = await supabase
     .from('user_clubs')
     .select('club_id')
@@ -19,7 +19,7 @@ async function getClubId() {
 
 export async function getDashboardSummary() {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const today = new Date()
   today.setHours(0, 0, 0, 0)
@@ -192,7 +192,7 @@ export async function getDashboardSummary() {
 
 export async function getCoachDashboard() {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const today = new Date()
   today.setHours(0, 0, 0, 0)
@@ -289,7 +289,7 @@ export async function getCoachDashboard() {
 
 export async function getRecentActivity(limit = 10) {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const [paymentsRes, attendanceRes, athletesRes] = await Promise.all([
     supabase
@@ -367,7 +367,7 @@ export async function getRecentActivity(limit = 10) {
 
 export async function getOverdueAlerts() {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const sevenDaysAgo = new Date()
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
@@ -389,7 +389,7 @@ export async function getOverdueAlerts() {
 
 export async function getWeeklyAttendanceRate() {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const sevenDaysAgo = new Date()
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
@@ -410,7 +410,7 @@ export async function getWeeklyAttendanceRate() {
 
 export async function getExpiringSubscriptions() {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const today = new Date().toISOString().split('T')[0]
   const inSevenDays = new Date()
@@ -436,7 +436,7 @@ export async function getExpiringSubscriptions() {
 
 export async function getUpcomingSchedules() {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const today = new Date()
   const result: { dow: number; label: string; date: string; sessions: { id: string; name: string; start_time: string; end_time: string }[] }[] = []
@@ -476,7 +476,7 @@ export async function getUpcomingSchedules() {
 
 export async function getTodaySessions() {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const todayDow = new Date().getDay()
   const todayStr = new Date().toISOString().split('T')[0]
 
@@ -504,7 +504,7 @@ export async function getTodaySessions() {
 
 export async function getMonthlyRevenue(months = 6) {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const result: { month: string; label: string; amount: number }[] = []
   const now = new Date()
@@ -532,7 +532,7 @@ export async function getMonthlyRevenue(months = 6) {
 
 export async function getAthletesWithoutPlan() {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const { data: withPlan } = await supabase
     .from('subscriptions')
@@ -556,7 +556,7 @@ export async function getAthletesWithoutPlan() {
 
 export async function getWeeklyAttendanceByDay() {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const sevenDaysAgo = new Date()
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6)
@@ -589,7 +589,7 @@ export async function getWeeklyAttendanceByDay() {
 
 export async function getMonthlyRetentionRate() {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const now = new Date()
   const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString()
@@ -624,7 +624,7 @@ export async function getMonthlyRetentionRate() {
 
 export async function getExpiredDocuments() {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const today = new Date().toISOString().split('T')[0]
   const in30Days = new Date()
@@ -655,7 +655,7 @@ export async function getAthletePortal() {
   const { userId } = await auth()
   if (!userId) throw new Error('No autorizado')
 
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const { data: userClub } = await supabase
     .from('user_clubs')
@@ -735,7 +735,7 @@ export async function getAthletePortal() {
 
 export async function getDormantAthletes(days = 30) {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
 
   const { data: athletes } = await supabase

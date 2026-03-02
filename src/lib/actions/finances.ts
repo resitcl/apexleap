@@ -2,7 +2,7 @@
 
 import { auth } from '@clerk/nextjs/server'
 import { revalidatePath } from 'next/cache'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { z } from 'zod'
 
 const expenseSchema = z.object({
@@ -30,7 +30,7 @@ export type CoachInput = z.infer<typeof coachSchema>
 async function getClubId() {
   const { userId } = await auth()
   if (!userId) throw new Error('No autorizado')
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { data, error } = await supabase
     .from('user_clubs').select('club_id').eq('user_id', userId).eq('is_active', true).single()
   if (error || !data) throw new Error('Club no encontrado')
@@ -41,7 +41,7 @@ async function getClubId() {
 
 export async function getExpenses(params?: { month?: string; category?: string; page?: number }) {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const page = params?.page ?? 1
   const limit = 25
@@ -70,7 +70,7 @@ export async function getExpenses(params?: { month?: string; category?: string; 
 
 export async function getFinanceSummary(month?: string) {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const now = new Date()
   const y = month ? month.split('-')[0] : String(now.getFullYear())
@@ -110,7 +110,7 @@ export async function createExpense(input: ExpenseInput) {
   const clubId = await getClubId()
   const { userId } = await auth()
   const parsed = expenseSchema.parse(input)
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const { data, error } = await supabase
     .from('expenses')
@@ -124,7 +124,7 @@ export async function createExpense(input: ExpenseInput) {
 
 export async function updateExpense(id: string, input: Partial<ExpenseInput>) {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { error } = await supabase.from('expenses')
     .update({ ...input, updated_at: new Date().toISOString() })
     .eq('id', id).eq('club_id', clubId)
@@ -134,7 +134,7 @@ export async function updateExpense(id: string, input: Partial<ExpenseInput>) {
 
 export async function deleteExpense(id: string) {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { error } = await supabase.from('expenses').delete().eq('id', id).eq('club_id', clubId)
   if (error) throw new Error(error.message)
   revalidatePath('/dashboard/finances')
@@ -144,7 +144,7 @@ export async function deleteExpense(id: string) {
 
 export async function getCoaches() {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { data, error } = await supabase
     .from('coaches').select('*').eq('club_id', clubId).order('name')
   if (error) throw new Error(error.message)
@@ -154,7 +154,7 @@ export async function getCoaches() {
 export async function createCoach(input: CoachInput) {
   const clubId = await getClubId()
   const parsed = coachSchema.parse(input)
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { data, error } = await supabase
     .from('coaches')
     .insert({ ...parsed, club_id: clubId, email: parsed.email || null })
@@ -166,7 +166,7 @@ export async function createCoach(input: CoachInput) {
 
 export async function updateCoach(id: string, input: Partial<CoachInput>) {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { data, error } = await supabase
     .from('coaches')
     .update({ ...input, updated_at: new Date().toISOString() })
@@ -178,7 +178,7 @@ export async function updateCoach(id: string, input: Partial<CoachInput>) {
 
 export async function getMonthlyFinanceChart(months = 6) {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const now = new Date()
 
   const result: { label: string; income: number; expenses: number }[] = []

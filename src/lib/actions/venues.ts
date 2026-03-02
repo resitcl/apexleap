@@ -2,7 +2,7 @@
 
 import { auth } from '@clerk/nextjs/server'
 import { revalidatePath } from 'next/cache'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { z } from 'zod'
 
 const venueSchema = z.object({
@@ -24,7 +24,7 @@ export type VenueInput = z.infer<typeof venueSchema>
 async function getClubId() {
   const { userId } = await auth()
   if (!userId) throw new Error('No autorizado')
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { data, error } = await supabase
     .from('user_clubs').select('club_id').eq('user_id', userId).eq('is_active', true).single()
   if (error || !data) throw new Error('Club no encontrado')
@@ -33,7 +33,7 @@ async function getClubId() {
 
 export async function getVenues() {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { data, error } = await supabase
     .from('venues').select('*, schedules(id, is_active)').eq('club_id', clubId).order('is_home_venue', { ascending: false }).order('name')
   if (error) throw new Error(error.message)
@@ -43,7 +43,7 @@ export async function getVenues() {
 export async function createVenue(input: VenueInput) {
   const clubId = await getClubId()
   const parsed = venueSchema.parse(input)
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { data, error } = await supabase
     .from('venues').insert({ ...parsed, club_id: clubId }).select().single()
   if (error) throw new Error(error.message)
@@ -53,7 +53,7 @@ export async function createVenue(input: VenueInput) {
 
 export async function updateVenue(id: string, input: Partial<VenueInput>) {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { data, error } = await supabase
     .from('venues').update({ ...input, updated_at: new Date().toISOString() })
     .eq('id', id).eq('club_id', clubId).select().single()
@@ -64,7 +64,7 @@ export async function updateVenue(id: string, input: Partial<VenueInput>) {
 
 export async function deleteVenue(id: string) {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { error } = await supabase.from('venues').delete().eq('id', id).eq('club_id', clubId)
   if (error) throw new Error(error.message)
   revalidatePath('/dashboard/venues')

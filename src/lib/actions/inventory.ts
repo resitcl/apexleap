@@ -2,7 +2,7 @@
 
 import { auth } from '@clerk/nextjs/server'
 import { revalidatePath } from 'next/cache'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { z } from 'zod'
 
 const itemSchema = z.object({
@@ -25,7 +25,7 @@ export type ItemInput = z.infer<typeof itemSchema>
 async function getClubId() {
   const { userId } = await auth()
   if (!userId) throw new Error('No autorizado')
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { data, error } = await supabase
     .from('user_clubs').select('club_id').eq('user_id', userId).eq('is_active', true).single()
   if (error || !data) throw new Error('Club no encontrado')
@@ -34,7 +34,7 @@ async function getClubId() {
 
 export async function getInventoryItems(filters?: { category?: string; condition?: string; lowStock?: boolean; search?: string; page?: number; limit?: number; athleteId?: string; priceMin?: number; priceMax?: number }) {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const page  = filters?.page  ?? 1
   const limit = filters?.limit ?? 50
   const from  = (page - 1) * limit
@@ -58,7 +58,7 @@ export async function getInventoryItems(filters?: { category?: string; condition
 export async function createInventoryItem(input: ItemInput) {
   const clubId = await getClubId()
   const parsed = itemSchema.parse(input)
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { data, error } = await supabase
     .from('inventory_items').insert({ ...parsed, club_id: clubId }).select().single()
   if (error) throw new Error(error.message)
@@ -68,7 +68,7 @@ export async function createInventoryItem(input: ItemInput) {
 
 export async function updateInventoryItem(id: string, input: Partial<ItemInput>) {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { data, error } = await supabase
     .from('inventory_items')
     .update({ ...input, updated_at: new Date().toISOString() })
@@ -80,7 +80,7 @@ export async function updateInventoryItem(id: string, input: Partial<ItemInput>)
 
 export async function deleteInventoryItem(id: string) {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { error } = await supabase
     .from('inventory_items').delete().eq('id', id).eq('club_id', clubId)
   if (error) throw new Error(error.message)

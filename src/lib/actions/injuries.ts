@@ -2,7 +2,7 @@
 
 import { auth } from '@clerk/nextjs/server'
 import { revalidatePath } from 'next/cache'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { z } from 'zod'
 
 const injurySchema = z.object({
@@ -20,7 +20,7 @@ export type InjuryInput = z.infer<typeof injurySchema>
 async function getClubId() {
   const { userId } = await auth()
   if (!userId) throw new Error('No autorizado')
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { data, error } = await supabase
     .from('user_clubs').select('club_id').eq('user_id', userId).eq('is_active', true).single()
   if (error || !data) throw new Error('Club no encontrado')
@@ -30,7 +30,7 @@ async function getClubId() {
 export async function createInjury(input: InjuryInput) {
   const clubId = await getClubId()
   const parsed = injurySchema.parse(input)
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const { data, error } = await supabase
     .from('injuries')
@@ -53,7 +53,7 @@ export async function createInjury(input: InjuryInput) {
 
 export async function resolveInjury(injuryId: string, athleteId: string) {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const { error } = await supabase
     .from('injuries')

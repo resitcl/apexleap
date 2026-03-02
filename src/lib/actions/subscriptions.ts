@@ -2,7 +2,7 @@
 
 import { auth } from '@clerk/nextjs/server'
 import { revalidatePath } from 'next/cache'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { z } from 'zod'
 
 const subscriptionSchema = z.object({
@@ -21,7 +21,7 @@ export type SubscriptionInput = z.infer<typeof subscriptionSchema>
 async function getClubId() {
   const { userId } = await auth()
   if (!userId) throw new Error('No autorizado')
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { data, error } = await supabase
     .from('user_clubs')
     .select('club_id')
@@ -42,7 +42,7 @@ export async function getSubscriptions(params?: {
   limit?: number
 }) {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const page = params?.page ?? 1
   const limit = params?.limit ?? 25
@@ -76,7 +76,7 @@ export async function getSubscriptions(params?: {
 export async function createSubscription(input: SubscriptionInput) {
   const clubId = await getClubId()
   const parsed = subscriptionSchema.parse(input)
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   // Deactivate any existing active subscription for this athlete
   await supabase
@@ -101,7 +101,7 @@ export async function createSubscription(input: SubscriptionInput) {
 
 export async function renewSubscription(id: string) {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const { data: existing, error: fetchErr } = await supabase
     .from('subscriptions')
@@ -147,7 +147,7 @@ export async function updateSubscriptionStatus(
   status: 'active' | 'paused' | 'cancelled' | 'expired'
 ) {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const { data, error } = await supabase
     .from('subscriptions')
@@ -164,7 +164,7 @@ export async function updateSubscriptionStatus(
 
 export async function getSubscriptionStats() {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const { data, error } = await supabase
     .from('subscriptions')

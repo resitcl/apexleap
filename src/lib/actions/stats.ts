@@ -1,12 +1,12 @@
 'use server'
 
 import { auth } from '@clerk/nextjs/server'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 
 async function getClubId() {
   const { userId } = await auth()
   if (!userId) throw new Error('No autorizado')
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { data, error } = await supabase
     .from('user_clubs').select('club_id').eq('user_id', userId).eq('is_active', true).single()
   if (error || !data) throw new Error('Club no encontrado')
@@ -15,7 +15,7 @@ async function getClubId() {
 
 export async function getClubStats() {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const now = new Date()
   const months: { key: string; label: string }[] = []
@@ -128,7 +128,7 @@ export async function getClubStats() {
 
 export async function getAthleteStats(athleteId: string) {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const now = new Date()
   const months: { key: string; label: string }[] = []

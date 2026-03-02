@@ -19,7 +19,7 @@
 
 import { auth } from '@clerk/nextjs/server'
 import { revalidatePath } from 'next/cache'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { z } from 'zod'
 
 const mediaSchema = z.object({
@@ -37,7 +37,7 @@ export type MediaInput = z.infer<typeof mediaSchema>
 async function getClubId() {
   const { userId } = await auth()
   if (!userId) throw new Error('No autorizado')
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { data, error } = await supabase
     .from('user_clubs').select('club_id').eq('user_id', userId).eq('is_active', true).single()
   if (error || !data) throw new Error('Club no encontrado')
@@ -52,7 +52,7 @@ export async function getMediaItems(params?: {
   limit?: number
 }) {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const page = params?.page ?? 1
   const limit = params?.limit ?? 24
   const from = (page - 1) * limit
@@ -81,7 +81,7 @@ export async function createMediaItem(input: MediaInput) {
   const clubId = await getClubId()
   const { userId } = await auth()
   const parsed = mediaSchema.parse(input)
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { data, error } = await supabase
     .from('media_items')
     .insert({ ...parsed, club_id: clubId, created_by: userId ?? null })
@@ -93,7 +93,7 @@ export async function createMediaItem(input: MediaInput) {
 
 export async function deleteMediaItem(id: string) {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { error } = await supabase
     .from('media_items').delete().eq('id', id).eq('club_id', clubId)
   if (error) throw new Error(error.message)
@@ -102,7 +102,7 @@ export async function deleteMediaItem(id: string) {
 
 export async function getMediaStats() {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { data, error } = await supabase
     .from('media_items').select('type, category').eq('club_id', clubId)
   if (error) return null

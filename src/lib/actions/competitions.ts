@@ -2,7 +2,7 @@
 
 import { auth } from '@clerk/nextjs/server'
 import { revalidatePath } from 'next/cache'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { z } from 'zod'
 
 const competitionSchema = z.object({
@@ -22,7 +22,7 @@ export type CompetitionInput = z.infer<typeof competitionSchema>
 async function getClubId() {
   const { userId } = await auth()
   if (!userId) throw new Error('No autorizado')
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { data, error } = await supabase
     .from('user_clubs').select('club_id').eq('user_id', userId).eq('is_active', true).single()
   if (error || !data) throw new Error('Club no encontrado')
@@ -31,7 +31,7 @@ async function getClubId() {
 
 export async function getCompetitions(params?: { status?: string; search?: string; type?: string; page?: number; limit?: number }) {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const page = params?.page ?? 1
   const limit = params?.limit ?? 20
   const from = (page - 1) * limit
@@ -53,7 +53,7 @@ export async function getCompetitions(params?: { status?: string; search?: strin
 export async function createCompetition(input: CompetitionInput) {
   const clubId = await getClubId()
   const parsed = competitionSchema.parse(input)
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { data, error } = await supabase
     .from('competitions').insert({ ...parsed, club_id: clubId }).select().single()
   if (error) throw new Error(error.message)
@@ -63,7 +63,7 @@ export async function createCompetition(input: CompetitionInput) {
 
 export async function updateCompetition(id: string, input: Partial<CompetitionInput>) {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { error } = await supabase.from('competitions')
     .update({ ...input, updated_at: new Date().toISOString() })
     .eq('id', id).eq('club_id', clubId)
@@ -74,7 +74,7 @@ export async function updateCompetition(id: string, input: Partial<CompetitionIn
 
 export async function updateCompetitionStatus(id: string, status: CompetitionInput['status']) {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { error } = await supabase
     .from('competitions')
     .update({ status, updated_at: new Date().toISOString() })
@@ -85,7 +85,7 @@ export async function updateCompetitionStatus(id: string, status: CompetitionInp
 
 export async function deleteCompetition(id: string) {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { error } = await supabase
     .from('competitions').delete().eq('id', id).eq('club_id', clubId)
   if (error) throw new Error(error.message)

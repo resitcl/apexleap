@@ -2,12 +2,12 @@
 
 import { auth } from '@clerk/nextjs/server'
 import { revalidatePath } from 'next/cache'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 
 async function getClubId() {
   const { userId } = await auth()
   if (!userId) throw new Error('No autorizado')
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { data, error } = await supabase
     .from('user_clubs')
     .select('club_id')
@@ -20,7 +20,7 @@ async function getClubId() {
 
 export async function getAttendanceToday() {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const today = new Date()
   today.setHours(0, 0, 0, 0)
@@ -49,7 +49,7 @@ export async function getAttendanceHistory(params?: {
   page?: number
 }) {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const limit = params?.limit ?? 50
   const page  = params?.page  ?? 1
@@ -84,7 +84,7 @@ export async function checkIn(params: {
   lng?: number
 }) {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   // Check if already checked in today
   const today = new Date()
@@ -124,7 +124,7 @@ export async function checkIn(params: {
 
 export async function justifyAttendance(params: { attendanceId: string; reason: string }) {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { error } = await supabase
     .from('attendance')
     .update({ notes: params.reason, is_valid: true })
@@ -136,7 +136,7 @@ export async function justifyAttendance(params: { attendanceId: string; reason: 
 
 export async function markAttendanceInvalid(params: { attendanceId: string }) {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { error } = await supabase
     .from('attendance')
     .update({ is_valid: false })
@@ -148,7 +148,7 @@ export async function markAttendanceInvalid(params: { attendanceId: string }) {
 
 export async function getAthleteAttendanceRate(athleteId: string, days = 30) {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const since = new Date()
   since.setDate(since.getDate() - days)

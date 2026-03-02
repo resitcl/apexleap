@@ -2,7 +2,7 @@
 
 import { auth } from '@clerk/nextjs/server'
 import { revalidatePath } from 'next/cache'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { z } from 'zod'
 
 const docSchema = z.object({
@@ -20,7 +20,7 @@ export type DocInput = z.infer<typeof docSchema>
 async function getClubId() {
   const { userId } = await auth()
   if (!userId) throw new Error('No autorizado')
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { data, error } = await supabase
     .from('user_clubs').select('club_id').eq('user_id', userId).eq('is_active', true).single()
   if (error || !data) throw new Error('Club no encontrado')
@@ -29,7 +29,7 @@ async function getClubId() {
 
 export async function getDocuments(filters?: { category?: string; athleteId?: string; status?: string; search?: string }) {
   const { clubId } = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   let q = supabase.from('documents').select('*, athletes(id, name)').eq('club_id', clubId)
   if (filters?.category) q = q.eq('category', filters.category)
   if (filters?.athleteId) q = q.eq('athlete_id', filters.athleteId)
@@ -43,7 +43,7 @@ export async function getDocuments(filters?: { category?: string; athleteId?: st
 export async function createDocument(input: DocInput) {
   const { clubId, userId } = await getClubId()
   const parsed = docSchema.parse(input)
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { data, error } = await supabase.from('documents').insert({
     ...parsed,
     club_id: clubId,
@@ -56,7 +56,7 @@ export async function createDocument(input: DocInput) {
 
 export async function updateDocument(id: string, input: { name?: string; category?: string; expiry_date?: string | null; status?: string; notes?: string | null }) {
   const { clubId } = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { error } = await supabase.from('documents')
     .update({ ...input, updated_at: new Date().toISOString() })
     .eq('id', id).eq('club_id', clubId)
@@ -66,7 +66,7 @@ export async function updateDocument(id: string, input: { name?: string; categor
 
 export async function assignDocumentAthlete(id: string, athleteId: string | null) {
   const { clubId } = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { error } = await supabase.from('documents')
     .update({ athlete_id: athleteId, updated_at: new Date().toISOString() })
     .eq('id', id).eq('club_id', clubId)
@@ -76,7 +76,7 @@ export async function assignDocumentAthlete(id: string, athleteId: string | null
 
 export async function updateDocumentStatus(id: string, status: 'pending' | 'active' | 'expired') {
   const { clubId } = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { error } = await supabase.from('documents')
     .update({ status, updated_at: new Date().toISOString() })
     .eq('id', id).eq('club_id', clubId)
@@ -86,7 +86,7 @@ export async function updateDocumentStatus(id: string, status: 'pending' | 'acti
 
 export async function deleteDocument(id: string) {
   const { clubId } = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { error } = await supabase.from('documents').delete().eq('id', id).eq('club_id', clubId)
   if (error) throw new Error(error.message)
   revalidatePath('/dashboard/documents')

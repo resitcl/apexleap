@@ -2,7 +2,7 @@
 
 import { auth } from '@clerk/nextjs/server'
 import { revalidatePath } from 'next/cache'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { z } from 'zod'
 
 const ruleSchema = z.object({
@@ -20,7 +20,7 @@ export type RuleInput = z.infer<typeof ruleSchema>
 async function getClubId() {
   const { userId } = await auth()
   if (!userId) throw new Error('No autorizado')
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { data, error } = await supabase
     .from('user_clubs')
     .select('club_id')
@@ -33,7 +33,7 @@ async function getClubId() {
 
 export async function getRules(filters?: { type?: string }) {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   let q = supabase
     .from('rules')
@@ -53,7 +53,7 @@ export async function getRules(filters?: { type?: string }) {
 export async function createRule(input: RuleInput) {
   const clubId = await getClubId()
   const parsed = ruleSchema.parse(input)
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const { data, error } = await supabase
     .from('rules')
@@ -68,7 +68,7 @@ export async function createRule(input: RuleInput) {
 
 export async function updateRule(id: string, input: Partial<RuleInput>) {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const { data, error } = await supabase
     .from('rules')
@@ -85,7 +85,7 @@ export async function updateRule(id: string, input: Partial<RuleInput>) {
 
 export async function toggleRule(id: string, is_active: boolean) {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const { error } = await supabase
     .from('rules')
@@ -99,7 +99,7 @@ export async function toggleRule(id: string, is_active: boolean) {
 
 export async function getRuleLastTriggerDates() {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const [overdueRes, attRes, docRes] = await Promise.all([
     supabase
@@ -146,7 +146,7 @@ export async function createRuleException(params: {
 }) {
   const { userId } = await auth()
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { error } = await supabase.from('rule_exceptions').insert({
     club_id: clubId,
     rule_id: params.ruleId,
@@ -165,7 +165,7 @@ export async function createRuleException(params: {
 
 export async function getRuleExceptions(athleteId?: string) {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   let q = supabase
     .from('rule_exceptions')
     .select('*, rules(name, type), athletes(name)')
@@ -179,7 +179,7 @@ export async function getRuleExceptions(athleteId?: string) {
 
 export async function deleteRuleException(id: string) {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { error } = await supabase.from('rule_exceptions').delete().eq('id', id).eq('club_id', clubId)
   if (error) throw new Error(error.message)
   revalidatePath('/dashboard/rules')
@@ -187,7 +187,7 @@ export async function deleteRuleException(id: string) {
 
 export async function getRuleAffectedCounts() {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const thirtyDaysAgo = new Date()
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)

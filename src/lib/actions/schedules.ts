@@ -2,7 +2,7 @@
 
 import { auth } from '@clerk/nextjs/server'
 import { revalidatePath } from 'next/cache'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { z } from 'zod'
 
 const scheduleSchema = z.object({
@@ -24,7 +24,7 @@ export type ScheduleInput = z.infer<typeof scheduleSchema>
 async function getClubId() {
   const { userId } = await auth()
   if (!userId) throw new Error('No autorizado')
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { data, error } = await supabase
     .from('user_clubs')
     .select('club_id')
@@ -37,7 +37,7 @@ async function getClubId() {
 
 export async function getSchedules(filters?: { venueId?: string }) {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   let q = supabase
     .from('schedules')
@@ -56,7 +56,7 @@ export async function getSchedules(filters?: { venueId?: string }) {
 export async function createSchedule(input: ScheduleInput) {
   const clubId = await getClubId()
   const parsed = scheduleSchema.parse(input)
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const { data, error } = await supabase
     .from('schedules')
@@ -77,7 +77,7 @@ export async function createSchedule(input: ScheduleInput) {
 
 export async function updateSchedule(id: string, input: Partial<ScheduleInput>) {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const { data, error } = await supabase
     .from('schedules')
@@ -94,7 +94,7 @@ export async function updateSchedule(id: string, input: Partial<ScheduleInput>) 
 
 export async function deleteSchedule(id: string) {
   const clubId = await getClubId()
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const { error } = await supabase
     .from('schedules')
