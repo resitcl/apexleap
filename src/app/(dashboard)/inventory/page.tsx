@@ -27,11 +27,11 @@ const CONDITION_LABEL: Record<string, string> = {
 }
 
 interface PageProps {
-  searchParams: Promise<{ category?: string; condition?: string; lowStock?: string; search?: string; page?: string; athleteId?: string; priceMin?: string; priceMax?: string; sortBy?: string }>
+  searchParams: Promise<{ category?: string; condition?: string; lowStock?: string; search?: string; page?: string; athleteId?: string; priceMin?: string; priceMax?: string; sortBy?: string; serialSearch?: string }>
 }
 
 export default async function InventoryPage({ searchParams }: PageProps) {
-  const { category, condition, lowStock, search, page: pageStr, athleteId, priceMin: priceMinStr, priceMax: priceMaxStr, sortBy } = await searchParams
+  const { category, condition, lowStock, search, page: pageStr, athleteId, priceMin: priceMinStr, priceMax: priceMaxStr, sortBy, serialSearch } = await searchParams
   const isLowStock = lowStock === '1'
   const page = Number(pageStr ?? 1)
   const limit = 50
@@ -91,6 +91,10 @@ export default async function InventoryPage({ searchParams }: PageProps) {
       const dB = b.purchase_date ?? ''
       return dB.localeCompare(dA)
     })
+  }
+
+  if (serialSearch) {
+    items = items.filter((i) => i.serial_number && i.serial_number.toLowerCase().includes(serialSearch.toLowerCase()))
   }
 
   const CONDITION_ORDER: Record<string, number> = { broken: 0, poor: 1, fair: 2, good: 3 }
@@ -263,6 +267,7 @@ export default async function InventoryPage({ searchParams }: PageProps) {
         {category  && <input type="hidden" name="category"  value={category} />}
         {condition && <input type="hidden" name="condition" value={condition} />}
         {isLowStock && <input type="hidden" name="lowStock" value="1" />}
+        {sortBy && <input type="hidden" name="sortBy" value={sortBy} />}
         <input type="text" name="search" defaultValue={search ?? ''} placeholder="Buscar ítem..."
           className="h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring w-52" />
         {athleteList.length > 0 && (
@@ -274,6 +279,8 @@ export default async function InventoryPage({ searchParams }: PageProps) {
             ))}
           </select>
         )}
+        <input type="text" name="serialSearch" defaultValue={serialSearch ?? ''} placeholder="N° serie..."
+          className="h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring w-32" />
         <input type="number" name="priceMin" defaultValue={priceMinStr ?? ''} min={0} placeholder="Precio mín."
           className="h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring w-28" />
         <input type="number" name="priceMax" defaultValue={priceMaxStr ?? ''} min={0} placeholder="Precio máx."

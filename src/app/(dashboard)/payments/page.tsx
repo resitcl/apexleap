@@ -523,6 +523,9 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
                         {payment.status === 'paid' && payment.paid_at && payment.due_date && payment.paid_at < payment.due_date && (
                           <span className="text-xs bg-green-100 text-green-700 border border-green-300 px-1.5 py-0.5 rounded font-medium shrink-0" title="Pagado antes del vencimiento">✓ Anticipado</span>
                         )}
+                        {payment.status === 'paid' && (!payment.payment_method || payment.payment_method === 'cash' || payment.payment_method === 'transfer' || payment.payment_method === 'other') && (
+                          <span className="text-xs bg-slate-100 text-slate-500 border border-slate-200 px-1.5 py-0.5 rounded font-medium shrink-0" title="Registrado manualmente sin pasarela de pago">Manual</span>
+                        )}
                         <span className="text-muted-foreground text-sm">·</span>
                         <span className="text-sm text-muted-foreground truncate">{payment.concept}</span>
                         {(() => {
