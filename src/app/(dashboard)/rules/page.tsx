@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { ShieldCheck, ShieldAlert, ShieldOff } from "lucide-react"
 import Link from "next/link"
 import { ToggleRuleButton } from "@/components/rules/ToggleRuleButton"
+import { RuleExceptionButton } from "@/components/rules/RuleExceptionButton"
 import { NewRuleForm } from "@/components/rules/NewRuleForm"
 import { ExportRulesButton } from "@/components/rules/ExportRulesButton"
 
@@ -232,7 +233,10 @@ export default async function RulesPage({ searchParams }: PageProps) {
                                 )}
                               </div>
                             </div>
-                            <ToggleRuleButton ruleId={rule.id} isActive={rule.is_active} />
+                            <div className="flex items-center gap-2">
+                              <RuleExceptionButton ruleId={rule.id} ruleName={rule.name} />
+                              <ToggleRuleButton ruleId={rule.id} isActive={rule.is_active} />
+                            </div>
                           </div>
                         </CardContent>
                       </Card>

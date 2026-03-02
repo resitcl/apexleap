@@ -133,6 +133,58 @@ export async function getRuleLastTriggerDates() {
   }
 }
 
+/**
+ * Rule Exceptions — requires table: rule_exceptions
+ * id uuid pk, club_id uuid, rule_id uuid, athlete_id uuid,
+ * reason text, expires_at date, created_by text, created_at timestamptz
+ */
+export async function createRuleException(params: {
+  ruleId: string
+  athleteId: string
+  reason: string
+  expiresAt?: string | null
+}) {
+  const { userId } = await auth()
+  const clubId = await getClubId()
+  const supabase = await createClient()
+  const { error } = await supabase.from('rule_exceptions').insert({
+    club_id: clubId,
+    rule_id: params.ruleId,
+    athlete_id: params.athleteId,
+    reason: params.reason,
+    expires_at: params.expiresAt ?? null,
+    created_by: userId ?? null,
+  })
+  if (error) {
+    if (error.code === '42P01') throw new Error('tabla_no_existe')
+    throw new Error(error.message)
+  }
+  revalidatePath('/dashboard/rules')
+  revalidatePath(`/dashboard/athletes/${params.athleteId}`)
+}
+
+export async function getRuleExceptions(athleteId?: string) {
+  const clubId = await getClubId()
+  const supabase = await createClient()
+  let q = supabase
+    .from('rule_exceptions')
+    .select('*, rules(name, type), athletes(name)')
+    .eq('club_id', clubId)
+    .order('created_at', { ascending: false })
+  if (athleteId) q = q.eq('athlete_id', athleteId)
+  const { data, error } = await q
+  if (error) return []
+  return data ?? []
+}
+
+export async function deleteRuleException(id: string) {
+  const clubId = await getClubId()
+  const supabase = await createClient()
+  const { error } = await supabase.from('rule_exceptions').delete().eq('id', id).eq('club_id', clubId)
+  if (error) throw new Error(error.message)
+  revalidatePath('/dashboard/rules')
+}
+
 export async function getRuleAffectedCounts() {
   const clubId = await getClubId()
   const supabase = await createClient()
