@@ -173,16 +173,34 @@ export default async function InventoryPage({ searchParams }: PageProps) {
       {(() => {
         const brokenItems = allItems.filter((i) => i.condition === 'broken')
         if (brokenItems.length === 0) return null
+        const thirtyAgo = new Date(); thirtyAgo.setDate(thirtyAgo.getDate() - 30)
+        const oldBroken = brokenItems.filter((i) => i.updated_at && new Date(i.updated_at) < thirtyAgo)
+        const recentBroken = brokenItems.filter((i) => !i.updated_at || new Date(i.updated_at) >= thirtyAgo)
         return (
-          <Card className="border-red-200 bg-red-50">
-            <CardContent className="py-3 flex items-center gap-3">
-              <Package className="w-5 h-5 text-red-600 shrink-0" />
-              <p className="text-sm text-red-800 font-medium">
-                {brokenItems.length} ítem{brokenItems.length > 1 ? 's' : ''} roto{brokenItems.length > 1 ? 's' : ''}:{' '}
-                {brokenItems.map((i) => i.name).join(', ')}
-              </p>
-            </CardContent>
-          </Card>
+          <>
+            {oldBroken.length > 0 && (
+              <Card className="border-red-300 bg-red-100">
+                <CardContent className="py-3 flex items-center gap-3">
+                  <Package className="w-5 h-5 text-red-700 shrink-0" />
+                  <p className="text-sm text-red-900 font-medium">
+                    ⚠ {oldBroken.length} ítem{oldBroken.length > 1 ? 's' : ''} roto{oldBroken.length > 1 ? 's' : ''} sin reparar hace +30 días:{' '}
+                    {oldBroken.map((i) => i.name).join(', ')}
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+            {recentBroken.length > 0 && (
+              <Card className="border-red-200 bg-red-50">
+                <CardContent className="py-3 flex items-center gap-3">
+                  <Package className="w-5 h-5 text-red-600 shrink-0" />
+                  <p className="text-sm text-red-800 font-medium">
+                    {recentBroken.length} ítem{recentBroken.length > 1 ? 's' : ''} roto{recentBroken.length > 1 ? 's' : ''}:{' '}
+                    {recentBroken.map((i) => i.name).join(', ')}
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+          </>
         )
       })()}
 

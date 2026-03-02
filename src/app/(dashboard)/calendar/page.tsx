@@ -274,6 +274,9 @@ export default async function CalendarPage({ searchParams }: PageProps) {
                         {s.capacity && (() => {
                           const n = ((s.attendance as Array<{ id: string }> | null) ?? []).length
                           const p = Math.round((n / s.capacity) * 100)
+                          if (p >= 100) return (
+                            <p className="text-[10px] font-bold text-red-600 bg-red-50 rounded px-1">🔴 LLENO {n}/{s.capacity}</p>
+                          )
                           return (
                             <p className={`text-[10px] font-medium ${
                               p >= 90 ? 'text-red-600' : p >= 70 ? 'text-yellow-600' : 'text-green-600'
