@@ -12,6 +12,7 @@ import {
 import { ClubToggleButton } from "@/components/super-admin/ClubToggleButton"
 import { UpdateSaasSubForm } from "@/components/super-admin/UpdateSaasSubForm"
 import { ClubNotesForm } from "@/components/super-admin/ClubNotesForm"
+import { LinkUserForm } from "@/components/super-admin/LinkUserForm"
 
 const SAAS_STATUS: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   active:    { label: "Activo",    variant: "default" },
@@ -41,6 +42,8 @@ export default async function SuperAdminClubDetailPage({ params }: Props) {
   }
 
   const { club, users, athletes, saas_sub, billing, stats } = detail
+  type UserRow = { user_id: string; role: string; is_active: boolean }
+  const usersTyped: UserRow[] = (users ?? []) as UserRow[]
 
   const fmt = (n: number) =>
     new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 }).format(n)
@@ -179,6 +182,13 @@ export default async function SuperAdminClubDetailPage({ params }: Props) {
               )}
             </CardContent>
           </Card>
+
+          {/* Link / Manage Users */}
+          <LinkUserForm
+            clubId={id}
+            clubSlug={(club as { slug: string }).slug}
+            users={usersTyped}
+          />
 
           {/* Internal notes */}
           <ClubNotesForm clubId={id} currentNotes={(club as { notes?: string | null }).notes ?? ""} />

@@ -203,6 +203,48 @@ export async function recordSaasBillingPayment(input: {
   return { ok: true }
 }
 
+// ─── Link / unlink a user to a club ──────────────────────────────────────
+export async function linkUserToClub(clubId: string, clerkUserId: string, role: 'admin' | 'coach' | 'athlete' = 'admin') {
+  await requireSuperAdmin()
+  const supabase = createAdminClient()
+
+  const { data: existing } = await supabase
+    .from('user_clubs')
+    .select('id, is_active')
+    .eq('user_id', clerkUserId)
+    .eq('club_id', clubId)
+    .single()
+
+  if (existing) {
+    const { error } = await supabase
+      .from('user_clubs')
+      .update({ is_active: true, role })
+      .eq('id', existing.id)
+    if (error) throw new Error(error.message)
+  } else {
+    const { error } = await supabase
+      .from('user_clubs')
+      .insert({ user_id: clerkUserId, club_id: clubId, role, is_active: true })
+    if (error) throw new Error(error.message)
+  }
+
+  revalidatePath(`/super-admin/clubs/${clubId}`)
+  return { ok: true }
+}
+
+export async function removeUserFromClub(clubId: string, clerkUserId: string) {
+  await requireSuperAdmin()
+  const supabase = createAdminClient()
+  const { error } = await supabase
+    .from('user_clubs')
+    .update({ is_active: false })
+    .eq('user_id', clerkUserId)
+    .eq('club_id', clubId)
+  if (error) throw new Error(error.message)
+  revalidatePath(`/super-admin/clubs/${clubId}`)
+  return { ok: true }
+}
+
 // ─── Register / remove super admin ───────────────────────────────────────
 export async function addSuperAdmin(userId: string, email?: string, name?: string) {
   await requireSuperAdmin()

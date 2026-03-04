@@ -118,3 +118,43 @@ export async function createClubForUser(input: CreateClubInput) {
 
   redirect('/dashboard')
 }
+
+export async function joinClubBySlug(slug: string, role: 'admin' | 'coach' | 'athlete' = 'admin') {
+  const { userId } = await auth()
+  if (!userId) throw new Error('No autorizado')
+
+  const supabase = createAdminClient()
+
+  // Find club by slug
+  const { data: club, error: clubErr } = await supabase
+    .from('clubs')
+    .select('id, name, is_active')
+    .eq('slug', slug.trim().toLowerCase())
+    .single()
+
+  if (clubErr || !club) throw new Error('No se encontró un club con ese identificador. Verifica el slug.')
+  if (!club.is_active) throw new Error('Este club está desactivado. Contacta al administrador.')
+
+  // Check not already linked
+  const { data: existing } = await supabase
+    .from('user_clubs')
+    .select('id, is_active')
+    .eq('user_id', userId)
+    .eq('club_id', club.id)
+    .single()
+
+  if (existing) {
+    if (existing.is_active) throw new Error(`Ya tienes acceso al club "${club.name}".`)
+    // Reactivate
+    await supabase.from('user_clubs').update({ is_active: true, role }).eq('id', existing.id)
+    redirect('/dashboard')
+  }
+
+  const { error: linkErr } = await supabase
+    .from('user_clubs')
+    .insert({ user_id: userId, club_id: club.id, role, is_active: true })
+
+  if (linkErr) throw new Error(linkErr.message)
+
+  redirect('/dashboard')
+}
