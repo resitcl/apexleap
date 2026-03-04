@@ -103,6 +103,21 @@ export async function deleteMatch(matchId: string, competitionId: string) {
   return { deleted: true }
 }
 
+export async function getAllMatches(params?: { from?: string; to?: string }) {
+  const clubId = await getClubId()
+  const supabase = createAdminClient()
+  let query = supabase
+    .from('matches')
+    .select('*, competitions(id, name)')
+    .eq('club_id', clubId)
+    .order('match_date', { ascending: true })
+  if (params?.from) query = query.gte('match_date', params.from)
+  if (params?.to)   query = query.lte('match_date', params.to)
+  const { data, error } = await query
+  if (error) throw new Error(translateError(error.message))
+  return data ?? []
+}
+
 // ─── Match Events ─────────────────────────────────────────────
 
 export async function getMatchEvents(matchId: string) {

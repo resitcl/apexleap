@@ -3,10 +3,12 @@ export const dynamic = "force-dynamic"
 import Link from "next/link"
 import { getSchedules } from "@/lib/actions/schedules"
 import { getVenues } from "@/lib/actions/venues"
+import { getCompetitions } from "@/lib/actions/competitions"
+import { getAllMatches } from "@/lib/actions/matches"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Clock, MapPin, Users, Pencil, AlertCircle } from "lucide-react"
+import { Plus, Clock, MapPin, Users, Pencil, AlertCircle, Trophy, Swords } from "lucide-react"
 import { DeleteScheduleButton } from "@/components/calendar/DeleteScheduleButton"
 import { ExportSchedulesButton } from "@/components/calendar/ExportSchedulesButton"
 
@@ -29,7 +31,12 @@ export default async function CalendarPage({ searchParams }: PageProps) {
   const { venueId, dow } = await searchParams
   let schedules: Awaited<ReturnType<typeof getSchedules>> = []
   let venues: { id: string; name: string }[] = []
+  let competitions: { id: string; name: string; start_date: string; end_date: string | null; type: string; status: string }[] = []
+  let matches: { id: string; opponent: string | null; match_date: string; location: string | null; is_home: boolean; status: string; competitions: { id: string; name: string } | null }[] = []
   let error: string | null = null
+
+  const todayStr = new Date().toISOString().split('T')[0]
+  const in90Days = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
 
   try {
     const [s, v] = await Promise.all([
@@ -41,6 +48,62 @@ export default async function CalendarPage({ searchParams }: PageProps) {
   } catch (e) {
     error = e instanceof Error ? e.message : "Error al cargar horarios"
   }
+
+  try {
+    const { competitions: comps } = await getCompetitions({ status: 'active', limit: 50 })
+    const upcoming = await getCompetitions({ status: 'upcoming', limit: 50 })
+    competitions = [...comps, ...upcoming.competitions].map((c) => ({
+      id: c.id,
+      name: c.name,
+      start_date: c.start_date,
+      end_date: c.end_date ?? null,
+      type: c.type,
+      status: c.status,
+    }))
+  } catch { /* tabla puede no existir aún */ }
+
+  try {
+    const m = await getAllMatches({ from: todayStr, to: in90Days })
+    matches = m.map((m) => ({
+      id: m.id,
+      opponent: m.opponent ?? null,
+      match_date: m.match_date,
+      location: m.location ?? null,
+      is_home: m.is_home,
+      status: m.status,
+      competitions: (m.competitions as { id: string; name: string } | null) ?? null,
+    }))
+  } catch { /* tabla matches puede no existir aún */ }
+
+  // Unified upcoming events (competitions + matches) for the next 90 days
+  type CalEvent =
+    | { kind: 'competition'; id: string; name: string; date: string; endDate: string | null; type: string; status: string }
+    | { kind: 'match'; id: string; opponent: string; date: string; location: string | null; is_home: boolean; status: string; competitionName: string | null; competitionId: string | null }
+
+  const upcomingEvents: CalEvent[] = [
+    ...competitions
+      .filter((c) => c.start_date >= todayStr)
+      .map((c): CalEvent => ({
+        kind: 'competition',
+        id: c.id,
+        name: c.name,
+        date: c.start_date,
+        endDate: c.end_date,
+        type: c.type,
+        status: c.status,
+      })),
+    ...matches.map((m): CalEvent => ({
+      kind: 'match',
+      id: m.id,
+      opponent: m.opponent ?? 'Rival',
+      date: m.match_date,
+      location: m.location,
+      is_home: m.is_home,
+      status: m.status,
+      competitionName: m.competitions?.name ?? null,
+      competitionId: m.competitions?.id ?? null,
+    })),
+  ].sort((a, b) => a.date.localeCompare(b.date))
 
   const filteredSchedules = dow !== undefined
     ? schedules.filter((s) => (s.day_of_week as number[]).includes(Number(dow)))
@@ -65,7 +128,6 @@ export default async function CalendarPage({ searchParams }: PageProps) {
   const totalAttendancesAllTime = schedules.reduce((sum, s) => sum + ((s.attendance as unknown[])?.length ?? 0), 0)
 
   // Today occupation: sessions with capacity → sum today's check-ins vs total capacity
-  const todayStr = new Date().toISOString().split('T')[0]
   const todayOccupation = todaySessions.reduce((acc, s) => {
     if (!s.capacity) return acc
     const todayCheckIns = ((s.attendance as Array<{ id: string; checked_in_at: string }> | null) ?? [])
@@ -336,6 +398,68 @@ export default async function CalendarPage({ searchParams }: PageProps) {
             ))}
           </div>
           </div>
+
+          {/* Upcoming competitions & matches */}
+          {upcomingEvents.length > 0 && (
+            <div className="space-y-3">
+              <h2 className="text-lg font-semibold flex items-center gap-2">
+                <Trophy className="w-5 h-5 text-primary" />
+                Próximos eventos ({upcomingEvents.length})
+              </h2>
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {upcomingEvents.map((ev) => {
+                  const dateLabel = new Date(ev.date + 'T12:00:00').toLocaleDateString('es-CL', { weekday: 'short', day: 'numeric', month: 'short' })
+                  const daysUntil = Math.ceil((new Date(ev.date + 'T12:00:00').getTime() - Date.now()) / 86400000)
+                  const urgency = daysUntil === 0 ? 'text-green-600' : daysUntil <= 3 ? 'text-orange-600' : daysUntil <= 7 ? 'text-yellow-600' : 'text-muted-foreground'
+
+                  if (ev.kind === 'competition') {
+                    return (
+                      <Link key={`comp-${ev.id}`} href={`/dashboard/competitions/${ev.id}`}>
+                        <div className="p-3 rounded-lg border bg-card hover:border-primary transition-colors flex items-start gap-3">
+                          <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center shrink-0">
+                            <Trophy className="w-4 h-4 text-purple-600" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="font-semibold text-sm truncate">{ev.name}</p>
+                            <p className={`text-xs mt-0.5 font-medium ${urgency}`}>
+                              {daysUntil === 0 ? 'Hoy' : daysUntil === 1 ? 'Mañana' : `En ${daysUntil} días`} · {dateLabel}
+                            </p>
+                            {ev.endDate && (
+                              <p className="text-xs text-muted-foreground">
+                                Hasta {new Date(ev.endDate + 'T12:00:00').toLocaleDateString('es-CL', { day: 'numeric', month: 'short' })}
+                              </p>
+                            )}
+                          </div>
+                          <Badge variant="outline" className="text-xs shrink-0 capitalize">{ev.type === 'tournament' ? 'Torneo' : ev.type === 'league' ? 'Liga' : ev.type === 'friendly' ? 'Amistoso' : 'Campeonato'}</Badge>
+                        </div>
+                      </Link>
+                    )
+                  }
+
+                  return (
+                    <Link key={`match-${ev.id}`} href={ev.competitionId ? `/dashboard/competitions/${ev.competitionId}` : '#'}>
+                      <div className="p-3 rounded-lg border bg-card hover:border-primary transition-colors flex items-start gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
+                          <Swords className="w-4 h-4 text-blue-600" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-semibold text-sm truncate">vs. {ev.opponent}</p>
+                          <p className={`text-xs mt-0.5 font-medium ${urgency}`}>
+                            {daysUntil === 0 ? 'Hoy' : daysUntil === 1 ? 'Mañana' : `En ${daysUntil} días`} · {dateLabel}
+                          </p>
+                          {ev.location && <p className="text-xs text-muted-foreground flex items-center gap-1"><MapPin className="w-3 h-3" />{ev.location}</p>}
+                          {ev.competitionName && <p className="text-xs text-muted-foreground truncate">{ev.competitionName}</p>}
+                        </div>
+                        <Badge variant="outline" className={`text-xs shrink-0 ${ev.is_home ? 'border-green-300 text-green-700' : 'border-orange-300 text-orange-700'}`}>
+                          {ev.is_home ? 'Local' : 'Visita'}
+                        </Badge>
+                      </div>
+                    </Link>
+                  )
+                })}
+              </div>
+            </div>
+          )}
 
           {/* List view */}
           <div className="space-y-3">
