@@ -16,7 +16,8 @@ CREATE TABLE IF NOT EXISTS club_categories (
 
 ALTER TABLE club_categories ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY IF NOT EXISTS "club_categories_isolation"
+DROP POLICY IF EXISTS "club_categories_isolation" ON club_categories;
+CREATE POLICY "club_categories_isolation"
   ON club_categories FOR ALL
   USING (club_id = (
     SELECT club_id FROM user_clubs
