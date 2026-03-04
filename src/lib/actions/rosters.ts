@@ -70,6 +70,20 @@ export async function addAthleteToRoster(params: {
     .from('roster_athletes').select('id').eq('roster_id', params.rosterId).eq('athlete_id', params.athleteId).single()
   if (existing) throw new Error('El atleta ya está en esta nómina')
 
+  // Validate no duplicate jersey number within the same roster
+  if (params.number != null) {
+    const { data: numConflict } = await supabase
+      .from('roster_athletes')
+      .select('id, athletes(name)')
+      .eq('roster_id', params.rosterId)
+      .eq('number', params.number)
+      .maybeSingle()
+    if (numConflict) {
+      const takenBy = (numConflict.athletes as unknown as { name: string } | null)?.name ?? 'otro jugador'
+      throw new Error(`El número #${params.number} ya está asignado a ${takenBy} en esta nómina.`)
+    }
+  }
+
   const { error } = await supabase.from('roster_athletes').insert({
     roster_id: params.rosterId,
     athlete_id: params.athleteId,
@@ -120,7 +134,7 @@ export async function getAthletesSemaforo() {
   const [athletesRes, overdueRes] = await Promise.all([
     supabase
       .from('athletes')
-      .select('id, name, health_status')
+      .select('id, name, health_status, jersey_number, category')
       .eq('club_id', clubId)
       .eq('status', 'active')
       .order('name'),
@@ -136,7 +150,14 @@ export async function getAthletesSemaforo() {
     const semaforo: 'green' | 'yellow' | 'red' =
       a.health_status === 'injured' || overdueIds.has(a.id) ? 'red' :
       a.health_status === 'observation' ? 'yellow' : 'green'
-    return { id: a.id, name: a.name, health_status: a.health_status as string, semaforo }
+    return {
+      id: a.id,
+      name: a.name,
+      health_status: a.health_status as string,
+      semaforo,
+      jersey_number: (a as { jersey_number?: number | null }).jersey_number ?? null,
+      category: (a as { category?: string }).category ?? 'General',
+    }
   })
 }
 

@@ -14,6 +14,8 @@ import { Separator } from '@/components/ui/separator'
 import { createAthlete, updateAthlete } from '@/lib/actions/athletes'
 import type { AthleteInput } from '@/lib/actions/athletes'
 
+const PRESET_CATEGORIES = ['General', 'Adulta', 'Juvenil', 'Infantil', 'Sub-15', 'Sub-17', 'Sub-20', '+35', '+40', '+45', 'Femenino', 'Masculino']
+
 const formSchema = z.object({
   name: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
   email: z.string().email('Email inválido').optional().or(z.literal('')),
@@ -25,13 +27,15 @@ const formSchema = z.object({
   notes: z.string().optional(),
   health_status: z.enum(['healthy', 'injured', 'observation']),
   status: z.enum(['active', 'inactive', 'suspended']),
+  jersey_number: z.number().int().min(1).max(999).nullable().optional(),
+  category: z.string().min(1).default('General'),
 })
 
 type FormValues = z.infer<typeof formSchema>
 
 interface Props {
   athleteId?: string
-  defaultValues?: Partial<FormValues>
+  defaultValues?: Partial<FormValues & { jersey_number?: number | null; category?: string }>
 }
 
 export function AthleteForm({ athleteId, defaultValues }: Props) {
@@ -52,6 +56,8 @@ export function AthleteForm({ athleteId, defaultValues }: Props) {
       notes: '',
       health_status: 'healthy',
       status: 'active',
+      jersey_number: null,
+      category: 'General',
       ...defaultValues,
     },
   })
@@ -61,6 +67,8 @@ export function AthleteForm({ athleteId, defaultValues }: Props) {
     try {
       const input: AthleteInput = {
         ...values,
+        jersey_number: values.jersey_number ?? null,
+        category: values.category || 'General',
         technical_meta: {},
         performance_meta: {},
       }
@@ -118,6 +126,45 @@ export function AthleteForm({ athleteId, defaultValues }: Props) {
           <div className="space-y-1.5">
             <Label htmlFor="birth_date">Fecha de Nacimiento</Label>
             <Input id="birth_date" type="date" {...form.register('birth_date')} />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Deportivo */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Deportivo</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="category">Categoría</Label>
+            <div className="flex gap-2">
+              <select
+                id="category"
+                {...form.register('category')}
+                className="flex-1 h-10 rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                {PRESET_CATEGORIES.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </div>
+            <p className="text-xs text-muted-foreground">El número de camiseta no puede repetirse dentro de la misma categoría</p>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="jersey_number">N° de camiseta</Label>
+            <input
+              id="jersey_number"
+              type="number" min="1" max="999"
+              placeholder="Ej: 10"
+              value={form.watch('jersey_number') ?? ''}
+              onChange={(e) => form.setValue('jersey_number', e.target.value ? Number(e.target.value) : null)}
+              className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+            {form.formState.errors.jersey_number && (
+              <p className="text-sm text-destructive">{form.formState.errors.jersey_number.message}</p>
+            )}
           </div>
         </CardContent>
       </Card>

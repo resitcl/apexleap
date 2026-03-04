@@ -18,7 +18,15 @@ const athleteSchema = z.object({
   status: z.enum(['active', 'inactive', 'suspended']).default('active'),
   technical_meta: z.record(z.unknown()).default({}),
   performance_meta: z.record(z.unknown()).default({}),
+  jersey_number: z.number().int().min(1).max(999).nullable().optional(),
+  category: z.string().min(1).default('General'),
 })
+
+function translateAthleteError(msg: string): string {
+  if (msg.includes('idx_athletes_jersey_per_category') || msg.includes('unique') && msg.includes('jersey'))
+    return 'Ese número de camiseta ya está en uso en esta categoría.'
+  return msg
+}
 
 export type AthleteInput = z.infer<typeof athleteSchema>
 
@@ -133,7 +141,7 @@ export async function createAthlete(input: AthleteInput) {
     .select()
     .single()
 
-  if (error) throw new Error(error.message)
+  if (error) throw new Error(translateAthleteError(error.message))
 
   revalidatePath('/dashboard/athletes')
   return data
@@ -152,7 +160,7 @@ export async function updateAthlete(id: string, input: Partial<AthleteInput>) {
     .select()
     .single()
 
-  if (error) throw new Error(error.message)
+  if (error) throw new Error(translateAthleteError(error.message))
 
   revalidatePath('/dashboard/athletes')
   revalidatePath(`/dashboard/athletes/${id}`)

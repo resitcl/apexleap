@@ -10,7 +10,7 @@ import {
 import { UserPlus, X } from "lucide-react"
 import { addAthleteToRoster, removeAthleteFromRoster, getAthletesSemaforo } from "@/lib/actions/rosters"
 
-type SemaforoAthlete = { id: string; name: string; health_status: string; semaforo: 'green' | 'yellow' | 'red' }
+type SemaforoAthlete = { id: string; name: string; health_status: string; semaforo: 'green' | 'yellow' | 'red'; jersey_number: number | null; category: string }
 
 interface RosterAthlete {
   id: string
@@ -38,6 +38,17 @@ export function AddAthleteToRosterButton({ rosterId, competitionId, rosterAthlet
     position: '',
     isCaptain: false,
   })
+
+  const takenNumbers = new Set(rosterAthletes.map((ra) => ra.number).filter((n): n is number => n !== null))
+
+  function handleAthleteSelect(athleteId: string) {
+    const a = athletes.find((x) => x.id === athleteId)
+    setForm((f) => ({
+      ...f,
+      athleteId: f.athleteId === athleteId ? '' : athleteId,
+      number: a?.jersey_number != null ? String(a.jersey_number) : f.number,
+    }))
+  }
 
   useEffect(() => {
     if (!open) return
@@ -141,7 +152,7 @@ export function AddAthleteToRosterButton({ rosterId, competitionId, rosterAthlet
                       <button
                         key={a.id}
                         type="button"
-                        onClick={() => setForm((f) => ({ ...f, athleteId: isSelected ? '' : a.id }))}
+                        onClick={() => handleAthleteSelect(a.id)}
                         className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left transition-colors border-b last:border-0 ${
                           isSelected ? 'bg-primary/10 font-medium' : 'hover:bg-accent/50'
                         }`}
@@ -151,7 +162,6 @@ export function AddAthleteToRosterButton({ rosterId, competitionId, rosterAthlet
                           {a.name}
                         </span>
                         {isBlocked && <span className="text-xs text-red-500 shrink-0">🔒</span>}
-                        {a.semaforo === 'yellow' && <span className="text-xs text-yellow-600 shrink-0">⚠</span>}
                       </button>
                     )
                   })}
@@ -159,14 +169,23 @@ export function AddAthleteToRosterButton({ rosterId, competitionId, rosterAthlet
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label>N° (opcional)</Label>
+                  <Label>N° camiseta</Label>
                   <input
-                    type="number" min="1" max="99"
+                    type="number" min="1" max="999"
                     value={form.number}
                     onChange={(e) => setForm((f) => ({ ...f, number: e.target.value }))}
                     placeholder="—"
-                    className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                    className={`w-full h-9 rounded-md border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring ${
+                      form.number && takenNumbers.has(Number(form.number))
+                        ? 'border-destructive text-destructive focus:ring-destructive'
+                        : 'border-input'
+                    }`}
                   />
+                  {form.number && takenNumbers.has(Number(form.number)) && (
+                    <p className="text-xs text-destructive">
+                      Número #{form.number} ya está en uso en esta nómina.
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-1">
                   <Label>Posición (opcional)</Label>
