@@ -15,6 +15,7 @@ import { ExportPaymentsButton } from "@/components/payments/ExportPaymentsButton
 import { BulkMarkAsPaidButton } from "@/components/payments/BulkMarkAsPaidButton"
 import { DeletePaymentButton } from "@/components/payments/DeletePaymentButton"
 import { EditPaymentButton } from "@/components/payments/EditPaymentButton"
+import { DismissibleAlert } from "@/components/ui/DismissibleAlert"
 
 interface PageProps {
   searchParams: Promise<{ status?: string; page?: string; from?: string; to?: string; athleteId?: string; search?: string; athleteName?: string; amountMin?: string; amountMax?: string; paymentMethod?: string; paidFrom?: string; paidTo?: string; dueFrom?: string; dueTo?: string }>
@@ -353,7 +354,10 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
         ]
         if (!rows.some(Boolean)) return null
 
+        const dismissKey = `payments-${topDebtors.length}-${critical.length}-${stale.length}-${dupes.length}-${overdueExceedsCollected ? 1 : 0}`
+
         return (
+          <DismissibleAlert dismissKey={dismissKey}>
           <Card>
             <CardHeader className="pb-0 pt-4 px-5">
               <div className="flex items-center gap-2">
@@ -444,6 +448,7 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
               </div>
             </CardContent>
           </Card>
+          </DismissibleAlert>
         )
       })()}
 

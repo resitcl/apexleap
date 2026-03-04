@@ -11,6 +11,7 @@ import { DeleteDocumentButton } from "@/components/documents/DeleteDocumentButto
 import { EditDocumentButton } from "@/components/documents/EditDocumentButton"
 import { AssignDocumentAthleteButton } from "@/components/documents/AssignDocumentAthleteButton"
 import { ExportDocumentsButton } from "@/components/documents/ExportDocumentsButton"
+import { DismissibleAlert } from "@/components/ui/DismissibleAlert"
 
 const CATEGORY_LABELS: Record<string, { label: string; icon: string }> = {
   medical:       { label: "Ficha médica",    icon: "🏥" },
@@ -93,6 +94,7 @@ export default async function DocumentsPage({ searchParams }: PageProps) {
       </div>
 
       {expiringSoon > 0 && (
+        <DismissibleAlert dismissKey={`docs-expiring-${expiringSoon}`}>
         <Card>
           <CardHeader className="pb-0 pt-4 px-5">
             <div className="flex items-center gap-2">
@@ -113,6 +115,7 @@ export default async function DocumentsPage({ searchParams }: PageProps) {
             </div>
           </CardContent>
         </Card>
+        </DismissibleAlert>
       )}
 
       {/* Filters */}
