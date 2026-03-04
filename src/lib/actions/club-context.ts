@@ -3,8 +3,8 @@
 import { auth } from '@clerk/nextjs/server'
 import { cookies } from 'next/headers'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { CLUB_COOKIE } from '@/lib/constants'
 
-export const CLUB_COOKIE = 'preferred_club_id'
 
 export async function getClubId(): Promise<string> {
   const { userId } = await auth()

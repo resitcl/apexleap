@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { CLUB_COOKIE } from '@/lib/actions/club-context'
+import { CLUB_COOKIE } from '@/lib/constants'
 
 // ─── Auth guard ────────────────────────────────────────────────────────────
 export async function requireSuperAdmin() {
