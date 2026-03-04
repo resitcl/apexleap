@@ -2,6 +2,8 @@ export const dynamic = "force-dynamic"
 
 import { getCompetitions } from "@/lib/actions/competitions"
 import { getCategories } from "@/lib/actions/categories"
+import { getSeasons, getActiveSeason } from "@/lib/actions/seasons"
+import { Layers } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
@@ -22,7 +24,7 @@ const STATUS_META: Record<string, { label: string; variant: "default" | "seconda
 }
 
 interface PageProps {
-  searchParams: Promise<{ status?: string; page?: string; search?: string; type?: string; location?: string; sport?: string; sort?: string; categoryId?: string }>
+  searchParams: Promise<{ status?: string; page?: string; search?: string; type?: string; location?: string; sport?: string; sort?: string; categoryId?: string; seasonId?: string }>
 }
 
 export default async function CompetitionsPage({ searchParams }: PageProps) {
@@ -32,21 +34,29 @@ export default async function CompetitionsPage({ searchParams }: PageProps) {
   const type     = params.type     ?? ""
   const location = params.location ?? ""
   const sport    = params.sport    ?? ""
-  const sortBy   = params.sort     ?? ""
-  const limit    = 20
+  const sortBy    = params.sort     ?? ""
+  const seasonId  = params.seasonId ?? ""
+  const limit     = 20
 
+  type Season = { id: string; name: string; type: string; year: number; is_active: boolean }
   type RosterEntry = { id: string; name: string | null; roster_athletes: { id: string; athletes: { id: string; name: string } | null }[] }
   let competitions: { id: string; name: string; type: string; status: string; sport: string | null; location: string | null; start_date: string; end_date: string | null; category_id?: string | null; rosters: RosterEntry[] }[] = []
   let categories: { id: string; name: string; color: string | null }[] = []
+  let seasons: Season[] = []
+  let activeSeason: Season | null = null
   let total = 0
 
   try {
-    const [result, catsData] = await Promise.all([
-      getCompetitions({ status: params.status, search: search || undefined, type: type || undefined, page, limit }),
+    const [result, catsData, seasonsData, activeSeasonData] = await Promise.all([
+      getCompetitions({ status: params.status, search: search || undefined, type: type || undefined, seasonId: seasonId || undefined, page, limit }),
       getCategories(true).catch(() => []),
+      getSeasons(true).catch(() => []),
+      getActiveSeason().catch(() => null),
     ])
     competitions = result.competitions as typeof competitions
     categories = catsData.map((c) => ({ id: c.id, name: c.name, color: c.color ?? null }))
+    seasons = seasonsData as Season[]
+    activeSeason = activeSeasonData as Season | null
     if (params.categoryId) competitions = competitions.filter((c) => c.category_id === params.categoryId)
     if (location) competitions = competitions.filter((c) => c.location?.toLowerCase().includes(location.toLowerCase()))
     if (sport)    competitions = competitions.filter((c) => c.sport?.toLowerCase() === sport.toLowerCase())
@@ -96,7 +106,7 @@ export default async function CompetitionsPage({ searchParams }: PageProps) {
             </Link>
           ))}
           <ExportCompetitionsButton competitions={competitions} />
-          <NewCompetitionForm />
+          <NewCompetitionForm seasons={seasons} activeSeasonId={activeSeason?.id ?? null} />
         </div>
       </div>
 
@@ -115,6 +125,47 @@ export default async function CompetitionsPage({ searchParams }: PageProps) {
           </Card>
         ))}
       </div>
+
+      {/* Active Season Banner */}
+      {activeSeason && (
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-primary/30 bg-primary/5 text-sm">
+          <Layers className="w-4 h-4 text-primary shrink-0" />
+          <span className="font-medium text-primary">Temporada activa:</span>
+          <span>{activeSeason.name}</span>
+          {seasonId && (
+            <Link href="/dashboard/competitions" className="ml-auto text-xs text-muted-foreground hover:text-foreground">
+              Ver todas las temporadas
+            </Link>
+          )}
+          {!seasonId && (
+            <Link href={`/dashboard/competitions?seasonId=${activeSeason.id}`} className="ml-auto text-xs text-primary hover:underline">
+              Filtrar por esta temporada
+            </Link>
+          )}
+        </div>
+      )}
+
+      {/* Season filter chips */}
+      {seasons.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 items-center">
+          <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide shrink-0">Temporada:</span>
+          <Link href={`/dashboard/competitions?${new URLSearchParams({ ...(params.status ? { status: params.status } : {}), ...(search ? { search } : {}), ...(type ? { type } : {}) }).toString()}`}>
+            <button className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${
+              !seasonId ? 'bg-foreground text-background border-foreground shadow-sm' : 'border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground'
+            }`}>Todas</button>
+          </Link>
+          {seasons.map((s) => (
+            <Link key={s.id} href={`/dashboard/competitions?seasonId=${s.id}${params.status ? `&status=${params.status}` : ''}${search ? `&search=${search}` : ''}${type ? `&type=${type}` : ''}`}>
+              <button className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${
+                seasonId === s.id ? 'bg-foreground text-background border-foreground shadow-sm' : 'border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground'
+              }`}>
+                {s.is_active && <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />}
+                {s.name}
+              </button>
+            </Link>
+          ))}
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">

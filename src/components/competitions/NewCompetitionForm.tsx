@@ -11,6 +11,7 @@ import { getCategories } from '@/lib/actions/categories'
 import { Plus } from 'lucide-react'
 
 type CategoryOption = { id: string; name: string }
+type SeasonOption  = { id: string; name: string; type: string; year: number; is_active: boolean }
 
 const TYPES = [
   { value: 'tournament',    label: 'Torneo' },
@@ -19,20 +20,27 @@ const TYPES = [
   { value: 'championship',  label: 'Campeonato' },
 ]
 
-export function NewCompetitionForm() {
+interface Props {
+  seasons?: SeasonOption[]
+  activeSeasonId?: string | null
+}
+
+export function NewCompetitionForm({ seasons = [], activeSeasonId }: Props) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [categories, setCategories] = useState<CategoryOption[]>([])
   const [form, setForm] = useState({
     name: '', type: 'tournament', sport: '',
     location: '', start_date: '', end_date: '',
-    description: '', notes: '', category_id: '',
+    description: '', notes: '', category_id: '', season_id: '',
   })
 
   useEffect(() => {
     if (!open) return
     getCategories(true).then((data) => setCategories(data.map((c) => ({ id: c.id, name: c.name })))).catch(() => {})
-  }, [open])
+    // Pre-select active season
+    if (activeSeasonId) setForm((p) => ({ ...p, season_id: activeSeasonId }))
+  }, [open, activeSeasonId])
 
   function set(k: string, v: string) { setForm((p) => ({ ...p, [k]: v })) }
 
@@ -53,10 +61,11 @@ export function NewCompetitionForm() {
         notes: form.notes || null,
         status: 'upcoming',
         category_id: form.category_id || null,
+        season_id:   form.season_id   || null,
       })
       toast.success('Competencia creada')
       setOpen(false)
-      setForm({ name: '', type: 'tournament', sport: '', location: '', start_date: '', end_date: '', description: '', notes: '', category_id: '' })
+      setForm({ name: '', type: 'tournament', sport: '', location: '', start_date: '', end_date: '', description: '', notes: '', category_id: '', season_id: activeSeasonId ?? '' })
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Error inesperado')
     } finally {
@@ -78,6 +87,21 @@ export function NewCompetitionForm() {
             <Label htmlFor="name">Nombre *</Label>
             <Input id="name" value={form.name} onChange={(e) => set('name', e.target.value)} placeholder="Copa Regional 2026..." />
           </div>
+
+          {seasons.length > 0 && (
+            <div className="space-y-1.5">
+              <Label>Temporada</Label>
+              <select value={form.season_id} onChange={(e) => set('season_id', e.target.value)}
+                className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring">
+                <option value="">— Sin temporada —</option>
+                {seasons.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}{s.is_active ? ' ★' : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {categories.length > 0 && (
             <div className="space-y-1.5">

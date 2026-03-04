@@ -7,7 +7,7 @@ import { ClubSettingsForm } from "@/components/settings/ClubSettingsForm"
 import { DeleteClubButton } from "@/components/settings/DeleteClubButton"
 import { CategoriesManager } from "@/components/settings/CategoriesManager"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Settings, AlertTriangle } from "lucide-react"
+import { Settings, AlertTriangle, Calendar } from "lucide-react"
 import { Separator } from "@/components/ui/separator"
 
 interface PageProps {
@@ -64,10 +64,11 @@ export default async function SettingsPage({ searchParams }: PageProps) {
           { key: "general",     label: "General" },
           { key: "categories",  label: "Categorías" },
           { key: "danger",      label: "Zona de Peligro" },
+          { key: "seasons",     label: "Temporadas", href: "/dashboard/settings/seasons" },
         ].map((t) => (
           <Link
             key={t.key}
-            href={`/dashboard/settings?tab=${t.key}`}
+            href={(t as { href?: string }).href ?? `/dashboard/settings?tab=${t.key}`}
             className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
               tab === t.key
                 ? t.key === "danger"
@@ -87,6 +88,21 @@ export default async function SettingsPage({ searchParams }: PageProps) {
 
       {tab === "categories" && (
         <CategoriesManager initialCategories={categories} />
+      )}
+
+      {tab === "seasons" && (
+        <Card>
+          <CardContent className="py-10 text-center">
+            <Calendar className="w-10 h-10 mx-auto mb-3 text-muted-foreground opacity-40" />
+            <p className="font-medium">Gestión de Temporadas</p>
+            <p className="text-sm text-muted-foreground mt-1 mb-4">
+              Crea y administra las temporadas Apertura / Clausura de tu club.
+            </p>
+            <Link href="/dashboard/settings/seasons" className="inline-flex items-center gap-2 h-9 px-4 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity">
+              Ir a Temporadas
+            </Link>
+          </CardContent>
+        </Card>
       )}
 
       {tab === "danger" && (

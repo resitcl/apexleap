@@ -5,6 +5,7 @@ import { redirect } from "next/navigation"
 import { getDashboardSummary, getRecentActivity, getMonthlyRevenue, getTodaySessions, getOverdueAlerts, getUpcomingSchedules, getExpiringSubscriptions, getWeeklyAttendanceRate, getExpiredDocuments, getAthletesWithoutPlan, getWeeklyAttendanceByDay, getMonthlyRetentionRate, getDormantAthletes } from "@/lib/actions/dashboard"
 import { checkUserHasClub } from "@/lib/actions/onboarding"
 import { getCompetitions } from "@/lib/actions/competitions"
+import { getActiveSeason } from "@/lib/actions/seasons"
 import { getCoaches } from "@/lib/actions/finances"
 import { getInventoryItems } from "@/lib/actions/inventory"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -50,6 +51,8 @@ export default async function DashboardPage() {
   let dormantCount = 0
   let dormantCount14 = 0
   let staleItemsCount = 0
+  type ActiveSeason = { id: string; name: string; type: string; year: number; start_date: string; end_date: string }
+  let activeSeason: ActiveSeason | null = null
 
   try {
     ;[summary, activity, monthlyRevenue, todaySessions, overdueAlerts, upcomingSchedules, expiringSubscriptions, weeklyAttendance, weeklyByDay, expiredDocs, athletesWithoutPlan, retention, coaches] = await Promise.all([
@@ -69,6 +72,7 @@ export default async function DashboardPage() {
     ])
     dormantCount = await getDormantAthletes(30)
     dormantCount14 = await getDormantAthletes(14)
+    activeSeason = (await getActiveSeason().catch(() => null)) as ActiveSeason | null
     const compResult = await getCompetitions({ status: 'upcoming', limit: 5 })
     upcomingComps = compResult.competitions.map((c) => ({
       id: c.id, name: c.name, type: c.type, start_date: c.start_date, location: c.location ?? null,
@@ -89,6 +93,23 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6">
+      {/* Active Season Banner */}
+      {activeSeason && (
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-primary/20 bg-primary/5 text-sm">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-primary/70">Temporada</span>
+          <span className="font-semibold text-primary">{activeSeason.name}</span>
+          <span className="text-muted-foreground">·</span>
+          <span className="text-xs text-muted-foreground">
+            {new Date(activeSeason.start_date + 'T12:00:00').toLocaleDateString('es-CL', { day: 'numeric', month: 'short' })}
+            {' → '}
+            {new Date(activeSeason.end_date + 'T12:00:00').toLocaleDateString('es-CL', { day: 'numeric', month: 'short', year: 'numeric' })}
+          </span>
+          <Link href="/dashboard/settings/seasons" className="ml-auto text-[10px] text-muted-foreground hover:text-foreground">
+            Gestionar →
+          </Link>
+        </div>
+      )}
+
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-3xl font-bold">Dashboard</h1>

@@ -16,6 +16,7 @@ const competitionSchema = z.object({
   description: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
   category_id: z.string().uuid().optional().nullable(),
+  season_id:   z.string().uuid().optional().nullable(),
 })
 
 export type CompetitionInput = z.infer<typeof competitionSchema>
@@ -30,7 +31,7 @@ async function getClubId() {
   return data.club_id as string
 }
 
-export async function getCompetitions(params?: { status?: string; search?: string; type?: string; page?: number; limit?: number }) {
+export async function getCompetitions(params?: { status?: string; search?: string; type?: string; seasonId?: string; page?: number; limit?: number }) {
   const clubId = await getClubId()
   const supabase = createAdminClient()
   const page = params?.page ?? 1
@@ -43,9 +44,10 @@ export async function getCompetitions(params?: { status?: string; search?: strin
     .eq('club_id', clubId)
     .order('start_date', { ascending: false })
     .range(from, to)
-  if (params?.status) query = query.eq('status', params.status)
-  if (params?.search) query = query.ilike('name', `%${params.search}%`)
-  if (params?.type)   query = query.eq('type', params.type)
+  if (params?.status)   query = query.eq('status', params.status)
+  if (params?.search)   query = query.ilike('name', `%${params.search}%`)
+  if (params?.type)     query = query.eq('type', params.type)
+  if (params?.seasonId) query = query.eq('season_id', params.seasonId)
   const { data, error, count } = await query
   if (error) throw new Error(error.message)
   return { competitions: data ?? [], total: count ?? 0 }
