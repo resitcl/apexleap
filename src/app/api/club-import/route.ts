@@ -59,7 +59,14 @@ export async function POST(req: NextRequest) {
     const clubName = str(cfg['name'])
     if (!clubName) return NextResponse.json({ error: 'El campo "name" en CONFIG es obligatorio' }, { status: 400 })
 
-    let slug = str(cfg['slug']) ?? clubName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
+    const rawSlug = str(cfg['slug']) ?? clubName
+    let slug = rawSlug
+      .toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/[^a-z0-9-]/g, '')
+      .replace(/-+/g, '-')
+      .slice(0, 60)
     // Ensure unique slug
     const { data: existing } = await supabase.from('clubs').select('id').eq('slug', slug).single()
     if (existing) slug = `${slug}-${Date.now()}`
