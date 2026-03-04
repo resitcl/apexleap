@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { CheckSquare, Users, TrendingUp } from "lucide-react"
+import { InfoTooltip } from "@/components/ui/info-tooltip"
 import { ManualCheckInButton } from "@/components/attendance/ManualCheckInButton"
 import { QRCheckInDisplay } from "@/components/attendance/QRCheckInDisplay"
 import { ExportAttendanceButton } from "@/components/attendance/ExportAttendanceButton"
@@ -54,7 +55,7 @@ export default async function AttendancePage({ searchParams }: PageProps) {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-3xl font-bold">Asistencia</h1>
           <p className="text-muted-foreground">
@@ -73,7 +74,10 @@ export default async function AttendancePage({ searchParams }: PageProps) {
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Presentes Hoy</CardTitle>
+            <div className="flex items-center gap-1">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Presentes Hoy</CardTitle>
+              <InfoTooltip text="Check-ins válidos registrados hoy, ya sea por QR o manualmente por un admin." />
+            </div>
             <CheckSquare className="w-4 h-4 text-green-500" />
           </CardHeader>
           <CardContent>
@@ -83,7 +87,10 @@ export default async function AttendancePage({ searchParams }: PageProps) {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Periodo seleccionado</CardTitle>
+            <div className="flex items-center gap-1">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Periodo seleccionado</CardTitle>
+              <InfoTooltip text="Total de check-ins en el rango de fechas seleccionado. Incluye válidos e inválidos." />
+            </div>
             <TrendingUp className="w-4 h-4 text-blue-500" />
           </CardHeader>
           <CardContent>
@@ -93,7 +100,10 @@ export default async function AttendancePage({ searchParams }: PageProps) {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Alumnos Activos</CardTitle>
+            <div className="flex items-center gap-1">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Alumnos Activos</CardTitle>
+              <InfoTooltip text="Atletas con estado activo en el club. Referencia para calcular tasa de asistencia." />
+            </div>
             <Users className="w-4 h-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -194,59 +204,60 @@ export default async function AttendancePage({ searchParams }: PageProps) {
       {tab === "history" && (
         <div className="space-y-4">
           {/* Date + session filters */}
-          <form method="get" action="/dashboard/attendance" className="flex flex-wrap items-end gap-3">
+          <form method="get" action="/dashboard/attendance" className="space-y-3">
             <input type="hidden" name="tab" value="history" />
-            <div className="flex flex-col gap-1">
-              <label className="text-xs text-muted-foreground font-medium">Alumno</label>
-              <select name="athleteId" defaultValue={athleteId}
-                className="h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring min-w-[160px]">
-                <option value="">Todos los alumnos</option>
-                {athletes.map((a) => (
-                  <option key={a.id} value={a.id}>{a.name}</option>
-                ))}
-              </select>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-muted-foreground font-medium">Alumno</label>
+                <select name="athleteId" defaultValue={athleteId}
+                  className="h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring w-full">
+                  <option value="">Todos los alumnos</option>
+                  {athletes.map((a) => (
+                    <option key={a.id} value={a.id}>{a.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-muted-foreground font-medium">Sesión</label>
+                <select name="scheduleId" defaultValue={scheduleId}
+                  className="h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring w-full">
+                  <option value="">Todas las sesiones</option>
+                  {schedules.map((s) => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-muted-foreground font-medium">Desde</label>
+                <input type="date" name="from" defaultValue={from}
+                  className="h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring w-full" />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-muted-foreground font-medium">Hasta</label>
+                <input type="date" name="to" defaultValue={to}
+                  className="h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring w-full" />
+              </div>
             </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-xs text-muted-foreground font-medium">Sesión</label>
-              <select name="scheduleId" defaultValue={scheduleId}
-                className="h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring min-w-[160px]">
-                <option value="">Todas las sesiones</option>
-                {schedules.map((s) => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
-                ))}
-              </select>
+            <div className="flex items-center gap-2 flex-wrap">
+              <button type="submit"
+                className="h-9 px-4 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
+                Filtrar
+              </button>
+              <ExportAttendanceButton
+                records={history.records.map((r) => ({
+                  ...r,
+                  athletes: r.athletes as { name: string } | null,
+                  schedules: r.schedules as { name: string } | null,
+                }))}
+              />
+              {(from || to || scheduleId || athleteId) && (
+                <Link href="/dashboard/attendance?tab=history"
+                  className="text-xs text-muted-foreground hover:text-foreground underline">
+                  ✕ Limpiar filtros
+                </Link>
+              )}
             </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-xs text-muted-foreground font-medium">Desde</label>
-              <input type="date" name="from" defaultValue={from}
-                className="h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-xs text-muted-foreground font-medium">Hasta</label>
-              <input type="date" name="to" defaultValue={to}
-                className="h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
-            </div>
-            <button type="submit"
-              className="h-9 px-4 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
-              Filtrar
-            </button>
-            <ExportAttendanceButton
-              records={history.records.map((r) => ({
-                ...r,
-                athletes: r.athletes as { name: string } | null,
-                schedules: r.schedules as { name: string } | null,
-              }))}
-            />
           </form>
-
-          {(from || to || scheduleId || athleteId) && (
-            <div className="flex">
-              <Link href="/dashboard/attendance?tab=history"
-                className="text-xs text-muted-foreground hover:text-foreground underline">
-                ✕ Limpiar filtros
-              </Link>
-            </div>
-          )}
 
           {/* History list */}
           {history.records.length === 0 ? (

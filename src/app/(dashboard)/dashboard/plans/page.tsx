@@ -36,7 +36,7 @@ export default async function PlansPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-3xl font-bold">Planes</h1>
           <p className="text-muted-foreground">

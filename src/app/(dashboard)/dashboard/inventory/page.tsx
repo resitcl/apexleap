@@ -118,167 +118,27 @@ export default async function InventoryPage({ searchParams }: PageProps) {
     )
   }
 
+  const totalValue = allItems.reduce((sum, i) => sum + (i.purchase_price ?? 0) * i.quantity, 0)
+  const brokenCount = conditionCounts['broken'] ?? 0
+  const criticalCount = (conditionCounts['poor'] ?? 0) + brokenCount
+  const goodCount = conditionCounts['good'] ?? 0
+  const goodPct = allItems.length > 0 ? Math.round((goodCount / allItems.length) * 100) : 0
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-3xl font-bold">Inventario</h1>
-          <p className="text-muted-foreground">
-            {total} ítem{total !== 1 ? "s" : ""} registrado{total !== 1 ? "s" : ""}
-            {(() => {
-              const totalValue = allItems.reduce((sum, i) => sum + (i.purchase_price ?? 0) * i.quantity, 0)
-              return totalValue > 0 ? <span className="ml-2 text-green-600 font-medium">· Valor total: ${totalValue.toLocaleString('es-CL')}</span> : null
-            })()}
-            {(() => {
-              const withPrice = allItems.filter((i) => i.purchase_price && i.purchase_price > 0)
-              if (withPrice.length < 2) return null
-              const avg = Math.round(withPrice.reduce((s, i) => s + (i.purchase_price ?? 0), 0) / withPrice.length)
-              const topCat = Object.entries(CATEGORY_META)
-                .map(([key, meta]) => {
-                  const catItems = withPrice.filter((i) => i.category === key)
-                  if (catItems.length === 0) return null
-                  const catAvg = Math.round(catItems.reduce((s, i) => s + (i.purchase_price ?? 0), 0) / catItems.length)
-                  return { label: meta.label, avg: catAvg }
-                })
-                .filter(Boolean)
-                .sort((a, b) => (b?.avg ?? 0) - (a?.avg ?? 0))[0]
-              return (
-                <span className="ml-2 text-muted-foreground/70">
-                  · prom. ${avg.toLocaleString('es-CL')}/ítem
-                  {topCat && <span className="ml-1 text-muted-foreground/50">(más caro: {topCat.label} ${topCat.avg.toLocaleString('es-CL')})</span>}
-                </span>
-              )
-            })()}
-            {(() => {
-              const assigned = allItems.filter((i) => i.assigned_to).length
-              const tot = allItems.length
-              if (tot === 0) return null
-              return (
-                <span className="ml-2 text-muted-foreground/70">
-                  · {assigned}/{tot} asignado{assigned !== 1 ? 's' : ''}
-                  {assigned === 0 && <span className="ml-1 text-orange-500 font-medium">· ninguno asignado</span>}
-                </span>
-              )
-            })()}
-            {(() => {
-              const withMin = allItems.filter((i) => i.quantity_min && i.quantity_min > 0).length
-              if (withMin === 0) return null
-              const belowMin = allItems.filter((i) => i.quantity_min && i.quantity_min > 0 && i.quantity <= i.quantity_min).length
-              return (
-                <span className={`ml-2 ${belowMin > 0 ? 'text-red-600 font-medium' : 'text-muted-foreground/60'}`}>
-                  · {withMin} c/stock mín{belowMin > 0 ? ` (${belowMin} bajo mín)` : ''}
-                </span>
-              )
-            })()}
-            {(() => {
-              const broken = allItems.filter((i) => i.condition === 'broken').length
-              return broken > 0 ? (
-                <span className="ml-2 text-red-600 font-medium">· {broken} roto{broken !== 1 ? 's' : ''} ⚠</span>
-              ) : null
-            })()}
-            {(() => {
-              const withVal = allItems.filter((i) => i.purchase_price && i.purchase_price > 0)
-              if (withVal.length === 0) return null
-              const top = withVal.slice().sort((a, b) => (b.purchase_price ?? 0) * b.quantity - (a.purchase_price ?? 0) * a.quantity)[0]
-              const val = (top.purchase_price ?? 0) * top.quantity
-              return <span className="ml-2 text-muted-foreground/60">· Mayor valor: {top.name} (${val.toLocaleString('es-CL')})</span>
-            })()}
-            {(() => {
-              const good = allItems.filter((i) => i.condition === 'good').length
-              if (allItems.length === 0) return null
-              const pct = Math.round((good / allItems.length) * 100)
-              return <span className={`ml-2 font-medium ${pct >= 70 ? 'text-green-600' : pct >= 40 ? 'text-yellow-600' : 'text-red-600'}`}>· {pct}% en buen estado</span>
-            })()}
-            {(() => {
-              const critical = allItems.filter((i) => i.condition === 'poor' || i.condition === 'broken').length
-              if (critical === 0) return null
-              return <span className="ml-2 text-red-600 font-medium">· {critical} en condición crítica</span>
-            })()}
-            {(() => {
-              const curMonth = new Date().toISOString().slice(0, 7)
-              const thisMonth = allItems.filter((i) => (i.purchase_date ?? '').startsWith(curMonth)).length
-              return thisMonth > 0 ? (
-                <span className="ml-2 text-blue-600 font-medium">· +{thisMonth} adquirido{thisMonth !== 1 ? 's' : ''} este mes</span>
-              ) : null
-            })()}
-            {(() => {
-              const curYear = new Date().getFullYear().toString()
-              const thisYear = allItems.filter((i) => (i.purchase_date ?? '').startsWith(curYear)).length
-              const curMonth = new Date().toISOString().slice(0, 7)
-              const thisMonth = allItems.filter((i) => (i.purchase_date ?? '').startsWith(curMonth)).length
-              const rest = thisYear - thisMonth
-              if (thisYear === 0) return null
-              return (
-                <span className="ml-2 text-muted-foreground/60">· {thisYear} adquirido{thisYear !== 1 ? 's' : ''} en {curYear}{rest > 0 && thisMonth > 0 ? ` (+${thisMonth} este mes)` : ''}</span>
-              )
-            })()}
-            {(() => {
-              const withPrice = allItems.filter((i) => i.purchase_price && i.purchase_price > 0 && i.is_active !== false)
-              if (withPrice.length === 0) return null
-              const total = withPrice.reduce((s, i) => s + (i.purchase_price ?? 0) * i.quantity, 0)
-              return <span className="ml-2 text-muted-foreground/60">· Total inventario: ${total.toLocaleString('es-CL')}</span>
-            })()}
-            {allItems.length > 0 && (() => {
-              const assigned = allItems.filter((i) => i.assigned_to).length
-              const pct = Math.round((assigned / allItems.length) * 100)
-              return pct > 0 ? (
-                <span className="ml-2 text-muted-foreground/60">· {pct}% asignado{pct !== 1 ? 's' : ''} ({assigned}/{allItems.length})</span>
-              ) : null
-            })()}
-            {newestItem?.created_at && (
-              <span className="ml-2 text-muted-foreground/60">
-                · Último: {newestItem.name} ({new Date(newestItem.created_at).toLocaleDateString('es-CL')})
+          <p className="text-sm text-muted-foreground flex flex-wrap items-center gap-x-2">
+            <span>{total} ítem{total !== 1 ? 's' : ''}</span>
+            {totalValue > 0 && <span className="font-medium">· ${totalValue.toLocaleString('es-CL')} total</span>}
+            {allItems.length > 0 && (
+              <span className={goodPct >= 70 ? 'text-green-600 font-medium' : goodPct >= 40 ? 'text-yellow-600 font-medium' : 'text-red-600 font-medium'}>
+                · {goodPct}% buen estado
               </span>
             )}
-            {(() => {
-              const assigned = allItems.filter((i) => i.assigned_to && i.purchase_price && i.purchase_price > 0)
-              if (assigned.length < 2) return null
-              const avg = Math.round(assigned.reduce((s, i) => s + (i.purchase_price ?? 0) * i.quantity, 0) / assigned.length)
-              return <span className="ml-2 text-muted-foreground/60">· prom. ${avg.toLocaleString('es-CL')}/asignado</span>
-            })()}
-            {(() => {
-              const assigned = allItems.filter((i) => i.assigned_to)
-              if (assigned.length === 0) return null
-              const top3 = assigned.slice(0, 3).map((i) => i.name)
-              return (
-                <span className="ml-2 text-muted-foreground/60">
-                  · Top asignados: {top3.join(', ')}{assigned.length > 3 ? ` +${assigned.length - 3}` : ''}
-                </span>
-              )
-            })()}
-            {(() => {
-              const byCategory = Object.entries(CATEGORY_META).map(([key, meta]) => {
-                const val = allItems
-                  .filter((i) => i.category === key && i.purchase_price)
-                  .reduce((s, i) => s + (i.purchase_price ?? 0) * i.quantity, 0)
-                return val > 0 ? `${meta.label}: $${val.toLocaleString('es-CL')}` : null
-              }).filter(Boolean)
-              return byCategory.length > 0 ? (
-                <span className="ml-2 text-muted-foreground/50 text-xs">· {byCategory.join(' · ')}</span>
-              ) : null
-            })()}
-            {(() => {
-              const CONDITIONS = [
-                { key: 'good',   label: 'Bueno',  color: 'text-green-600' },
-                { key: 'fair',   label: 'Regular', color: 'text-yellow-600' },
-                { key: 'poor',   label: 'Malo',   color: 'text-orange-600' },
-                { key: 'broken', label: 'Roto',   color: 'text-red-600' },
-              ]
-              const parts = CONDITIONS.map(({ key, label, color }) => {
-                const val = allItems
-                  .filter((i) => i.condition === key && i.purchase_price)
-                  .reduce((s, i) => s + (i.purchase_price ?? 0) * i.quantity, 0)
-                return val > 0 ? { label, val, color } : null
-              }).filter(Boolean) as { label: string; val: number; color: string }[]
-              if (parts.length === 0) return null
-              return (
-                <span className="ml-2 text-xs">
-                  {parts.map((p, idx) => (
-                    <span key={p.label}>{idx > 0 && <span className="text-muted-foreground/50"> · </span>}<span className={p.color}>{p.label}: ${p.val.toLocaleString('es-CL')}</span></span>
-                  ))}
-                </span>
-              )
-            })()}
+            {lowStockItems.length > 0 && <span className="text-yellow-600 font-medium">· {lowStockItems.length} bajo stock</span>}
+            {criticalCount > 0 && <span className="text-red-600 font-medium">· {criticalCount} en mal estado</span>}
           </p>
         </div>
         <div className="flex gap-2">
@@ -525,34 +385,34 @@ export default async function InventoryPage({ searchParams }: PageProps) {
         <Link href={`/dashboard/inventory?${new URLSearchParams({ ...(category ? { category } : {}), ...(condition ? { condition } : {}), ...(search ? { search } : {}), ...(isLowStock ? {} : { lowStock: '1' }), ...(sortBy ? { sortBy } : {}) }).toString()}`}>
           <button className={`h-8 px-3 rounded-md border text-xs font-medium transition-colors ${
             isLowStock ? 'bg-yellow-500 text-white border-yellow-500' : 'bg-background border-input hover:bg-accent'
-          }`}>⚠️ Stock bajo</button>
+          }`}>Stock bajo</button>
         </Link>
         <Link href={`/dashboard/inventory?${new URLSearchParams({ ...(category ? { category } : {}), ...(condition ? { condition } : {}), ...(search ? { search } : {}), ...(isLowStock ? { lowStock: '1' } : {}), ...(sortBy === 'value' ? {} : { sortBy: 'value' }) }).toString()}`}>
           <button className={`h-8 px-3 rounded-md border text-xs font-medium transition-colors ${
             sortBy === 'value' ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-input hover:bg-accent'
-          }`}>💰 Mayor valor</button>
+          }`}>Mayor valor</button>
         </Link>
         <Link href={`/dashboard/inventory?${new URLSearchParams({ ...(category ? { category } : {}), ...(condition ? { condition } : {}), ...(search ? { search } : {}), ...(isLowStock ? { lowStock: '1' } : {}), ...(sortBy === 'assigned' ? {} : { sortBy: 'assigned' }) }).toString()}`}>
           <button className={`h-8 px-3 rounded-md border text-xs font-medium transition-colors ${
             sortBy === 'assigned' ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-input hover:bg-accent'
-          }`}>🔄 Asignados primero</button>
+          }`}>Asignados primero</button>
         </Link>
         <Link href={`/dashboard/inventory?${new URLSearchParams({ ...(category ? { category } : {}), ...(condition ? { condition } : {}), ...(search ? { search } : {}), ...(isLowStock ? { lowStock: '1' } : {}), ...(sortBy === 'purchase_date' ? {} : { sortBy: 'purchase_date' }) }).toString()}`}>
           <button className={`h-8 px-3 rounded-md border text-xs font-medium transition-colors ${
             sortBy === 'purchase_date' ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-input hover:bg-accent'
-          }`}>📅 Última compra</button>
+          }`}>Última compra</button>
         </Link>
         <Link href={`/dashboard/inventory?${new URLSearchParams({ ...(category ? { category } : {}), ...(condition ? { condition } : {}), ...(search ? { search } : {}), ...(isLowStock ? { lowStock: '1' } : {}), ...(sortBy === 'condition' ? {} : { sortBy: 'condition' }) }).toString()}`}>
           <button className={`h-8 px-3 rounded-md border text-xs font-medium transition-colors ${
             sortBy === 'condition' ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-input hover:bg-accent'
-          }`}>⚠ Peor condición</button>
+          }`}>Peor condición</button>
         </Link>
         <Link href={`/dashboard/inventory?${new URLSearchParams({ ...(condition ? { condition } : {}), ...(search ? { search } : {}), ...(isLowStock ? { lowStock: '1' } : {}), ...(sortBy === 'category' ? {} : { sortBy: 'category' }) }).toString()}`}>
           <button className={`h-8 px-3 rounded-md border text-xs font-medium transition-colors ${
             sortBy === 'category' ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-input hover:bg-accent'
-          }`}>📂 Por categoría</button>
+          }`}>Por categoría</button>
         </Link>
-        {([['', 'Todos'], ['good', '✅ Bueno'], ['fair', '⚠️ Regular'], ['poor', '🔴 Malo'], ['broken', '💀 Roto']] as [string, string][]).map(([val, lbl]) => {
+        {([['', 'Todos'], ['good', 'Bueno'], ['fair', 'Regular'], ['poor', 'Malo'], ['broken', 'Roto']] as [string, string][]).map(([val, lbl]) => {
           const isActive = (val === '' && !condition) || condition === val
           const cnt = val ? (conditionCounts[val] ?? 0) : null
           return (
@@ -595,7 +455,8 @@ export default async function InventoryPage({ searchParams }: PageProps) {
           <CardContent className="py-16 text-center">
             <Package className="w-14 h-14 mx-auto mb-3 text-muted-foreground opacity-40" />
             <h3 className="font-semibold text-lg mb-1">Sin ítems en inventario</h3>
-            <p className="text-muted-foreground text-sm">Agrega equipamiento, uniformes o infraestructura del club</p>
+            <p className="text-muted-foreground text-sm mb-4">Agrega equipamiento, uniformes o infraestructura del club</p>
+            <NewItemForm athletes={athleteList} />
           </CardContent>
         </Card>
       ) : (

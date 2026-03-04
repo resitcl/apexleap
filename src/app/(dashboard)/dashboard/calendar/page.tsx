@@ -285,9 +285,10 @@ export default async function CalendarPage({ searchParams }: PageProps) {
           )}
 
           {/* Weekly view */}
-          <div className="grid gap-3 md:grid-cols-7">
+          <div className="overflow-x-auto pb-2 -mx-1 px-1">
+          <div className="grid gap-2 min-w-[560px] md:min-w-0 md:grid-cols-7">
             {[1, 2, 3, 4, 5, 6, 0].map((dow) => (
-              <div key={dow} className="min-w-0">
+              <div key={dow} className="min-w-[72px]">
                 <div className={`text-center text-xs font-bold py-1 rounded-t-md ${
                   dow === todayDow ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
                 }`}>
@@ -334,6 +335,7 @@ export default async function CalendarPage({ searchParams }: PageProps) {
               </div>
             ))}
           </div>
+          </div>
 
           {/* List view */}
           <div className="space-y-3">
@@ -345,7 +347,7 @@ export default async function CalendarPage({ searchParams }: PageProps) {
               return (
                 <Card key={s.id} className="hover:bg-accent/30 transition-colors">
                   <CardContent className="py-4">
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-start gap-3">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-semibold">{s.name}</span>
@@ -366,7 +368,7 @@ export default async function CalendarPage({ searchParams }: PageProps) {
                             )
                           })()}
                         </div>
-                        <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground flex-wrap">
                           <span className="flex items-center gap-1">
                             <Clock className="w-3.5 h-3.5" />
                             {s.start_time.slice(0, 5)} – {s.end_time.slice(0, 5)}

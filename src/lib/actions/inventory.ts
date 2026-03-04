@@ -69,9 +69,12 @@ export async function createInventoryItem(input: ItemInput) {
 export async function updateInventoryItem(id: string, input: Partial<ItemInput>) {
   const clubId = await getClubId()
   const supabase = createAdminClient()
+  const safeUpdate = Object.fromEntries(
+    Object.entries({ ...input }).filter(([, v]) => v !== undefined)
+  )
   const { data, error } = await supabase
     .from('inventory_items')
-    .update({ ...input, updated_at: new Date().toISOString() })
+    .update(safeUpdate)
     .eq('id', id).eq('club_id', clubId).select().single()
   if (error) throw new Error(error.message)
   revalidatePath('/dashboard/inventory')

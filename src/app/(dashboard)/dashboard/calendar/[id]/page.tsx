@@ -61,7 +61,7 @@ export default async function ScheduleDetailPage({ params }: PageProps) {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 flex-wrap">
         <Link href="/dashboard/calendar">
           <Button variant="ghost" size="sm" className="gap-2">
             <ChevronLeft className="w-4 h-4" />

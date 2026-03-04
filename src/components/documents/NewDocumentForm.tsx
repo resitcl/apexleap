@@ -46,7 +46,7 @@ export function NewDocumentForm({ athletes }: Props) {
         file_url: form.file_url || null,
         expiry_date: form.expiry_date || null,
         notes: form.notes || null,
-        status: 'active',
+        status: 'pending',
       })
       toast.success('Documento registrado')
       setOpen(false)

@@ -10,7 +10,7 @@ const docSchema = z.object({
   category: z.enum(['medical', 'authorization', 'institutional', 'other']),
   athlete_id: z.string().uuid().optional().nullable(),
   file_url: z.string().url().optional().nullable(),
-  status: z.enum(['pending', 'active', 'expired']).default('active'),
+  status: z.enum(['pending', 'approved', 'expired', 'rejected']).default('pending'),
   expiry_date: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
 })
@@ -57,8 +57,9 @@ export async function createDocument(input: DocInput) {
 export async function updateDocument(id: string, input: { name?: string; category?: string; expiry_date?: string | null; status?: string; notes?: string | null }) {
   const { clubId } = await getClubId()
   const supabase = createAdminClient()
+  const safeUpdate = Object.fromEntries(Object.entries({ ...input }).filter(([, v]) => v !== undefined))
   const { error } = await supabase.from('documents')
-    .update({ ...input, updated_at: new Date().toISOString() })
+    .update(safeUpdate)
     .eq('id', id).eq('club_id', clubId)
   if (error) throw new Error(error.message)
   revalidatePath('/dashboard/documents')
@@ -68,17 +69,17 @@ export async function assignDocumentAthlete(id: string, athleteId: string | null
   const { clubId } = await getClubId()
   const supabase = createAdminClient()
   const { error } = await supabase.from('documents')
-    .update({ athlete_id: athleteId, updated_at: new Date().toISOString() })
+    .update({ athlete_id: athleteId })
     .eq('id', id).eq('club_id', clubId)
   if (error) throw new Error(error.message)
   revalidatePath('/dashboard/documents')
 }
 
-export async function updateDocumentStatus(id: string, status: 'pending' | 'active' | 'expired') {
+export async function updateDocumentStatus(id: string, status: 'pending' | 'approved' | 'expired' | 'rejected') {
   const { clubId } = await getClubId()
   const supabase = createAdminClient()
   const { error } = await supabase.from('documents')
-    .update({ status, updated_at: new Date().toISOString() })
+    .update({ status })
     .eq('id', id).eq('club_id', clubId)
   if (error) throw new Error(error.message)
   revalidatePath('/dashboard/documents')

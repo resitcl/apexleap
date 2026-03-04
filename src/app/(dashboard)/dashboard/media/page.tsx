@@ -114,6 +114,16 @@ export default async function MediaPage({ searchParams }: PageProps) {
         <>
           {/* Filtros */}
           <div className="flex items-center gap-2 flex-wrap">
+            {/* Búsqueda */}
+            <form method="get" action="/dashboard/media" className="flex items-center gap-2">
+              {type     && <input type="hidden" name="type"     value={type}     />}
+              {category && <input type="hidden" name="category" value={category} />}
+              <input type="text" name="search" defaultValue={search}
+                placeholder="Buscar..."
+                className="h-8 px-3 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring w-36" />
+              <button type="submit" className="h-8 px-3 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90">Buscar</button>
+            </form>
+            <span className="w-px h-5 bg-border mx-1" />
             {/* Tipo */}
             {[["", "Todos"], ["video", "Videos"], ["photo", "Fotos"], ["document", "Docs"]].map(([val, lbl]) => (
               <Link key={val} href={buildHref({ type: val, page: "1" })}>
@@ -130,10 +140,10 @@ export default async function MediaPage({ searchParams }: PageProps) {
               <Link key={val} href={buildHref({ category: category === val ? "" : val, page: "1" })}>
                 <button className={`h-8 px-3 rounded-md border text-xs font-medium transition-colors ${
                   category === val ? "bg-primary text-primary-foreground border-primary" : "bg-background border-input hover:bg-accent"
-                }`}>{meta.emoji} {meta.label}</button>
+                }`}>{meta.label}</button>
               </Link>
             ))}
-            {(type || category) && (
+            {(type || category || search) && (
               <Link href="/dashboard/media" className="text-xs text-muted-foreground hover:text-foreground ml-1">
                 ✕ Limpiar
               </Link>
@@ -151,7 +161,8 @@ export default async function MediaPage({ searchParams }: PageProps) {
               <CardContent className="py-16 text-center">
                 <Film className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-40" />
                 <h3 className="font-semibold text-lg mb-1">Sin contenido</h3>
-                <p className="text-muted-foreground text-sm">Agrega videos, fotos e highlights del club</p>
+                <p className="text-muted-foreground text-sm mb-4">Agrega videos, fotos e highlights del club</p>
+                <NewMediaButton />
               </CardContent>
             </Card>
           ) : (

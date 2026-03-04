@@ -81,7 +81,7 @@ export async function createSubscription(input: SubscriptionInput) {
   // Deactivate any existing active subscription for this athlete
   await supabase
     .from('subscriptions')
-    .update({ status: 'cancelled', updated_at: new Date().toISOString() })
+    .update({ status: 'cancelled' })
     .eq('club_id', clubId)
     .eq('athlete_id', parsed.athlete_id)
     .eq('status', 'active')
@@ -151,7 +151,7 @@ export async function updateSubscriptionStatus(
 
   const { data, error } = await supabase
     .from('subscriptions')
-    .update({ status, updated_at: new Date().toISOString() })
+    .update({ status })
     .eq('id', id)
     .eq('club_id', clubId)
     .select()

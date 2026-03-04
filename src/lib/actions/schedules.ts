@@ -79,9 +79,10 @@ export async function updateSchedule(id: string, input: Partial<ScheduleInput>) 
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
+  const safeUpdate = Object.fromEntries(Object.entries({ ...input }).filter(([, v]) => v !== undefined))
   const { data, error } = await supabase
     .from('schedules')
-    .update({ ...input, updated_at: new Date().toISOString() })
+    .update(safeUpdate)
     .eq('id', id)
     .eq('club_id', clubId)
     .select()

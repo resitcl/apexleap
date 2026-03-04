@@ -81,7 +81,7 @@ export default async function CompetitionsPage({ searchParams }: PageProps) {
           </p>
         </div>
         <div className="flex gap-2 flex-wrap">
-          {([{ value: '', label: 'Def.' }, { value: 'date_asc', label: '📅 Próxima' }, { value: 'date_desc', label: '📅 Reciente' }]).map(({ value, label }) => (
+          {([{ value: '', label: 'Predeterminado' }, { value: 'date_asc', label: 'Más próxima' }, { value: 'date_desc', label: 'Más reciente' }]).map(({ value, label }) => (
             <Link key={value} href={`/dashboard/competitions?${new URLSearchParams({ ...(params.status ? { status: params.status } : {}), ...(search ? { search } : {}), ...(type ? { type } : {}), ...(value ? { sort: value } : {}) }).toString()}`}>
               <button className={`h-8 px-2.5 rounded-md border text-xs font-medium transition-colors ${
                 (value === '' && !sortBy) || sortBy === value ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-input hover:bg-accent'
@@ -114,9 +114,9 @@ export default async function CompetitionsPage({ searchParams }: PageProps) {
         <div className="flex flex-wrap gap-2">
           {([
             { value: '', label: 'Todas' },
-            { value: 'upcoming', label: '📅 Próximas' },
-            { value: 'active', label: '🏆 En curso' },
-            { value: 'finished', label: '✅ Finalizadas' },
+            { value: 'upcoming', label: 'Próximas' },
+            { value: 'active', label: 'En curso' },
+            { value: 'finished', label: 'Finalizadas' },
             { value: 'cancelled', label: 'Canceladas' },
           ]).map(({ value, label }) => (
             <Link key={value} href={`/dashboard/competitions?${new URLSearchParams({ ...(value ? { status: value } : {}), ...(search ? { search } : {}) }).toString()}`}>
@@ -129,7 +129,7 @@ export default async function CompetitionsPage({ searchParams }: PageProps) {
           ))}
         </div>
         <div className="flex flex-wrap gap-2">
-          {([['', 'Todos'], ['tournament', '🏆 Torneo'], ['league', '📋 Liga'], ['friendly', '🤝 Amistoso'], ['championship', '🥇 Campeonato']] as const).map(([val, lbl]) => (
+          {([['', 'Todos'], ['tournament', 'Torneo'], ['league', 'Liga'], ['friendly', 'Amistoso'], ['championship', 'Campeonato']] as const).map(([val, lbl]) => (
             <Link key={val} href={`/dashboard/competitions?${new URLSearchParams({
               ...(params.status ? { status: params.status } : {}),
               ...(search        ? { search }               : {}),
@@ -184,10 +184,11 @@ export default async function CompetitionsPage({ searchParams }: PageProps) {
           <CardContent className="py-16 text-center">
             <Trophy className="w-14 h-14 mx-auto mb-3 text-muted-foreground opacity-40" />
             <h3 className="font-semibold text-lg mb-1">Sin competencias registradas</h3>
-            <p className="text-muted-foreground text-sm max-w-md mx-auto">
+            <p className="text-muted-foreground text-sm max-w-md mx-auto mb-4">
               Registra torneos, ligas y campeonatos. Crea nóminas Matchday Ready con
               citaciones validadas por el Semáforo de Disponibilidad.
             </p>
+            <NewCompetitionForm />
           </CardContent>
         </Card>
       ) : (

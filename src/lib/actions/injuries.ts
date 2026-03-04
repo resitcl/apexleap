@@ -43,7 +43,7 @@ export async function createInjury(input: InjuryInput) {
   // Update athlete health_status
   await supabase
     .from('athletes')
-    .update({ health_status: 'injured', updated_at: new Date().toISOString() })
+    .update({ health_status: 'injured' })
     .eq('id', parsed.athlete_id)
     .eq('club_id', clubId)
 
@@ -57,7 +57,7 @@ export async function resolveInjury(injuryId: string, athleteId: string) {
 
   const { error } = await supabase
     .from('injuries')
-    .update({ actual_recovery: new Date().toISOString().split('T')[0], updated_at: new Date().toISOString() })
+    .update({ actual_recovery: new Date().toISOString().split('T')[0] })
     .eq('id', injuryId)
     .eq('club_id', clubId)
 
@@ -74,7 +74,7 @@ export async function resolveInjury(injuryId: string, athleteId: string) {
   if (!activeInjuries?.length) {
     await supabase
       .from('athletes')
-      .update({ health_status: 'healthy', updated_at: new Date().toISOString() })
+      .update({ health_status: 'healthy' })
       .eq('id', athleteId)
       .eq('club_id', clubId)
   }

@@ -17,9 +17,10 @@ const CATEGORIES = [
   { value: 'other',         label: 'Otro' },
 ]
 const STATUSES = [
-  { value: 'active',  label: 'Activo' },
-  { value: 'pending', label: 'Pendiente' },
-  { value: 'expired', label: 'Vencido' },
+  { value: 'pending',  label: 'Pendiente' },
+  { value: 'approved', label: 'Aprobado' },
+  { value: 'expired',  label: 'Vencido' },
+  { value: 'rejected', label: 'Rechazado' },
 ]
 
 interface Props {

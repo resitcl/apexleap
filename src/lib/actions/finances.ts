@@ -125,8 +125,9 @@ export async function createExpense(input: ExpenseInput) {
 export async function updateExpense(id: string, input: Partial<ExpenseInput>) {
   const clubId = await getClubId()
   const supabase = createAdminClient()
+  const safeUpdate = Object.fromEntries(Object.entries({ ...input }).filter(([, v]) => v !== undefined))
   const { error } = await supabase.from('expenses')
-    .update({ ...input, updated_at: new Date().toISOString() })
+    .update(safeUpdate)
     .eq('id', id).eq('club_id', clubId)
   if (error) throw new Error(error.message)
   revalidatePath('/dashboard/finances')
@@ -167,9 +168,10 @@ export async function createCoach(input: CoachInput) {
 export async function updateCoach(id: string, input: Partial<CoachInput>) {
   const clubId = await getClubId()
   const supabase = createAdminClient()
+  const safeUpdateCoach = Object.fromEntries(Object.entries({ ...input }).filter(([, v]) => v !== undefined))
   const { data, error } = await supabase
     .from('coaches')
-    .update({ ...input, updated_at: new Date().toISOString() })
+    .update(safeUpdateCoach)
     .eq('id', id).eq('club_id', clubId).select().single()
   if (error) throw new Error(error.message)
   revalidatePath('/dashboard/finances')

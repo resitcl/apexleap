@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import {
   TrendingUp, TrendingDown, DollarSign, AlertCircle, Users
 } from "lucide-react"
+import { InfoTooltip } from "@/components/ui/info-tooltip"
 import { NewExpenseForm } from "@/components/finances/NewExpenseForm"
 import { NewCoachForm } from "@/components/finances/NewCoachForm"
 import { EditCoachButton } from "@/components/finances/EditCoachButton"
@@ -79,63 +80,19 @@ export default async function FinancesPage({ searchParams }: PageProps) {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-3xl font-bold">Administración Financiera</h1>
-          <p className="text-muted-foreground capitalize">
-            {monthLabel}
-            {summary.totalIncome > 0 && summary.totalExpenses > 0 && (() => {
-              const ratio = (summary.totalIncome / summary.totalExpenses).toFixed(2)
-              const expPct = Math.round((summary.totalExpenses / summary.totalIncome) * 100)
-              const color = Number(ratio) >= 1 ? 'text-green-600' : 'text-red-600'
-              return (
-                <span className={`ml-2 text-sm font-semibold not-italic ${color}`}>
-                  · {expPct}% egresos/ingresos (ratio {ratio}x)
-                </span>
-              )
-            })()}
-            {coaches.length > 0 && (() => {
-              const withSalary = coaches
-                .filter((c) => c.salary_type === 'fixed' && c.salary_amount)
-                .map((c) => ({ name: c.name, cost: Number(c.salary_amount) }))
-                .sort((a, b) => b.cost - a.cost)
-                .slice(0, 3)
-              if (withSalary.length === 0) return null
-              return (
-                <span className="ml-2 text-sm not-italic text-muted-foreground/80">
-                  · Coaches: {withSalary.map((c) => `${c.name.split(' ')[0]} $${c.cost.toLocaleString('es-CL')}`).join(', ')}
-                </span>
-              )
-            })()}
-            {(() => {
-              const top3 = Object.entries(summary.byCategory)
-                .sort(([,a],[,b]) => b - a)
-                .slice(0, 3)
-              if (top3.length === 0) return null
-              return (
-                <span className="ml-2 text-sm not-italic">
-                  · {top3.map(([cat, amt]) => (
-                    <span key={cat} className="ml-1.5">
-                      <span className="text-muted-foreground/70">{CATEGORY_LABELS[cat] ?? cat}:</span>{' '}
-                      <span className="font-medium">${amt.toLocaleString('es-CL')}</span>
-                    </span>
-                  ))}
-                </span>
-              )
-            })()}
-            {chartData.length >= 2 && (() => {
-              const peakMonth = chartData.slice().sort((a, b) => b.expenses - a.expenses)[0]
-              if (!peakMonth || peakMonth.expenses === 0) return null
-              return (
-                <span className="ml-2 text-sm not-italic text-muted-foreground/70">
-                  · Pico egreso: <span className="font-medium text-foreground">{peakMonth.label} ${peakMonth.expenses.toLocaleString('es-CL')}</span>
-                </span>
-              )
-            })()}
-            {coaches.length > 0 && (() => {
-              type CoachRow = typeof coaches[number]
-              const topCoach = coaches.slice().sort((a: CoachRow, b: CoachRow) => Number(b.salary) - Number(a.salary))[0]
-              return topCoach ? (
-                <span className="ml-2 text-sm not-italic text-muted-foreground/70">· Coach: <span className="font-medium text-foreground">{topCoach.name} ${Number(topCoach.salary).toLocaleString('es-CL')}</span></span>
-              ) : null
-            })()}
+          <p className="text-sm text-muted-foreground flex flex-wrap items-center gap-x-2">
+            <span className="capitalize">{monthLabel}</span>
+            {summary.totalIncome > 0 && (
+              <span className="text-green-600 font-medium">· Ingresos: ${summary.totalIncome.toLocaleString('es-CL')}</span>
+            )}
+            {summary.totalExpenses > 0 && (
+              <span className="text-red-600 font-medium">· Egresos: ${summary.totalExpenses.toLocaleString('es-CL')}</span>
+            )}
+            {summary.netBalance !== 0 && (
+              <span className={summary.netBalance >= 0 ? 'text-green-600 font-medium' : 'text-red-600 font-medium'}>
+                · Balance: ${summary.netBalance.toLocaleString('es-CL')}
+              </span>
+            )}
           </p>
         </div>
         <MonthPicker month={month} tab={tab} />
@@ -145,7 +102,10 @@ export default async function FinancesPage({ searchParams }: PageProps) {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Ingresos</CardTitle>
+            <div className="flex items-center gap-1">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Ingresos</CardTitle>
+              <InfoTooltip text="Total de pagos recibidos en el mes seleccionado. Solo incluye pagos con estado 'pagado'." />
+            </div>
             <TrendingUp className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
@@ -161,7 +121,10 @@ export default async function FinancesPage({ searchParams }: PageProps) {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Egresos</CardTitle>
+            <div className="flex items-center gap-1">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Egresos</CardTitle>
+              <InfoTooltip text="Total de gastos registrados en el mes: arriendo, salarios, insumos, marketing y otros." />
+            </div>
             <TrendingDown className="h-4 w-4 text-red-500" />
           </CardHeader>
           <CardContent>
@@ -177,7 +140,10 @@ export default async function FinancesPage({ searchParams }: PageProps) {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Balance Neto</CardTitle>
+            <div className="flex items-center gap-1">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Balance Neto</CardTitle>
+              <InfoTooltip text="Resultado del mes: ingresos menos egresos. Verde = superávit, rojo = déficit." />
+            </div>
             <DollarSign className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
@@ -189,7 +155,10 @@ export default async function FinancesPage({ searchParams }: PageProps) {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Por cobrar</CardTitle>
+            <div className="flex items-center gap-1">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Por cobrar</CardTitle>
+              <InfoTooltip text="Pagos emitidos pero no cobrados aún (pendientes + vencidos). Representa ingreso potencial." />
+            </div>
             <AlertCircle className="h-4 w-4 text-yellow-500" />
           </CardHeader>
           <CardContent>
@@ -206,7 +175,10 @@ export default async function FinancesPage({ searchParams }: PageProps) {
           return (
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Mayor Egreso</CardTitle>
+                <div className="flex items-center gap-1">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Mayor Egreso</CardTitle>
+                  <InfoTooltip text="El gasto individual más alto registrado en el período. Útil para detectar gastos extraordinarios." />
+                </div>
                 <TrendingDown className="h-4 w-4 text-red-400" />
               </CardHeader>
               <CardContent>
@@ -222,7 +194,10 @@ export default async function FinancesPage({ searchParams }: PageProps) {
           return (
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Ratio I/E</CardTitle>
+                <div className="flex items-center gap-1">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Ratio I/E</CardTitle>
+                  <InfoTooltip text="Ingresos dividido Egresos. Mayor a 1.5x es saludable. Por debajo de 1x significa déficit." />
+                </div>
                 <TrendingUp className="h-4 w-4 text-teal-500" />
               </CardHeader>
               <CardContent>
@@ -248,7 +223,10 @@ export default async function FinancesPage({ searchParams }: PageProps) {
           return (
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Nómina Mensual</CardTitle>
+                <div className="flex items-center gap-1">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Nómina Mensual</CardTitle>
+                  <InfoTooltip text="Costo total de entrenadores: suma de salarios fijos más valor por sesión de los coaches activos." />
+                </div>
                 <Users className="h-4 w-4 text-violet-500" />
               </CardHeader>
               <CardContent>
@@ -286,7 +264,10 @@ export default async function FinancesPage({ searchParams }: PageProps) {
         return (
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Prom. Egreso Mensual</CardTitle>
+              <div className="flex items-center gap-1">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Prom. Egreso Mensual</CardTitle>
+                <InfoTooltip text="Promedio de gastos mensuales basado en los meses con datos. Compara con el mes actual para detectar anomalías." />
+              </div>
               <TrendingDown className="h-4 w-4 text-red-400" />
             </CardHeader>
             <CardContent>
@@ -309,13 +290,11 @@ export default async function FinancesPage({ searchParams }: PageProps) {
         }, {})
         const cats = Object.entries(byCat)
         if (cats.length < 2) return null
-        const CAT_LABEL: Record<string, string> = { rent: '🏠', salary: '👔', supplies: '📦', maintenance: '🔧', marketing: '📣', other: '📁' }
         return (
           <div className="flex flex-wrap gap-3">
             {cats.map(([cat, { sum, count }]) => (
               <div key={cat} className="flex items-center gap-2 px-3 py-2 rounded-lg border bg-muted/40 text-sm">
-                <span>{CAT_LABEL[cat] ?? '📁'}</span>
-                <span className="text-muted-foreground">{CATEGORY_LABELS[cat] ?? cat}:</span>
+                <span className="text-muted-foreground">{CATEGORY_LABELS[cat] ?? cat}</span>
                 <span className="font-semibold">${Math.round(sum / count).toLocaleString('es-CL')}</span>
                 <span className="text-xs text-muted-foreground">prom. ({count})</span>
               </div>
@@ -420,7 +399,7 @@ export default async function FinancesPage({ searchParams }: PageProps) {
       )}
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b border-border">
+      <div className="flex gap-1 border-b border-border overflow-x-auto">
         {[
           { key: "overview", label: "Resumen" },
           { key: "expenses", label: "Egresos" },
@@ -535,9 +514,11 @@ export default async function FinancesPage({ searchParams }: PageProps) {
                       <div className="flex items-center gap-2 min-w-0">
                         <span className="font-bold text-muted-foreground w-5 shrink-0">{i + 1}.</span>
                         <span className="truncate">{exp.concept}</span>
-                        <span className="text-xs text-muted-foreground shrink-0">{CATEGORY_LABELS[exp.category] ?? exp.category}</span>
+                        <span className="text-xs text-muted-foreground shrink-0">{exp.category}</span>
                       </div>
                       <span className="font-bold text-red-600 shrink-0">−${Number(exp.amount).toLocaleString('es-CL')}</span>
+                      <EditExpenseButton expense={exp} />
+                      <DeleteExpenseButton expenseId={exp.id} />
                     </div>
                   ))}
               </div>
@@ -552,7 +533,7 @@ export default async function FinancesPage({ searchParams }: PageProps) {
       {tab === "expenses" && (
         <div className="space-y-4">
           {(() => {
-            const CAT_LABEL: Record<string, string> = { rent: '🏠 Arriendo', salary: '👔 Salarios', supplies: '📦 Insumos', maintenance: '🔧 Mantención', marketing: '📣 Marketing', other: '📁 Otros' }
+            const CAT_LABEL: Record<string, string> = { rent: 'Arriendo', salary: 'Salarios', supplies: 'Insumos', maintenance: 'Mantención', marketing: 'Marketing', other: 'Otros' }
             const cats = Object.keys(CAT_LABEL)
             return (
               <div className="flex flex-wrap gap-2 items-center">
@@ -563,7 +544,7 @@ export default async function FinancesPage({ searchParams }: PageProps) {
                       (cat === '' && !category) || category === cat
                         ? 'bg-primary text-primary-foreground border-primary'
                         : 'bg-background border-input hover:bg-accent'
-                    }`}>{cat ? (CAT_LABEL[cat] ?? cat) : 'Todas'}</button>
+                    }`}>{cat ? CAT_LABEL[cat] : 'Todas'}</button>
                   </Link>
                 ))}
               </div>
@@ -577,7 +558,7 @@ export default async function FinancesPage({ searchParams }: PageProps) {
             }, {})
             const sorted = Object.entries(byCat).sort((a, b) => b[1] - a[1])
             const maxAmt = sorted[0]?.[1] ?? 1
-            const CAT_LABEL: Record<string, string> = { rent: '🏠 Arriendo', salary: '👔 Salarios', supplies: '📦 Insumos', maintenance: '🔧 Mantención', marketing: '📣 Marketing', other: '📁 Otros' }
+            const CAT_LABEL: Record<string, string> = { rent: 'Arriendo', salary: 'Salarios', supplies: 'Insumos', maintenance: 'Mantención', marketing: 'Marketing', other: 'Otros' }
             const CAT_COLOR: Record<string, string> = { rent: 'bg-blue-400', salary: 'bg-violet-400', supplies: 'bg-orange-400', maintenance: 'bg-yellow-400', marketing: 'bg-pink-400', other: 'bg-gray-400' }
             return (
               <Card>
@@ -608,8 +589,7 @@ export default async function FinancesPage({ searchParams }: PageProps) {
           })()}
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap gap-2 items-center">
-              <ExportExpensesButton expenses={expenses} month={month} />
-              {([["", "Todas"], ["rent", "🏠 Arriendo"], ["salary", "👔 Salarios"], ["supplies", "📦 Insumos"], ["maintenance", "🔧 Mantención"], ["marketing", "📣 Marketing"], ["other", "📁 Otros"]] as const).map(([val, lbl]) => (
+              {([["", "Todas"], ["rent", "Arriendo"], ["salary", "Salarios"], ["supplies", "Insumos"], ["maintenance", "Mantención"], ["marketing", "Marketing"], ["other", "Otros"]] as const).map(([val, lbl]) => (
                 <a key={val} href={`/dashboard/finances?tab=expenses&month=${month}${val ? `&category=${val}` : ''}${amountMin !== undefined ? `&amountMin=${amountMin}` : ''}${amountMax !== undefined ? `&amountMax=${amountMax}` : ''}`}>
                   <button className={`h-8 px-3 rounded-md border text-xs font-medium transition-colors ${
                     (val === '' && !category) || category === val
@@ -650,7 +630,6 @@ export default async function FinancesPage({ searchParams }: PageProps) {
               <button type="submit" className="h-8 px-3 mt-4 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90">Filtrar</button>
             </form>
             <div className="flex gap-2">
-              <ExportExpensesButton expenses={expenses} month={month} />
               <NewExpenseForm />
             </div>
           </div>
@@ -697,7 +676,7 @@ export default async function FinancesPage({ searchParams }: PageProps) {
       {/* Coaches/Staff Tab */}
       {tab === "coaches" && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-3">
             <p className="text-sm text-muted-foreground">{coaches.filter((c) => c.is_active).length} entrenadores activos</p>
             <div className="flex gap-2">
               <ExportCoachesButton coaches={coaches.map((c) => ({ ...c, salary: undefined, salary_type: c.salary_type ?? '', salary_amount: c.salary_amount ?? null }))} />

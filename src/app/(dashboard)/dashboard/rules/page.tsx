@@ -97,7 +97,7 @@ export default async function RulesPage({ searchParams }: PageProps) {
 
       {/* Type filter */}
       <div className="flex flex-wrap gap-2">
-        {([['', 'Todos', null], ['financial', '💰 Financiero', affected.financial], ['attendance', '📋 Asistencia', affected.attendance], ['discipline', '🛡️ Disciplina', affected.discipline], ['documentation', '📄 Documentación', affected.documentation]] as [string, string, number | null][]).map(([val, lbl, count]) => {
+        {([['', 'Todos', null], ['financial', 'Financiero', affected.financial], ['attendance', 'Asistencia', affected.attendance], ['discipline', 'Disciplina', affected.discipline], ['documentation', 'Documentación', affected.documentation]] as [string, string, number | null][]).map(([val, lbl, count]) => {
           const isActive = (val === '' && !type) || type === val
           return (
             <Link key={val} href={`/dashboard/rules${val ? `?type=${val}` : ''}`}>

@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Plus, DollarSign, Clock, AlertTriangle, TrendingUp, CheckCircle } from "lucide-react"
+import { InfoTooltip } from "@/components/ui/info-tooltip"
 import { PaymentsFilter } from "@/components/payments/PaymentsFilter"
 import { MarkAsPaidButton } from "@/components/payments/MarkAsPaidButton"
 import { ExportPaymentsButton } from "@/components/payments/ExportPaymentsButton"
@@ -84,139 +85,14 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-3xl font-bold">Pagos</h1>
-          <p className="text-muted-foreground">
-            {total} transacciones
-            {allPayments.length > 0 && (() => {
-              const paidTotal = allPayments.filter(p => p.status === 'paid').reduce((s, p) => s + Number(p.amount), 0)
-              return paidTotal > 0 ? ` · $${paidTotal.toLocaleString('es-CL')} cobrado` : null
-            })()}
-            {allPayments.length > 0 && (() => {
-              const curMonth = new Date().toISOString().slice(0, 7)
-              const monthTotal = allPayments
-                .filter((p) => p.status === 'paid' && p.paid_at && p.paid_at.slice(0, 7) === curMonth)
-                .reduce((s, p) => s + Number(p.amount), 0)
-              return monthTotal > 0 ? (
-                <span className="ml-2 text-green-600 font-medium">· ${monthTotal.toLocaleString('es-CL')} este mes</span>
-              ) : null
-            })()}
-            {allPayments.length > 0 && (() => {
-              const paid = allPayments.filter((p) => p.status === 'paid')
-              const uniqueAthletes = new Set(paid.map((p) => (p.athletes as { id?: string } | null)?.id ?? p.athlete_id).filter(Boolean)).size
-              if (uniqueAthletes < 2) return null
-              const avg = Math.round(paid.reduce((s, p) => s + Number(p.amount), 0) / uniqueAthletes)
-              return <span className="ml-2 text-muted-foreground/70">· prom. ${avg.toLocaleString('es-CL')}/atleta</span>
-            })()}
-            {allPayments.length > 1 && (() => {
-              const paid = allPayments.filter((p) => p.status === 'paid')
-              if (paid.length < 2) return null
-              const avgPerPayment = Math.round(paid.reduce((s, p) => s + Number(p.amount), 0) / paid.length)
-              return <span className="ml-2 text-muted-foreground/70">· prom. ${avgPerPayment.toLocaleString('es-CL')}/pago</span>
-            })()}
-            {allPayments.length > 3 && (() => {
-              const methodCount: Record<string, number> = {}
-              for (const p of allPayments.filter((p) => p.status === 'paid' && p.payment_method)) {
-                methodCount[p.payment_method!] = (methodCount[p.payment_method!] ?? 0) + 1
-              }
-              const top = Object.entries(methodCount).sort((a, b) => b[1] - a[1])[0]
-              if (!top) return null
-              const labels: Record<string, string> = { cash: '💵 Efectivo', transfer: '🏦 Transferencia', card: '💳 Tarjeta', webpay: 'Webpay', mercadopago: 'MercadoPago', flow: 'Flow' }
-              return <span className="ml-2 text-muted-foreground/70">· método más usado: <span className="font-medium">{labels[top[0]] ?? top[0]}</span> ({top[1]})</span>
-            })()}
-            {allPayments.length > 1 && (() => {
-              const withBoth = allPayments.filter((p) => p.status === 'paid' && p.due_date && p.paid_at)
-              if (withBoth.length < 3) return null
-              const avgDays = Math.round(
-                withBoth.reduce((s, p) => {
-                  const due  = new Date(p.due_date!).getTime()
-                  const paid = new Date(p.paid_at!).getTime()
-                  return s + (paid - due) / (1000 * 60 * 60 * 24)
-                }, 0) / withBoth.length
-              )
-              if (avgDays === 0) return null
-              const color = avgDays > 0 ? 'text-orange-600' : 'text-green-600'
-              const label = avgDays > 0 ? `+${avgDays}d tarde` : `${Math.abs(avgDays)}d adelantado`
-              return <span className={`ml-2 font-medium ${color}`}>· prom. {label} al pagar</span>
-            })()}
-            {allPayments.length > 0 && (() => {
-              const curMonth  = new Date().toISOString().slice(0, 7)
-              const prevDate  = new Date(); prevDate.setMonth(prevDate.getMonth() - 1)
-              const prevMonth = prevDate.toISOString().slice(0, 7)
-              const cur  = allPayments.filter((p) => p.status === 'paid' && p.paid_at?.startsWith(curMonth)).reduce((s, p) => s + Number(p.amount), 0)
-              const prev = allPayments.filter((p) => p.status === 'paid' && p.paid_at?.startsWith(prevMonth)).reduce((s, p) => s + Number(p.amount), 0)
-              if (prev === 0 || cur >= prev) return null
-              const drop = Math.round(((prev - cur) / prev) * 100)
-              return <span className="ml-2 text-red-500 font-medium">· ▼{drop}% vs mes anterior</span>
-            })()}
-            {allPayments.length > 0 && (() => {
-              const METHOD_LABELS: Record<string, string> = { cash: 'Efectivo', transfer: 'Transfer.', card: 'Tarjeta', webpay: 'Webpay', mercadopago: 'MP', flow: 'Flow' }
-              const totals: Record<string, number> = {}
-              for (const p of allPayments.filter((p) => p.status === 'paid' && p.payment_method)) {
-                totals[p.payment_method!] = (totals[p.payment_method!] ?? 0) + Number(p.amount)
-              }
-              const sorted = Object.entries(totals).sort(([,a],[,b]) => b - a).slice(0, 2)
-              if (sorted.length === 0) return null
-              return (
-                <span className="ml-2 text-muted-foreground/70">
-                  · {sorted.map(([m, amt]) => `${METHOD_LABELS[m] ?? m}: $${amt.toLocaleString('es-CL')}`).join(' · ')}
-                </span>
-              )
-            })()}
-            {allPayments.length > 0 && (() => {
-              const overdue = allPayments.filter((p) => p.status === 'overdue')
-              if (overdue.length < 2) return null
-              const avg = Math.round(overdue.reduce((s, p) => s + Number(p.amount), 0) / overdue.length)
-              return <span className="ml-2 text-red-600/80">· prom. vencido: ${avg.toLocaleString('es-CL')}</span>
-            })()}
-            {allPayments.length > 0 && (() => {
-              const curMonth = new Date().toISOString().slice(0, 7)
-              const cancelled = allPayments.filter((p) => p.status === 'cancelled' && p.created_at?.startsWith(curMonth)).length
-              if (cancelled === 0) return null
-              return <span className="ml-2 text-muted-foreground/70">· {cancelled} cancelado{cancelled !== 1 ? 's' : ''} este mes</span>
-            })()}
-            {allPayments.length > 0 && (() => {
-              type P = typeof allPayments[number]
-              const key = (p: P) => {
-                const id = (p.athletes as { id?: string } | null)?.id ?? p.athlete_id ?? ''
-                const mo = p.due_date ? p.due_date.slice(0, 7) : p.created_at?.slice(0, 7) ?? ''
-                return `${id}::${mo}`
-              }
-              const seen: Record<string, number> = {}
-              for (const p of allPayments) {
-                const k = key(p)
-                seen[k] = (seen[k] ?? 0) + 1
-              }
-              const dupCount = Object.values(seen).filter((c) => c > 1).length
-              return dupCount > 0 ? (
-                <span className="ml-2 text-orange-600 font-medium">· ⚠ {dupCount} posible{dupCount !== 1 ? 's' : ''} duplicado{dupCount !== 1 ? 's' : ''}</span>
-              ) : null
-            })()}
-            {allPayments.length > 0 && (() => {
-              const curMonth = new Date().toISOString().slice(0, 7)
-              const failedCount = allPayments.filter((p) =>
-                p.status === 'failed' && (p.created_at ?? '').startsWith(curMonth)
-              ).length
-              if (failedCount === 0) return null
-              return <span className="ml-2 text-red-600 font-medium">· {failedCount} fallido{failedCount !== 1 ? 's' : ''} este mes</span>
-            })()}
-            {allPayments.length > 3 && (() => {
-              const byAthlete: Record<string, { name: string; total: number }> = {}
-              for (const p of allPayments.filter((p) => p.status === 'paid')) {
-                const ath = p.athletes as { id?: string; name?: string } | null
-                if (!ath?.id) continue
-                if (!byAthlete[ath.id]) byAthlete[ath.id] = { name: ath.name ?? ath.id, total: 0 }
-                byAthlete[ath.id].total += Number(p.amount)
-              }
-              const top = Object.values(byAthlete).sort((a, b) => b.total - a.total).slice(0, 2)
-              if (top.length === 0) return null
-              return (
-                <span className="ml-2 text-muted-foreground/60">
-                  · Top: {top.map((a) => `${a.name.split(' ')[0]} $${Math.round(a.total / 1000)}k`).join(', ')}
-                </span>
-              )
-            })()}
+          <p className="text-sm text-muted-foreground flex flex-wrap items-center gap-x-2">
+            <span>{total} transacciones</span>
+            {summary.total_collected > 0 && <span className="text-green-600 font-medium">· ${summary.total_collected.toLocaleString('es-CL')} cobrado</span>}
+            {summary.total_pending > 0 && <span className="text-yellow-600 font-medium">· ${summary.total_pending.toLocaleString('es-CL')} pendiente</span>}
+            {summary.total_overdue > 0 && <span className="text-red-600 font-medium">· ${summary.total_overdue.toLocaleString('es-CL')} vencido</span>}
           </p>
         </div>
         <div className="flex gap-2 flex-wrap">
@@ -256,7 +132,10 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Recaudado</CardTitle>
+            <div className="flex items-center gap-1">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Recaudado</CardTitle>
+              <InfoTooltip text="Total cobrado en el período seleccionado. Solo incluye pagos con estado 'pagado'." />
+            </div>
             <DollarSign className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
@@ -268,7 +147,10 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Pendiente</CardTitle>
+            <div className="flex items-center gap-1">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Pendiente</CardTitle>
+              <InfoTooltip text="Pagos emitidos que aún no han vencido ni sido cobrados. Están dentro del plazo acordado." />
+            </div>
             <Clock className="h-4 w-4 text-yellow-500" />
           </CardHeader>
           <CardContent>
@@ -280,7 +162,10 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Vencido</CardTitle>
+            <div className="flex items-center gap-1">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Vencido</CardTitle>
+              <InfoTooltip text="Monto total con fecha de vencimiento superada y sin pagar. Requiere gestión de cobro activa." />
+            </div>
             <AlertTriangle className="h-4 w-4 text-red-500" />
           </CardHeader>
           <CardContent>
@@ -296,7 +181,10 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
           return (
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">% Cobrado</CardTitle>
+                <div className="flex items-center gap-1">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">% Cobrado</CardTitle>
+                  <InfoTooltip text="Porcentaje del total cobrado sobre el total emitido (cobrado + pendiente + vencido)." />
+                </div>
                 <TrendingUp className="h-4 w-4 text-teal-500" />
               </CardHeader>
               <CardContent>
@@ -316,7 +204,10 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
           return (
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Pago Promedio</CardTitle>
+                <div className="flex items-center gap-1">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Pago Promedio</CardTitle>
+                  <InfoTooltip text="Monto promedio de los pagos cobrados en el período. Útil para detectar variaciones en precios de planes." />
+                </div>
                 <DollarSign className="h-4 w-4 text-indigo-500" />
               </CardHeader>
               <CardContent>
@@ -335,7 +226,10 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
           return (
             <Card className="border-red-100">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Vencidos +30d</CardTitle>
+                <div className="flex items-center gap-1">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Vencidos +30d</CardTitle>
+                  <InfoTooltip text="Pagos vencidos hace más de 30 días. Casos de difícil recuperación que requieren atención urgente." />
+                </div>
                 <AlertTriangle className="h-4 w-4 text-red-600" />
               </CardHeader>
               <CardContent>
@@ -353,7 +247,10 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
           return (
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Tasa de Cobro</CardTitle>
+                <div className="flex items-center gap-1">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Tasa de Cobro</CardTitle>
+                  <InfoTooltip text="Velocidad de cobro: promedio de días entre la emisión y el pago efectivo. Menor es mejor." />
+                </div>
                 <TrendingUp className="h-4 w-4 text-blue-500" />
               </CardHeader>
               <CardContent>
@@ -375,7 +272,10 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
           return (
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Tasa Recuperación</CardTitle>
+                <div className="flex items-center gap-1">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Tasa Recuperación</CardTitle>
+                  <InfoTooltip text="% de pagos que estaban vencidos y fueron cobrados eventualmente. Indica efectividad en cobranza de mora." />
+                </div>
                 <TrendingUp className="h-4 w-4 text-purple-500" />
               </CardHeader>
               <CardContent>
@@ -393,7 +293,10 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
           return (
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Cobrado Hoy</CardTitle>
+                <div className="flex items-center gap-1">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Cobrado Hoy</CardTitle>
+                  <InfoTooltip text="Suma de pagos marcados como cobrados en el día de hoy." />
+                </div>
                 <CheckCircle className="h-4 w-4 text-green-500" />
               </CardHeader>
               <CardContent>
@@ -405,62 +308,12 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
         })()}
       </div>
 
-      {/* Alerta total vencido > MRR */}
-      {(() => {
-        const overdue = summary.total_overdue
-        const mrr = summary.total_collected
-        if (overdue === 0 || mrr === 0 || overdue <= mrr) return null
-        const pct = Math.round((overdue / mrr) * 100)
-        return (
-          <Card className="border-red-200 bg-red-50">
-            <CardContent className="py-3 flex items-center gap-3">
-              <AlertTriangle className="w-5 h-5 text-red-600 shrink-0" />
-              <p className="text-sm text-red-800 font-medium">
-                ⚠ El total vencido (${overdue.toLocaleString('es-CL')}) supera el cobrado del mes ({pct}% del cobrado)
-              </p>
-            </CardContent>
-          </Card>
-        )
-      })()}
-
-      {/* Alerta pagos sin método de pago */}
+      {/* ── Alertas de cobranza ── */}
       {allPayments.length > 0 && (() => {
-        const noMethod = allPayments.filter((p) => p.status === 'paid' && !p.payment_method)
-        if (noMethod.length < 3) return null
-        return (
-          <Card className="border-slate-200 bg-slate-50">
-            <CardContent className="py-3 flex items-center gap-3">
-              <AlertTriangle className="w-5 h-5 text-slate-500 shrink-0" />
-              <p className="text-sm text-slate-700 font-medium">
-                {noMethod.length} pago{noMethod.length !== 1 ? 's' : ''} cobrado{noMethod.length !== 1 ? 's' : ''} sin método de pago registrado
-              </p>
-            </CardContent>
-          </Card>
-        )
-      })()}
-
-      {/* Alerta pagos pending con due_date pasada */}
-      {(() => {
         const todayISO = new Date().toISOString().split('T')[0]
-        const stale = allPayments.filter((p) => p.status === 'pending' && p.due_date && p.due_date < todayISO)
-        if (stale.length === 0) return null
-        const amt = stale.reduce((s, p) => s + Number(p.amount), 0)
-        return (
-          <Link href="/dashboard/payments?status=pending">
-            <Card className="border-orange-200 bg-orange-50 hover:bg-orange-100 transition-colors cursor-pointer">
-              <CardContent className="py-3 flex items-center gap-3">
-                <AlertTriangle className="w-5 h-5 text-orange-600 shrink-0" />
-                <p className="text-sm text-orange-800 font-medium">
-                  {stale.length} pago{stale.length !== 1 ? 's' : ''} pendiente{stale.length !== 1 ? 's' : ''} con vencimiento pasado (${amt.toLocaleString('es-CL')})
-                </p>
-              </CardContent>
-            </Card>
-          </Link>
-        )
-      })()}
+        const sixtyAgo = new Date(); sixtyAgo.setDate(sixtyAgo.getDate() - 60)
+        const sixtyISO = sixtyAgo.toISOString().split('T')[0]
 
-      {/* Top morosos */}
-      {allPayments.length > 0 && (() => {
         const debtMap: Record<string, { name: string; id: string; debt: number }> = {}
         for (const p of allPayments.filter((p) => p.status === 'overdue')) {
           const ath = p.athletes as { id: string; name: string } | null
@@ -468,126 +321,136 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
           if (!debtMap[ath.id]) debtMap[ath.id] = { id: ath.id, name: ath.name, debt: 0 }
           debtMap[ath.id].debt += Number(p.amount)
         }
-        const top = Object.values(debtMap).sort((a, b) => b.debt - a.debt).slice(0, 3)
-        if (top.length === 0) return null
-        return (
-          <Card className="border-red-100 bg-red-50/40">
-            <CardContent className="py-3">
-              <div className="flex items-center gap-3">
-                <AlertTriangle className="w-5 h-5 text-red-600 shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-red-800 mb-1">Top morosos</p>
-                  <div className="flex flex-wrap gap-x-4 gap-y-0.5">
-                    {top.map((d) => (
-                      <Link key={d.id} href={`/dashboard/payments?status=overdue&athleteId=${d.id}&athleteName=${encodeURIComponent(d.name)}`} className="text-xs text-red-700 hover:text-red-900 hover:underline">
-                        {d.name}: <span className="font-bold">${d.debt.toLocaleString('es-CL')}</span>
-                      </Link>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )
-      })()}
+        const topDebtors = Object.values(debtMap).sort((a, b) => b.debt - a.debt).slice(0, 5)
 
-      {/* Alerta pagos sin vencimiento */}
-      {allPayments.length > 0 && (() => {
-        const noDue = allPayments.filter((p) => p.status === 'pending' && !p.due_date)
-        if (noDue.length <= 10) return null
-        return (
-          <Card className="border-yellow-200 bg-yellow-50">
-            <CardContent className="py-3 flex items-center gap-3">
-              <Clock className="w-5 h-5 text-yellow-600 shrink-0" />
-              <p className="text-sm text-yellow-800 font-medium">
-                {noDue.length} pagos pendientes sin fecha de vencimiento asignada
-              </p>
-            </CardContent>
-          </Card>
-        )
-      })()}
+        const critical    = allPayments.filter((p) => p.status === 'overdue' && p.due_date && p.due_date < sixtyISO)
+        const criticalAmt = critical.reduce((s, p) => s + Number(p.amount), 0)
 
-      {/* Top pagadores */}
-      {allPayments.length > 5 && (() => {
-        const paidMap: Record<string, { name: string; id: string; total: number }> = {}
-        for (const p of allPayments.filter((p) => p.status === 'paid')) {
-          const ath = p.athletes as { id: string; name: string } | null
-          if (!ath) continue
-          if (!paidMap[ath.id]) paidMap[ath.id] = { id: ath.id, name: ath.name, total: 0 }
-          paidMap[ath.id].total += Number(p.amount)
+        const stale    = allPayments.filter((p) => p.status === 'pending' && p.due_date && p.due_date < todayISO)
+        const staleAmt = stale.reduce((s, p) => s + Number(p.amount), 0)
+
+        const overdueExceedsCollected = summary.total_overdue > summary.total_collected && summary.total_collected > 0
+        const ovExcPct = overdueExceedsCollected ? Math.round((summary.total_overdue / summary.total_collected) * 100) : 0
+
+        type P = typeof allPayments[number]
+        const seenDupe: Record<string, P[]> = {}
+        for (const p of allPayments) {
+          const athId = (p.athletes as { id?: string } | null)?.id ?? p.athlete_id ?? ''
+          const month = p.due_date ? p.due_date.slice(0, 7) : p.created_at?.slice(0, 7) ?? ''
+          const k = `${athId}::${month}`
+          if (!seenDupe[k]) seenDupe[k] = []
+          seenDupe[k].push(p)
         }
-        const top = Object.values(paidMap).sort((a, b) => b.total - a.total).slice(0, 3)
-        if (top.length === 0) return null
+        const dupes     = Object.values(seenDupe).filter((arr) => arr.length > 1)
+        const dupeNames = [...new Set(dupes.map((arr) => (arr[0].athletes as { name?: string } | null)?.name ?? ''))].filter(Boolean)
+
+        const rows = [
+          topDebtors.length > 0,
+          critical.length > 0,
+          stale.length > 0,
+          overdueExceedsCollected,
+          dupes.length > 0,
+        ]
+        if (!rows.some(Boolean)) return null
+
         return (
-          <Card className="border-green-100 bg-green-50/40">
-            <CardContent className="py-3">
-              <div className="flex items-center gap-3">
-                <CheckCircle className="w-5 h-5 text-green-600 shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-green-800 mb-1">Top pagadores (acumulado)</p>
-                  <div className="flex flex-wrap gap-x-4 gap-y-0.5">
-                    {top.map((d) => (
-                      <span key={d.id} className="text-xs text-green-700">
-                        {d.name}: <span className="font-bold">${d.total.toLocaleString('es-CL')}</span>
-                      </span>
-                    ))}
+          <Card>
+            <CardHeader className="pb-0 pt-4 px-5">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
+                <CardTitle className="text-sm font-semibold">Alertas de cobranza</CardTitle>
+                <span className="ml-auto text-xs text-muted-foreground">{rows.filter(Boolean).length} alerta{rows.filter(Boolean).length !== 1 ? 's' : ''}</span>
+              </div>
+            </CardHeader>
+            <CardContent className="px-5 pt-1 pb-2">
+              <div className="divide-y divide-border">
+
+                {topDebtors.length > 0 && (
+                  <div className="py-3 flex items-start gap-3">
+                    <div className="w-0.5 self-stretch rounded-full bg-red-500 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Top morosos</p>
+                      <div className="flex flex-wrap gap-x-5 gap-y-1">
+                        {topDebtors.map((d) => (
+                          <Link
+                            key={d.id}
+                            href={`/dashboard/payments?status=overdue&athleteId=${d.id}&athleteName=${encodeURIComponent(d.name)}`}
+                            className="text-sm hover:underline"
+                          >
+                            {d.name} <span className="font-semibold text-red-600">${d.debt.toLocaleString('es-CL')}</span>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                    <Link href="/dashboard/payments?status=overdue" className="text-xs text-primary hover:underline shrink-0 pt-0.5">
+                      Ver todos →
+                    </Link>
                   </div>
-                </div>
+                )}
+
+                {critical.length > 0 && (
+                  <div className="py-3 flex items-center gap-3">
+                    <div className="w-0.5 h-10 rounded-full bg-red-700 shrink-0" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">
+                        {critical.length} pago{critical.length !== 1 ? 's' : ''} con mora crítica
+                        <span className="text-muted-foreground font-normal"> · +60 días sin cobrar</span>
+                      </p>
+                      <p className="text-xs text-muted-foreground">${criticalAmt.toLocaleString('es-CL')} en riesgo de incobrabilidad</p>
+                    </div>
+                    <Link href="/dashboard/payments?status=overdue" className="text-xs text-primary hover:underline shrink-0">Ver →</Link>
+                  </div>
+                )}
+
+                {stale.length > 0 && (
+                  <div className="py-3 flex items-center gap-3">
+                    <div className="w-0.5 h-10 rounded-full bg-orange-500 shrink-0" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">
+                        {stale.length} pago{stale.length !== 1 ? 's' : ''} pendiente{stale.length !== 1 ? 's' : ''} con fecha vencida
+                      </p>
+                      <p className="text-xs text-muted-foreground">${staleAmt.toLocaleString('es-CL')} · Considerar marcar como vencidos</p>
+                    </div>
+                    <Link href="/dashboard/payments?status=pending" className="text-xs text-primary hover:underline shrink-0">Ver →</Link>
+                  </div>
+                )}
+
+                {overdueExceedsCollected && (
+                  <div className="py-3 flex items-center gap-3">
+                    <div className="w-0.5 h-10 rounded-full bg-amber-500 shrink-0" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">La deuda vencida supera lo cobrado este mes</p>
+                      <p className="text-xs text-muted-foreground">
+                        ${summary.total_overdue.toLocaleString('es-CL')} vencido vs ${summary.total_collected.toLocaleString('es-CL')} cobrado ({ovExcPct}%)
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {dupes.length > 0 && (
+                  <div className="py-3 flex items-center gap-3">
+                    <div className="w-0.5 h-10 rounded-full bg-slate-400 shrink-0" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">
+                        {dupes.length} posible{dupes.length !== 1 ? 's' : ''} pago{dupes.length !== 1 ? 's' : ''} duplicado{dupes.length !== 1 ? 's' : ''}
+                      </p>
+                      {dupeNames.length > 0 && dupeNames.length <= 3 && (
+                        <p className="text-xs text-muted-foreground">{dupeNames.join(', ')}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
               </div>
             </CardContent>
           </Card>
         )
       })()}
 
-      {/* 60d overdue alert */}
-      {allPayments.length > 0 && (() => {
-        const sixtyAgo = new Date(); sixtyAgo.setDate(sixtyAgo.getDate() - 60)
-        const sixtyISO = sixtyAgo.toISOString().split('T')[0]
-        const critical = allPayments.filter((p) => p.status === 'overdue' && p.due_date && p.due_date < sixtyISO)
-        if (critical.length === 0) return null
-        const amt = critical.reduce((s, p) => s + Number(p.amount), 0)
-        return (
-          <Link href="/dashboard/payments?status=overdue">
-            <Card className="border-red-300 bg-red-50 hover:bg-red-100 transition-colors cursor-pointer">
-              <CardContent className="py-3 flex items-center gap-3">
-                <AlertTriangle className="w-5 h-5 text-red-700 shrink-0" />
-                <p className="text-sm text-red-900 font-medium">
-                  {critical.length} pago{critical.length !== 1 ? 's' : ''} con mora crítica (+60 días) · ${amt.toLocaleString('es-CL')}
-                </p>
-              </CardContent>
-            </Card>
-          </Link>
-        )
-      })()}
-
-      {/* Pending by month */}
-      {allPayments.length > 0 && (() => {
-        const pending = allPayments.filter((p) => p.status === 'pending' || p.status === 'overdue')
-        if (pending.length === 0) return null
-        const byMonth = pending.reduce<Record<string, number>>((acc, p) => {
-          const month = (p.due_date ?? p.created_at ?? '').slice(0, 7)
-          if (!month) return acc
-          acc[month] = (acc[month] ?? 0) + Number(p.amount)
-          return acc
-        }, {})
-        const entries = Object.entries(byMonth).sort(([a],[b]) => a.localeCompare(b)).slice(0, 4)
-        if (entries.length === 0) return null
-        return (
-          <div className="flex flex-wrap gap-2 items-center">
-            <span className="text-xs text-muted-foreground font-medium">Pendiente por mes:</span>
-            {entries.map(([month, amount]) => (
-              <span key={month} className="px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
-                {new Date(month + '-02').toLocaleDateString('es-CL', { month: 'short', year: '2-digit' })}: ${amount.toLocaleString('es-CL')}
-              </span>
-            ))}
-          </div>
-        )
-      })()}
-
-      {/* Method breakdown */}
+      {/* ── Distribución ── */}
       {allPayments.length > 0 && (() => {
         const METHOD_LABEL: Record<string, string> = {
-          cash: 'Efectivo', transfer: 'Transfer.', webpay: 'Webpay',
+          cash: 'Efectivo', transfer: 'Transferencia', webpay: 'Webpay',
           flow: 'Flow', mercadopago: 'MercadoPago', khipu: 'Khipu', other: 'Otro',
         }
         const METHOD_STYLE: Record<string, string> = {
@@ -595,83 +458,87 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
           webpay: 'bg-purple-100 text-purple-700', flow: 'bg-indigo-100 text-indigo-700',
           mercadopago: 'bg-sky-100 text-sky-700', khipu: 'bg-teal-100 text-teal-700', other: 'bg-gray-100 text-gray-600',
         }
+        const DAYS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
+
+        const pending = allPayments.filter((p) => p.status === 'pending' || p.status === 'overdue')
+        const byMonth = pending.reduce<Record<string, number>>((acc, p) => {
+          const month = (p.due_date ?? p.created_at ?? '').slice(0, 7)
+          if (!month) return acc
+          acc[month] = (acc[month] ?? 0) + Number(p.amount)
+          return acc
+        }, {})
+        const monthEntries = Object.entries(byMonth).sort(([a], [b]) => a.localeCompare(b)).slice(0, 4)
+
         const byMethod = allPayments
-          .filter(p => p.status === 'paid' && p.payment_method)
+          .filter((p) => p.status === 'paid' && p.payment_method)
           .reduce<Record<string, number>>((acc, p) => {
             const m = p.payment_method!
             acc[m] = (acc[m] ?? 0) + Number(p.amount)
             return acc
           }, {})
-        const entries = Object.entries(byMethod).sort(([,a],[,b]) => b - a)
-        if (entries.length === 0) return null
-        return (
-          <div className="flex flex-wrap gap-2 items-center">
-            <span className="text-xs text-muted-foreground font-medium">Cobrado por método:</span>
-            {entries.map(([method, amount]) => (
-              <span key={method} className={`px-2 py-0.5 rounded text-xs font-medium ${METHOD_STYLE[method] ?? 'bg-gray-100 text-gray-600'}`}>
-                {METHOD_LABEL[method] ?? method}: ${amount.toLocaleString('es-CL')}
-              </span>
-            ))}
-          </div>
-        )
-      })()}
+        const methodEntries = Object.entries(byMethod).sort(([, a], [, b]) => b - a)
 
-      {/* Day-of-week heatmap */}
-      {allPayments.length > 0 && (() => {
-        const DAYS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
-        const paid = allPayments.filter((p) => p.status === 'paid' && p.paid_at)
-        if (paid.length === 0) return null
+        const paidWithDate = allPayments.filter((p) => p.status === 'paid' && p.paid_at)
         const byDay = Array(7).fill(0) as number[]
-        for (const p of paid) { byDay[new Date(p.paid_at!).getDay()]++ }
+        for (const p of paidWithDate) { byDay[new Date(p.paid_at!).getDay()]++ }
         const maxDay = Math.max(...byDay, 1)
-        return (
-          <div className="flex flex-wrap gap-3 items-end">
-            <span className="text-xs text-muted-foreground font-medium self-center">Pagos por día:</span>
-            {byDay.map((count, i) => (
-              <div key={i} className="flex flex-col items-center gap-1">
-                <span className="text-xs text-muted-foreground">{count > 0 ? count : ''}</span>
-                <div
-                  className="w-8 rounded-sm transition-all"
-                  style={{
-                    height: `${Math.max(4, Math.round((count / maxDay) * 40))}px`,
-                    backgroundColor: count === 0 ? 'hsl(var(--muted))' :
-                      count >= maxDay * 0.8 ? 'hsl(142 76% 36%)' :
-                      count >= maxDay * 0.5 ? 'hsl(142 76% 50%)' : 'hsl(142 76% 70%)',
-                  }}
-                />
-                <span className="text-xs text-muted-foreground">{DAYS[i]}</span>
-              </div>
-            ))}
-          </div>
-        )
-      })()}
 
-      {/* Duplicate payments alert */}
-      {allPayments.length > 0 && (() => {
-        type P = typeof allPayments[number] & { athletes?: { name: string } | null }
-        const key = (p: P) => {
-          const athId = (p.athletes as { id?: string } | null)?.id ?? p.athlete_id ?? ''
-          const month = p.due_date ? p.due_date.slice(0, 7) : p.created_at?.slice(0, 7) ?? ''
-          return `${athId}::${month}`
-        }
-        const seen: Record<string, P[]> = {}
-        for (const p of allPayments as P[]) {
-          const k = key(p)
-          if (!seen[k]) seen[k] = []
-          seen[k].push(p)
-        }
-        const dupes = Object.values(seen).filter((arr) => arr.length > 1)
-        if (dupes.length === 0) return null
-        const athletes = [...new Set(dupes.map((arr) => (arr[0].athletes as { name?: string } | null)?.name ?? 'Atleta'))]
+        if (monthEntries.length === 0 && methodEntries.length === 0) return null
+
         return (
-          <div className="flex items-start gap-3 px-4 py-3 rounded-lg border border-orange-200 bg-orange-50">
-            <AlertTriangle className="w-4 h-4 text-orange-600 shrink-0 mt-0.5" />
-            <p className="text-sm text-orange-800">
-              <span className="font-medium">Posibles pagos duplicados:</span>{' '}
-              {dupes.length} combinación{dupes.length !== 1 ? 'es' : ''} con más de 1 pago en el mismo mes
-              {athletes.length <= 3 && ` (${athletes.join(', ')})`}
-            </p>
-          </div>
+          <Card>
+            <CardHeader className="pb-0 pt-4 px-5">
+              <CardTitle className="text-sm font-semibold">Distribución</CardTitle>
+            </CardHeader>
+            <CardContent className="px-5 pt-3 pb-4 space-y-4">
+              {monthEntries.length > 0 && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-medium text-muted-foreground w-32 shrink-0">Pendiente por mes</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {monthEntries.map(([month, amount]) => (
+                      <span key={month} className="px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800">
+                        {new Date(month + '-02').toLocaleDateString('es-CL', { month: 'short', year: '2-digit' })}: ${amount.toLocaleString('es-CL')}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {methodEntries.length > 0 && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-medium text-muted-foreground w-32 shrink-0">Cobrado por método</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {methodEntries.map(([method, amount]) => (
+                      <span key={method} className={`px-2 py-0.5 rounded text-xs font-medium ${METHOD_STYLE[method] ?? 'bg-gray-100 text-gray-600'}`}>
+                        {METHOD_LABEL[method] ?? method}: ${amount.toLocaleString('es-CL')}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {paidWithDate.length > 0 && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-medium text-muted-foreground w-32 shrink-0 self-end mb-1">Pagos por día</span>
+                  <div className="flex gap-2 items-end">
+                    {byDay.map((count, i) => (
+                      <div key={i} className="flex flex-col items-center gap-1">
+                        <span className="text-xs text-muted-foreground leading-none">{count > 0 ? count : ''}</span>
+                        <div
+                          className="w-7 rounded-sm"
+                          style={{
+                            height: `${Math.max(4, Math.round((count / maxDay) * 36))}px`,
+                            backgroundColor: count === 0 ? 'hsl(var(--muted))' :
+                              count >= maxDay * 0.8 ? 'hsl(142 76% 36%)' :
+                              count >= maxDay * 0.5 ? 'hsl(142 76% 50%)' : 'hsl(142 76% 70%)',
+                          }}
+                        />
+                        <span className="text-xs text-muted-foreground">{DAYS[i]}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         )
       })()}
 
@@ -724,80 +591,20 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
       })()}
 
       {/* Filters */}
-      <div className="flex flex-wrap items-end gap-3">
-        <Suspense fallback={null}>
-          <PaymentsFilter currentStatus={params.status} currentMethod={paymentMethod || undefined} currentFrom={params.from} currentTo={params.to} currentDueFrom={dueFrom || undefined} currentDueTo={dueTo || undefined} />
-        </Suspense>
-        <form method="get" action="/dashboard/payments" className="flex flex-wrap items-end gap-2">
-          {params.status && <input type="hidden" name="status" value={params.status} />}
-          <div className="flex flex-col gap-1">
-            <label className="text-xs text-muted-foreground font-medium">Buscar alumno</label>
-            <input type="text" name="athleteName" defaultValue={athleteName}
-              placeholder="Nombre de alumno..."
-              className="h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring w-44" />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-xs text-muted-foreground font-medium">Buscar concepto</label>
-            <input type="text" name="search" defaultValue={search}
-              placeholder="Ej: mensualidad..."
-              className="h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring w-44" />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-xs text-muted-foreground font-medium">Venc. desde</label>
-            <input type="date" name="from" defaultValue={from}
-              className="h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-xs text-muted-foreground font-medium">Venc. hasta</label>
-            <input type="date" name="to" defaultValue={to}
-              className="h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-xs text-muted-foreground font-medium">Monto mín.</label>
-            <input type="number" name="amountMin" defaultValue={amountMin} min={0} placeholder="0"
-              className="h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring w-28" />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-xs text-muted-foreground font-medium">Monto máx.</label>
-            <input type="number" name="amountMax" defaultValue={amountMax} min={0} placeholder="∞"
-              className="h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring w-28" />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-xs text-muted-foreground font-medium">Pagado desde</label>
-            <input type="date" name="paidFrom" defaultValue={paidFrom}
-              className="h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-xs text-muted-foreground font-medium">Pagado hasta</label>
-            <input type="date" name="paidTo" defaultValue={paidTo}
-              className="h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-xs text-muted-foreground font-medium">Método</label>
-            <select name="paymentMethod" defaultValue={paymentMethod}
-              className="h-9 px-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring">
-              <option value="">Todos</option>
-              <option value="cash">Efectivo</option>
-              <option value="transfer">Transferencia</option>
-              <option value="webpay">Webpay</option>
-              <option value="flow">Flow</option>
-              <option value="mercadopago">MercadoPago</option>
-              <option value="khipu">Khipu</option>
-              <option value="other">Otro</option>
-            </select>
-          </div>
-          <button type="submit"
-            className="h-9 px-4 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
-            Filtrar
-          </button>
-          {(from || to || search || athleteName || amountMin || amountMax || paymentMethod || paidFrom || paidTo) && (
-            <Link href={`/dashboard/payments${params.status ? `?status=${params.status}` : ''}`}
-              className="h-9 px-3 rounded-md border border-input bg-background text-sm font-medium hover:bg-accent transition-colors flex items-center">
-              ✕ Limpiar
-            </Link>
-          )}
-        </form>
-      </div>
+      <Suspense fallback={null}>
+        <PaymentsFilter
+          currentStatus={params.status}
+          currentMethod={paymentMethod || undefined}
+          currentFrom={from || undefined}
+          currentTo={to || undefined}
+          currentPaidFrom={paidFrom || undefined}
+          currentPaidTo={paidTo || undefined}
+          currentSearch={search || undefined}
+          currentAthleteName={athleteName || undefined}
+          currentAmountMin={amountMin || undefined}
+          currentAmountMax={amountMax || undefined}
+        />
+      </Suspense>
 
       {/* Payments List */}
       {error ? (
@@ -924,16 +731,20 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-3 shrink-0">
-                      <span className="font-bold text-lg">
-                        ${Number(payment.amount).toLocaleString('es-CL')}
-                      </span>
-                      <Badge variant={cfg.variant}>{cfg.label}</Badge>
-                      <EditPaymentButton payment={payment} />
-                      {payment.status === 'pending' || payment.status === 'overdue' ? (
-                        <MarkAsPaidButton paymentId={payment.id} />
-                      ) : null}
-                      <DeletePaymentButton paymentId={payment.id} />
+                    <div className="flex flex-col items-end gap-1.5 shrink-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-lg">
+                          ${Number(payment.amount).toLocaleString('es-CL')}
+                        </span>
+                        <Badge variant={cfg.variant}>{cfg.label}</Badge>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <EditPaymentButton payment={payment} />
+                        {payment.status === 'pending' || payment.status === 'overdue' ? (
+                          <MarkAsPaidButton paymentId={payment.id} />
+                        ) : null}
+                        <DeletePaymentButton paymentId={payment.id} />
+                      </div>
                     </div>
                   </div>
                 </CardContent>

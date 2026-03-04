@@ -70,9 +70,10 @@ export async function updateRule(id: string, input: Partial<RuleInput>) {
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
+  const safeUpdate = Object.fromEntries(Object.entries({ ...input }).filter(([, v]) => v !== undefined))
   const { data, error } = await supabase
     .from('rules')
-    .update({ ...input, updated_at: new Date().toISOString() })
+    .update(safeUpdate)
     .eq('id', id)
     .eq('club_id', clubId)
     .select()
@@ -89,7 +90,7 @@ export async function toggleRule(id: string, is_active: boolean) {
 
   const { error } = await supabase
     .from('rules')
-    .update({ is_active, updated_at: new Date().toISOString() })
+    .update({ is_active })
     .eq('id', id)
     .eq('club_id', clubId)
 

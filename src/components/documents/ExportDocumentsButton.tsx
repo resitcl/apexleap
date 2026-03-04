@@ -19,7 +19,7 @@ export function ExportDocumentsButton({ docs, filename = 'documentos' }: { docs:
     const rows = docs.map((d) => [
       d.name,
       d.category,
-      d.status === 'active' ? 'Activo' : d.status === 'pending' ? 'Pendiente' : 'Vencido',
+      d.status === 'approved' ? 'Aprobado' : d.status === 'pending' ? 'Pendiente' : d.status === 'expired' ? 'Vencido' : 'Rechazado',
       d.athletes?.name ?? '—',
       d.expiry_date ? new Date(d.expiry_date + 'T12:00:00').toLocaleDateString('es-CL') : '—',
     ])

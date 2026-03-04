@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Plus, Users, TrendingUp, PauseCircle, XCircle, AlertTriangle, DollarSign, Clock } from "lucide-react"
+import { InfoTooltip } from "@/components/ui/info-tooltip"
 import { SubscriptionStatusButton } from "@/components/subscriptions/SubscriptionStatusButton"
 import { RenewSubscriptionButton } from "@/components/subscriptions/RenewSubscriptionButton"
 import { ExportSubscriptionsButton } from "@/components/subscriptions/ExportSubscriptionsButton"
@@ -120,74 +121,15 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-3xl font-bold">Suscripciones</h1>
-          <p className="text-muted-foreground">
-            {total} registros
-            {hasFilters && filteredMrr > 0 && (
-              <span className="ml-2 text-green-600 font-medium">
-                · MRR filtrado: ${Math.round(filteredMrr).toLocaleString('es-CL')}
-              </span>
-            )}
-            {(() => {
-              const curMonth = new Date().toISOString().slice(0, 7)
-              const pausedMonth = allSubs.filter((s) =>
-                s.status === 'paused' && (s as { updated_at?: string }).updated_at?.startsWith(curMonth)
-              ).length
-              if (pausedMonth === 0) return null
-              return <span className="ml-2 text-blue-600 font-medium">· {pausedMonth} pausada{pausedMonth !== 1 ? 's' : ''} este mes</span>
-            })()}
-            {expiringIn7 > 0 && (
-              <span className="ml-2 text-red-600 font-medium">· {expiringIn7} vence{expiringIn7 > 1 ? 'n' : ''} esta semana</span>
-            )}
-            {expiringIn7 === 0 && expiringIn30 > 0 && (
-              <span className="ml-2 text-yellow-600 font-medium">· {expiringIn30} vence{expiringIn30 > 1 ? 'n' : ''} este mes</span>
-            )}
-            {athletesWithoutSub > 0 && (
-              <span className="ml-2 text-orange-600 font-medium">· ⚠ {athletesWithoutSub} activo{athletesWithoutSub !== 1 ? 's' : ''} sin suscripción</span>
-            )}
-            {(() => {
-              const noMethod = allSubs.filter((s) => s.status === 'active' && !s.payment_method).length
-              return noMethod > 0 ? (
-                <span className="ml-2 text-yellow-600 font-medium">· ⚠ {noMethod} activa{noMethod !== 1 ? 's' : ''} sin método de pago</span>
-              ) : null
-            })()}
-            {(() => {
-              const counts: Record<string, { name: string; count: number }> = {}
-              for (const s of allSubs.filter((s) => s.status === 'active')) {
-                const plan = s.plans as { name: string } | null
-                if (!plan) continue
-                const key = plan.name
-                if (!counts[key]) counts[key] = { name: plan.name, count: 0 }
-                counts[key].count++
-              }
-              const top = Object.values(counts).sort((a, b) => b.count - a.count)[0]
-              return top ? (
-                <span className="ml-2 text-primary font-medium">· {top.name} ({top.count})</span>
-              ) : null
-            })()}
-            {(() => {
-              const active = allSubs.filter((s) => s.status === 'active')
-              const prices = active
-                .map((s) => (s.plans as { price?: number } | null)?.price ?? 0)
-                .filter((p) => p > 0)
-              if (prices.length === 0) return null
-              const avg = Math.round(prices.reduce((a, b) => a + b, 0) / prices.length)
-              return <span className="ml-2 text-muted-foreground/70">· prom. ${avg.toLocaleString('es-CL')}/suscripción activa</span>
-            })()}
-            {(() => {
-              const withDates = allSubs.filter((s) => s.start_date && s.end_date)
-              if (withDates.length < 3) return null
-              const avgDays = Math.round(
-                withDates.reduce((sum, s) => {
-                  const diff = (new Date(s.end_date!).getTime() - new Date(s.start_date).getTime()) / (1000 * 60 * 60 * 24)
-                  return sum + diff
-                }, 0) / withDates.length
-              )
-              if (avgDays <= 0) return null
-              return <span className="ml-2 text-muted-foreground/60">· duración prom. {avgDays}d</span>
-            })()}
+          <p className="text-sm text-muted-foreground flex flex-wrap items-center gap-x-2">
+            <span>{total} registros</span>
+            {stats.mrr > 0 && <span className="text-green-600 font-medium">· MRR: ${Math.round(stats.mrr).toLocaleString('es-CL')}</span>}
+            {expiringIn7 > 0 && <span className="text-red-600 font-medium">· {expiringIn7} vence{expiringIn7 > 1 ? 'n' : ''} esta semana</span>}
+            {expiringIn7 === 0 && expiringIn30 > 0 && <span className="text-yellow-600 font-medium">· {expiringIn30} vence{expiringIn30 > 1 ? 'n' : ''} en 30 días</span>}
+            {athletesWithoutSub > 0 && <span className="text-orange-600 font-medium">· {athletesWithoutSub} sin suscripción</span>}
           </p>
         </div>
         <div className="flex gap-2">
@@ -222,59 +164,77 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
 
       {(() => {
         const sixMonthsAgo = new Date(now); sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
+        const todayISO = new Date().toISOString().split('T')[0]
+
         const stale = allSubs.filter((s) =>
           s.status === 'active' &&
           s.start_date &&
           new Date(s.start_date) < sixMonthsAgo &&
           (!s.end_date || new Date(s.end_date) >= now)
         )
-        if (stale.length === 0) return null
-        return (
-          <Link href="/dashboard/subscriptions?status=active">
-            <Card className="border-amber-200 bg-amber-50 hover:bg-amber-100 transition-colors cursor-pointer">
-              <CardContent className="py-3">
-                <div className="flex items-center gap-3">
-                  <Clock className="w-5 h-5 text-amber-600 shrink-0" />
-                  <p className="text-sm text-amber-800 font-medium">
-                    {stale.length} suscripción{stale.length !== 1 ? 'es' : ''} activa{stale.length !== 1 ? 's' : ''} lleva{stale.length !== 1 ? 'n' : ''} más de 6 meses sin renovarse
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
-        )
-      })()}
 
-      {stats.active > 4 && expiringIn7 > 0 && Math.round((expiringIn7 / stats.active) * 100) >= 20 && (
-        <Link href="/dashboard/subscriptions?expiring=7">
-          <Card className="border-orange-200 bg-orange-50 hover:bg-orange-100 transition-colors cursor-pointer">
-            <CardContent className="py-3">
-              <div className="flex items-center gap-3">
-                <AlertTriangle className="w-5 h-5 text-orange-600 shrink-0" />
-                <p className="text-sm text-orange-800 font-medium">
-                  {expiringIn7} suscripciones ({Math.round((expiringIn7 / stats.active) * 100)}% de activas) vencen esta semana
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
-      )}
+        const showExpiring = stats.active > 4 && expiringIn7 > 0 && Math.round((expiringIn7 / stats.active) * 100) >= 20
+        const expiringPct  = stats.active > 0 ? Math.round((expiringIn7 / stats.active) * 100) : 0
 
-      {(() => {
-        const todayISO = new Date().toISOString().split('T')[0]
         const future = allSubs.filter((s) => s.status === 'active' && s.start_date && s.start_date > todayISO)
-        if (future.length === 0) return null
+        const futureNames = future.slice(0, 2).map((s) => (s.athletes as { name?: string } | null)?.name ?? '—').join(', ')
+
+        const hasAlerts = stale.length > 0 || showExpiring || future.length > 0
+        if (!hasAlerts) return null
+
+        const alertCount = [stale.length > 0, showExpiring, future.length > 0].filter(Boolean).length
+
         return (
-          <Card className="border-blue-200 bg-blue-50">
-            <CardContent className="py-3 flex items-center gap-3">
-              <AlertTriangle className="w-5 h-5 text-blue-600 shrink-0" />
-              <p className="text-sm text-blue-800 font-medium">
-                {future.length} suscripción{future.length !== 1 ? 'es' : ''} activa{future.length !== 1 ? 's' : ''} con fecha de inicio en el futuro:{' '}
-                {future.slice(0, 2).map((s) => {
-                  const ath = s.athletes as { name?: string } | null
-                  return ath?.name ?? '—'
-                }).join(', ')}{future.length > 2 ? `… +${future.length - 2}` : ''}
-              </p>
+          <Card>
+            <CardHeader className="pb-0 pt-4 px-5">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
+                <CardTitle className="text-sm font-semibold">Alertas de suscripciones</CardTitle>
+                <span className="ml-auto text-xs text-muted-foreground">{alertCount} alerta{alertCount !== 1 ? 's' : ''}</span>
+              </div>
+            </CardHeader>
+            <CardContent className="px-5 pt-1 pb-2">
+              <div className="divide-y divide-border">
+                {showExpiring && (
+                  <div className="py-3 flex items-center gap-3">
+                    <div className="w-0.5 h-10 rounded-full bg-orange-500 shrink-0" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">
+                        {expiringIn7} suscripcion{expiringIn7 !== 1 ? 'es' : ''} vence{expiringIn7 === 1 ? '' : 'n'} esta semana
+                        <span className="text-muted-foreground font-normal"> · {expiringPct}% de activas</span>
+                      </p>
+                      <p className="text-xs text-muted-foreground">Contactar para renovación anticipada</p>
+                    </div>
+                    <Link href="/dashboard/subscriptions?expiring=7" className="text-xs text-primary hover:underline shrink-0">Ver →</Link>
+                  </div>
+                )}
+                {stale.length > 0 && (
+                  <div className="py-3 flex items-center gap-3">
+                    <div className="w-0.5 h-10 rounded-full bg-amber-400 shrink-0" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">
+                        {stale.length} suscripción{stale.length !== 1 ? 'es' : ''} activa{stale.length !== 1 ? 's' : ''} sin renovarse
+                        <span className="text-muted-foreground font-normal"> · más de 6 meses</span>
+                      </p>
+                      <p className="text-xs text-muted-foreground">Verificar si el plan sigue vigente</p>
+                    </div>
+                    <Link href="/dashboard/subscriptions?status=active" className="text-xs text-primary hover:underline shrink-0">Ver →</Link>
+                  </div>
+                )}
+                {future.length > 0 && (
+                  <div className="py-3 flex items-center gap-3">
+                    <div className="w-0.5 h-10 rounded-full bg-blue-400 shrink-0" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">
+                        {future.length} suscripción{future.length !== 1 ? 'es' : ''} con fecha de inicio en el futuro
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {futureNames}{future.length > 2 ? ` +${future.length - 2} más` : ''}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
         )
@@ -284,7 +244,10 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Activas</CardTitle>
+            <div className="flex items-center gap-1">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Activas</CardTitle>
+              <InfoTooltip text="Suscripciones con estado activo y dentro de su período de vigencia." />
+            </div>
             <Users className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
@@ -294,7 +257,10 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">MRR estimado</CardTitle>
+            <div className="flex items-center gap-1">
+              <CardTitle className="text-sm font-medium text-muted-foreground">MRR estimado</CardTitle>
+              <InfoTooltip text="Monthly Recurring Revenue: ingresos mensuales recurrentes estimados sumando el valor de todas las suscripciones activas." />
+            </div>
             <TrendingUp className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
@@ -305,7 +271,10 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
         {stats.active > 0 && stats.mrr > 0 && (
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Ingreso Promedio</CardTitle>
+              <div className="flex items-center gap-1">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Ingreso Promedio</CardTitle>
+                <InfoTooltip text="MRR dividido por la cantidad de suscripciones activas. Valor promedio mensual por cliente." />
+              </div>
               <DollarSign className="h-4 w-4 text-green-500" />
             </CardHeader>
             <CardContent>
@@ -317,7 +286,10 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
         {filteredMrr > 0 && (
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">ARR proyectado</CardTitle>
+              <div className="flex items-center gap-1">
+                <CardTitle className="text-sm font-medium text-muted-foreground">ARR proyectado</CardTitle>
+                <InfoTooltip text="Annual Recurring Revenue: el MRR multiplicado por 12. Proyección de ingresos anuales si se mantiene el nivel actual." />
+              </div>
               <TrendingUp className="h-4 w-4 text-violet-500" />
             </CardHeader>
             <CardContent>
@@ -328,7 +300,10 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
         )}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Pausadas</CardTitle>
+            <div className="flex items-center gap-1">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Pausadas</CardTitle>
+              <InfoTooltip text="Suscripciones temporalmente suspendidas. El atleta no paga ni tiene acceso, pero mantiene su historial." />
+            </div>
             <PauseCircle className="h-4 w-4 text-yellow-500" />
           </CardHeader>
           <CardContent>
@@ -338,7 +313,10 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Canceladas</CardTitle>
+            <div className="flex items-center gap-1">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Canceladas</CardTitle>
+              <InfoTooltip text="Suscripciones dadas de baja definitivamente este mes. Contribuyen al cálculo de churn." />
+            </div>
             <XCircle className="h-4 w-4 text-red-500" />
           </CardHeader>
           <CardContent>
@@ -353,7 +331,10 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
           return (
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Tasa Renovación</CardTitle>
+                <div className="flex items-center gap-1">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Tasa Renovación</CardTitle>
+                  <InfoTooltip text="% de suscripciones vencidas que fueron renovadas. 70%+ indica buen nivel de retención." />
+                </div>
                 <TrendingUp className="h-4 w-4 text-violet-500" />
               </CardHeader>
               <CardContent>
@@ -377,7 +358,10 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
           return (
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Dur. Prom. Canceladas</CardTitle>
+                <div className="flex items-center gap-1">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Dur. Prom. Canceladas</CardTitle>
+                  <InfoTooltip text="Cuántos días duraron en promedio las suscripciones antes de ser canceladas. Mayor duración = mayor retención." />
+                </div>
                 <XCircle className="h-4 w-4 text-slate-400" />
               </CardHeader>
               <CardContent>
@@ -400,7 +384,10 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
           return (
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Churn Mensual</CardTitle>
+                <div className="flex items-center gap-1">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Churn Mensual</CardTitle>
+                  <InfoTooltip text="Tasa de cancelación mensual: canceladas / (activas + canceladas). Por debajo del 5% es saludable." />
+                </div>
                 <XCircle className="h-4 w-4 text-orange-500" />
               </CardHeader>
               <CardContent>
@@ -482,7 +469,7 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
             <button className={`h-7 px-2.5 rounded-md border text-xs font-medium transition-colors ${!sortBy ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-input hover:bg-accent'}`}>Predeterminado</button>
           </Link>
           <Link href={`/dashboard/subscriptions?${new URLSearchParams({ ...(params.status ? { status: params.status } : {}), ...(planId ? { planId } : {}), ...(search ? { search } : {}), ...(method ? { method } : {}), sort: 'expiring' }).toString()}`}>
-            <button className={`h-7 px-2.5 rounded-md border text-xs font-medium transition-colors ${sortBy === 'expiring' ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-input hover:bg-accent'}`}>📅 Por vencer</button>
+            <button className={`h-7 px-2.5 rounded-md border text-xs font-medium transition-colors ${sortBy === 'expiring' ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-input hover:bg-accent'}`}>Por vencer</button>
           </Link>
         </div>
         <form method="get" action="/dashboard/subscriptions" className="flex flex-wrap items-center gap-2">
@@ -635,20 +622,24 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
                         )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-3 shrink-0">
-                      {plan && (
-                        <span className="font-bold">
-                          ${Number(plan.price).toLocaleString("es-CL")}
-                          <span className="text-xs font-normal text-muted-foreground ml-0.5">
-                            {CYCLE_LABELS[plan.billing_cycle] ?? ""}
+                    <div className="flex flex-col items-end gap-1.5 shrink-0">
+                      <div className="flex items-center gap-2">
+                        {plan && (
+                          <span className="font-bold">
+                            ${Number(plan.price).toLocaleString("es-CL")}
+                            <span className="text-xs font-normal text-muted-foreground ml-0.5">
+                              {CYCLE_LABELS[plan.billing_cycle] ?? ""}
+                            </span>
                           </span>
-                        </span>
-                      )}
-                      <Badge variant={cfg.variant}>{cfg.label}</Badge>
-                      {(sub.status === 'expired' || sub.status === 'cancelled') && (
-                        <RenewSubscriptionButton subscriptionId={sub.id} />
-                      )}
-                      <SubscriptionStatusButton subscriptionId={sub.id} currentStatus={sub.status as "active" | "paused" | "cancelled" | "expired"} />
+                        )}
+                        <Badge variant={cfg.variant}>{cfg.label}</Badge>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        {(sub.status === 'expired' || sub.status === 'cancelled') && (
+                          <RenewSubscriptionButton subscriptionId={sub.id} />
+                        )}
+                        <SubscriptionStatusButton subscriptionId={sub.id} currentStatus={sub.status as "active" | "paused" | "cancelled" | "expired"} />
+                      </div>
                     </div>
                   </div>
                 </CardContent>

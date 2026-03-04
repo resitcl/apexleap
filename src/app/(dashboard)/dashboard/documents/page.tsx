@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic"
 import Link from "next/link"
 import { getDocuments } from "@/lib/actions/documents"
 import { getAthletes } from "@/lib/actions/athletes"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { FolderOpen, AlertTriangle, ExternalLink } from "lucide-react"
 import { NewDocumentForm } from "@/components/documents/NewDocumentForm"
@@ -20,11 +20,11 @@ const CATEGORY_LABELS: Record<string, { label: string; icon: string }> = {
 }
 
 const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive"> = {
-  active: "default", pending: "secondary", expired: "destructive",
+  approved: "default", pending: "secondary", expired: "destructive", rejected: "destructive",
 }
 
 const STATUS_LABELS: Record<string, string> = {
-  active: 'Activo', pending: 'Pendiente', expired: 'Vencido',
+  approved: 'Aprobado', pending: 'Pendiente', expired: 'Vencido', rejected: 'Rechazado',
 }
 
 interface PageProps {
@@ -93,48 +93,41 @@ export default async function DocumentsPage({ searchParams }: PageProps) {
       </div>
 
       {expiringSoon > 0 && (
-        <Card className="border-yellow-200 bg-yellow-50">
-          <CardContent className="py-3 flex items-center gap-3">
-            <AlertTriangle className="w-5 h-5 text-yellow-600 shrink-0" />
-            <p className="text-sm text-yellow-800 font-medium">
-              {expiringSoon} documento{expiringSoon > 1 ? "s" : ""} vence{expiringSoon === 1 ? "" : "n"} en los próximos 30 días
-            </p>
+        <Card>
+          <CardHeader className="pb-0 pt-4 px-5">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
+              <CardTitle className="text-sm font-semibold">Alertas de documentos</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="px-5 pt-1 pb-2">
+            <div className="py-3 flex items-center gap-3">
+              <div className="w-0.5 h-10 rounded-full bg-amber-400 shrink-0" />
+              <div className="flex-1">
+                <p className="text-sm font-medium">
+                  {expiringSoon} documento{expiringSoon > 1 ? "s" : ""} vence{expiringSoon === 1 ? "" : "n"} en los próximos 30 días
+                </p>
+                <p className="text-xs text-muted-foreground">Revisar y renovar antes del vencimiento</p>
+              </div>
+              <Link href="/dashboard/documents?expiring=30" className="text-xs text-primary hover:underline shrink-0">Ver →</Link>
+            </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Search + Status filter */}
-      <form method="get" action="/dashboard/documents" className="flex items-center gap-2 flex-wrap">
-        {category && <input type="hidden" name="category" value={category} />}
-        {status   && <input type="hidden" name="status"   value={status}   />}
-        <input type="text" name="search" defaultValue={search ?? ''}
-          placeholder="Buscar documento..."
-          className="h-8 px-3 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring w-48" />
-        <button type="submit" className="h-8 px-3 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90">Buscar</button>
-        {search && (
-          <Link href={`/dashboard/documents?${new URLSearchParams({ ...(category ? { category } : {}), ...(status ? { status } : {}) }).toString()}`}
-            className="text-xs text-muted-foreground hover:text-foreground">✕ Limpiar</Link>
-        )}
-      </form>
-
-      <div className="flex flex-wrap gap-2">
-        {/* Expiry soon filter */}
-        {[['7', '⚡ Vence en 7 días'], ['30', '📅 Vence en 30 días']].map(([val, lbl]) => (
-          <Link key={val} href={`/dashboard/documents?${new URLSearchParams({
-            ...(category ? { category } : {}),
-            ...(status   ? { status }   : {}),
-            ...(search   ? { search }   : {}),
-            ...(expiring === val ? {} : { expiring: val }),
-          }).toString()}`}>
-            <button className={`h-8 px-3 rounded-md border text-xs font-medium transition-colors ${
-              expiring === val ? 'bg-yellow-500 text-white border-yellow-500' : 'bg-background border-input hover:bg-accent'
-            }`}>{lbl}</button>
-          </Link>
-        ))}
-      </div>
-
-      <div className="flex flex-wrap gap-2">
-        {(['', 'active', 'pending', 'expired'] as const).map((s) => (
+      {/* Filters */}
+      <div className="flex flex-wrap items-center gap-2">
+        <form method="get" action="/dashboard/documents" className="flex items-center gap-2">
+          {category && <input type="hidden" name="category" value={category} />}
+          {status   && <input type="hidden" name="status"   value={status}   />}
+          {expiring && <input type="hidden" name="expiring" value={expiring}  />}
+          <input type="text" name="search" defaultValue={search ?? ''}
+            placeholder="Buscar documento..."
+            className="h-8 px-3 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring w-48" />
+          <button type="submit" className="h-8 px-3 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90">Buscar</button>
+        </form>
+        <div className="w-px h-5 bg-border mx-1" />
+        {(['', 'approved', 'pending', 'expired', 'rejected'] as const).map((s) => (
           <Link
             key={s}
             href={`/dashboard/documents?${new URLSearchParams({ ...(category ? { category } : {}), ...(expiring ? { expiring } : {}), ...(search ? { search } : {}), ...(s ? { status: s } : {}) }).toString()}`}
@@ -148,6 +141,23 @@ export default async function DocumentsPage({ searchParams }: PageProps) {
             </button>
           </Link>
         ))}
+        <div className="w-px h-5 bg-border mx-1" />
+        {[['7', 'Vence en 7d'], ['30', 'Vence en 30d']].map(([val, lbl]) => (
+          <Link key={val} href={`/dashboard/documents?${new URLSearchParams({
+            ...(category ? { category } : {}),
+            ...(status   ? { status }   : {}),
+            ...(search   ? { search }   : {}),
+            ...(expiring === val ? {} : { expiring: val }),
+          }).toString()}`}>
+            <button className={`h-8 px-3 rounded-md border text-xs font-medium transition-colors ${
+              expiring === val ? 'bg-yellow-500 text-white border-yellow-500' : 'bg-background border-input hover:bg-accent'
+            }`}>{lbl}</button>
+          </Link>
+        ))}
+        {(search || status || expiring) && (
+          <Link href={`/dashboard/documents${category ? `?category=${category}` : ''}`}
+            className="text-xs text-muted-foreground hover:text-foreground ml-1">✕ Limpiar</Link>
+        )}
       </div>
 
       <div className="grid gap-3 sm:grid-cols-4">
@@ -169,9 +179,10 @@ export default async function DocumentsPage({ searchParams }: PageProps) {
           <CardContent className="py-16 text-center">
             <FolderOpen className="w-14 h-14 mx-auto mb-3 text-muted-foreground opacity-40" />
             <h3 className="font-semibold text-lg mb-1">Sin documentos registrados</h3>
-            <p className="text-muted-foreground text-sm">
+            <p className="text-muted-foreground text-sm mb-4">
               {category ? `No hay documentos en la categoría "${CATEGORY_LABELS[category]?.label ?? category}"` : "Sube el primer documento del club"}
             </p>
+            <NewDocumentForm athletes={athleteList} />
           </CardContent>
         </Card>
       ) : (
@@ -189,7 +200,7 @@ export default async function DocumentsPage({ searchParams }: PageProps) {
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-medium truncate">{doc.name}</span>
                         <Badge variant={STATUS_VARIANT[doc.status] ?? "secondary"} className="text-xs">
-                          {doc.status === 'active' ? 'Activo' : doc.status === 'pending' ? 'Pendiente' : 'Vencido'}
+                          {STATUS_LABELS[doc.status] ?? doc.status}
                         </Badge>
                         {isExpired && <Badge variant="destructive" className="text-xs">⚠ Vencido</Badge>}
                       </div>

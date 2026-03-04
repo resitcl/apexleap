@@ -53,9 +53,14 @@ export async function updateClubSettings(input: Partial<ClubInput>) {
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
+  const safeUpdate = Object.fromEntries(
+    Object.entries({ ...input, updated_at: new Date().toISOString() })
+      .filter(([, v]) => v !== undefined)
+  )
+
   const { data, error } = await supabase
     .from('clubs')
-    .update({ ...input, updated_at: new Date().toISOString() })
+    .update(safeUpdate)
     .eq('id', clubId)
     .select()
     .single()

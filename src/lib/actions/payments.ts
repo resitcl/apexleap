@@ -141,7 +141,6 @@ export async function markAsPaid(id: string, method: string, paidAt?: string) {
       status: 'paid',
       paid_at: paidAt ? new Date(paidAt).toISOString() : new Date().toISOString(),
       payment_method: method,
-      updated_at: new Date().toISOString(),
     })
     .eq('id', id)
     .eq('club_id', clubId)
@@ -156,8 +155,9 @@ export async function markAsPaid(id: string, method: string, paidAt?: string) {
 export async function updatePayment(id: string, input: { concept?: string; amount?: number; due_date?: string; notes?: string | null; type?: string; payment_method?: string | null }) {
   const clubId = await getClubId()
   const supabase = createAdminClient()
+  const safeUpdate = Object.fromEntries(Object.entries({ ...input }).filter(([, v]) => v !== undefined))
   const { error } = await supabase.from('payments')
-    .update({ ...input, updated_at: new Date().toISOString() })
+    .update(safeUpdate)
     .eq('id', id).eq('club_id', clubId)
   if (error) throw new Error(error.message)
   revalidatePath('/dashboard/payments')
@@ -172,7 +172,7 @@ export async function updatePaymentStatus(
 
   const { data, error } = await supabase
     .from('payments')
-    .update({ status, updated_at: new Date().toISOString() })
+    .update({ status })
     .eq('id', id)
     .eq('club_id', clubId)
     .select()
@@ -202,7 +202,6 @@ export async function bulkMarkAsPaid(ids: string[], method = 'manual') {
       status: 'paid',
       paid_at: new Date().toISOString(),
       payment_method: method,
-      updated_at: new Date().toISOString(),
     })
     .in('id', ids)
     .eq('club_id', clubId)

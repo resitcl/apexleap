@@ -72,10 +72,11 @@ export default async function VenuesPage() {
           <CardContent className="py-20 text-center">
             <MapPin className="w-14 h-14 mx-auto mb-3 text-muted-foreground opacity-40" />
             <h3 className="font-semibold text-lg mb-1">Sin sedes configuradas</h3>
-            <p className="text-muted-foreground text-sm max-w-md mx-auto">
+            <p className="text-muted-foreground text-sm max-w-md mx-auto mb-4">
               Agrega las instalaciones de tu club. Configura las coordenadas GPS para
               activar el geofencing del check-in QR.
             </p>
+            <NewVenueForm />
           </CardContent>
         </Card>
       ) : (

@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from "react"
-import { QRCodeSVG } from "qrcode.react"
+import { QRCodeCanvas } from "qrcode.react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { RefreshCw, QrCode, Loader2 } from "lucide-react"
@@ -59,7 +59,7 @@ export function QRCheckInDisplay() {
           </div>
         ) : token ? (
           <div className="p-4 bg-white rounded-xl border-2 border-dashed">
-            <QRCodeSVG value={checkInUrl} size={200} level="M" includeMargin={false} />
+            <QRCodeCanvas value={checkInUrl || ' '} size={200} level="M" marginSize={1} />
           </div>
         ) : null}
 

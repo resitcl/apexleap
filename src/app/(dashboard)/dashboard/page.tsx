@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Users, DollarSign, ClipboardCheck, AlertCircle, AlertTriangle, UserPlus, CreditCard, QrCode, UserCheck, TrendingUp, FileWarning, Clock } from "lucide-react"
+import { InfoTooltip } from "@/components/ui/info-tooltip"
 
 export default async function DashboardPage() {
   const hasClub = await checkUserHasClub().catch(() => false)
@@ -88,7 +89,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-3xl font-bold">Dashboard</h1>
           <p className="text-muted-foreground">
@@ -116,7 +117,10 @@ export default async function DashboardPage() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Alumnos Activos</CardTitle>
+            <div className="flex items-center gap-1">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Alumnos Activos</CardTitle>
+              <InfoTooltip text="Atletas con estado activo en el club. Excluye suspendidos e inactivos." />
+            </div>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -140,7 +144,10 @@ export default async function DashboardPage() {
         <Link href={`/dashboard/finances?tab=overview&month=${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}`}>
           <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Ingresos del Mes</CardTitle>
+              <div className="flex items-center gap-1">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Ingresos del Mes</CardTitle>
+                <InfoTooltip text="Suma total de pagos recibidos en el mes actual. Solo cuenta pagos con estado 'pagado'." />
+              </div>
               <DollarSign className="h-4 w-4 text-green-500" />
             </CardHeader>
             <CardContent>
@@ -169,7 +176,10 @@ export default async function DashboardPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Check-ins Hoy</CardTitle>
+            <div className="flex items-center gap-1">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Check-ins Hoy</CardTitle>
+              <InfoTooltip text="Asistencias registradas hoy mediante QR o manualmente. Solo cuenta check-ins válidos." />
+            </div>
             <ClipboardCheck className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
@@ -209,7 +219,10 @@ export default async function DashboardPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Cuentas por Cobrar</CardTitle>
+            <div className="flex items-center gap-1">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Cuentas por Cobrar</CardTitle>
+              <InfoTooltip text="Suma total de deudas vencidas. Son pagos con fecha de vencimiento pasada y sin pagar." />
+            </div>
             <AlertCircle className="h-4 w-4 text-red-500" />
           </CardHeader>
           <CardContent>
@@ -226,7 +239,10 @@ export default async function DashboardPage() {
         <Link href="/dashboard/attendance?tab=history">
           <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Asistencia 7 días</CardTitle>
+              <div className="flex items-center gap-1">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Asistencia 7 días</CardTitle>
+                <InfoTooltip text="Porcentaje de check-ins válidos sobre el total de los últimos 7 días. 80%+ es óptimo." />
+              </div>
               <TrendingUp className="h-4 w-4 text-indigo-500" />
             </CardHeader>
             <CardContent>
@@ -253,7 +269,10 @@ export default async function DashboardPage() {
             <Link href="/dashboard/calendar">
               <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Sesiones Activas</CardTitle>
+                  <div className="flex items-center gap-1">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Sesiones Activas</CardTitle>
+                    <InfoTooltip text="Total de sesiones programadas en los próximos 7 días según el calendario del club." />
+                  </div>
                   <ClipboardCheck className="h-4 w-4 text-indigo-500" />
                 </CardHeader>
                 <CardContent>
@@ -292,7 +311,10 @@ export default async function DashboardPage() {
         <Link href="/dashboard/payments?status=overdue">
           <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <div className="flex items-center gap-1">
               <CardTitle className="text-sm font-medium text-muted-foreground">Morosos</CardTitle>
+              <InfoTooltip text="Cantidad de pagos vencidos pendientes de cobro. Un atleta puede tener más de uno." />
+            </div>
               <CreditCard className="h-4 w-4 text-orange-500" />
             </CardHeader>
             <CardContent>
@@ -304,8 +326,11 @@ export default async function DashboardPage() {
         <Link href="/dashboard/athletes?health=injured">
           <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <div className="flex items-center gap-1">
               <CardTitle className="text-sm font-medium text-muted-foreground">Semáforos Rojos</CardTitle>
-              <UserCheck className="h-4 w-4 text-red-500" />
+              <InfoTooltip text="Atletas con semáforo rojo: bloqueados por mora, lesión o regla del club. No pueden entrenar ni competir." />
+            </div>
+            <UserCheck className="h-4 w-4 text-red-500" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-red-600">{summary.semaforoCount.red}</div>
@@ -316,7 +341,10 @@ export default async function DashboardPage() {
         {retention !== null && (
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Retención Mensual</CardTitle>
+              <div className="flex items-center gap-1">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Retención Mensual</CardTitle>
+                <InfoTooltip text="% de atletas del mes anterior que siguen activos este mes. 80%+ es saludable para un club." />
+              </div>
               <TrendingUp className="h-4 w-4 text-teal-500" />
             </CardHeader>
             <CardContent>
@@ -332,7 +360,10 @@ export default async function DashboardPage() {
           <Link href="/dashboard/subscriptions">
             <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <div className="flex items-center gap-1">
                 <CardTitle className="text-sm font-medium text-muted-foreground">Sin Plan</CardTitle>
+                <InfoTooltip text="Atletas activos que no tienen ninguna suscripción asignada. Posible pérdida de ingresos." />
+              </div>
                 <Users className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
@@ -349,7 +380,10 @@ export default async function DashboardPage() {
             <Link href="/dashboard/payments">
               <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <div className="flex items-center gap-1">
                   <CardTitle className="text-sm font-medium text-muted-foreground">Cobranza</CardTitle>
+                  <InfoTooltip text="Porcentaje cobrado vs lo esperado este mes. Se calcula como ingresos / (ingresos + deudas vencidas)." />
+                </div>
                   <TrendingUp className="h-4 w-4 text-emerald-500" />
                 </CardHeader>
                 <CardContent>
@@ -370,7 +404,10 @@ export default async function DashboardPage() {
             <Link href="/dashboard/calendar">
               <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <div className="flex items-center gap-1">
                   <CardTitle className="text-sm font-medium text-muted-foreground">Ocupación Hoy</CardTitle>
+                  <InfoTooltip text="Promedio de ocupación de las sesiones de hoy que tienen aforo configurado. Calculado como check-ins / capacidad." />
+                </div>
                   <Clock className="h-4 w-4 text-blue-500" />
                 </CardHeader>
                 <CardContent>
@@ -385,7 +422,10 @@ export default async function DashboardPage() {
           <Link href="/dashboard/payments">
             <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <div className="flex items-center gap-1">
                 <CardTitle className="text-sm font-medium text-muted-foreground">Pago Prom./Atleta</CardTitle>
+                <InfoTooltip text="Ingreso mensual dividido por la cantidad de atletas activos. Indica el valor promedio por alumno." />
+              </div>
                 <CreditCard className="h-4 w-4 text-indigo-500" />
               </CardHeader>
               <CardContent>
@@ -408,7 +448,10 @@ export default async function DashboardPage() {
             <Link href="/dashboard/documents">
               <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Docs Vencidos</CardTitle>
+                  <div className="flex items-center gap-1">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Docs Vencidos</CardTitle>
+                <InfoTooltip text="Documentos del club (contratos, fichas, certificados) con fecha de vencimiento superada o próxima." />
+              </div>
                   <FileWarning className="h-4 w-4 text-yellow-500" />
                 </CardHeader>
                 <CardContent>
@@ -460,355 +503,272 @@ export default async function DashboardPage() {
         </Card>
       )}
 
-      {overdueAlerts.length > 3 && (
-        <Link href="/dashboard/payments?status=overdue">
-          <Card className="border-orange-200 bg-orange-50 hover:bg-orange-100 transition-colors cursor-pointer">
-            <CardContent className="py-3">
-              <div className="flex items-center gap-3">
-                <AlertCircle className="w-5 h-5 text-orange-600 shrink-0" />
-                <p className="text-sm text-orange-800 font-medium">
-                  {overdueAlerts.length} pagos vencidos sin gestionar — revisión recomendada
-                  {overdueAlerts.length <= 5 && (
-                    <span className="ml-1 font-normal">
-                      ({overdueAlerts.slice(0, 3).map((a) => (a as { name?: string }).name ?? '').filter(Boolean).join(', ')}{overdueAlerts.length > 3 ? '...' : ''})
-                    </span>
-                  )}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
-      )}
-
-      {athletesWithoutPlan > 5 && (
-        <Link href="/dashboard/subscriptions">
-          <Card className="border-amber-200 bg-amber-50 hover:bg-amber-100 transition-colors cursor-pointer">
-            <CardContent className="py-3">
-              <div className="flex items-center gap-3">
-                <Users className="w-5 h-5 text-amber-600 shrink-0" />
-                <p className="text-sm text-amber-800 font-medium">
-                  {athletesWithoutPlan} atletas activos sin plan de suscripción asignado
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
-      )}
-
-      {summary.totalAthletes > 4 && dormantCount14 > 0 && Math.round((dormantCount14 / summary.totalAthletes) * 100) >= 30 && (
-        <Link href="/dashboard/athletes?inactive=1">
-          <Card className="border-orange-200 bg-orange-50 hover:bg-orange-100 transition-colors cursor-pointer">
-            <CardContent className="py-3">
-              <div className="flex items-center gap-3">
-                <AlertTriangle className="w-5 h-5 text-orange-600 shrink-0" />
-                <p className="text-sm text-orange-800 font-medium">
-                  {Math.round((dormantCount14 / summary.totalAthletes) * 100)}% de atletas ({dormantCount14}) sin check-in en los últimos 14 días
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
-      )}
-
-      {dormantCount > 0 && (
-        <Link href="/dashboard/athletes">
-          <Card className="border-slate-200 bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer">
-            <CardContent className="py-3">
-              <div className="flex items-center gap-3">
-                <Clock className="w-5 h-5 text-slate-500 shrink-0" />
-                <p className="text-sm text-slate-700 font-medium">
-                  {dormantCount} atleta{dormantCount !== 1 ? 's' : ''} sin check-in en más de 30 días
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
-      )}
-
-      {summary.totalAthletes > 4 && todaySessions.length > 0 && summary.todayCheckIns === 0 && (
-        <Link href="/dashboard/attendance">
-          <Card className="border-yellow-200 bg-yellow-50 hover:bg-yellow-100 transition-colors cursor-pointer">
-            <CardContent className="py-3">
-              <div className="flex items-center gap-3">
-                <AlertCircle className="w-5 h-5 text-yellow-600 shrink-0" />
-                <p className="text-sm text-yellow-800 font-medium">
-                  0 check-ins hoy — hay {todaySessions.length} sesión{todaySessions.length !== 1 ? 'es' : ''} programada{todaySessions.length !== 1 ? 's' : ''}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
-      )}
-
-      {summary.totalAthletes > 4 && weeklyByDay.length > 0 && (() => {
-        const weekTotal = weeklyByDay.reduce((s, d) => s + d.total, 0)
-        if (weekTotal > 0) return null
-        return (
-          <Link href="/dashboard/attendance">
-            <Card className="border-blue-200 bg-blue-50 hover:bg-blue-100 transition-colors cursor-pointer">
-              <CardContent className="py-3">
-                <div className="flex items-center gap-3">
-                  <AlertCircle className="w-5 h-5 text-blue-600 shrink-0" />
-                  <p className="text-sm text-blue-800 font-medium">
-                    Sin check-ins registrados esta semana ({summary.totalAthletes} atletas activos)
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
-        )
-      })()}
-
-      {summary.cancelledThisMonth > 0 && summary.activeSubscriptions > 0 && (() => {
-        const churnRate = Math.round((summary.cancelledThisMonth / (summary.activeSubscriptions + summary.cancelledThisMonth)) * 100)
-        if (churnRate < 10) return null
-        return (
-          <Link href="/dashboard/subscriptions?status=cancelled">
-            <Card className="border-red-200 bg-red-50 hover:bg-red-100 transition-colors cursor-pointer">
-              <CardContent className="py-3">
-                <div className="flex items-center gap-3">
-                  <AlertCircle className="w-5 h-5 text-red-600 shrink-0" />
-                  <p className="text-sm text-red-800 font-medium">
-                    Churn mensual del {churnRate}% — {summary.cancelledThisMonth} suscripción{summary.cancelledThisMonth !== 1 ? 'es' : ''} cancelada{summary.cancelledThisMonth !== 1 ? 's' : ''} este mes
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
-        )
-      })()}
-
-      {summary.totalAthletes > 4 && summary.semaforoCount.red > 0 && (() => {
-        const pct = Math.round((summary.semaforoCount.red / summary.totalAthletes) * 100)
-        if (pct < 20) return null
-        return (
-          <Link href="/dashboard/athletes?health=injured">
-            <Card className="border-red-200 bg-red-50 hover:bg-red-100 transition-colors cursor-pointer">
-              <CardContent className="py-3">
-                <div className="flex items-center gap-3">
-                  <AlertCircle className="w-5 h-5 text-red-600 shrink-0" />
-                  <p className="text-sm text-red-800 font-medium">
-                    {pct}% de atletas en semáforo rojo ({summary.semaforoCount.red} de {summary.totalAthletes})
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
-        )
-      })()}
-
-      {summary.totalAthletes > 4 && summary.activeSubscriptions < summary.totalAthletes * 0.5 && (
-        <Link href="/dashboard/subscriptions">
-          <Card className="border-yellow-200 bg-yellow-50 hover:bg-yellow-100 transition-colors cursor-pointer">
-            <CardContent className="py-3">
-              <div className="flex items-center gap-3">
-                <AlertCircle className="w-5 h-5 text-yellow-600 shrink-0" />
-                <p className="text-sm text-yellow-800 font-medium">
-                  Solo {summary.activeSubscriptions} de {summary.totalAthletes} atletas activos tienen suscripción ({Math.round((summary.activeSubscriptions / summary.totalAthletes) * 100)}%)
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
-      )}
-
-      {coaches.length > 0 && todaySessions.length === 0 && (
-        <Link href="/dashboard/finances">
-          <Card className="border-purple-200 bg-purple-50 hover:bg-purple-100 transition-colors cursor-pointer">
-            <CardContent className="py-3">
-              <div className="flex items-center gap-3">
-                <Users className="w-5 h-5 text-purple-600 shrink-0" />
-                <p className="text-sm text-purple-800 font-medium">
-                  {coaches.length} coach{coaches.length !== 1 ? 'es' : ''} sin sesiones asignadas hoy
-                  {coaches.length <= 3 && <span className="ml-1 font-normal">— {coaches.map((c) => c.name).join(', ')}</span>}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
-      )}
-
-      {summary.mrr > 0 && summary.monthlyIncome < summary.mrr * 0.7 && (
-        <Link href="/dashboard/finances">
-          <Card className="border-orange-200 bg-orange-50 hover:bg-orange-100 transition-colors cursor-pointer">
-            <CardContent className="py-3">
-              <div className="flex items-center gap-3">
-                <TrendingUp className="w-5 h-5 text-orange-600 shrink-0" />
-                <p className="text-sm text-orange-800 font-medium">
-                  Ingresos del mes (${summary.monthlyIncome.toLocaleString('es-CL')}) por debajo del MRR esperado (${Math.round(summary.mrr).toLocaleString('es-CL')})
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
-      )}
-
-      {summary.totalAthletes > 0 && todaySessions.length === 0 && (
-        <Link href="/dashboard/calendar">
-          <Card className="border-blue-200 bg-blue-50 hover:bg-blue-100 transition-colors cursor-pointer">
-            <CardContent className="py-3">
-              <div className="flex items-center gap-3">
-                <Clock className="w-5 h-5 text-blue-600 shrink-0" />
-                <p className="text-sm text-blue-800 font-medium">
-                  No hay sesiones programadas para hoy — ¿falta configurar el horario?
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
-      )}
-
-      {monthlyRevenue.length >= 2 && (() => {
-        const cur  = monthlyRevenue[monthlyRevenue.length - 1]
-        const prev = monthlyRevenue[monthlyRevenue.length - 2]
-        if (!cur || !prev || prev.amount === 0 || cur.amount >= prev.amount) return null
-        const drop = Math.round(((prev.amount - cur.amount) / prev.amount) * 100)
-        return (
-          <Link href={`/dashboard/finances`}>
-            <Card className="border-yellow-200 bg-yellow-50 hover:bg-yellow-100 transition-colors cursor-pointer">
-              <CardContent className="py-3">
-                <div className="flex items-center gap-3">
-                  <TrendingUp className="w-5 h-5 text-yellow-600 shrink-0 rotate-180" />
-                  <p className="text-sm text-yellow-800 font-medium">
-                    Ingresos bajaron {drop}% vs {prev.month} — ${cur.amount.toLocaleString('es-CL')} vs ${prev.amount.toLocaleString('es-CL')}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
-        )
-      })()}
-
-      {summary.semaforoCount.red > 0 && (
-        <Link href="/dashboard/athletes?health=injured">
-          <Card className="border-red-200 bg-red-50 hover:bg-red-100 transition-colors cursor-pointer">
-            <CardContent className="py-3">
-              <div className="flex items-center gap-3">
-                <UserCheck className="w-5 h-5 text-red-600 shrink-0" />
-                <p className="text-sm text-red-800 font-medium">
-                  {summary.semaforoCount.red} atleta{summary.semaforoCount.red !== 1 ? 's' : ''} con semáforo rojo — revisar lesiones y bloqueos
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
-      )}
-
-      {summary.semaforoCount.yellow > 3 && (
-        <Link href="/dashboard/athletes?health=observation">
-          <Card className="border-yellow-200 bg-yellow-50 hover:bg-yellow-100 transition-colors cursor-pointer">
-            <CardContent className="py-3">
-              <div className="flex items-center gap-3">
-                <AlertCircle className="w-5 h-5 text-yellow-600 shrink-0" />
-                <p className="text-sm text-yellow-800 font-medium">
-                  🟡 {summary.semaforoCount.yellow} atletas en observación — seguimiento recomendado
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
-      )}
-
-      {summary.topDebtors.length > 0 && (
-        <Link href="/dashboard/payments?status=overdue">
-          <Card className="border-red-200 bg-red-50 hover:bg-red-100 transition-colors cursor-pointer">
-            <CardContent className="py-3">
-              <div className="flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-red-800">Top deudores</p>
-                  <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-1">
-                    {summary.topDebtors.map((d) => (
-                      <span key={d.id} className="text-xs text-red-700">
-                        {d.name}: <span className="font-bold">${d.debt.toLocaleString('es-CL')}</span>
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
-      )}
-
+      {/* ── Alertas del club ── */}
       {(() => {
-        const withCap = todaySessions.filter((s) => s.capacity && s.capacity > 0)
-        const lowOcc = withCap
+        const dormant14Pct  = summary.totalAthletes > 4 ? Math.round((dormantCount14 / summary.totalAthletes) * 100) : 0
+        const weekTotal     = weeklyByDay.reduce((s, d) => s + d.total, 0)
+        const churnRate     = summary.cancelledThisMonth > 0 && summary.activeSubscriptions > 0
+          ? Math.round((summary.cancelledThisMonth / (summary.activeSubscriptions + summary.cancelledThisMonth)) * 100) : 0
+        const redPctVal     = summary.totalAthletes > 4 ? Math.round((summary.semaforoCount.red / summary.totalAthletes) * 100) : 0
+        const subPct        = summary.totalAthletes > 4 ? Math.round((summary.activeSubscriptions / summary.totalAthletes) * 100) : 100
+        const curRev        = monthlyRevenue[monthlyRevenue.length - 1]
+        const prevRev       = monthlyRevenue[monthlyRevenue.length - 2]
+        const revDrop       = monthlyRevenue.length >= 2 && curRev && prevRev && prevRev.amount > 0 && curRev.amount < prevRev.amount
+          ? Math.round(((prevRev.amount - curRev.amount) / prevRev.amount) * 100) : 0
+        const withCap       = todaySessions.filter((s) => s.capacity && s.capacity > 0)
+        const lowOcc        = withCap
           .map((s) => ({ ...s, pct: Math.round((s.todayCheckIns / s.capacity!) * 100) }))
-          .filter((s) => s.pct < 50)
-          .sort((a, b) => a.pct - b.pct)
-          .slice(0, 3)
-        if (lowOcc.length === 0) return null
+          .filter((s) => s.pct < 50).sort((a, b) => a.pct - b.pct).slice(0, 3)
+        const expiredCount  = expiredDocs.filter((d) => d.isExpired).length
+        const expiringSoonCount = expiredDocs.filter((d) => !d.isExpired).length
+
+        const flags = {
+          overdue:        overdueAlerts.length > 3,
+          topDebtors:     summary.topDebtors.length > 0,
+          redAthletes:    summary.semaforoCount.red > 0,
+          churn:          churnRate >= 10,
+          lowIncome:      summary.mrr > 0 && summary.monthlyIncome < summary.mrr * 0.7,
+          revDrop:        revDrop > 0,
+          noPlan:         athletesWithoutPlan > 5,
+          lowSubs:        summary.totalAthletes > 4 && summary.activeSubscriptions < summary.totalAthletes * 0.5,
+          yellowAthletes: summary.semaforoCount.yellow > 3,
+          dormant14:      summary.totalAthletes > 4 && dormantCount14 > 0 && dormant14Pct >= 30,
+          dormant30:      dormantCount > 0,
+          noCheckinsToday: summary.totalAthletes > 4 && todaySessions.length > 0 && summary.todayCheckIns === 0,
+          noCheckinsWeek: summary.totalAthletes > 4 && weeklyByDay.length > 0 && weekTotal === 0,
+          lowOcc:         lowOcc.length > 0,
+          noSessions:     todaySessions.length === 0,
+          docs:           expiredDocs.length > 0,
+        }
+        const alertCount = Object.values(flags).filter(Boolean).length
+        if (alertCount === 0) return null
+
         return (
-          <Link href="/dashboard/calendar">
-            <Card className="border-blue-200 bg-blue-50 hover:bg-blue-100 transition-colors cursor-pointer">
-              <CardContent className="py-3">
-                <div className="flex items-start gap-3">
-                  <Clock className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-blue-800">Sesiones con baja ocupación hoy</p>
-                    <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-1">
-                      {lowOcc.map((s) => (
-                        <span key={s.id} className="text-xs text-blue-700">
-                          {s.name} {s.start_time.slice(0,5)}: <span className="font-bold">{s.pct}%</span> ({s.todayCheckIns}/{s.capacity})
-                        </span>
-                      ))}
+          <Card>
+            <CardHeader className="pb-0 pt-4 px-5">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-amber-500 shrink-0" />
+                <CardTitle className="text-sm font-semibold">Alertas del club</CardTitle>
+                <span className="ml-auto text-xs text-muted-foreground">{alertCount} alerta{alertCount !== 1 ? 's' : ''}</span>
+              </div>
+            </CardHeader>
+            <CardContent className="px-5 pt-1 pb-2">
+              <div className="divide-y divide-border">
+
+                {flags.overdue && (
+                  <div className="py-3 flex items-start gap-3">
+                    <div className="w-0.5 self-stretch rounded-full bg-red-500 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium">{overdueAlerts.length} pagos vencidos sin gestionar</p>
+                      {overdueAlerts.length <= 5 && (
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {overdueAlerts.slice(0, 3).map((a) => (a as { name?: string }).name ?? '').filter(Boolean).join(', ')}{overdueAlerts.length > 3 ? '...' : ''}
+                        </p>
+                      )}
                     </div>
+                    <Link href="/dashboard/payments?status=overdue" className="text-xs text-primary hover:underline shrink-0 pt-0.5">Ver →</Link>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
+                )}
+
+                {flags.topDebtors && (
+                  <div className="py-3 flex items-start gap-3">
+                    <div className="w-0.5 self-stretch rounded-full bg-red-500 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Top deudores</p>
+                      <div className="flex flex-wrap gap-x-4 gap-y-0.5">
+                        {summary.topDebtors.map((d) => (
+                          <span key={d.id} className="text-sm">
+                            {d.name}: <span className="font-semibold text-red-600">${d.debt.toLocaleString('es-CL')}</span>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    <Link href="/dashboard/payments?status=overdue" className="text-xs text-primary hover:underline shrink-0 pt-0.5">Ver →</Link>
+                  </div>
+                )}
+
+                {flags.redAthletes && (
+                  <div className="py-3 flex items-center gap-3">
+                    <div className="w-0.5 h-10 rounded-full bg-red-500 shrink-0" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">
+                        {summary.semaforoCount.red} atleta{summary.semaforoCount.red !== 1 ? 's' : ''} con semáforo rojo
+                        {redPctVal >= 20 && <span className="text-muted-foreground font-normal"> · {redPctVal}% del total</span>}
+                      </p>
+                      <p className="text-xs text-muted-foreground">Revisar lesiones y bloqueos</p>
+                    </div>
+                    <Link href="/dashboard/athletes?health=injured" className="text-xs text-primary hover:underline shrink-0">Ver →</Link>
+                  </div>
+                )}
+
+                {flags.churn && (
+                  <div className="py-3 flex items-center gap-3">
+                    <div className="w-0.5 h-10 rounded-full bg-red-500 shrink-0" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">Churn mensual del {churnRate}%</p>
+                      <p className="text-xs text-muted-foreground">{summary.cancelledThisMonth} suscripción{summary.cancelledThisMonth !== 1 ? 'es' : ''} cancelada{summary.cancelledThisMonth !== 1 ? 's' : ''} este mes</p>
+                    </div>
+                    <Link href="/dashboard/subscriptions?status=cancelled" className="text-xs text-primary hover:underline shrink-0">Ver →</Link>
+                  </div>
+                )}
+
+                {flags.lowIncome && (
+                  <div className="py-3 flex items-center gap-3">
+                    <div className="w-0.5 h-10 rounded-full bg-orange-500 shrink-0" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">Ingresos del mes por debajo del MRR esperado</p>
+                      <p className="text-xs text-muted-foreground">${summary.monthlyIncome.toLocaleString('es-CL')} vs ${Math.round(summary.mrr).toLocaleString('es-CL')} esperado</p>
+                    </div>
+                    <Link href="/dashboard/finances" className="text-xs text-primary hover:underline shrink-0">Ver →</Link>
+                  </div>
+                )}
+
+                {flags.revDrop && curRev && prevRev && (
+                  <div className="py-3 flex items-center gap-3">
+                    <div className="w-0.5 h-10 rounded-full bg-orange-500 shrink-0" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">Ingresos bajaron {revDrop}% vs {prevRev.month}</p>
+                      <p className="text-xs text-muted-foreground">${curRev.amount.toLocaleString('es-CL')} este mes vs ${prevRev.amount.toLocaleString('es-CL')} el anterior</p>
+                    </div>
+                    <Link href="/dashboard/finances" className="text-xs text-primary hover:underline shrink-0">Ver →</Link>
+                  </div>
+                )}
+
+                {flags.noPlan && (
+                  <div className="py-3 flex items-center gap-3">
+                    <div className="w-0.5 h-10 rounded-full bg-amber-400 shrink-0" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">{athletesWithoutPlan} atletas activos sin plan de suscripción</p>
+                    </div>
+                    <Link href="/dashboard/subscriptions" className="text-xs text-primary hover:underline shrink-0">Ver →</Link>
+                  </div>
+                )}
+
+                {flags.lowSubs && (
+                  <div className="py-3 flex items-center gap-3">
+                    <div className="w-0.5 h-10 rounded-full bg-amber-400 shrink-0" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">Solo {subPct}% de atletas activos tienen suscripción</p>
+                      <p className="text-xs text-muted-foreground">{summary.activeSubscriptions} de {summary.totalAthletes} atletas</p>
+                    </div>
+                    <Link href="/dashboard/subscriptions" className="text-xs text-primary hover:underline shrink-0">Ver →</Link>
+                  </div>
+                )}
+
+                {flags.yellowAthletes && (
+                  <div className="py-3 flex items-center gap-3">
+                    <div className="w-0.5 h-10 rounded-full bg-amber-400 shrink-0" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">{summary.semaforoCount.yellow} atletas en observación</p>
+                      <p className="text-xs text-muted-foreground">Seguimiento recomendado</p>
+                    </div>
+                    <Link href="/dashboard/athletes?health=observation" className="text-xs text-primary hover:underline shrink-0">Ver →</Link>
+                  </div>
+                )}
+
+                {flags.docs && (
+                  <div className="py-3 flex items-start gap-3">
+                    <div className="w-0.5 self-stretch rounded-full bg-amber-400 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium">
+                        {expiredCount > 0 && `${expiredCount} documento${expiredCount > 1 ? 's' : ''} vencido${expiredCount > 1 ? 's' : ''}`}
+                        {expiredCount > 0 && expiringSoonCount > 0 && ' · '}
+                        {expiringSoonCount > 0 && `${expiringSoonCount} vence${expiringSoonCount === 1 ? '' : 'n'} en 30 días`}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {expiredDocs.slice(0, 3).map((d) => `${d.name}${d.athletes ? ` (${d.athletes.name})` : ''}`).join(' · ')}
+                        {expiredDocs.length > 3 && ` +${expiredDocs.length - 3} más`}
+                      </p>
+                    </div>
+                    <Link href="/dashboard/documents" className="text-xs text-primary hover:underline shrink-0 pt-0.5">Ver →</Link>
+                  </div>
+                )}
+
+                {flags.dormant14 && (
+                  <div className="py-3 flex items-center gap-3">
+                    <div className="w-0.5 h-10 rounded-full bg-amber-400 shrink-0" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">{dormant14Pct}% de atletas ({dormantCount14}) sin check-in</p>
+                      <p className="text-xs text-muted-foreground">Últimos 14 días</p>
+                    </div>
+                    <Link href="/dashboard/athletes?inactive=1" className="text-xs text-primary hover:underline shrink-0">Ver →</Link>
+                  </div>
+                )}
+
+                {flags.dormant30 && (
+                  <div className="py-3 flex items-center gap-3">
+                    <div className="w-0.5 h-10 rounded-full bg-slate-400 shrink-0" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">{dormantCount} atleta{dormantCount !== 1 ? 's' : ''} sin check-in en más de 30 días</p>
+                    </div>
+                    <Link href="/dashboard/athletes" className="text-xs text-primary hover:underline shrink-0">Ver →</Link>
+                  </div>
+                )}
+
+                {flags.noCheckinsToday && (
+                  <div className="py-3 flex items-center gap-3">
+                    <div className="w-0.5 h-10 rounded-full bg-amber-400 shrink-0" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">0 check-ins hoy</p>
+                      <p className="text-xs text-muted-foreground">Hay {todaySessions.length} sesión{todaySessions.length !== 1 ? 'es' : ''} programada{todaySessions.length !== 1 ? 's' : ''}</p>
+                    </div>
+                    <Link href="/dashboard/attendance" className="text-xs text-primary hover:underline shrink-0">Ver →</Link>
+                  </div>
+                )}
+
+                {flags.noCheckinsWeek && (
+                  <div className="py-3 flex items-center gap-3">
+                    <div className="w-0.5 h-10 rounded-full bg-slate-400 shrink-0" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">Sin check-ins registrados esta semana</p>
+                      <p className="text-xs text-muted-foreground">{summary.totalAthletes} atletas activos</p>
+                    </div>
+                    <Link href="/dashboard/attendance" className="text-xs text-primary hover:underline shrink-0">Ver →</Link>
+                  </div>
+                )}
+
+                {flags.lowOcc && (
+                  <div className="py-3 flex items-start gap-3">
+                    <div className="w-0.5 self-stretch rounded-full bg-blue-400 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Baja ocupación hoy</p>
+                      <div className="flex flex-wrap gap-x-4 gap-y-0.5">
+                        {lowOcc.map((s) => (
+                          <span key={s.id} className="text-sm">
+                            {s.name} {s.start_time.slice(0,5)}: <span className="font-semibold">{s.pct}%</span> ({s.todayCheckIns}/{s.capacity})
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    <Link href="/dashboard/calendar" className="text-xs text-primary hover:underline shrink-0 pt-0.5">Ver →</Link>
+                  </div>
+                )}
+
+                {flags.noSessions && (
+                  <div className="py-3 flex items-center gap-3">
+                    <div className="w-0.5 h-10 rounded-full bg-blue-400 shrink-0" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">No hay sesiones programadas para hoy</p>
+                      <p className="text-xs text-muted-foreground">¿Falta configurar el horario?</p>
+                    </div>
+                    <Link href="/dashboard/calendar" className="text-xs text-primary hover:underline shrink-0">Ver →</Link>
+                  </div>
+                )}
+
+              </div>
+            </CardContent>
+          </Card>
         )
       })()}
-
-      {todaySessions.length === 0 && (
-        <Link href="/dashboard/calendar">
-          <Card className="border-blue-200 bg-blue-50 hover:bg-blue-100 transition-colors cursor-pointer">
-            <CardContent className="py-3">
-              <div className="flex items-center gap-3">
-                <ClipboardCheck className="w-5 h-5 text-blue-500 shrink-0" />
-                <p className="text-sm text-blue-800 font-medium">
-                  No hay sesiones programadas para hoy — ¿querés agregar una?
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
-      )}
-
-      {expiredDocs.length > 0 && (
-        <Link href="/dashboard/documents">
-          <Card className="border-yellow-200 bg-yellow-50 hover:bg-yellow-100 transition-colors cursor-pointer">
-            <CardContent className="py-3">
-              <div className="flex items-start gap-3">
-                <FileWarning className="w-5 h-5 text-yellow-600 shrink-0 mt-0.5" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-yellow-800">
-                    {expiredDocs.filter((d) => d.isExpired).length > 0 && (
-                      <span>{expiredDocs.filter((d) => d.isExpired).length} documento{expiredDocs.filter((d) => d.isExpired).length > 1 ? 's' : ''} vencido{expiredDocs.filter((d) => d.isExpired).length > 1 ? 's' : ''}</span>
-                    )}
-                    {expiredDocs.filter((d) => d.isExpired).length > 0 && expiredDocs.filter((d) => !d.isExpired).length > 0 && ' · '}
-                    {expiredDocs.filter((d) => !d.isExpired).length > 0 && (
-                      <span>{expiredDocs.filter((d) => !d.isExpired).length} vence{expiredDocs.filter((d) => !d.isExpired).length === 1 ? '' : 'n'} en 30 días</span>
-                    )}
-                  </p>
-                  <p className="text-xs text-yellow-700 mt-0.5">
-                    {expiredDocs.slice(0, 3).map((d) => `${d.name}${d.athletes ? ` (${d.athletes.name})` : ''}`).join(' · ')}
-                    {expiredDocs.length > 3 && ` +${expiredDocs.length - 3} más`}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
-      )}
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {/* Semáforo de Disponibilidad */}
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle>Semáforo de Disponibilidad</CardTitle>
+            <div className="flex items-center gap-2">
+              <CardTitle>Semáforo de Disponibilidad</CardTitle>
+              <InfoTooltip text="Sistema de 3 colores que indica si un atleta puede entrenar y competir. 🟢 Apto · 🟡 En observación (lesión leve o mora próxima) · 🔴 Bloqueado (mora, lesión grave o regla del club)." side="bottom" />
+            </div>
             <CardDescription>Elegibilidad para entrenar y competir</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -948,7 +908,10 @@ export default async function DashboardPage() {
       {/* Activity Feed */}
       <Card>
         <CardHeader>
-          <CardTitle>Actividad Reciente</CardTitle>
+          <div className="flex items-center gap-2">
+            <CardTitle>Actividad Reciente</CardTitle>
+            <InfoTooltip text="Feed en tiempo real de los últimos pagos registrados, check-ins y nuevos alumnos del club." side="bottom" />
+          </div>
           <CardDescription>Últimos pagos, check-ins y alumnos</CardDescription>
         </CardHeader>
         <CardContent className="p-0">

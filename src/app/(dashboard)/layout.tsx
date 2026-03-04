@@ -1,4 +1,5 @@
-import { UserButton } from "@clerk/nextjs"
+import { UserNavClient } from "@/components/layouts/UserNavClient"
+import { ChatWidget } from "@/components/layouts/ChatWidget"
 import Link from "next/link"
 import {
   LayoutDashboard,
@@ -12,6 +13,7 @@ import {
   Package,
   MapPin,
   BookOpen,
+  PenLine,
   ShieldCheck,
   Repeat2,
   BarChart3,
@@ -26,28 +28,65 @@ import { MobileSidebar } from "@/components/layouts/MobileSidebar"
 import { DesktopNavItem } from "@/components/layouts/DesktopNavItem"
 import { ThemeToggle } from "@/components/layouts/ThemeToggle"
 import { getSidebarAlerts } from "@/lib/actions/alerts"
+import { NotificationBell } from "@/components/layouts/NotificationBell"
+import type { NotificationItem } from "@/components/layouts/NotificationBell"
+import { getClubSettings } from "@/lib/actions/settings"
+import { getSportVocab } from "@/lib/sport-vocab"
 
-export const sidebarItems = [
-  { href: "/dashboard",               label: "Dashboard",      icon: LayoutDashboard },
-  { href: "/dashboard/coach",          label: "Entrenador",     icon: Dumbbell },
-  { href: "/dashboard/athlete",        label: "Mi Portal",      icon: User },
-  { href: "/dashboard/athletes",      label: "Alumnos",        icon: Users },
-  { href: "/dashboard/plans",         label: "Planes",         icon: BookOpen },
-  { href: "/dashboard/subscriptions", label: "Suscripciones",  icon: Repeat2 },
-  { href: "/dashboard/payments",      label: "Pagos",          icon: CreditCard },
-  { href: "/dashboard/finances",      label: "Finanzas",       icon: BarChart3 },
-  { href: "/dashboard/attendance",    label: "Asistencia",     icon: ClipboardCheck },
-  { href: "/dashboard/calendar",      label: "Calendario",     icon: Calendar },
-  { href: "/dashboard/rules",         label: "Reglas",         icon: ShieldCheck },
-  { href: "/dashboard/competitions",  label: "Competencias",   icon: Trophy },
-  { href: "/dashboard/rosters",       label: "Nóminas",        icon: ClipboardList },
-  { href: "/dashboard/stats",          label: "Analytics",      icon: PieChart },
-  { href: "/dashboard/media",          label: "Media Hub",      icon: Film },
-  { href: "/dashboard/documents",     label: "Documentos",     icon: FileText },
-  { href: "/dashboard/inventory",     label: "Inventario",     icon: Package },
-  { href: "/dashboard/venues",        label: "Sedes",          icon: MapPin },
-  { href: "/dashboard/settings",      label: "Configuración",  icon: Settings },
-]
+function buildNavGroups(v: ReturnType<typeof getSportVocab>) {
+  return [
+    {
+      label: null,
+      items: [
+        { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+      ],
+    },
+    {
+      label: "Deportivo",
+      items: [
+        { href: "/dashboard/athletes",    label: v.athletes,       icon: Users },
+        { href: "/dashboard/attendance",  label: "Asistencia",     icon: ClipboardCheck },
+        { href: "/dashboard/calendar",    label: "Calendario",     icon: Calendar },
+        { href: "/dashboard/coach",       label: v.coach,          icon: Dumbbell },
+        { href: "/dashboard/rosters",     label: v.rosters,        icon: ClipboardList },
+        { href: "/dashboard/competitions",label: v.competitions,   icon: Trophy },
+        { href: "/dashboard/coach/board", label: "Pizarra",        icon: PenLine },
+      ],
+    },
+    {
+      label: "Finanzas",
+      items: [
+        { href: "/dashboard/payments",      label: "Pagos",           icon: CreditCard },
+        { href: "/dashboard/subscriptions", label: "Suscripciones",   icon: Repeat2 },
+        { href: "/dashboard/plans",         label: "Planes",          icon: BookOpen },
+        { href: "/dashboard/finances",      label: "Adm. Financiera", icon: BarChart3 },
+      ],
+    },
+    {
+      label: "Análisis",
+      items: [
+        { href: "/dashboard/stats", label: "Analytics", icon: PieChart },
+      ],
+    },
+    {
+      label: "Club",
+      items: [
+        { href: "/dashboard/documents",  label: "Documentos", icon: FileText },
+        { href: "/dashboard/inventory",  label: "Inventario", icon: Package },
+        { href: "/dashboard/media",      label: "Media Hub",  icon: Film },
+        { href: "/dashboard/venues",     label: "Sedes",      icon: MapPin },
+        { href: "/dashboard/rules",      label: "Reglas",     icon: ShieldCheck },
+      ],
+    },
+    {
+      label: "Cuenta",
+      items: [
+        { href: "/dashboard/athlete",  label: "Mi Portal",      icon: User },
+        { href: "/dashboard/settings", label: "Configuración",  icon: Settings },
+      ],
+    },
+  ]
+}
 
 export default async function DashboardLayout({
   children,
@@ -63,6 +102,15 @@ export default async function DashboardLayout({
   }
   try { alerts = await getSidebarAlerts() } catch { /* silent */ }
 
+  let sportType: string | null = null
+  try {
+    const settings = await getClubSettings()
+    sportType = (settings as { sport_type?: string | null })?.sport_type ?? null
+  } catch { /* silent */ }
+
+  const vocab = getSportVocab(sportType)
+  const NAV_GROUPS = buildNavGroups(vocab)
+
   const brandColor = alerts.primaryColor ?? '#000000'
 
   const badgeMap: Record<string, number> = {
@@ -71,82 +119,147 @@ export default async function DashboardLayout({
     "/dashboard/subscriptions": alerts.expiringSubscriptions,
   }
 
-  const sidebarItemsWithBadges = sidebarItems.map((item) => ({
-    href:  item.href,
-    label: item.label,
-    icon:  <item.icon className="w-4 h-4 shrink-0" />,
-    badge: badgeMap[item.href] ?? 0,
+  const totalAlerts = alerts.overduePayments + alerts.expiringSoonDocs + alerts.expiringSubscriptions
+
+  const notificationItems: NotificationItem[] = [
+    ...(alerts.overduePayments > 0 ? [{
+      id: 'overdue-payments',
+      type: 'payment' as const,
+      title: `${alerts.overduePayments} ${alerts.overduePayments === 1 ? 'pago vencido' : 'pagos vencidos'}`,
+      description: 'Alumnos con cuotas en mora. Se requiere acción.',
+      href: '/dashboard/payments?status=overdue',
+      count: alerts.overduePayments,
+    }] : []),
+    ...(alerts.expiringSoonDocs > 0 ? [{
+      id: 'expiring-docs',
+      type: 'document' as const,
+      title: `${alerts.expiringSoonDocs} ${alerts.expiringSoonDocs === 1 ? 'documento por vencer' : 'documentos por vencer'}`,
+      description: 'Vencen en los próximos 30 días.',
+      href: '/dashboard/documents',
+      count: alerts.expiringSoonDocs,
+    }] : []),
+    ...(alerts.expiringSubscriptions > 0 ? [{
+      id: 'expiring-subs',
+      type: 'subscription' as const,
+      title: `${alerts.expiringSubscriptions} ${alerts.expiringSubscriptions === 1 ? 'suscripción por vencer' : 'suscripciones por vencer'}`,
+      description: 'Suscripciones que vencen en los próximos 7 días.',
+      href: '/dashboard/subscriptions',
+      count: alerts.expiringSubscriptions,
+    }] : []),
+  ]
+
+  const sidebarGroupsWithBadges = NAV_GROUPS.map((group) => ({
+    label: group.label,
+    items: group.items.map((item) => ({
+      href:  item.href,
+      label: item.label,
+      icon:  <item.icon className="w-4 h-4 shrink-0" />,
+      badge: badgeMap[item.href] ?? 0,
+    })),
   }))
 
   return (
-    <div className="min-h-screen flex" style={{ ['--brand' as string]: brandColor, ['--brand-light' as string]: `${brandColor}20` }}>
-      {/* Desktop Sidebar */}
-      <aside className="w-64 bg-card border-r border-border hidden md:flex flex-col shrink-0">
-        <div className="p-4 border-b border-border">
-          <Link href="/dashboard" className="flex items-center gap-3">
+    <div
+      className="h-screen flex overflow-hidden"
+      style={{ ['--brand' as string]: brandColor, ['--brand-light' as string]: `${brandColor}20` }}
+    >
+      {/* ── Desktop Sidebar ── */}
+      <aside className="w-60 bg-card border-r border-border hidden md:flex flex-col shrink-0 h-full">
+        {/* Club logo / name */}
+        <div className="h-14 flex items-center gap-3 px-4 border-b border-border shrink-0">
+          <Link href="/dashboard" className="flex items-center gap-3 min-w-0">
             {alerts.logoUrl ? (
-              <Image src={alerts.logoUrl} alt={alerts.clubName ?? 'Club'} width={36} height={36} className="rounded-lg object-cover shrink-0" />
+              <Image src={alerts.logoUrl} alt={alerts.clubName ?? 'Club'} width={32} height={32} className="rounded-lg object-cover shrink-0" />
             ) : (
-              <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 text-white font-bold text-sm" style={{ backgroundColor: brandColor }}>
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 text-white font-bold text-xs" style={{ backgroundColor: brandColor }}>
                 {(alerts.clubName ?? 'AL').slice(0, 2).toUpperCase()}
               </div>
             )}
             <div className="min-w-0">
               <p className="font-semibold text-sm leading-tight truncate">{alerts.clubName ?? 'ApexLeap'}</p>
-              <p className="text-xs text-muted-foreground leading-tight">Performance Hub</p>
+              <p className="text-[11px] text-muted-foreground leading-tight">Performance Hub</p>
             </div>
           </Link>
         </div>
 
-        <nav className="flex-1 p-3 overflow-y-auto">
-          <ul className="space-y-0.5">
-            {sidebarItemsWithBadges.map((item) => (
-              <li key={item.href}>
-                <DesktopNavItem href={item.href} label={item.label} icon={item.icon} badge={item.badge} />
-              </li>
-            ))}
-          </ul>
+        {/* Scrollable nav */}
+        <nav className="flex-1 overflow-y-auto py-3 px-2">
+          {NAV_GROUPS.map((group, gi) => (
+            <div key={gi} className={gi > 0 ? "mt-4" : ""}>
+              {group.label && (
+                <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
+                  {group.label}
+                </p>
+              )}
+              <ul className="space-y-0.5">
+                {group.items.map((item) => (
+                  <li key={item.href}>
+                    <DesktopNavItem
+                      href={item.href}
+                      label={item.label}
+                      icon={<item.icon className="w-4 h-4 shrink-0" />}
+                      badge={badgeMap[item.href] ?? 0}
+                    />
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
         </nav>
 
-        <div className="p-3 border-t border-border space-y-2">
+        {/* Bottom: theme toggle only */}
+        <div className="shrink-0 border-t border-border p-3">
           <ThemeToggle />
-          <div className="flex items-center gap-3 px-1">
-            <UserButton afterSignOutUrl="/" />
-            <p className="text-sm font-medium truncate flex-1">Mi Cuenta</p>
-          </div>
         </div>
       </aside>
 
-      {/* Main Content */}
-      <main className="flex-1 flex flex-col min-w-0">
+      {/* ── Right side ── */}
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+
         {/* Top Header */}
         <header className="h-14 border-b border-border flex items-center px-4 bg-card gap-3 shrink-0">
           {/* Mobile hamburger */}
           <div className="md:hidden">
-            <MobileSidebar items={sidebarItemsWithBadges} />
+            <MobileSidebar
+            groups={sidebarGroupsWithBadges}
+            clubName={alerts.clubName}
+            logoUrl={alerts.logoUrl}
+            brandColor={brandColor}
+          />
           </div>
-          {/* Logo (mobile) */}
+
+          {/* Mobile logo */}
           <Link href="/dashboard" className="flex items-center gap-2 md:hidden">
             {alerts.logoUrl ? (
-              <Image src={alerts.logoUrl} alt={alerts.clubName ?? 'Club'} width={28} height={28} className="rounded-md object-cover" />
+              <Image src={alerts.logoUrl} alt={alerts.clubName ?? 'Club'} width={26} height={26} className="rounded-md object-cover" />
             ) : (
               <div className="w-7 h-7 rounded-md flex items-center justify-center text-white font-bold text-xs" style={{ backgroundColor: brandColor }}>
                 {(alerts.clubName ?? 'AL').slice(0, 2).toUpperCase()}
               </div>
             )}
-            <span className="font-semibold">{alerts.clubName ?? 'ApexLeap'}</span>
+            <span className="font-semibold text-sm">{alerts.clubName ?? 'ApexLeap'}</span>
           </Link>
+
           <div className="flex-1" />
-          <div className="md:hidden">
-            <UserButton afterSignOutUrl="/" />
-          </div>
+
+          {/* Notifications bell */}
+          <NotificationBell notifications={notificationItems} />
+
+          {/* Divider */}
+          <div className="w-px h-6 bg-border hidden md:block" />
+
+          {/* User name + avatar (client-only to avoid hydration mismatch) */}
+          <UserNavClient />
         </header>
 
-        {/* Page Content */}
-        <div className="flex-1 p-4 md:p-6 bg-background overflow-auto">
+        {/* Scrollable page content */}
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 bg-background">
           {children}
-        </div>
-      </main>
+        </main>
+
+        {/* AI Chat Assistant */}
+        <ChatWidget />
+      </div>
     </div>
   )
 }

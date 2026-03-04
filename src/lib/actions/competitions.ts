@@ -64,8 +64,9 @@ export async function createCompetition(input: CompetitionInput) {
 export async function updateCompetition(id: string, input: Partial<CompetitionInput>) {
   const clubId = await getClubId()
   const supabase = createAdminClient()
+  const safeUpdate = Object.fromEntries(Object.entries({ ...input }).filter(([, v]) => v !== undefined))
   const { error } = await supabase.from('competitions')
-    .update({ ...input, updated_at: new Date().toISOString() })
+    .update(safeUpdate)
     .eq('id', id).eq('club_id', clubId)
   if (error) throw new Error(error.message)
   revalidatePath('/dashboard/competitions')
@@ -77,7 +78,7 @@ export async function updateCompetitionStatus(id: string, status: CompetitionInp
   const supabase = createAdminClient()
   const { error } = await supabase
     .from('competitions')
-    .update({ status, updated_at: new Date().toISOString() })
+    .update({ status })
     .eq('id', id).eq('club_id', clubId)
   if (error) throw new Error(error.message)
   revalidatePath('/dashboard/competitions')

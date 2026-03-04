@@ -56,7 +56,7 @@ export default async function CoachPage() {
     <div className="space-y-6">
 
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-3xl font-bold">War Room 🏟</h1>
           <p className="text-muted-foreground capitalize">{todayDate}</p>

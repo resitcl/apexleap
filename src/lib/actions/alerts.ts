@@ -14,7 +14,7 @@ async function getClubId() {
 
 export async function getSidebarAlerts() {
   const clubId = await getClubId()
-  if (!clubId) return { overduePayments: 0, expiringSoonDocs: 0, expiringSubscriptions: 0, clubName: null }
+  if (!clubId) return { overduePayments: 0, expiringSoonDocs: 0, expiringSubscriptions: 0, clubName: null, primaryColor: null, secondaryColor: null, logoUrl: null }
 
   const supabase = createAdminClient()
   const today = new Date().toISOString().split('T')[0]

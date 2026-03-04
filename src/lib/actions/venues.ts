@@ -44,8 +44,9 @@ export async function createVenue(input: VenueInput) {
   const clubId = await getClubId()
   const parsed = venueSchema.parse(input)
   const supabase = createAdminClient()
+  const { name, address, city, lat, lng, geofence_radius, capacity, is_home_venue, is_active } = parsed
   const { data, error } = await supabase
-    .from('venues').insert({ ...parsed, club_id: clubId }).select().single()
+    .from('venues').insert({ name, address, city, lat, lng, geofence_radius, capacity, is_home_venue, is_active, club_id: clubId }).select().single()
   if (error) throw new Error(error.message)
   revalidatePath('/dashboard/venues')
   return data
@@ -54,8 +55,11 @@ export async function createVenue(input: VenueInput) {
 export async function updateVenue(id: string, input: Partial<VenueInput>) {
   const clubId = await getClubId()
   const supabase = createAdminClient()
+  const safeUpdate = Object.fromEntries(
+    Object.entries({ ...input }).filter(([, v]) => v !== undefined)
+  )
   const { data, error } = await supabase
-    .from('venues').update({ ...input, updated_at: new Date().toISOString() })
+    .from('venues').update(safeUpdate)
     .eq('id', id).eq('club_id', clubId).select().single()
   if (error) throw new Error(error.message)
   revalidatePath('/dashboard/venues')

@@ -230,7 +230,7 @@ export default async function AthletesPage({ searchParams }: PageProps) {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-3xl font-bold">Alumnos</h1>
           <p className="text-muted-foreground">
@@ -485,6 +485,8 @@ export default async function AthletesPage({ searchParams }: PageProps) {
 
       {(() => {
         const fourteenAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString()
+        const thirtyAgo   = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+
         const noCheckIn = allAthletes.filter((a) => {
           if (a.status !== 'active') return false
           const att = (a.attendance as Array<{ checked_in_at: string }> | null) ?? []
@@ -492,66 +494,75 @@ export default async function AthletesPage({ searchParams }: PageProps) {
           const last = att.map((r) => r.checked_in_at).sort().at(-1)
           return !last || last < fourteenAgo
         })
-        if (noCheckIn.length === 0) return null
-        return (
-          <Link href="/dashboard/athletes?sort=last_attendance">
-            <Card className="border-yellow-200 bg-yellow-50 hover:bg-yellow-100 transition-colors cursor-pointer">
-              <CardContent className="py-3">
-                <div className="flex items-center gap-3">
-                  <AlertCircle className="w-5 h-5 text-yellow-600 shrink-0" />
-                  <p className="text-sm text-yellow-800 font-medium">
-                    {noCheckIn.length} atleta{noCheckIn.length !== 1 ? 's' : ''} activo{noCheckIn.length !== 1 ? 's' : ''} sin check-in en los últimos 14 días
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
-        )
-      })()}
 
-      {(() => {
-        const thirtyAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
         const noSub = allAthletes.filter((a) => {
           if (a.status !== 'active') return false
           const subs = (a.subscriptions as Array<{ status: string; end_date?: string | null }> | null) ?? []
           const hasActive = subs.some((s) => s.status === 'active')
           if (hasActive) return false
-          const lastExpired = subs
-            .filter((s) => s.end_date)
-            .map((s) => s.end_date!)
-            .sort()
-            .at(-1)
+          const lastExpired = subs.filter((s) => s.end_date).map((s) => s.end_date!).sort().at(-1)
           return !lastExpired || lastExpired < thirtyAgo
         })
-        if (noSub.length === 0) return null
-        return (
-          <Link href="/dashboard/athletes?subStatus=&sort=">
-            <Card className="border-orange-200 bg-orange-50 hover:bg-orange-100 transition-colors cursor-pointer">
-              <CardContent className="py-3">
-                <div className="flex items-center gap-3">
-                  <AlertCircle className="w-5 h-5 text-orange-600 shrink-0" />
-                  <p className="text-sm text-orange-800 font-medium">
-                    {noSub.length} atleta{noSub.length !== 1 ? 's' : ''} activo{noSub.length !== 1 ? 's' : ''} sin suscripción hace más de 30 días
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
-        )
-      })()}
 
-      {(() => {
+        const activeCount = allAthletes.filter((a) => a.status === 'active').length
         const noEmerg = allAthletes.filter((a) => a.status === 'active' && !(a as { emergency_phone?: string }).emergency_phone)
-        if (noEmerg.length < 3) return null
-        const pct = Math.round((noEmerg.length / allAthletes.filter((a) => a.status === 'active').length) * 100)
-        if (pct < 30) return null
+        const noEmergPct = activeCount > 0 ? Math.round((noEmerg.length / activeCount) * 100) : 0
+        const showEmerg = noEmerg.length >= 3 && noEmergPct >= 30
+
+        const hasAlerts = noCheckIn.length > 0 || noSub.length > 0 || showEmerg
+        if (!hasAlerts) return null
+
+        const alertCount = [noCheckIn.length > 0, noSub.length > 0, showEmerg].filter(Boolean).length
+
         return (
-          <Card className="border-slate-200 bg-slate-50">
-            <CardContent className="py-3 flex items-center gap-3">
-              <AlertCircle className="w-5 h-5 text-slate-500 shrink-0" />
-              <p className="text-sm text-slate-700 font-medium">
-                {noEmerg.length} atleta{noEmerg.length !== 1 ? 's' : ''} activo{noEmerg.length !== 1 ? 's' : ''} ({pct}%) sin teléfono de emergencia registrado
-              </p>
+          <Card>
+            <CardHeader className="pb-0 pt-4 px-5">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-amber-500 shrink-0" />
+                <CardTitle className="text-sm font-semibold">Alertas de alumnos</CardTitle>
+                <span className="ml-auto text-xs text-muted-foreground">{alertCount} alerta{alertCount !== 1 ? 's' : ''}</span>
+              </div>
+            </CardHeader>
+            <CardContent className="px-5 pt-1 pb-2">
+              <div className="divide-y divide-border">
+                {noSub.length > 0 && (
+                  <div className="py-3 flex items-center gap-3">
+                    <div className="w-0.5 h-10 rounded-full bg-orange-500 shrink-0" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">
+                        {noSub.length} atleta{noSub.length !== 1 ? 's' : ''} activo{noSub.length !== 1 ? 's' : ''} sin suscripción
+                        <span className="text-muted-foreground font-normal"> · más de 30 días</span>
+                      </p>
+                      <p className="text-xs text-muted-foreground">Sin plan activo asignado</p>
+                    </div>
+                    <Link href="/dashboard/athletes?subStatus=&sort=" className="text-xs text-primary hover:underline shrink-0">Ver →</Link>
+                  </div>
+                )}
+                {noCheckIn.length > 0 && (
+                  <div className="py-3 flex items-center gap-3">
+                    <div className="w-0.5 h-10 rounded-full bg-amber-400 shrink-0" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">
+                        {noCheckIn.length} atleta{noCheckIn.length !== 1 ? 's' : ''} sin check-in
+                        <span className="text-muted-foreground font-normal"> · últimos 14 días</span>
+                      </p>
+                      <p className="text-xs text-muted-foreground">Posible abandono o baja actividad</p>
+                    </div>
+                    <Link href="/dashboard/athletes?sort=last_attendance" className="text-xs text-primary hover:underline shrink-0">Ver →</Link>
+                  </div>
+                )}
+                {showEmerg && (
+                  <div className="py-3 flex items-center gap-3">
+                    <div className="w-0.5 h-10 rounded-full bg-slate-400 shrink-0" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">
+                        {noEmerg.length} atleta{noEmerg.length !== 1 ? 's' : ''} ({noEmergPct}%) sin teléfono de emergencia
+                      </p>
+                      <p className="text-xs text-muted-foreground">Dato obligatorio para menores y competencias</p>
+                    </div>
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
         )
@@ -561,22 +572,79 @@ export default async function AthletesPage({ searchParams }: PageProps) {
       <BulkActionsWrapper athletes={athletes.map((a) => ({ id: a.id, name: a.name, photo_url: (a as { photo_url?: string | null }).photo_url ?? null, status: a.status, health_status: a.health_status }))} />
 
       {/* Search and Filters */}
-      <div className="space-y-3">
-        <div className="flex items-center gap-3 flex-wrap">
-          <AthletesSearch />
-          <Link href={`/dashboard/athletes?${new URLSearchParams({
-            ...(params.search    ? { search:    params.search }    : {}),
-            ...(params.status    ? { status:    params.status }    : {}),
-            ...(params.health    ? { health:    params.health }    : {}),
-            ...(params.planId    ? { planId:    params.planId }    : {}),
-            ...(params.subStatus ? { subStatus: params.subStatus } : {}),
-            ...(sort             ? { sort }                        : {}),
-            ...(showInactive     ? {} : { inactive: '1' }),
-          }).toString()}`}>
-            <button className={`h-8 px-3 rounded-md border text-xs font-medium transition-colors ${
-              showInactive ? 'bg-orange-500 text-white border-orange-500' : 'bg-background border-input hover:bg-accent'
-            }`}>⚠ Sin asistencia 30d</button>
+      <div className="bg-card border border-border rounded-xl p-4 space-y-3">
+        {/* Search bar */}
+        <AthletesSearch />
+
+        <div className="h-px bg-border" />
+
+        {/* Plan */}
+        {plans.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 items-center">
+            <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide w-20 shrink-0">Plan</span>
+            <Link href={`/dashboard/athletes?${new URLSearchParams({ ...(params.search ? { search: params.search } : {}), ...(params.status ? { status: params.status } : {}), ...(params.health ? { health: params.health } : {}) }).toString()}`}>
+              <button className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${!params.planId ? 'bg-foreground text-background border-foreground shadow-sm' : 'border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground'}`}>Todos</button>
+            </Link>
+            {plans.map((plan) => (
+              <Link key={plan.id} href={`/dashboard/athletes?${new URLSearchParams({ ...(params.search ? { search: params.search } : {}), ...(params.status ? { status: params.status } : {}), ...(params.health ? { health: params.health } : {}), planId: plan.id }).toString()}`}>
+                <button className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${params.planId === plan.id ? 'bg-foreground text-background border-foreground shadow-sm' : 'border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground'}`}>{plan.name}</button>
+              </Link>
+            ))}
+          </div>
+        )}
+
+        {/* Suscripción */}
+        <div className="flex flex-wrap gap-1.5 items-center">
+          <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide w-20 shrink-0">Suscripción</span>
+          {([
+            { value: '',          label: 'Todas',     color: '' },
+            { value: 'active',    label: 'Activa',    color: 'bg-emerald-500/10 text-emerald-600 border-emerald-200 dark:border-emerald-800 dark:text-emerald-400' },
+            { value: 'expired',   label: 'Vencida',   color: 'bg-red-500/10 text-red-600 border-red-200 dark:border-red-800 dark:text-red-400' },
+            { value: 'paused',    label: 'Pausada',   color: 'bg-amber-500/10 text-amber-600 border-amber-200 dark:border-amber-800 dark:text-amber-400' },
+            { value: 'cancelled', label: 'Cancelada', color: 'bg-zinc-500/10 text-zinc-500 border-zinc-200 dark:border-zinc-700 dark:text-zinc-400' },
+          ]).map(({ value, label, color }) => {
+            const isActive = (value === '' && !params.subStatus) || params.subStatus === value
+            return (
+              <Link key={value} href={`/dashboard/athletes?${new URLSearchParams({ ...(params.search ? { search: params.search } : {}), ...(params.status ? { status: params.status } : {}), ...(params.health ? { health: params.health } : {}), ...(params.planId ? { planId: params.planId } : {}), ...(value ? { subStatus: value } : {}) }).toString()}`}>
+                <button className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${isActive ? (color || 'bg-foreground text-background border-foreground') + ' shadow-sm' : 'border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground'}`}>{label}</button>
+              </Link>
+            )
+          })}
+        </div>
+
+        {/* Alertas rápidas */}
+        <div className="flex flex-wrap gap-1.5 items-center">
+          <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide w-20 shrink-0">Alertas</span>
+          <Link href={`/dashboard/athletes?${new URLSearchParams({ ...(params.search ? { search: params.search } : {}), ...(params.status ? { status: params.status } : {}), ...(params.health ? { health: params.health } : {}), ...(params.planId ? { planId: params.planId } : {}), ...(params.subStatus ? { subStatus: params.subStatus } : {}), ...(sort ? { sort } : {}), ...(showInactive ? {} : { inactive: '1' }) }).toString()}`}>
+            <button className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${showInactive ? 'bg-orange-500/10 text-orange-600 border-orange-200 dark:border-orange-800 dark:text-orange-400 shadow-sm' : 'border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground'}`}>Sin asistencia 30d</button>
           </Link>
+          <Link href={`/dashboard/athletes?${new URLSearchParams({ ...(params.search ? { search: params.search } : {}), ...(params.status ? { status: params.status } : {}), ...(params.health ? { health: params.health } : {}), ...(params.planId ? { planId: params.planId } : {}), ...(params.subStatus ? { subStatus: params.subStatus } : {}), ...(sort ? { sort } : {}), ...(filterDebtOld60 ? {} : { debtOld60: '1' }) }).toString()}`}>
+            <button className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${filterDebtOld60 ? 'bg-red-500/10 text-red-600 border-red-200 dark:border-red-800 dark:text-red-400 shadow-sm' : 'border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground'}`}>Deuda +60d</button>
+          </Link>
+          <Link href={`/dashboard/athletes?${new URLSearchParams({ ...(params.search ? { search: params.search } : {}), ...(params.status ? { status: params.status } : {}), ...(params.health ? { health: params.health } : {}), ...(params.planId ? { planId: params.planId } : {}), ...(params.subStatus ? { subStatus: params.subStatus } : {}), ...(sort ? { sort } : {}), ...(filterExpiredDocs ? {} : { expiredDocs: '1' }) }).toString()}`}>
+            <button className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${filterExpiredDocs ? 'bg-amber-500/10 text-amber-600 border-amber-200 dark:border-amber-800 dark:text-amber-400 shadow-sm' : 'border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground'}`}>Docs vencidos</button>
+          </Link>
+        </div>
+
+        {/* Orden */}
+        <div className="flex flex-wrap gap-1.5 items-center">
+          <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide w-20 shrink-0">Ordenar</span>
+          {([
+            { value: '',              label: 'Nombre A-Z' },
+            { value: 'created_at',    label: 'Más recientes' },
+            { value: 'debt',          label: 'Mayor deuda' },
+            { value: 'paid',          label: 'Mayor pagado' },
+            { value: 'last_attendance', label: 'Últ. asistencia' },
+            { value: 'last_payment',  label: 'Últ. pago' },
+          ]).map(({ value, label }) => (
+            <Link key={value} href={`/dashboard/athletes?${new URLSearchParams({ ...(params.search ? { search: params.search } : {}), ...(params.status ? { status: params.status } : {}), ...(params.health ? { health: params.health } : {}), ...(params.planId ? { planId: params.planId } : {}), ...(params.subStatus ? { subStatus: params.subStatus } : {}), ...(value ? { sort: value } : {}) }).toString()}`}>
+              <button className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${(value === '' && !sort) || sort === value ? 'bg-foreground text-background border-foreground shadow-sm' : 'border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground'}`}>{label}</button>
+            </Link>
+          ))}
+        </div>
+
+        {/* Rango edad / deuda — forms compactos */}
+        <div className="flex flex-wrap gap-3 items-center pt-0.5">
           <form method="get" action="/dashboard/athletes" className="flex items-center gap-1.5">
             {params.search    && <input type="hidden" name="search"    value={params.search} />}
             {params.status    && <input type="hidden" name="status"    value={params.status} />}
@@ -584,11 +652,14 @@ export default async function AthletesPage({ searchParams }: PageProps) {
             {params.planId    && <input type="hidden" name="planId"    value={params.planId} />}
             {params.subStatus && <input type="hidden" name="subStatus" value={params.subStatus} />}
             {sort             && <input type="hidden" name="sort"      value={sort} />}
-            <span className="text-xs text-muted-foreground whitespace-nowrap">Mín. asistencias:</span>
-            <input type="number" name="minAtt" defaultValue={params.minAtt ?? ''} min={0} placeholder="N"
-              className="h-8 w-16 px-2 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring" />
-            <button type="submit" className="h-8 px-2.5 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90">OK</button>
-            {params.minAtt && (
+            <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Edad</span>
+            <input type="number" name="ageMin" defaultValue={params.ageMin ?? ''} min={0} max={99} placeholder="Mín"
+              className="h-7 w-14 px-2 rounded-lg border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring" />
+            <span className="text-xs text-muted-foreground">—</span>
+            <input type="number" name="ageMax" defaultValue={params.ageMax ?? ''} min={0} max={99} placeholder="Máx"
+              className="h-7 w-14 px-2 rounded-lg border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring" />
+            <button type="submit" className="h-7 px-2.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors">OK</button>
+            {(ageMin !== undefined || ageMax !== undefined) && (
               <Link href={`/dashboard/athletes?${new URLSearchParams({ ...(params.search ? { search: params.search } : {}), ...(params.status ? { status: params.status } : {}), ...(params.health ? { health: params.health } : {}), ...(params.planId ? { planId: params.planId } : {}), ...(params.subStatus ? { subStatus: params.subStatus } : {}), ...(sort ? { sort } : {}) }).toString()}`}
                 className="text-xs text-muted-foreground hover:text-foreground">✕</Link>
             )}
@@ -600,196 +671,24 @@ export default async function AthletesPage({ searchParams }: PageProps) {
             {params.planId    && <input type="hidden" name="planId"    value={params.planId} />}
             {params.subStatus && <input type="hidden" name="subStatus" value={params.subStatus} />}
             {sort             && <input type="hidden" name="sort"      value={sort} />}
-            <span className="text-xs text-muted-foreground whitespace-nowrap">Edad:</span>
-            <input type="number" name="ageMin" defaultValue={params.ageMin ?? ''} min={0} max={99} placeholder="Min"
-              className="h-8 w-16 px-2 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring" />
-            <span className="text-xs text-muted-foreground">-</span>
-            <input type="number" name="ageMax" defaultValue={params.ageMax ?? ''} min={0} max={99} placeholder="Max"
-              className="h-8 w-16 px-2 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring" />
-            <button type="submit" className="h-8 px-2.5 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90">OK</button>
-            {(params.ageMin || params.ageMax) && (
-              <Link href={`/dashboard/athletes?${new URLSearchParams({ ...(params.search ? { search: params.search } : {}), ...(params.status ? { status: params.status } : {}), ...(params.health ? { health: params.health } : {}), ...(params.planId ? { planId: params.planId } : {}), ...(params.subStatus ? { subStatus: params.subStatus } : {}), ...(sort ? { sort } : {}) }).toString()}`}
-                className="text-xs text-muted-foreground hover:text-foreground">✕</Link>
-            )}
-          </form>
-          <form method="get" action="/dashboard/athletes" className="flex items-center gap-1.5">
-            {params.search    && <input type="hidden" name="search"    value={params.search} />}
-            {params.status    && <input type="hidden" name="status"    value={params.status} />}
-            {params.health    && <input type="hidden" name="health"    value={params.health} />}
-            {params.planId    && <input type="hidden" name="planId"    value={params.planId} />}
-            {params.subStatus && <input type="hidden" name="subStatus" value={params.subStatus} />}
-            {sort             && <input type="hidden" name="sort"      value={sort} />}
-            <span className="text-xs text-muted-foreground whitespace-nowrap">Deuda min:</span>
-            <input type="number" name="debtMin" defaultValue={params.debtMin ?? ''} min={0} placeholder="0"
-              className="h-8 w-20 px-2 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring" />
-            <span className="text-xs text-muted-foreground">-</span>
+            <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Deuda</span>
+            <input type="number" name="debtMin" defaultValue={params.debtMin ?? ''} min={0} placeholder="Mín"
+              className="h-7 w-16 px-2 rounded-lg border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring" />
+            <span className="text-xs text-muted-foreground">—</span>
             <input type="number" name="debtMax" defaultValue={params.debtMax ?? ''} min={0} placeholder="∞"
-              className="h-8 w-20 px-2 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring" />
-            <button type="submit" className="h-8 px-2.5 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90">OK</button>
+              className="h-7 w-16 px-2 rounded-lg border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring" />
+            <button type="submit" className="h-7 px-2.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors">OK</button>
             {(params.debtMin || params.debtMax) && (
               <Link href={`/dashboard/athletes?${new URLSearchParams({ ...(params.search ? { search: params.search } : {}), ...(params.status ? { status: params.status } : {}), ...(params.health ? { health: params.health } : {}), ...(params.planId ? { planId: params.planId } : {}), ...(params.subStatus ? { subStatus: params.subStatus } : {}), ...(sort ? { sort } : {}) }).toString()}`}
                 className="text-xs text-muted-foreground hover:text-foreground">✕</Link>
             )}
           </form>
-          {(params.search || params.status || params.health || params.planId || params.subStatus || sort || showInactive) && (
-            <Link href="/dashboard/athletes"
-              className="text-xs text-muted-foreground hover:text-foreground underline shrink-0">
-              ✕ Limpiar filtros
+          {(params.search || params.status || params.health || params.planId || params.subStatus || sort || showInactive || filterDebtOld60 || filterExpiredDocs || params.ageMin || params.ageMax || params.debtMin || params.debtMax) && (
+            <Link href="/dashboard/athletes" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground ml-auto">
+              <span>✕</span> Limpiar todo
             </Link>
           )}
         </div>
-        {plans.length > 0 && (
-          <div className="flex flex-wrap gap-2 items-center">
-            <span className="text-xs text-muted-foreground font-medium">Plan:</span>
-            <Link href={`/dashboard/athletes?${new URLSearchParams({ ...(params.search ? { search: params.search } : {}), ...(params.status ? { status: params.status } : {}), ...(params.health ? { health: params.health } : {}) }).toString()}`}>
-              <button className={`h-7 px-2.5 rounded-md border text-xs font-medium transition-colors ${
-                !params.planId ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-input hover:bg-accent'
-              }`}>Todos</button>
-            </Link>
-            {plans.map((plan) => (
-              <Link key={plan.id} href={`/dashboard/athletes?${new URLSearchParams({ ...(params.search ? { search: params.search } : {}), ...(params.status ? { status: params.status } : {}), ...(params.health ? { health: params.health } : {}), planId: plan.id }).toString()}`}>
-                <button className={`h-7 px-2.5 rounded-md border text-xs font-medium transition-colors ${
-                  params.planId === plan.id ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-input hover:bg-accent'
-                }`}>{plan.name}</button>
-              </Link>
-            ))}
-            {params.planId && (
-              <span className="text-xs text-muted-foreground ml-1">— {total} alumno{total !== 1 ? 's' : ''}</span>
-            )}
-          </div>
-        )}
-        <div className="flex flex-wrap gap-2 items-center">
-          <span className="text-xs text-muted-foreground font-medium">Salud:</span>
-          {([
-            { value: '', label: '⚪ Todos' },
-            { value: 'healthy', label: '🟢 Apto' },
-            { value: 'observation', label: '🟡 Observación' },
-            { value: 'injured', label: '🔴 Lesionado' },
-          ]).map(({ value, label }) => (
-            <Link key={value} href={`/dashboard/athletes?${new URLSearchParams({
-              ...(params.search    ? { search:    params.search }    : {}),
-              ...(params.status    ? { status:    params.status }    : {}),
-              ...(params.planId    ? { planId:    params.planId }    : {}),
-              ...(params.subStatus ? { subStatus: params.subStatus } : {}),
-              ...(sort             ? { sort }                        : {}),
-              ...(value            ? { health: value }               : {}),
-            }).toString()}`}>
-              <button className={`h-7 px-2.5 rounded-md border text-xs font-medium transition-colors ${
-                (value === '' && !params.health) || params.health === value
-                  ? 'bg-primary text-primary-foreground border-primary'
-                  : 'bg-background border-input hover:bg-accent'
-              }`}>{label}</button>
-            </Link>
-          ))}
-        </div>
-        <div className="flex flex-wrap gap-2 items-center">
-          <span className="text-xs text-muted-foreground font-medium">Suscripción:</span>
-          {([
-            { value: '', label: 'Todas' },
-            { value: 'active', label: '✅ Activa' },
-            { value: 'expired', label: '🔴 Vencida' },
-            { value: 'paused', label: '⏸ Pausada' },
-            { value: 'cancelled', label: 'Cancelada' },
-          ]).map(({ value, label }) => (
-            <Link key={value} href={`/dashboard/athletes?${new URLSearchParams({
-              ...(params.search ? { search: params.search } : {}),
-              ...(params.status ? { status: params.status } : {}),
-              ...(params.health ? { health: params.health } : {}),
-              ...(params.planId ? { planId: params.planId } : {}),
-              ...(value ? { subStatus: value } : {}),
-            }).toString()}`}>
-              <button className={`h-7 px-2.5 rounded-md border text-xs font-medium transition-colors ${
-                (value === '' && !params.subStatus) || params.subStatus === value
-                  ? 'bg-primary text-primary-foreground border-primary'
-                  : 'bg-background border-input hover:bg-accent'
-              }`}>{label}</button>
-            </Link>
-          ))}
-        </div>
-        <div className="flex flex-wrap gap-2 items-center">
-          <span className="text-xs text-muted-foreground font-medium">Pagos:</span>
-          <Link href={`/dashboard/athletes?${new URLSearchParams({
-            ...(params.search    ? { search:    params.search }    : {}),
-            ...(params.status    ? { status:    params.status }    : {}),
-            ...(params.health    ? { health:    params.health }    : {}),
-            ...(params.planId    ? { planId:    params.planId }    : {}),
-            ...(params.subStatus ? { subStatus: params.subStatus } : {}),
-            ...(sort             ? { sort }                        : {}),
-            ...(filterDebtOld60  ? {} : { debtOld60: '1' }),
-          }).toString()}`}>
-            <button className={`h-7 px-2.5 rounded-md border text-xs font-medium transition-colors ${
-              filterDebtOld60 ? 'bg-red-500 text-white border-red-500' : 'bg-background border-input hover:bg-accent'
-            }`}>💸 Deuda +60d</button>
-          </Link>
-        </div>
-        <div className="flex flex-wrap gap-2 items-center">
-          <span className="text-xs text-muted-foreground font-medium">Documentos:</span>
-          <Link href={`/dashboard/athletes?${new URLSearchParams({
-            ...(params.search    ? { search:    params.search }    : {}),
-            ...(params.status    ? { status:    params.status }    : {}),
-            ...(params.health    ? { health:    params.health }    : {}),
-            ...(params.planId    ? { planId:    params.planId }    : {}),
-            ...(params.subStatus ? { subStatus: params.subStatus } : {}),
-            ...(sort             ? { sort }                        : {}),
-            ...(filterExpiredDocs ? {} : { expiredDocs: '1' }),
-          }).toString()}`}>
-            <button className={`h-7 px-2.5 rounded-md border text-xs font-medium transition-colors ${
-              filterExpiredDocs ? 'bg-orange-500 text-white border-orange-500' : 'bg-background border-input hover:bg-accent'
-            }`}>📄 Con docs vencidos</button>
-          </Link>
-        </div>
-        <div className="flex flex-wrap gap-2 items-center">
-          <span className="text-xs text-muted-foreground font-medium">Orden:</span>
-          {([
-            { value: '', label: 'Nombre A-Z' },
-            { value: 'created_at', label: '🕐 Más recientes' },
-            { value: 'debt',           label: '� Mayor deuda' },
-            { value: 'paid',           label: '✅ Mayor pagado' },
-            { value: 'last_attendance', label: '📋 Última asistencia' },
-            { value: 'last_payment',   label: '💳 Último pago' },
-            { value: 'docs',           label: '📄 Más documentos' },
-          ]).map(({ value, label }) => (
-            <Link key={value} href={`/dashboard/athletes?${new URLSearchParams({
-              ...(params.search    ? { search:    params.search }    : {}),
-              ...(params.status    ? { status:    params.status }    : {}),
-              ...(params.health    ? { health:    params.health }    : {}),
-              ...(params.planId    ? { planId:    params.planId }    : {}),
-              ...(params.subStatus ? { subStatus: params.subStatus } : {}),
-              ...(value            ? { sort: value }                 : {}),
-            }).toString()}`}>
-              <button className={`h-7 px-2.5 rounded-md border text-xs font-medium transition-colors ${
-                (value === '' && !sort) || sort === value
-                  ? 'bg-primary text-primary-foreground border-primary'
-                  : 'bg-background border-input hover:bg-accent'
-              }`}>{label}</button>
-            </Link>
-          ))}
-        </div>
-        <form method="get" action="/dashboard/athletes" className="flex items-center gap-2 flex-wrap">
-          {params.search    && <input type="hidden" name="search"    value={params.search} />}
-          {params.status    && <input type="hidden" name="status"    value={params.status} />}
-          {params.health    && <input type="hidden" name="health"    value={params.health} />}
-          {params.planId    && <input type="hidden" name="planId"    value={params.planId} />}
-          {params.subStatus && <input type="hidden" name="subStatus" value={params.subStatus} />}
-          {sort             && <input type="hidden" name="sort"      value={sort} />}
-          <span className="text-xs text-muted-foreground font-medium">Edad:</span>
-          <input type="number" name="ageMin" defaultValue={params.ageMin ?? ''} min={0} max={100} placeholder="Mín."
-            className="h-7 px-2 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring w-16" />
-          <span className="text-xs text-muted-foreground">–</span>
-          <input type="number" name="ageMax" defaultValue={params.ageMax ?? ''} min={0} max={100} placeholder="Máx."
-            className="h-7 px-2 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring w-16" />
-          <button type="submit" className="h-7 px-3 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors">Filtrar</button>
-          {(ageMin !== undefined || ageMax !== undefined) && (
-            <a href={`/dashboard/athletes?${new URLSearchParams({
-              ...(params.search    ? { search:    params.search }    : {}),
-              ...(params.status    ? { status:    params.status }    : {}),
-              ...(params.health    ? { health:    params.health }    : {}),
-              ...(params.planId    ? { planId:    params.planId }    : {}),
-              ...(params.subStatus ? { subStatus: params.subStatus } : {}),
-              ...(sort             ? { sort }                        : {}),
-            }).toString()}`} className="text-xs text-muted-foreground hover:text-foreground">✕ Limpiar edad</a>
-          )}
-        </form>
       </div>
 
       {/* Athletes List */}

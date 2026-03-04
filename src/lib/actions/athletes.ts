@@ -58,7 +58,7 @@ export async function getAthletes(params?: {
 
   let query = supabase
     .from('athletes')
-    .select('*, subscriptions(id, status, plan_id, plans(name)), payments(id, status, paid_at, payment_method), attendance(id, checked_in_at), documents(id, expiry_date), rosters(id, competitions(id, name, start_date))', { count: 'exact' })
+    .select('*, subscriptions(id, status, plan_id, plans(name)), payments(id, status, paid_at, payment_method), attendance(id, checked_in_at), documents(id, expiry_date)', { count: 'exact' })
     .eq('club_id', clubId)
     .order(
       params?.sort === 'created_at'      ? 'created_at' :
@@ -143,9 +143,10 @@ export async function updateAthlete(id: string, input: Partial<AthleteInput>) {
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
+  const safeUpdate = Object.fromEntries(Object.entries({ ...input }).filter(([, v]) => v !== undefined))
   const { data, error } = await supabase
     .from('athletes')
-    .update({ ...input, updated_at: new Date().toISOString() })
+    .update(safeUpdate)
     .eq('id', id)
     .eq('club_id', clubId)
     .select()
@@ -179,7 +180,7 @@ export async function bulkUpdateAthleteStatus(ids: string[], status: 'active' | 
 
   const { error } = await supabase
     .from('athletes')
-    .update({ status, updated_at: new Date().toISOString() })
+    .update({ status })
     .in('id', ids)
     .eq('club_id', clubId)
 

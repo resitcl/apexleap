@@ -26,7 +26,7 @@ export default async function RostersPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2">
             <ClipboardList className="w-8 h-8" />
