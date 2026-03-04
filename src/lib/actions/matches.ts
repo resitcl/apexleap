@@ -4,6 +4,16 @@ import { auth } from '@clerk/nextjs/server'
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 
+function translateError(msg: string): string {
+  if (msg.includes("schema cache")) return "Tabla de partidos no encontrada. Contacta al administrador."
+  if (msg.includes("violates foreign key")) return "Referencia inválida. Verifica los datos."
+  if (msg.includes("violates unique")) return "Ya existe un registro con esos datos."
+  if (msg.includes("not-null")) return "Faltan campos obligatorios."
+  if (msg.includes("permission denied")) return "Sin permisos para realizar esta acción."
+  if (msg.includes("invalid input syntax")) return "Formato de datos inválido."
+  return "Error al guardar el partido. Intenta nuevamente."
+}
+
 async function getClubId() {
   const { userId } = await auth()
   if (!userId) throw new Error('No autorizado')
@@ -29,7 +39,7 @@ export async function getMatches(competitionId: string) {
     .eq('club_id', clubId)
     .eq('competition_id', competitionId)
     .order('match_date', { ascending: false })
-  if (error) throw new Error(error.message)
+  if (error) throw new Error(translateError(error.message))
   return data ?? []
 }
 
@@ -51,7 +61,7 @@ export async function createMatch(input: {
     .insert({ ...input, club_id: clubId })
     .select()
     .single()
-  if (error) throw new Error(error.message)
+  if (error) throw new Error(translateError(error.message))
   revalidatePath(`/dashboard/competitions/${input.competition_id}`)
   return data
 }
@@ -75,7 +85,7 @@ export async function updateMatch(matchId: string, competitionId: string, input:
     .eq('club_id', clubId)
     .select()
     .single()
-  if (error) throw new Error(error.message)
+  if (error) throw new Error(translateError(error.message))
   revalidatePath(`/dashboard/competitions/${competitionId}`)
   return data
 }
@@ -88,7 +98,7 @@ export async function deleteMatch(matchId: string, competitionId: string) {
     .delete()
     .eq('id', matchId)
     .eq('club_id', clubId)
-  if (error) throw new Error(error.message)
+  if (error) throw new Error(translateError(error.message))
   revalidatePath(`/dashboard/competitions/${competitionId}`)
   return { deleted: true }
 }
@@ -104,7 +114,7 @@ export async function getMatchEvents(matchId: string) {
     .eq('match_id', matchId)
     .eq('club_id', clubId)
     .order('created_at', { ascending: true })
-  if (error) throw new Error(error.message)
+  if (error) throw new Error(translateError(error.message))
   return data ?? []
 }
 
@@ -137,7 +147,7 @@ export async function upsertPlayerStats(matchId: string, competitionId: string, 
     }))
 
   const { data, error } = await supabase.from('match_events').insert(rows).select()
-  if (error) throw new Error(error.message)
+  if (error) throw new Error(translateError(error.message))
   revalidatePath(`/dashboard/competitions/${competitionId}`)
   return data ?? []
 }
@@ -164,7 +174,7 @@ export async function getPlayerStatsForCompetition(competitionId: string) {
     .in('match_id', ids)
     .eq('club_id', clubId)
 
-  if (error) throw new Error(error.message)
+  if (error) throw new Error(translateError(error.message))
   if (!data) return []
 
   // Aggregate by athlete
@@ -198,7 +208,7 @@ export async function getGlobalPlayerStats() {
     .select('athlete_id, event_type, event_value, athletes(id, name)')
     .eq('club_id', clubId)
 
-  if (error) throw new Error(error.message)
+  if (error) throw new Error(translateError(error.message))
   if (!data) return []
 
   const byAthlete = new Map<string, { athlete_id: string; name: string; stats: Record<string, number> }>()

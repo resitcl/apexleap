@@ -136,31 +136,34 @@ export function NewMatchButton({ competitionId }: Props) {
                   </button>
                 </div>
 
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground">
-                    {form.is_home ? 'Nuestro marcador' : 'Marcador rival'}
-                  </label>
-                  <input
-                    type="number" min="0"
-                    value={form.home_score}
-                    onChange={e => set('home_score', e.target.value)}
-                    placeholder="—"
-                    className="mt-1 w-full h-9 px-3 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground">
-                    {form.is_home ? 'Marcador rival' : 'Nuestro marcador'}
-                  </label>
-                  <input
-                    type="number" min="0"
-                    value={form.away_score}
-                    onChange={e => set('away_score', e.target.value)}
-                    placeholder="—"
-                    className="mt-1 w-full h-9 px-3 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                  />
-                </div>
+                {form.status !== 'scheduled' && (
+                  <>
+                    <div>
+                      <label className="text-xs font-medium text-muted-foreground">
+                        {form.is_home ? 'Nuestro marcador' : 'Marcador rival'}
+                      </label>
+                      <input
+                        type="number" min="0"
+                        value={form.home_score}
+                        onChange={e => set('home_score', e.target.value)}
+                        placeholder="0"
+                        className="mt-1 w-full h-9 px-3 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-muted-foreground">
+                        {form.is_home ? 'Marcador rival' : 'Nuestro marcador'}
+                      </label>
+                      <input
+                        type="number" min="0"
+                        value={form.away_score}
+                        onChange={e => set('away_score', e.target.value)}
+                        placeholder="0"
+                        className="mt-1 w-full h-9 px-3 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                      />
+                    </div>
+                  </>
+                )}
               </div>
 
               {error && <p className="text-xs text-destructive">{error}</p>}
