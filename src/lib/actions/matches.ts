@@ -44,7 +44,7 @@ export async function getMatches(competitionId: string) {
 }
 
 export async function createMatch(input: {
-  competition_id: string
+  competition_id?: string | null
   opponent: string
   match_date: string
   location?: string

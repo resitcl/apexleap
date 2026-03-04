@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useTransition } from 'react'
-import { BarChart3, X, Loader2, Save, ChevronDown, ChevronUp } from 'lucide-react'
+import { useState, useTransition, useRef } from 'react'
+import { BarChart3, X, Loader2, Save, ChevronDown, ChevronUp, Sparkles, CheckCircle2, AlertCircle } from 'lucide-react'
 import { upsertPlayerStats, deleteMatch, updateMatch } from '@/lib/actions/matches'
 
 /* ─── Sport-specific stat columns ─────────────────────────── */
@@ -105,6 +105,12 @@ function buildInitialStats(events: MatchEvent[]): StatsMap {
   return map
 }
 
+interface AIResult {
+  matched: Array<{ athlete_id: string; name: string; stats: Record<string, number> }>
+  unmatched: string[]
+  notes?: string
+}
+
 export function MatchStatsEditor({ match, competitionId, sport, athletes, initialEvents }: Props) {
   const [open, setOpen]         = useState(false)
   const [tab, setTab]           = useState<'stats' | 'score'>('stats')
@@ -114,6 +120,59 @@ export function MatchStatsEditor({ match, competitionId, sport, athletes, initia
   const [isDeleting, startDel]  = useTransition()
   const [saved, setSaved]       = useState(false)
   const [error, setError]       = useState('')
+
+  // AI import state
+  const fileInputRef              = useRef<HTMLInputElement>(null)
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiResult, setAiResult]   = useState<AIResult | null>(null)
+  const [aiError, setAiError]     = useState('')
+
+  async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setAiLoading(true)
+    setAiError('')
+    setAiResult(null)
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result as string)
+        reader.onerror = reject
+        reader.readAsDataURL(file)
+      })
+      const res = await fetch('/api/stats/import-from-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          imageBase64: base64,
+          athletes,
+          statCols: getCols(sport),
+          sport,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok || data.error) throw new Error(data.error ?? 'Error desconocido')
+      setAiResult(data as AIResult)
+    } catch (err) {
+      setAiError(err instanceof Error ? err.message : 'Error al procesar imagen')
+    } finally {
+      setAiLoading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
+  function applyAiStats() {
+    if (!aiResult) return
+    setStats(prev => {
+      const next = { ...prev }
+      for (const row of aiResult.matched) {
+        next[row.athlete_id] = { ...(next[row.athlete_id] ?? {}), ...row.stats }
+      }
+      return next
+    })
+    setAiResult(null)
+    setAiError('')
+  }
 
   const cols = getCols(sport)
 
@@ -226,14 +285,75 @@ export function MatchStatsEditor({ match, competitionId, sport, athletes, initia
             </div>
 
             {/* Tabs */}
-            <div className="flex border-b border-border px-5 shrink-0">
-              {(['stats', 'score'] as const).map(t => (
-                <button key={t} onClick={() => setTab(t)}
-                  className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${tab === t ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
-                  {t === 'stats' ? 'Estadísticas por jugador' : 'Marcador'}
-                </button>
-              ))}
+            <div className="flex items-center border-b border-border px-5 shrink-0 gap-1">
+              <div className="flex flex-1">
+                {(['stats', 'score'] as const).map(t => (
+                  <button key={t} onClick={() => setTab(t)}
+                    className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${tab === t ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
+                    {t === 'stats' ? 'Estadísticas por jugador' : 'Marcador'}
+                  </button>
+                ))}
+              </div>
+              {tab === 'stats' && (
+                <div className="pb-1">
+                  <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={aiLoading}
+                    className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md text-xs font-medium bg-violet-100 text-violet-700 hover:bg-violet-200 transition-colors disabled:opacity-50"
+                    title="Importar estadísticas desde una captura de pantalla usando IA"
+                  >
+                    {aiLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                    {aiLoading ? 'Analizando...' : 'IA: importar imagen'}
+                  </button>
+                </div>
+              )}
             </div>
+
+            {/* AI Result preview */}
+            {(aiResult || aiError) && tab === 'stats' && (
+              <div className={`mx-5 mt-3 rounded-xl border p-3 text-sm ${
+                aiError ? 'border-destructive/40 bg-destructive/5' : 'border-violet-200 bg-violet-50'
+              }`}>
+                {aiError ? (
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
+                    <p className="text-destructive text-xs">{aiError}</p>
+                    <button onClick={() => setAiError('')} className="ml-auto text-muted-foreground hover:text-foreground"><X className="w-3 h-3" /></button>
+                  </div>
+                ) : aiResult && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5">
+                        <CheckCircle2 className="w-4 h-4 text-violet-600" />
+                        <span className="font-medium text-violet-800 text-xs">
+                          IA encontró {aiResult.matched.length} jugador{aiResult.matched.length !== 1 ? 'es' : ''}
+                          {aiResult.unmatched.length > 0 && ` · ${aiResult.unmatched.length} sin mapear`}
+                        </span>
+                      </div>
+                      <button onClick={() => setAiResult(null)} className="text-muted-foreground hover:text-foreground"><X className="w-3 h-3" /></button>
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {aiResult.matched.map((r) => (
+                        <span key={r.athlete_id} className="text-[11px] bg-violet-100 text-violet-700 rounded px-1.5 py-0.5">
+                          {r.name}
+                        </span>
+                      ))}
+                      {aiResult.unmatched.map((n, i) => (
+                        <span key={i} className="text-[11px] bg-muted text-muted-foreground rounded px-1.5 py-0.5 line-through">{n}</span>
+                      ))}
+                    </div>
+                    {aiResult.notes && <p className="text-[11px] text-muted-foreground italic">{aiResult.notes}</p>}
+                    <button
+                      onClick={applyAiStats}
+                      className="w-full h-7 rounded-lg bg-violet-600 text-white text-xs font-medium hover:bg-violet-700 transition-colors"
+                    >
+                      Aplicar estadísticas a la tabla
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Body */}
             <div className="flex-1 overflow-y-auto">

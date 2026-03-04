@@ -20,6 +20,7 @@ export async function createRoster(params: {
   matchDate: string
   opponent?: string | null
   venue?: string | null
+  matchId?: string | null
 }) {
   const clubId = await getClubId()
   const supabase = createAdminClient()
@@ -32,6 +33,11 @@ export async function createRoster(params: {
     venue: params.venue ?? null,
   }).select().single()
   if (error) throw new Error(error.message)
+
+  if (params.matchId && data?.id) {
+    await supabase.from('matches').update({ roster_id: data.id }).eq('id', params.matchId).eq('club_id', clubId)
+  }
+
   revalidatePath(`/dashboard/competitions/${params.competitionId}`)
   return data
 }

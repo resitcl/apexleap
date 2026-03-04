@@ -162,7 +162,15 @@ export default async function CompetitionDetailPage({ params }: PageProps) {
             <ClipboardList className="w-5 h-5" />
             Nóminas Matchday
           </h2>
-          <NewRosterButton competitionId={id} />
+          <NewRosterButton
+            competitionId={id}
+            matches={matches.map((m) => ({
+              id: m.id,
+              opponent: m.opponent ?? null,
+              match_date: m.match_date,
+              location: m.location ?? null,
+            }))}
+          />
         </div>
 
         {rosterList.length === 0 ? (

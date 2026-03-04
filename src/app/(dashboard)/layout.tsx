@@ -23,6 +23,7 @@ import {
   Dumbbell,
   User,
   ClipboardList,
+  Swords,
 } from "lucide-react"
 import Image from "next/image"
 import { MobileSidebar } from "@/components/layouts/MobileSidebar"
@@ -51,6 +52,7 @@ function buildNavGroups(v: ReturnType<typeof getSportVocab>) {
         { href: "/dashboard/coach",       label: v.coach,          icon: Dumbbell },
         { href: "/dashboard/rosters",     label: v.rosters,        icon: ClipboardList },
         { href: "/dashboard/competitions",label: v.competitions,   icon: Trophy },
+        { href: "/dashboard/matches",      label: "Partidos",       icon: Swords },
         { href: "/dashboard/coach/board", label: "Pizarra",        icon: PenLine },
       ],
     },

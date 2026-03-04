@@ -8,16 +8,25 @@ import { Label } from "@/components/ui/label"
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog"
-import { Plus } from "lucide-react"
+import { Plus, Link2 } from "lucide-react"
 import { createRoster } from "@/lib/actions/rosters"
+
+interface MatchOption {
+  id: string
+  opponent: string | null
+  match_date: string
+  location: string | null
+}
 
 interface Props {
   competitionId: string
+  matches?: MatchOption[]
 }
 
-export function NewRosterButton({ competitionId }: Props) {
-  const [open, setOpen] = useState(false)
-  const [loading, setLoading] = useState(false)
+export function NewRosterButton({ competitionId, matches = [] }: Props) {
+  const [open, setOpen]         = useState(false)
+  const [loading, setLoading]   = useState(false)
+  const [selectedMatchId, setSelectedMatchId] = useState('')
   const [form, setForm] = useState({
     name: '',
     matchDate: new Date().toISOString().split('T')[0],
@@ -27,6 +36,19 @@ export function NewRosterButton({ competitionId }: Props) {
 
   function set(k: string, v: string) { setForm((p) => ({ ...p, [k]: v })) }
 
+  function handleMatchSelect(matchId: string) {
+    setSelectedMatchId(matchId)
+    if (!matchId) return
+    const m = matches.find((x) => x.id === matchId)
+    if (!m) return
+    setForm((p) => ({
+      ...p,
+      matchDate: m.match_date,
+      opponent:  m.opponent ?? '',
+      venue:     m.location ?? '',
+    }))
+  }
+
   async function handleSave() {
     if (!form.name) { toast.error('El nombre es requerido'); return }
     if (!form.matchDate) { toast.error('La fecha es requerida'); return }
@@ -34,13 +56,15 @@ export function NewRosterButton({ competitionId }: Props) {
     try {
       await createRoster({
         competitionId,
-        name: form.name,
+        name:     form.name,
         matchDate: form.matchDate,
         opponent: form.opponent || null,
-        venue: form.venue || null,
+        venue:    form.venue || null,
+        matchId:  selectedMatchId || null,
       })
       toast.success('Nómina creada')
       setOpen(false)
+      setSelectedMatchId('')
       setForm({ name: '', matchDate: new Date().toISOString().split('T')[0], opponent: '', venue: '' })
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Error al crear nómina')
@@ -62,6 +86,26 @@ export function NewRosterButton({ competitionId }: Props) {
             <DialogTitle>Nueva Nómina Matchday</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-1">
+            {matches.length > 0 && (
+              <div className="space-y-1">
+                <Label className="flex items-center gap-1.5"><Link2 className="w-3.5 h-3.5" />Vincular a partido existente</Label>
+                <select
+                  value={selectedMatchId}
+                  onChange={(e) => handleMatchSelect(e.target.value)}
+                  className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                >
+                  <option value="">— Sin vincular (crear independiente) —</option>
+                  {matches.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      vs. {m.opponent ?? 'Rival'} · {new Date(m.match_date + 'T12:00:00').toLocaleDateString('es-CL', { day: 'numeric', month: 'short' })}
+                    </option>
+                  ))}
+                </select>
+                {selectedMatchId && (
+                  <p className="text-xs text-primary font-medium">✓ Fecha, rival y lugar autocompletados desde el partido</p>
+                )}
+              </div>
+            )}
             <div className="space-y-1">
               <Label>Nombre *</Label>
               <Input
