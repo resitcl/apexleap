@@ -5,6 +5,7 @@ import { getAllClubs } from "@/lib/actions/super-admin"
 import { Card, CardContent } from "@/components/ui/card"
 import { CheckCircle2, XCircle, Users, Building2, ChevronRight } from "lucide-react"
 import { ClubToggleButton } from "@/components/super-admin/ClubToggleButton"
+import { ClubImportExport } from "@/components/super-admin/ClubImportExport"
 
 const SAAS_STATUS: Record<string, { label: string; color: string }> = {
   active:   { label: "Activo",    color: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" },
@@ -39,6 +40,9 @@ export default async function SuperAdminClubsPage() {
           </span>
         </div>
       </div>
+
+      {/* Import / Export */}
+      <ClubImportExport />
 
       {/* Clubs grid */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
