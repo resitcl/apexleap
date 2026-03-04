@@ -2,7 +2,10 @@
 
 import { auth } from '@clerk/nextjs/server'
 import { revalidatePath } from 'next/cache'
+import { redirect } from 'next/navigation'
+import { cookies } from 'next/headers'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { CLUB_COOKIE } from '@/lib/actions/club-context'
 
 // ─── Auth guard ────────────────────────────────────────────────────────────
 export async function requireSuperAdmin() {
@@ -245,7 +248,35 @@ export async function removeUserFromClub(clubId: string, clerkUserId: string) {
   return { ok: true }
 }
 
-// ─── Register / remove super admin ───────────────────────────────────────
+// ─── Super Admin: enter any club dashboard ──────────────────────────────────
+export async function superAdminEnterClub(clubId: string) {
+  const { userId } = await auth()
+  if (!userId) throw new Error('No autorizado')
+  await requireSuperAdmin()
+
+  const supabase = createAdminClient()
+
+  // Link super admin to club if not already
+  const { data: existing } = await supabase
+    .from('user_clubs')
+    .select('id, is_active')
+    .eq('user_id', userId)
+    .eq('club_id', clubId)
+    .maybeSingle()
+
+  if (!existing) {
+    await supabase.from('user_clubs').insert({ user_id: userId, club_id: clubId, role: 'admin', is_active: true })
+  } else if (!existing.is_active) {
+    await supabase.from('user_clubs').update({ is_active: true }).eq('id', existing.id)
+  }
+
+  const cookieStore = await cookies()
+  cookieStore.set(CLUB_COOKIE, clubId, { path: '/', maxAge: 60 * 60 * 24 * 30, sameSite: 'lax' })
+
+  return redirect('/dashboard')
+}
+
+// ─── Register / remove super admin ─────────────────────────────────────────
 export async function addSuperAdmin(userId: string, email?: string, name?: string) {
   await requireSuperAdmin()
   const supabase = createAdminClient()

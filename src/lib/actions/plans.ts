@@ -4,6 +4,7 @@ import { auth } from '@clerk/nextjs/server'
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { z } from 'zod'
+import { getClubId } from '@/lib/actions/club-context'
 
 const planSchema = z.object({
   name: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
@@ -21,22 +22,6 @@ const planSchema = z.object({
 
 export type PlanInput = z.infer<typeof planSchema>
 
-async function getClubId() {
-  const { userId } = await auth()
-  if (!userId) throw new Error('No autorizado')
-
-  const supabase = createAdminClient()
-  const { data, error } = await supabase
-    .from('user_clubs')
-    .select('club_id')
-    .eq('user_id', userId)
-    .eq('is_active', true)
-    .limit(1)
-    .single()
-
-  if (error || !data) throw new Error('Club no encontrado')
-  return data.club_id as string
-}
 
 export async function getPlans() {
   const clubId = await getClubId()

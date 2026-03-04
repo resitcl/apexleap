@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { CheckCircle2, XCircle, Users, Building2, ChevronRight } from "lucide-react"
 import { ClubToggleButton } from "@/components/super-admin/ClubToggleButton"
 import { ClubImportExport } from "@/components/super-admin/ClubImportExport"
+import { EnterClubButton } from "@/components/super-admin/EnterClubButton"
 
 const SAAS_STATUS: Record<string, { label: string; color: string }> = {
   active:   { label: "Activo",    color: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" },
@@ -136,10 +137,11 @@ export default async function SuperAdminClubsPage() {
                 <div className="flex items-center gap-2 pt-1 border-t border-border">
                   <Link
                     href={`/super-admin/clubs/${club.id}`}
-                    className="flex-1 inline-flex items-center justify-center gap-1 h-8 rounded-lg border border-border text-xs font-medium hover:bg-accent transition-colors"
+                    className="inline-flex items-center justify-center gap-1 h-8 px-3 rounded-lg border border-border text-xs font-medium hover:bg-accent transition-colors"
                   >
-                    Ver detalle <ChevronRight className="w-3 h-3" />
+                    Detalle <ChevronRight className="w-3 h-3" />
                   </Link>
+                  <EnterClubButton clubId={club.id} clubName={club.name} />
                   <ClubToggleButton
                     clubId={club.id}
                     isActive={club.is_active}

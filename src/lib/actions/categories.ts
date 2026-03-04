@@ -4,6 +4,7 @@ import { auth } from '@clerk/nextjs/server'
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { z } from 'zod'
+import { getClubId } from '@/lib/actions/club-context'
 
 const categorySchema = z.object({
   name:        z.string().min(1, 'El nombre es obligatorio'),
@@ -16,15 +17,6 @@ const categorySchema = z.object({
 export type CategoryInput = z.infer<typeof categorySchema>
 export type ClubCategory = CategoryInput & { id: string; club_id: string; created_at: string }
 
-async function getClubId() {
-  const { userId } = await auth()
-  if (!userId) throw new Error('No autorizado')
-  const supabase = createAdminClient()
-  const { data, error } = await supabase
-    .from('user_clubs').select('club_id').eq('user_id', userId).eq('is_active', true).limit(1).single()
-  if (error || !data) throw new Error('Club no encontrado')
-  return data.club_id as string
-}
 
 export async function getCategories(activeOnly = false) {
   const clubId = await getClubId()

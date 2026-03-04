@@ -4,6 +4,7 @@ import { auth } from '@clerk/nextjs/server'
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { z } from 'zod'
+import { getClubId } from '@/lib/actions/club-context'
 
 const itemSchema = z.object({
   name: z.string().min(2),
@@ -22,15 +23,6 @@ const itemSchema = z.object({
 
 export type ItemInput = z.infer<typeof itemSchema>
 
-async function getClubId() {
-  const { userId } = await auth()
-  if (!userId) throw new Error('No autorizado')
-  const supabase = createAdminClient()
-  const { data, error } = await supabase
-    .from('user_clubs').select('club_id').eq('user_id', userId).eq('is_active', true).limit(1).single()
-  if (error || !data) throw new Error('Club no encontrado')
-  return data.club_id as string
-}
 
 export async function getInventoryItems(filters?: { category?: string; condition?: string; lowStock?: boolean; search?: string; page?: number; limit?: number; athleteId?: string; priceMin?: number; priceMax?: number }) {
   const clubId = await getClubId()
