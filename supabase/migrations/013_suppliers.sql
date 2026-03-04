@@ -22,7 +22,8 @@ CREATE TABLE IF NOT EXISTS suppliers (
 ALTER TABLE suppliers ENABLE ROW LEVEL SECURITY;
 
 -- RLS: club members can only see their own suppliers
-CREATE POLICY IF NOT EXISTS "suppliers_club_isolation"
+DROP POLICY IF EXISTS "suppliers_club_isolation" ON suppliers;
+CREATE POLICY "suppliers_club_isolation"
   ON suppliers FOR ALL
   USING (club_id = (
     SELECT club_id FROM user_clubs
