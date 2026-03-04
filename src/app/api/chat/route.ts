@@ -56,7 +56,7 @@ export async function POST(req: Request) {
   const todayStart = `${today}T00:00:00`
   const todayEnd   = `${today}T23:59:59`
 
-  const [clubRes, athletesRes, paymentsRes, competitionsRes, subsRes, attendanceTodayRes, financesRes, schedulesRes] = await Promise.all([
+  const [clubRes, athletesRes, paymentsRes, competitionsRes, subsRes, attendanceTodayRes, financesRes, schedulesRes, categoriesRes, suppliersRes] = await Promise.all([
     supabase.from('clubs').select('name, sport_type, description').eq('id', clubId).single(),
     supabase.from('athletes').select('id, name, status, health_status').eq('club_id', clubId).limit(200),
     supabase.from('payments').select('id, amount, status, due_date, paid_at, concept, athletes(name)').eq('club_id', clubId).order('created_at', { ascending: false }).limit(300),
@@ -65,6 +65,8 @@ export async function POST(req: Request) {
     supabase.from('attendance').select('id, checked_in_at, athletes(name)').eq('club_id', clubId).gte('checked_in_at', todayStart).lte('checked_in_at', todayEnd).limit(100),
     supabase.from('expenses').select('id, amount, category, description, date').eq('club_id', clubId).order('date', { ascending: false }).limit(50),
     supabase.from('schedules').select('id, name, day_of_week, start_time, end_time, capacity').eq('club_id', clubId).eq('is_active', true).limit(30),
+    supabase.from('club_categories').select('id, name, color, description, is_active').eq('club_id', clubId).order('sort_order'),
+    supabase.from('suppliers').select('id, name, category, is_active').eq('club_id', clubId).eq('is_active', true).limit(50),
   ])
 
   const clubName   = clubRes.data?.name ?? 'el club'
@@ -76,6 +78,8 @@ export async function POST(req: Request) {
   const checkedInToday = attendanceTodayRes.data ?? []
   const expenses   = financesRes.data ?? []
   const schedules  = schedulesRes.data ?? []
+  const categories = categoriesRes.data ?? []
+  const suppliers  = suppliersRes.data ?? []
 
   // Vocabulary from sport type
   const sportLabel = sportType ?? 'club deportivo'
@@ -154,6 +158,12 @@ ${expensesSummary}
 
 ═══ HORARIOS / SESIONES ═══
 ${schedulesSummary}
+
+═══ CATEGORÍAS DEL CLUB (${categories.length}) ═══
+${categories.length > 0 ? categories.map((c) => `- ${c.name}${c.description ? ` (${c.description})` : ''}${!c.is_active ? ' [inactiva]' : ''}`).join('\n') : 'Sin categorías definidas'}
+
+═══ PROVEEDORES (${suppliers.length} activos) ═══
+${suppliers.length > 0 ? suppliers.map((s) => `- ${s.name} [${s.category ?? 'otro'}]`).join('\n') : 'Sin proveedores registrados'}
 
 INSTRUCCIONES:
 - Sé preciso con nombres, montos y fechas de los datos reales del club
