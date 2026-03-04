@@ -16,6 +16,7 @@ import {
   BookOpen,
   PenLine,
   ShieldCheck,
+  ShieldAlert,
   Repeat2,
   BarChart3,
   PieChart,
@@ -34,6 +35,7 @@ import { NotificationBell } from "@/components/layouts/NotificationBell"
 import type { NotificationItem } from "@/components/layouts/NotificationBell"
 import { getClubSettings } from "@/lib/actions/settings"
 import { getSportVocab } from "@/lib/sport-vocab"
+import { isSuperAdmin } from "@/lib/actions/super-admin"
 
 function buildNavGroups(v: ReturnType<typeof getSportVocab>) {
   return [
@@ -106,10 +108,12 @@ export default async function DashboardLayout({
   try { alerts = await getSidebarAlerts() } catch { /* silent */ }
 
   let sportType: string | null = null
+  let superAdmin = false
   try {
     const settings = await getClubSettings()
     sportType = (settings as { sport_type?: string | null })?.sport_type ?? null
   } catch { /* silent */ }
+  try { superAdmin = await isSuperAdmin() } catch { /* silent */ }
 
   const vocab = getSportVocab(sportType)
   const NAV_GROUPS = buildNavGroups(vocab)
@@ -218,6 +222,19 @@ export default async function DashboardLayout({
             </div>
           ))}
         </nav>
+
+        {/* Super Admin link */}
+        {superAdmin && (
+          <div className="shrink-0 border-t border-border px-2 pt-2">
+            <Link
+              href="/super-admin"
+              className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+            >
+              <ShieldAlert className="w-3.5 h-3.5 shrink-0" />
+              Super Admin
+            </Link>
+          </div>
+        )}
 
         {/* Bottom: theme toggle only */}
         <div className="shrink-0 border-t border-border p-3">
