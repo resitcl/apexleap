@@ -27,7 +27,7 @@ CREATE POLICY "suppliers_club_isolation"
   ON suppliers FOR ALL
   USING (club_id = (
     SELECT club_id FROM user_clubs
-    WHERE user_id = auth.uid() AND is_active = TRUE
+    WHERE user_id = auth.uid()::TEXT AND is_active = TRUE
     LIMIT 1
   ));
 
