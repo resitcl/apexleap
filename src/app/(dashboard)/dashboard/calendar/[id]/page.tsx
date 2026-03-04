@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { auth } from "@clerk/nextjs/server"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -19,9 +19,9 @@ export default async function ScheduleDetailPage({ params }: PageProps) {
   const { userId } = await auth()
   if (!userId) notFound()
 
-  const supabase = await createClient()
+  const admin = createAdminClient()
 
-  const { data: userClub } = await supabase
+  const { data: userClub } = await admin
     .from("user_clubs")
     .select("club_id")
     .eq("user_id", userId)
@@ -30,7 +30,7 @@ export default async function ScheduleDetailPage({ params }: PageProps) {
 
   if (!userClub) notFound()
 
-  const { data: schedule, error } = await supabase
+  const { data: schedule, error } = await admin
     .from("schedules")
     .select("*, venues(id, name)")
     .eq("id", id)
@@ -42,7 +42,7 @@ export default async function ScheduleDetailPage({ params }: PageProps) {
   // Attendance count for this schedule in the last 30 days
   const thirtyDaysAgo = new Date()
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
-  const { count: attendanceCount } = await supabase
+  const { count: attendanceCount } = await admin
     .from('attendance')
     .select('id', { count: 'exact', head: true })
     .eq('schedule_id', id)

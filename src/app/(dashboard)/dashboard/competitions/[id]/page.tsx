@@ -3,7 +3,6 @@ export const dynamic = "force-dynamic"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import { auth } from "@clerk/nextjs/server"
-import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -41,13 +40,13 @@ export default async function CompetitionDetailPage({ params }: PageProps) {
   const { userId } = await auth()
   if (!userId) notFound()
 
-  const supabase = await createClient()
+  const admin = createAdminClient()
 
-  const { data: userClub } = await supabase
+  const { data: userClub } = await admin
     .from("user_clubs").select("club_id").eq("user_id", userId).eq("is_active", true).single()
   if (!userClub) notFound()
 
-  const { data: comp, error: compErr } = await supabase
+  const { data: comp, error: compErr } = await admin
     .from("competitions")
     .select("*")
     .eq("id", id)
@@ -55,18 +54,17 @@ export default async function CompetitionDetailPage({ params }: PageProps) {
     .single()
   if (compErr || !comp) notFound()
 
-  const { data: clubData } = await supabase
+  const { data: clubData } = await admin
     .from("user_clubs").select("clubs(name)").eq("user_id", userId).eq("is_active", true).single()
   const clubName = ((clubData?.clubs as unknown) as { name: string } | null)?.name ?? "Local"
 
-  const { data: rosters } = await supabase
+  const { data: rosters } = await admin
     .from("rosters")
     .select("*, roster_athletes(id, athletes(id, name), number, position, is_captain, status)")
     .eq("competition_id", id)
     .order("match_date", { ascending: false })
 
   // Fetch match data in parallel
-  const admin = createAdminClient()
   const [matchesRaw, playerStats, athletesRaw, settings] = await Promise.allSettled([
     getMatches(id),
     getPlayerStatsForCompetition(id),
