@@ -135,7 +135,7 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <div className="flex items-center gap-1">
               <CardTitle className="text-sm font-medium text-muted-foreground">Recaudado</CardTitle>
-              <InfoTooltip text="Total cobrado en el período seleccionado. Solo incluye pagos con estado 'pagado'." />
+              <InfoTooltip text="Suma de todos los pagos con estado 'pagado'. Si hay filtros activos (atleta, estado, fecha), refleja solo los pagos filtrados." />
             </div>
             <DollarSign className="h-4 w-4 text-green-500" />
           </CardHeader>
