@@ -12,10 +12,10 @@ export function UserNav() {
         {name && (
           <span className="text-sm font-medium text-foreground">{name}</span>
         )}
-        <UserButton afterSignOutUrl="/" />
+        <UserButton />
       </div>
       <div className="md:hidden">
-        <UserButton afterSignOutUrl="/" />
+        <UserButton />
       </div>
     </>
   )
