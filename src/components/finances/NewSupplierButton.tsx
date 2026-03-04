@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { createSupplier, updateSupplier, SUPPLIER_CATEGORIES, type SupplierInput } from '@/lib/actions/suppliers'
+import { createSupplier, updateSupplier, type SupplierInput } from '@/lib/actions/suppliers'
+import { SUPPLIER_CATEGORIES } from '@/lib/constants/suppliers'
 
 type Supplier = {
   id: string

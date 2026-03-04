@@ -4,7 +4,6 @@ import { auth } from '@clerk/nextjs/server'
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { z } from 'zod'
-
 const supplierSchema = z.object({
   name:           z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
   rut:            z.string().optional().nullable(),
@@ -19,17 +18,6 @@ const supplierSchema = z.object({
 })
 
 export type SupplierInput = z.infer<typeof supplierSchema>
-
-export const SUPPLIER_CATEGORIES = [
-  { value: 'venue',       label: 'Cancha / Sede' },
-  { value: 'equipment',   label: 'Balones / Equipamiento' },
-  { value: 'clothing',    label: 'Ropa / Indumentaria' },
-  { value: 'league',      label: 'Ligas / Federaciones' },
-  { value: 'utilities',   label: 'Servicios básicos' },
-  { value: 'transport',   label: 'Transporte' },
-  { value: 'medical',     label: 'Médico / Salud' },
-  { value: 'other',       label: 'Otros' },
-]
 
 async function getClubId() {
   const { userId } = await auth()
