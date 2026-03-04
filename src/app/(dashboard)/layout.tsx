@@ -1,3 +1,4 @@
+import React from "react"
 import { UserNavClient } from "@/components/layouts/UserNavClient"
 import { ChatWidget } from "@/components/layouts/ChatWidget"
 import Link from "next/link"
@@ -161,7 +162,8 @@ export default async function DashboardLayout({
   return (
     <div
       className="h-screen flex overflow-hidden"
-      style={{ ['--brand' as string]: brandColor, ['--brand-light' as string]: `${brandColor}20` }}
+      style={{ '--brand': brandColor, '--brand-light': `${brandColor}20` } as React.CSSProperties}
+      suppressHydrationWarning
     >
       {/* ── Desktop Sidebar ── */}
       <aside className="w-60 bg-card border-r border-border hidden md:flex flex-col shrink-0 h-full">
