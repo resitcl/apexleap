@@ -164,12 +164,14 @@ export default async function CompetitionDetailPage({ params }: PageProps) {
           </h2>
           <NewRosterButton
             competitionId={id}
-            matches={matches.map((m) => ({
-              id: m.id,
-              opponent: m.opponent ?? null,
-              match_date: m.match_date,
-              location: m.location ?? null,
-            }))}
+            matches={matches
+              .filter((m) => !m.roster_id)
+              .map((m) => ({
+                id: m.id,
+                opponent: m.opponent ?? null,
+                match_date: m.match_date,
+                location: m.location ?? null,
+              }))}
           />
         </div>
 

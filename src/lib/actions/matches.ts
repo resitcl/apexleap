@@ -56,14 +56,44 @@ export async function createMatch(input: {
 }) {
   const clubId = await getClubId()
   const supabase = createAdminClient()
-  const { data, error } = await supabase
+
+  // 1. Create the match
+  const { data: match, error } = await supabase
     .from('matches')
     .insert({ ...input, club_id: clubId })
     .select()
     .single()
   if (error) throw new Error(translateError(error.message))
-  revalidatePath(`/dashboard/competitions/${input.competition_id}`)
-  return data
+
+  // 2. Auto-create a linked roster
+  const rosterName = `Nómina vs. ${input.opponent}`
+  const { data: roster } = await supabase
+    .from('rosters')
+    .insert({
+      club_id:        clubId,
+      competition_id: input.competition_id ?? null,
+      name:           rosterName,
+      match_date:     input.match_date,
+      opponent:       input.opponent,
+      venue:          input.location ?? null,
+    })
+    .select()
+    .single()
+
+  // 3. Link roster back to match
+  if (roster?.id) {
+    await supabase
+      .from('matches')
+      .update({ roster_id: roster.id })
+      .eq('id', match.id)
+      .eq('club_id', clubId)
+  }
+
+  if (input.competition_id) {
+    revalidatePath(`/dashboard/competitions/${input.competition_id}`)
+  }
+  revalidatePath('/dashboard/matches')
+  return match
 }
 
 export async function updateMatch(matchId: string, competitionId: string, input: {
