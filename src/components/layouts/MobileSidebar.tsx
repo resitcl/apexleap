@@ -1,17 +1,20 @@
 'use client'
 
-import { useState } from "react"
+import { useState, useEffect, useCallback } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Menu, X } from "lucide-react"
 import Image from "next/image"
 import type { ReactNode } from "react"
 
+const STORAGE_KEY = 'apexleap-dismissed-notifications'
+
 interface SidebarItem {
   href: string
   label: string
   icon: ReactNode
   badge?: number
+  notificationId?: string
 }
 
 interface NavGroup {
@@ -28,8 +31,26 @@ interface Props {
 
 export function MobileSidebar({ groups, clubName, logoUrl, brandColor }: Props) {
   const [open, setOpen] = useState(false)
+  const [dismissed, setDismissed] = useState<string[]>([])
   const pathname = usePathname()
   const color = brandColor ?? '#000000'
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY)
+      if (stored) setDismissed(JSON.parse(stored))
+    } catch { /* ignore */ }
+  }, [])
+
+  const dismissBadge = useCallback((notificationId: string | undefined, badge: number | undefined) => {
+    if (!notificationId || !badge) return
+    const key = `${notificationId}-${badge}`
+    setDismissed((prev) => {
+      const next = [...new Set([...prev, key])]
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)) } catch { /* ignore */ }
+      return next
+    })
+  }, [])
 
   return (
     <>
@@ -99,7 +120,7 @@ export function MobileSidebar({ groups, clubName, logoUrl, brandColor }: Props) 
                     <li key={item.href}>
                       <Link
                         href={item.href}
-                        onClick={() => setOpen(false)}
+                        onClick={() => { setOpen(false); dismissBadge(item.notificationId, item.badge) }}
                         className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
                           isActive
                             ? "bg-primary/10 text-primary font-medium"
@@ -108,7 +129,7 @@ export function MobileSidebar({ groups, clubName, logoUrl, brandColor }: Props) 
                       >
                         {item.icon}
                         <span className="flex-1">{item.label}</span>
-                        {item.badge && item.badge > 0 ? (
+                        {item.badge && item.badge > 0 && !dismissed.includes(`${item.notificationId}-${item.badge}`) ? (
                           <span className="bg-destructive text-destructive-foreground text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shrink-0">
                             {item.badge > 99 ? "99+" : item.badge}
                           </span>

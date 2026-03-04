@@ -120,6 +120,12 @@ export default async function DashboardLayout({
     "/dashboard/subscriptions": alerts.expiringSubscriptions,
   }
 
+  const notificationIdMap: Record<string, string> = {
+    "/dashboard/payments":      'overdue-payments',
+    "/dashboard/documents":     'expiring-docs',
+    "/dashboard/subscriptions": 'expiring-subs',
+  }
+
   const totalAlerts = alerts.overduePayments + alerts.expiringSoonDocs + alerts.expiringSubscriptions
 
   const notificationItems: NotificationItem[] = [
@@ -152,10 +158,11 @@ export default async function DashboardLayout({
   const sidebarGroupsWithBadges = NAV_GROUPS.map((group) => ({
     label: group.label,
     items: group.items.map((item) => ({
-      href:  item.href,
-      label: item.label,
-      icon:  <item.icon className="w-4 h-4 shrink-0" />,
-      badge: badgeMap[item.href] ?? 0,
+      href:           item.href,
+      label:          item.label,
+      icon:           <item.icon className="w-4 h-4 shrink-0" />,
+      badge:          badgeMap[item.href] ?? 0,
+      notificationId: notificationIdMap[item.href],
     })),
   }))
 
@@ -201,6 +208,7 @@ export default async function DashboardLayout({
                       label={item.label}
                       icon={<item.icon className="w-4 h-4 shrink-0" />}
                       badge={badgeMap[item.href] ?? 0}
+                      notificationId={notificationIdMap[item.href]}
                     />
                   </li>
                 ))}
