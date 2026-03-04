@@ -26,6 +26,7 @@ export async function checkUserHasClub() {
     .select('club_id')
     .eq('user_id', userId)
     .eq('is_active', true)
+    .limit(1)
     .single()
 
   return !!data

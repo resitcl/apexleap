@@ -12,6 +12,7 @@ async function getClubId() {
     .select('club_id')
     .eq('user_id', userId)
     .eq('is_active', true)
+    .limit(1)
     .single()
   if (error || !data) throw new Error('Club no encontrado')
   return data.club_id as string
@@ -662,6 +663,7 @@ export async function getAthletePortal() {
     .select('club_id')
     .eq('user_id', userId)
     .eq('is_active', true)
+    .limit(1)
     .single()
 
   if (!userClub) throw new Error('Club no encontrado')

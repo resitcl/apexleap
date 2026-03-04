@@ -8,7 +8,7 @@ async function getClubId() {
   if (!userId) return null
   const supabase = createAdminClient()
   const { data } = await supabase
-    .from('user_clubs').select('club_id').eq('user_id', userId).eq('is_active', true).single()
+    .from('user_clubs').select('club_id').eq('user_id', userId).eq('is_active', true).limit(1).single()
   return data?.club_id as string | null
 }
 
