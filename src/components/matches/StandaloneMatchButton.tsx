@@ -4,15 +4,19 @@ import { useState, useTransition, useEffect } from 'react'
 import { Plus, X, Loader2, Trophy } from 'lucide-react'
 import { createMatch } from '@/lib/actions/matches'
 import { getCompetitions } from '@/lib/actions/competitions'
+import { getCategories } from '@/lib/actions/categories'
 
 type CompOption = { id: string; name: string; type: string }
+type CategoryOption = { id: string; name: string; color: string | null }
 
 export function StandaloneMatchButton() {
   const [open, setOpen]          = useState(false)
   const [error, setError]        = useState('')
   const [isPending, start]       = useTransition()
   const [competitions, setComps] = useState<CompOption[]>([])
+  const [categories, setCats]    = useState<CategoryOption[]>([])
   const [competitionId, setCompetitionId] = useState<string>('')
+  const [categoryId, setCategoryId]       = useState<string>('')
 
   const [form, setForm] = useState({
     opponent:   '',
@@ -28,10 +32,12 @@ export function StandaloneMatchButton() {
   useEffect(() => {
     if (!open) return
     Promise.all([
-      getCompetitions({ status: 'active',    limit: 50 }),
-      getCompetitions({ status: 'upcoming',  limit: 50 }),
-    ]).then(([a, u]) => {
+      getCompetitions({ status: 'active',   limit: 50 }),
+      getCompetitions({ status: 'upcoming', limit: 50 }),
+      getCategories(true),
+    ]).then(([a, u, cats]) => {
       setComps([...a.competitions, ...u.competitions].map((c) => ({ id: c.id, name: c.name, type: c.type })))
+      setCats(cats.map((c) => ({ id: c.id, name: c.name, color: c.color ?? null })))
     }).catch(() => {})
   }, [open])
 
@@ -42,6 +48,7 @@ export function StandaloneMatchButton() {
   function reset() {
     setForm({ opponent: '', match_date: new Date().toISOString().split('T')[0], location: '', is_home: true, home_score: '', away_score: '', status: 'scheduled', notes: '' })
     setCompetitionId('')
+    setCategoryId('')
     setError('')
   }
 
@@ -53,6 +60,7 @@ export function StandaloneMatchButton() {
       try {
         await createMatch({
           competition_id: competitionId || null,
+          category_id:    categoryId    || null,
           opponent:       form.opponent.trim(),
           match_date:     form.match_date,
           location:       form.location || undefined,
@@ -110,6 +118,23 @@ export function StandaloneMatchButton() {
                     ))}
                   </select>
                 </div>
+
+                {/* Category selector */}
+                {categories.length > 0 && (
+                  <div className="col-span-2">
+                    <label className="text-xs font-medium text-muted-foreground">Categoría</label>
+                    <select
+                      value={categoryId}
+                      onChange={e => setCategoryId(e.target.value)}
+                      className="mt-1 w-full h-9 px-3 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                    >
+                      <option value="">— Sin categoría —</option>
+                      {categories.map(c => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
 
                 <div className="col-span-2">
                   <label className="text-xs font-medium text-muted-foreground">Rival *</label>

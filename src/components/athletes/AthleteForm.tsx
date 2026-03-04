@@ -29,13 +29,14 @@ const formSchema = z.object({
   status: z.enum(['active', 'inactive', 'suspended']),
   jersey_number: z.number().int().min(1).max(999).nullable().optional(),
   category: z.string().min(1).default('General'),
+  category_id: z.string().uuid().nullable().optional(),
 })
 
 type FormValues = z.infer<typeof formSchema>
 
 interface Props {
   athleteId?: string
-  defaultValues?: Partial<FormValues & { jersey_number?: number | null; category?: string }>
+  defaultValues?: Partial<FormValues & { jersey_number?: number | null; category?: string; category_id?: string | null }>
   categories?: CategoryOption[]
 }
 
@@ -59,6 +60,7 @@ export function AthleteForm({ athleteId, defaultValues, categories = [] }: Props
       status: 'active',
       jersey_number: null,
       category: 'General',
+      category_id: null,
       ...defaultValues,
     },
   })
@@ -70,6 +72,7 @@ export function AthleteForm({ athleteId, defaultValues, categories = [] }: Props
         ...values,
         jersey_number: values.jersey_number ?? null,
         category: values.category || 'General',
+        category_id: values.category_id ?? null,
         technical_meta: {},
         performance_meta: {},
       }
@@ -139,21 +142,27 @@ export function AthleteForm({ athleteId, defaultValues, categories = [] }: Props
         <CardContent className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="category">Categoría</Label>
-            <div className="flex gap-2">
-<select
+            <select
                 id="category"
-                {...form.register('category')}
-                className="flex-1 h-10 rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                value={form.watch('category_id') ?? ''}
+                onChange={(e) => {
+                  const selected = categories.find((c) => c.id === e.target.value)
+                  form.setValue('category_id', selected?.id ?? null)
+                  form.setValue('category', selected?.name ?? 'General')
+                }}
+                className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
               >
                 {categories.length > 0 ? (
-                  categories.map((c) => (
-                    <option key={c.id} value={c.name}>{c.name}</option>
-                  ))
+                  <>
+                    <option value="">Sin categoría</option>
+                    {categories.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </>
                 ) : (
-                  <option value="General">General (sin categorías definidas)</option>
+                  <option value="">General (sin categorías definidas)</option>
                 )}
               </select>
-            </div>
             <p className="text-xs text-muted-foreground">El número de camiseta no puede repetirse dentro de la misma categoría</p>
           </div>
 

@@ -54,6 +54,7 @@ export default async function EditAthletePage({ params }: PageProps) {
           status: athlete.status as 'active' | 'inactive' | 'suspended',
           jersey_number: (athlete as { jersey_number?: number | null }).jersey_number ?? null,
           category: (athlete as { category?: string }).category ?? 'General',
+          category_id: (athlete as { category_id?: string | null }).category_id ?? null,
         }}
       />
     </div>

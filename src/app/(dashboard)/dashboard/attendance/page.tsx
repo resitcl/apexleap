@@ -13,9 +13,10 @@ import { ExportAttendanceButton } from "@/components/attendance/ExportAttendance
 import { JustifyAttendanceButton } from "@/components/attendance/JustifyAttendanceButton"
 import { getAthletes } from "@/lib/actions/athletes"
 import { getSchedules } from "@/lib/actions/schedules"
+import { getCategories } from "@/lib/actions/categories"
 
 interface PageProps {
-  searchParams: Promise<{ tab?: string; from?: string; to?: string; page?: string; scheduleId?: string; athleteId?: string }>
+  searchParams: Promise<{ tab?: string; from?: string; to?: string; page?: string; scheduleId?: string; athleteId?: string; categoryId?: string }>
 }
 
 export default async function AttendancePage({ searchParams }: PageProps) {
@@ -26,26 +27,30 @@ export default async function AttendancePage({ searchParams }: PageProps) {
   const page       = Number(params.page ?? 1)
   const scheduleId = params.scheduleId ?? ""
   const athleteId  = params.athleteId  ?? ""
+  const categoryId = params.categoryId ?? ""
 
   let todayRecords: Awaited<ReturnType<typeof getAttendanceToday>> = []
   let history: Awaited<ReturnType<typeof getAttendanceHistory>> = { records: [], total: 0 }
-  let athletes: Array<{ id: string; name: string }> = []
+  let athletes: Array<{ id: string; name: string; category_id?: string | null }> = []
   let schedules: Array<{ id: string; name: string }> = []
+  let categories: Array<{ id: string; name: string; color: string | null }> = []
   let error: string | null = null
 
   try {
-    const [today, hist, athletesResult, schedulesResult] = await Promise.all([
-      getAttendanceToday(),
-      getAttendanceHistory({ from: from || undefined, to: to || undefined, days: 30, limit: 50, page, scheduleId: scheduleId || undefined, athleteId: athleteId || undefined }),
+    const [today, hist, athletesResult, schedulesResult, catsData] = await Promise.all([
+      getAttendanceToday({ categoryId: categoryId || undefined }),
+      getAttendanceHistory({ from: from || undefined, to: to || undefined, days: 30, limit: 50, page, scheduleId: scheduleId || undefined, athleteId: athleteId || undefined, categoryId: categoryId || undefined }),
       getAthletes({ limit: 200 }),
       getSchedules(),
+      getCategories(true).catch(() => []),
     ])
     schedules = (schedulesResult as Array<{ id: string; name: string; is_active: boolean }>)
       .filter((s) => s.is_active)
       .map((s) => ({ id: s.id, name: s.name }))
     todayRecords = today
     history = hist
-    athletes = athletesResult.athletes.map((a) => ({ id: a.id, name: a.name }))
+    athletes = athletesResult.athletes.map((a) => ({ id: a.id, name: a.name, category_id: (a as { category_id?: string | null }).category_id ?? null }))
+    categories = catsData.map((c) => ({ id: c.id, name: c.name, color: c.color ?? null }))
   } catch (e) {
     error = e instanceof Error ? e.message : "Error al cargar asistencia"
   }
@@ -112,6 +117,24 @@ export default async function AttendancePage({ searchParams }: PageProps) {
           </CardContent>
         </Card>
       </div>
+
+      {/* Category filter chips */}
+      {categories.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 items-center">
+          <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide shrink-0">Categoría:</span>
+          <Link href={`/dashboard/attendance?tab=${tab}${from ? `&from=${from}` : ''}${to ? `&to=${to}` : ''}`}>
+            <button className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${!categoryId ? 'bg-foreground text-background border-foreground shadow-sm' : 'border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground'}`}>Todas</button>
+          </Link>
+          {categories.map((cat) => (
+            <Link key={cat.id} href={`/dashboard/attendance?tab=${tab}&categoryId=${cat.id}${from ? `&from=${from}` : ''}${to ? `&to=${to}` : ''}`}>
+              <button className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${categoryId === cat.id ? 'bg-foreground text-background border-foreground shadow-sm' : 'border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground'}`}>
+                {cat.color && <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: cat.color }} />}
+                {cat.name}
+              </button>
+            </Link>
+          ))}
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex gap-1 border-b border-border">

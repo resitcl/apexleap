@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic"
 import Link from "next/link"
 import { getAthletes } from "@/lib/actions/athletes"
 import { getPlans } from "@/lib/actions/plans"
+import { getCategories } from "@/lib/actions/categories"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -20,6 +21,7 @@ interface PageProps {
     health?: string
     planId?: string
     subStatus?: string
+    categoryId?: string
     page?: string
     sort?: string
     inactive?: string
@@ -51,6 +53,7 @@ export default async function AthletesPage({ searchParams }: PageProps) {
   let total = 0
   let error: string | null = null
   let plans: { id: string; name: string }[] = []
+  let categories: { id: string; name: string; color: string | null }[] = []
 
   try {
     const filterParams = {
@@ -59,17 +62,20 @@ export default async function AthletesPage({ searchParams }: PageProps) {
       healthStatus: params.health,
       planId: params.planId,
       subscriptionStatus: params.subStatus,
+      categoryId: params.categoryId || undefined,
       sort: sort || undefined,
     }
-    const [result, allResult, plansData] = await Promise.all([
+    const [result, allResult, plansData, catsData] = await Promise.all([
       getAthletes({ ...filterParams, page, limit: 20 }),
       getAthletes({ ...filterParams, page: 1, limit: 1000 }),
       getPlans(),
+      getCategories(true).catch(() => []),
     ])
     athletes = result.athletes
     allAthletes = allResult.athletes
     total = result.total
     plans = plansData.map((p) => ({ id: p.id, name: p.name }))
+    categories = catsData.map((c) => ({ id: c.id, name: c.name, color: c.color ?? null }))
   } catch (e) {
     error = e instanceof Error ? e.message : "Error al cargar alumnos"
   }
@@ -578,6 +584,24 @@ export default async function AthletesPage({ searchParams }: PageProps) {
 
         <div className="h-px bg-border" />
 
+        {/* Categoría */}
+        {categories.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 items-center">
+            <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide w-20 shrink-0">Categoría</span>
+            <Link href={`/dashboard/athletes?${new URLSearchParams({ ...(params.search ? { search: params.search } : {}), ...(params.status ? { status: params.status } : {}), ...(params.health ? { health: params.health } : {}), ...(params.planId ? { planId: params.planId } : {}), ...(params.subStatus ? { subStatus: params.subStatus } : {}) }).toString()}`}>
+              <button className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${!params.categoryId ? 'bg-foreground text-background border-foreground shadow-sm' : 'border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground'}`}>Todas</button>
+            </Link>
+            {categories.map((cat) => (
+              <Link key={cat.id} href={`/dashboard/athletes?${new URLSearchParams({ ...(params.search ? { search: params.search } : {}), ...(params.status ? { status: params.status } : {}), ...(params.health ? { health: params.health } : {}), ...(params.planId ? { planId: params.planId } : {}), ...(params.subStatus ? { subStatus: params.subStatus } : {}), categoryId: cat.id }).toString()}`}>
+                <button className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${params.categoryId === cat.id ? 'bg-foreground text-background border-foreground shadow-sm' : 'border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground'}`}>
+                  {cat.color && <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: cat.color }} />}
+                  {cat.name}
+                </button>
+              </Link>
+            ))}
+          </div>
+        )}
+
         {/* Plan */}
         {plans.length > 0 && (
           <div className="flex flex-wrap gap-1.5 items-center">
@@ -683,7 +707,7 @@ export default async function AthletesPage({ searchParams }: PageProps) {
                 className="text-xs text-muted-foreground hover:text-foreground">✕</Link>
             )}
           </form>
-          {(params.search || params.status || params.health || params.planId || params.subStatus || sort || showInactive || filterDebtOld60 || filterExpiredDocs || params.ageMin || params.ageMax || params.debtMin || params.debtMax) && (
+          {(params.search || params.status || params.health || params.planId || params.subStatus || params.categoryId || sort || showInactive || filterDebtOld60 || filterExpiredDocs || params.ageMin || params.ageMax || params.debtMin || params.debtMax) && (
             <Link href="/dashboard/athletes" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground ml-auto">
               <span>✕</span> Limpiar todo
             </Link>
@@ -748,6 +772,21 @@ export default async function AthletesPage({ searchParams }: PageProps) {
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-semibold truncate">{athlete.name}</span>
                         <HealthStatusBadge status={athlete.health_status} />
+                        {(() => {
+                          const catId = (athlete as { category_id?: string | null }).category_id
+                          const catName = (athlete as { category?: string | null }).category
+                          if (!catId && !catName) return null
+                          const cat = categories.find((c) => c.id === catId)
+                          const label = cat?.name ?? catName
+                          const color = cat?.color
+                          if (!label || label === 'General') return null
+                          return (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded border border-border" style={color ? { borderColor: color, color } : {}}>
+                              {color && <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: color }} />}
+                              {label}
+                            </span>
+                          )
+                        })()}
                         {athlete.photo_url
                           ? <span className="text-[10px] text-green-600 bg-green-50 px-1 py-0.5 rounded" title="Tiene foto de perfil">📷</span>
                           : <span className="text-[10px] text-gray-400 bg-gray-50 px-1 py-0.5 rounded" title="Sin foto de perfil">Sin foto</span>

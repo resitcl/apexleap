@@ -20,6 +20,7 @@ const athleteSchema = z.object({
   performance_meta: z.record(z.unknown()).default({}),
   jersey_number: z.number().int().min(1).max(999).nullable().optional(),
   category: z.string().min(1).default('General'),
+  category_id: z.string().uuid().optional().nullable(),
 })
 
 function translateAthleteError(msg: string): string {
@@ -52,6 +53,7 @@ export async function getAthletes(params?: {
   healthStatus?: string
   planId?: string
   subscriptionStatus?: string
+  categoryId?: string
   page?: number
   limit?: number
   sort?: string
@@ -87,6 +89,9 @@ export async function getAthletes(params?: {
   }
   if (params?.healthStatus) {
     query = query.eq('health_status', params.healthStatus)
+  }
+  if (params?.categoryId) {
+    query = query.eq('category_id', params.categoryId)
   }
   if (params?.planId || params?.subscriptionStatus) {
     let subQ = supabase.from('subscriptions').select('athlete_id').eq('club_id', clubId)

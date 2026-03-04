@@ -18,7 +18,7 @@ async function getClubId() {
   return data.club_id as string
 }
 
-export async function getAttendanceToday() {
+export async function getAttendanceToday(params?: { categoryId?: string }) {
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
@@ -27,7 +27,18 @@ export async function getAttendanceToday() {
   const tomorrow = new Date(today)
   tomorrow.setDate(tomorrow.getDate() + 1)
 
-  const { data, error } = await supabase
+  let athleteIds: string[] | null = null
+  if (params?.categoryId) {
+    const { data: catAthletes } = await supabase
+      .from('athletes')
+      .select('id')
+      .eq('club_id', clubId)
+      .eq('category_id', params.categoryId)
+    athleteIds = (catAthletes ?? []).map((a) => a.id)
+    if (athleteIds.length === 0) return []
+  }
+
+  let query = supabase
     .from('attendance')
     .select('*, athletes(id, name, photo_url, health_status)')
     .eq('club_id', clubId)
@@ -35,6 +46,9 @@ export async function getAttendanceToday() {
     .lt('checked_in_at', tomorrow.toISOString())
     .order('checked_in_at', { ascending: false })
 
+  if (athleteIds) query = query.in('athlete_id', athleteIds)
+
+  const { data, error } = await query
   if (error) throw new Error(error.message)
   return data ?? []
 }
@@ -42,6 +56,7 @@ export async function getAttendanceToday() {
 export async function getAttendanceHistory(params?: {
   athleteId?: string
   scheduleId?: string
+  categoryId?: string
   days?: number
   from?: string
   to?: string
@@ -71,6 +86,16 @@ export async function getAttendanceHistory(params?: {
 
   if (params?.athleteId) query = query.eq('athlete_id', params.athleteId)
   if (params?.scheduleId) query = query.eq('schedule_id', params.scheduleId)
+  if (params?.categoryId) {
+    const { data: catAthletes } = await supabase
+      .from('athletes')
+      .select('id')
+      .eq('club_id', clubId)
+      .eq('category_id', params.categoryId)
+    const ids = (catAthletes ?? []).map((a) => a.id)
+    if (ids.length === 0) return { records: [], total: 0 }
+    query = query.in('athlete_id', ids)
+  }
 
   const { data, error, count } = await query
   if (error) throw new Error(error.message)

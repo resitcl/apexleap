@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic"
 
 import { getCompetitions } from "@/lib/actions/competitions"
+import { getCategories } from "@/lib/actions/categories"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
@@ -21,7 +22,7 @@ const STATUS_META: Record<string, { label: string; variant: "default" | "seconda
 }
 
 interface PageProps {
-  searchParams: Promise<{ status?: string; page?: string; search?: string; type?: string; location?: string; sport?: string; sort?: string }>
+  searchParams: Promise<{ status?: string; page?: string; search?: string; type?: string; location?: string; sport?: string; sort?: string; categoryId?: string }>
 }
 
 export default async function CompetitionsPage({ searchParams }: PageProps) {
@@ -35,12 +36,18 @@ export default async function CompetitionsPage({ searchParams }: PageProps) {
   const limit    = 20
 
   type RosterEntry = { id: string; name: string | null; roster_athletes: { id: string; athletes: { id: string; name: string } | null }[] }
-  let competitions: { id: string; name: string; type: string; status: string; sport: string | null; location: string | null; start_date: string; end_date: string | null; rosters: RosterEntry[] }[] = []
+  let competitions: { id: string; name: string; type: string; status: string; sport: string | null; location: string | null; start_date: string; end_date: string | null; category_id?: string | null; rosters: RosterEntry[] }[] = []
+  let categories: { id: string; name: string; color: string | null }[] = []
   let total = 0
 
   try {
-    const result = await getCompetitions({ status: params.status, search: search || undefined, type: type || undefined, page, limit })
+    const [result, catsData] = await Promise.all([
+      getCompetitions({ status: params.status, search: search || undefined, type: type || undefined, page, limit }),
+      getCategories(true).catch(() => []),
+    ])
     competitions = result.competitions as typeof competitions
+    categories = catsData.map((c) => ({ id: c.id, name: c.name, color: c.color ?? null }))
+    if (params.categoryId) competitions = competitions.filter((c) => c.category_id === params.categoryId)
     if (location) competitions = competitions.filter((c) => c.location?.toLowerCase().includes(location.toLowerCase()))
     if (sport)    competitions = competitions.filter((c) => c.sport?.toLowerCase() === sport.toLowerCase())
     if (sortBy === 'date_asc')  competitions = competitions.slice().sort((a, b) => a.start_date.localeCompare(b.start_date))
@@ -128,6 +135,22 @@ export default async function CompetitionsPage({ searchParams }: PageProps) {
             </Link>
           ))}
         </div>
+        {categories.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            <span className="text-xs text-muted-foreground font-medium self-center">Categoría:</span>
+            <Link href={`/dashboard/competitions?${new URLSearchParams({ ...(params.status ? { status: params.status } : {}), ...(search ? { search } : {}), ...(type ? { type } : {}) }).toString()}`}>
+              <button className={`h-7 px-2.5 rounded-md border text-xs font-medium transition-colors ${ !params.categoryId ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-input hover:bg-accent' }`}>Todas</button>
+            </Link>
+            {categories.map((cat) => (
+              <Link key={cat.id} href={`/dashboard/competitions?${new URLSearchParams({ ...(params.status ? { status: params.status } : {}), ...(search ? { search } : {}), ...(type ? { type } : {}), categoryId: cat.id }).toString()}`}>
+                <button className={`inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border text-xs font-medium transition-colors ${ params.categoryId === cat.id ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-input hover:bg-accent' }`}>
+                  {cat.color && <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: cat.color }} />}
+                  {cat.name}
+                </button>
+              </Link>
+            ))}
+          </div>
+        )}
         <div className="flex flex-wrap gap-2">
           {([['', 'Todos'], ['tournament', 'Torneo'], ['league', 'Liga'], ['friendly', 'Amistoso'], ['championship', 'Campeonato']] as const).map(([val, lbl]) => (
             <Link key={val} href={`/dashboard/competitions?${new URLSearchParams({
@@ -209,6 +232,16 @@ export default async function CompetitionsPage({ searchParams }: PageProps) {
                   <div className="flex gap-2 flex-wrap mt-1">
                     <Badge variant="outline" className="text-xs">{TYPE_LABELS[comp.type] ?? comp.type}</Badge>
                     {comp.sport && <Badge variant="outline" className="text-xs">{comp.sport}</Badge>}
+                    {(() => {
+                      const cat = categories.find((c) => c.id === comp.category_id)
+                      if (!cat) return null
+                      return (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded border" style={cat.color ? { borderColor: cat.color, color: cat.color } : {}}>
+                          {cat.color && <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: cat.color }} />}
+                          {cat.name}
+                        </span>
+                      )
+                    })()}
                     {(() => {
                       const uniqueAthletes = new Set(
                         (comp.rosters as Array<{ athlete_id?: string }> ?? [])
