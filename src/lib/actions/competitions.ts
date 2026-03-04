@@ -15,6 +15,7 @@ const competitionSchema = z.object({
   status: z.enum(['upcoming', 'active', 'finished', 'cancelled']).default('upcoming'),
   description: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
+  category_id: z.string().uuid().optional().nullable(),
 })
 
 export type CompetitionInput = z.infer<typeof competitionSchema>

@@ -2,8 +2,10 @@ export const dynamic = "force-dynamic"
 
 import Link from "next/link"
 import { getClubSettings } from "@/lib/actions/settings"
+import { getCategories } from "@/lib/actions/categories"
 import { ClubSettingsForm } from "@/components/settings/ClubSettingsForm"
 import { DeleteClubButton } from "@/components/settings/DeleteClubButton"
+import { CategoriesManager } from "@/components/settings/CategoriesManager"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Settings, AlertTriangle } from "lucide-react"
 import { Separator } from "@/components/ui/separator"
@@ -17,12 +19,17 @@ export default async function SettingsPage({ searchParams }: PageProps) {
 
   let club = null
   let error: string | null = null
+  let categories: Awaited<ReturnType<typeof getCategories>> = []
 
   try {
     club = await getClubSettings()
   } catch (e) {
     error = e instanceof Error ? e.message : "Error al cargar configuración"
   }
+
+  try {
+    categories = await getCategories()
+  } catch { /* silent */ }
 
   if (error) {
     return (
@@ -54,8 +61,9 @@ export default async function SettingsPage({ searchParams }: PageProps) {
       {/* Tabs */}
       <div className="flex gap-1 border-b border-border">
         {[
-          { key: "general",  label: "General" },
-          { key: "danger",   label: "Zona de Peligro" },
+          { key: "general",     label: "General" },
+          { key: "categories",  label: "Categorías" },
+          { key: "danger",      label: "Zona de Peligro" },
         ].map((t) => (
           <Link
             key={t.key}
@@ -75,6 +83,10 @@ export default async function SettingsPage({ searchParams }: PageProps) {
 
       {tab === "general" && (
         <ClubSettingsForm defaultValues={club ?? undefined} />
+      )}
+
+      {tab === "categories" && (
+        <CategoriesManager initialCategories={categories} />
       )}
 
       {tab === "danger" && (

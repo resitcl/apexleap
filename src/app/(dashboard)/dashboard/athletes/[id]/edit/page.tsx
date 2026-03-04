@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import { getAthleteById } from "@/lib/actions/athletes"
+import { getCategories } from "@/lib/actions/categories"
 import { AthleteForm } from "@/components/athletes/AthleteForm"
 import { Button } from "@/components/ui/button"
 import { ChevronLeft } from "lucide-react"
@@ -19,6 +20,9 @@ export default async function EditAthletePage({ params }: PageProps) {
     notFound()
   }
 
+  let categories: Awaited<ReturnType<typeof getCategories>> = []
+  try { categories = await getCategories(true) } catch { /* silent */ }
+
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div className="flex items-center gap-4">
@@ -36,6 +40,7 @@ export default async function EditAthletePage({ params }: PageProps) {
 
       <AthleteForm
         athleteId={id}
+        categories={categories}
         defaultValues={{
           name: athlete.name,
           email: athlete.email ?? '',

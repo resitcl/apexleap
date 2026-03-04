@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
@@ -9,6 +9,9 @@ import {
 } from "@/components/ui/dialog"
 import { Pencil } from "lucide-react"
 import { updateCompetition } from "@/lib/actions/competitions"
+import { getCategories } from "@/lib/actions/categories"
+
+type CategoryOption = { id: string; name: string }
 
 const TYPES = [
   { value: 'tournament',   label: 'Torneo' },
@@ -35,12 +38,14 @@ interface Props {
     end_date: string | null
     description: string | null
     notes: string | null
+    category_id?: string | null
   }
 }
 
 export function EditCompetitionButton({ competition }: Props) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [categories, setCategories] = useState<CategoryOption[]>([])
   const [form, setForm] = useState({
     name:        competition.name,
     type:        competition.type,
@@ -51,7 +56,13 @@ export function EditCompetitionButton({ competition }: Props) {
     end_date:    competition.end_date ?? '',
     description: competition.description ?? '',
     notes:       competition.notes ?? '',
+    category_id: competition.category_id ?? '',
   })
+
+  useEffect(() => {
+    if (!open) return
+    getCategories(true).then((data) => setCategories(data.map((c) => ({ id: c.id, name: c.name })))).catch(() => {})
+  }, [open])
 
   function set(field: string, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }))
@@ -72,6 +83,7 @@ export function EditCompetitionButton({ competition }: Props) {
         end_date:    form.end_date || null,
         description: form.description || null,
         notes:       form.notes || null,
+        category_id: form.category_id || null,
       })
       toast.success('Competencia actualizada')
       setOpen(false)
@@ -148,6 +160,16 @@ export function EditCompetitionButton({ competition }: Props) {
                   className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
               </div>
             </div>
+            {categories.length > 0 && (
+              <div className="space-y-1">
+                <Label>Categoría</Label>
+                <select value={form.category_id} onChange={(e) => set('category_id', e.target.value)}
+                  className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring">
+                  <option value="">— Todas las categorías —</option>
+                  {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+            )}
             <div className="space-y-1">
               <Label>Descripción</Label>
               <textarea value={form.description} onChange={(e) => set('description', e.target.value)} rows={2}

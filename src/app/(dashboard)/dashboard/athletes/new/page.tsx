@@ -4,8 +4,12 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { AthleteForm } from "@/components/athletes/AthleteForm"
 import { ChevronLeft } from "lucide-react"
+import { getCategories } from "@/lib/actions/categories"
 
-export default function NewAthletePage() {
+export default async function NewAthletePage() {
+  let categories: Awaited<ReturnType<typeof getCategories>> = []
+  try { categories = await getCategories(true) } catch { /* silent */ }
+
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div className="flex items-center gap-4">
@@ -21,7 +25,7 @@ export default function NewAthletePage() {
         </div>
       </div>
 
-      <AthleteForm />
+      <AthleteForm categories={categories} />
     </div>
   )
 }

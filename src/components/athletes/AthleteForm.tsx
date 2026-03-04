@@ -14,7 +14,7 @@ import { Separator } from '@/components/ui/separator'
 import { createAthlete, updateAthlete } from '@/lib/actions/athletes'
 import type { AthleteInput } from '@/lib/actions/athletes'
 
-const PRESET_CATEGORIES = ['General', 'Adulta', 'Juvenil', 'Infantil', 'Sub-15', 'Sub-17', 'Sub-20', '+35', '+40', '+45', 'Femenino', 'Masculino']
+type CategoryOption = { id: string; name: string; color?: string | null }
 
 const formSchema = z.object({
   name: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
@@ -36,9 +36,10 @@ type FormValues = z.infer<typeof formSchema>
 interface Props {
   athleteId?: string
   defaultValues?: Partial<FormValues & { jersey_number?: number | null; category?: string }>
+  categories?: CategoryOption[]
 }
 
-export function AthleteForm({ athleteId, defaultValues }: Props) {
+export function AthleteForm({ athleteId, defaultValues, categories = [] }: Props) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const isEditing = !!athleteId
@@ -139,14 +140,18 @@ export function AthleteForm({ athleteId, defaultValues }: Props) {
           <div className="space-y-1.5">
             <Label htmlFor="category">Categoría</Label>
             <div className="flex gap-2">
-              <select
+<select
                 id="category"
                 {...form.register('category')}
                 className="flex-1 h-10 rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
               >
-                {PRESET_CATEGORIES.map((c) => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
+                {categories.length > 0 ? (
+                  categories.map((c) => (
+                    <option key={c.id} value={c.name}>{c.name}</option>
+                  ))
+                ) : (
+                  <option value="General">General (sin categorías definidas)</option>
+                )}
               </select>
             </div>
             <p className="text-xs text-muted-foreground">El número de camiseta no puede repetirse dentro de la misma categoría</p>
