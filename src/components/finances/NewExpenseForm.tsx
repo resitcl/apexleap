@@ -1,13 +1,14 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { createExpense } from '@/lib/actions/finances'
-import { Plus } from 'lucide-react'
+import { getSuppliers } from '@/lib/actions/suppliers'
+import { Plus, Building2 } from 'lucide-react'
 
 const CATEGORIES = [
   { value: 'rent',        label: 'Arriendo' },
@@ -18,16 +19,37 @@ const CATEGORIES = [
   { value: 'other',       label: 'Otros' },
 ]
 
+type SupplierOption = { id: string; name: string; category: string }
+
+const BLANK = {
+  concept: '', category: 'other', amount: '',
+  date: new Date().toISOString().split('T')[0],
+  paid_to: '', notes: '', supplier_id: '',
+}
+
 export function NewExpenseForm() {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen]       = useState(false)
   const [loading, setLoading] = useState(false)
-  const [form, setForm] = useState({
-    concept: '', category: 'other', amount: '',
-    date: new Date().toISOString().split('T')[0],
-    paid_to: '', notes: '',
-  })
+  const [suppliers, setSuppliers] = useState<SupplierOption[]>([])
+  const [form, setForm] = useState({ ...BLANK })
+
+  useEffect(() => {
+    if (!open) return
+    getSuppliers({ activeOnly: true }).then((data) =>
+      setSuppliers(data.map((s) => ({ id: s.id, name: s.name, category: s.category })))
+    ).catch(() => {})
+  }, [open])
 
   function set(k: string, v: string) { setForm((p) => ({ ...p, [k]: v })) }
+
+  function handleSupplierChange(supplierId: string) {
+    const sup = suppliers.find((s) => s.id === supplierId)
+    setForm((p) => ({
+      ...p,
+      supplier_id: supplierId,
+      paid_to: sup ? sup.name : p.paid_to,
+    }))
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -35,16 +57,17 @@ export function NewExpenseForm() {
     setLoading(true)
     try {
       await createExpense({
-        concept: form.concept,
-        category: form.category as never,
-        amount: Number(form.amount),
-        date: form.date,
-        paid_to: form.paid_to || null,
-        notes: form.notes || null,
+        concept:     form.concept,
+        category:    form.category as never,
+        amount:      Number(form.amount),
+        date:        form.date,
+        paid_to:     form.paid_to || null,
+        notes:       form.notes || null,
+        supplier_id: form.supplier_id || null,
       })
       toast.success('Egreso registrado')
       setOpen(false)
-      setForm({ concept: '', category: 'other', amount: '', date: new Date().toISOString().split('T')[0], paid_to: '', notes: '' })
+      setForm({ ...BLANK })
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Error inesperado')
     } finally {
@@ -82,9 +105,35 @@ export function NewExpenseForm() {
                 {CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
               </select>
             </div>
+
+            {/* Supplier selector */}
+            <div className="sm:col-span-2 space-y-1.5">
+              <Label htmlFor="supplier_id" className="flex items-center gap-1">
+                <Building2 className="w-3.5 h-3.5" />
+                Proveedor
+              </Label>
+              <select
+                id="supplier_id"
+                value={form.supplier_id}
+                onChange={(e) => handleSupplierChange(e.target.value)}
+                className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                <option value="">— Sin proveedor —</option>
+                {suppliers.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+              {suppliers.length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Sin proveedores registrados —{' '}
+                  <a href="/dashboard/finances?tab=suppliers" className="underline hover:text-foreground">agregar en Proveedores</a>
+                </p>
+              )}
+            </div>
+
             <div className="space-y-1.5">
               <Label htmlFor="paid_to">Pagado a</Label>
-              <Input id="paid_to" value={form.paid_to} onChange={(e) => set('paid_to', e.target.value)} placeholder="Proveedor..." />
+              <Input id="paid_to" value={form.paid_to} onChange={(e) => set('paid_to', e.target.value)} placeholder="Nombre manual..." />
             </div>
             <div className="sm:col-span-2 space-y-1.5">
               <Label htmlFor="notes">Notas</Label>

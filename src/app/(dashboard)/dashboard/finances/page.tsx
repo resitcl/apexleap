@@ -2,12 +2,15 @@ export const dynamic = "force-dynamic"
 
 import Link from "next/link"
 import { getFinanceSummary, getExpenses, getCoaches, getMonthlyFinanceChart } from "@/lib/actions/finances"
+import { getSuppliers, SUPPLIER_CATEGORIES } from "@/lib/actions/suppliers"
+import { NewSupplierButton } from "@/components/finances/NewSupplierButton"
+import { DeleteSupplierButton } from "@/components/finances/DeleteSupplierButton"
 import { ExportExpensesButton } from "@/components/finances/ExportExpensesButton"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
-  TrendingUp, TrendingDown, DollarSign, AlertCircle, Users
+  TrendingUp, TrendingDown, DollarSign, AlertCircle, Users, Building2
 } from "lucide-react"
 import { InfoTooltip } from "@/components/ui/info-tooltip"
 import { NewExpenseForm } from "@/components/finances/NewExpenseForm"
@@ -45,6 +48,7 @@ export default async function FinancesPage({ searchParams }: PageProps) {
   let expenses: Awaited<ReturnType<typeof getExpenses>>["expenses"] = []
   let coaches: Awaited<ReturnType<typeof getCoaches>> = []
   let chartData: Awaited<ReturnType<typeof getMonthlyFinanceChart>> = []
+  let suppliers: Awaited<ReturnType<typeof getSuppliers>> = []
 
   const prevMonth = (() => {
     const [y, m] = month.split('-').map(Number)
@@ -53,12 +57,13 @@ export default async function FinancesPage({ searchParams }: PageProps) {
   })()
 
   try {
-    const [s, prev, e, c, ch] = await Promise.all([
+    const [s, prev, e, c, ch, sup] = await Promise.all([
       getFinanceSummary(month),
       getFinanceSummary(prevMonth),
       getExpenses({ month, category: category || undefined }),
       getCoaches(),
       getMonthlyFinanceChart(6),
+      getSuppliers({ activeOnly: false }),
     ])
     summary = s
     prevSummary = prev
@@ -69,6 +74,7 @@ export default async function FinancesPage({ searchParams }: PageProps) {
       .filter((ex) => !dateTo   || ex.date <= dateTo)
     coaches = c
     chartData = ch
+    suppliers = sup
   } catch { /* show zeros */ }
 
   const monthLabel = new Date(month + "-02").toLocaleDateString("es-CL", { month: "long", year: "numeric" })
@@ -404,6 +410,7 @@ export default async function FinancesPage({ searchParams }: PageProps) {
           { key: "overview", label: "Resumen" },
           { key: "expenses", label: "Egresos" },
           { key: "coaches", label: "Staff / Nómina" },
+          { key: "suppliers", label: `Proveedores${suppliers.length > 0 ? ` (${suppliers.length})` : ''}` },
         ].map((t) => (
           <Link
             key={t.key}
@@ -668,6 +675,79 @@ export default async function FinancesPage({ searchParams }: PageProps) {
                   </CardContent>
                 </Card>
               ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Suppliers Tab */}
+      {tab === "suppliers" && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <p className="text-sm text-muted-foreground">
+              {suppliers.filter((s) => s.is_active).length} proveedores activos
+            </p>
+            <NewSupplierButton />
+          </div>
+
+          {suppliers.length === 0 ? (
+            <div className="py-16 text-center text-muted-foreground border border-dashed rounded-xl">
+              <Building2 className="w-10 h-10 mx-auto mb-2 opacity-30" />
+              <p className="font-medium">Sin proveedores registrados</p>
+              <p className="text-xs mt-1">Agrega canchas, equipamiento, ligas y más</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {(() => {
+                const catMap = Object.fromEntries(SUPPLIER_CATEGORIES.map((c) => [c.value, c.label]))
+                const grouped = suppliers.reduce<Record<string, typeof suppliers>>((acc, s) => {
+                  const cat = s.category ?? 'other'
+                  if (!acc[cat]) acc[cat] = []
+                  acc[cat].push(s)
+                  return acc
+                }, {})
+                return Object.entries(grouped).map(([cat, list]) => (
+                  <div key={cat}>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide px-1 mb-1.5">
+                      {catMap[cat] ?? cat}
+                    </p>
+                    <div className="space-y-2">
+                      {list.map((sup) => (
+                        <div key={sup.id} className={`rounded-xl border bg-card p-4 flex items-start gap-4 ${
+                          !sup.is_active ? 'opacity-50' : ''
+                        }`}>
+                          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                            <span className="text-sm font-bold text-primary">{sup.name.slice(0, 2).toUpperCase()}</span>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-semibold">{sup.name}</span>
+                              {!sup.is_active && (
+                                <span className="text-xs px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">Inactivo</span>
+                              )}
+                            </div>
+                            <div className="text-xs text-muted-foreground mt-0.5 flex flex-wrap gap-x-4 gap-y-0.5">
+                              {sup.rut && <span>RUT: {sup.rut}</span>}
+                              {sup.phone && <span>{sup.phone}</span>}
+                              {sup.email && <span>{sup.email}</span>}
+                              {sup.bank_name && (
+                                <span className="text-blue-600">
+                                  🏦 {sup.bank_name}{sup.account_type ? ` · ${sup.account_type}` : ''}{sup.account_number ? ` · ${sup.account_number}` : ''}
+                                </span>
+                              )}
+                            </div>
+                            {sup.notes && <p className="text-xs text-muted-foreground mt-1 italic">{sup.notes}</p>}
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <NewSupplierButton supplier={sup} mode="edit" />
+                            <DeleteSupplierButton supplierId={sup.id} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))
+              })()}
             </div>
           )}
         </div>

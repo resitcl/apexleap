@@ -12,6 +12,7 @@ const expenseSchema = z.object({
   date: z.string().min(1),
   paid_to: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
+  supplier_id: z.string().uuid().optional().nullable(),
 })
 
 const coachSchema = z.object({
