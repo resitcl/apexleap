@@ -1,13 +1,18 @@
 'use client'
 
-import { useState, useTransition } from 'react'
-import { Plus, X, Loader2 } from 'lucide-react'
+import { useState, useTransition, useEffect } from 'react'
+import { Plus, X, Loader2, Trophy } from 'lucide-react'
 import { createMatch } from '@/lib/actions/matches'
+import { getCompetitions } from '@/lib/actions/competitions'
+
+type CompOption = { id: string; name: string; type: string }
 
 export function StandaloneMatchButton() {
-  const [open, setOpen]    = useState(false)
-  const [error, setError]  = useState('')
-  const [isPending, start] = useTransition()
+  const [open, setOpen]          = useState(false)
+  const [error, setError]        = useState('')
+  const [isPending, start]       = useTransition()
+  const [competitions, setComps] = useState<CompOption[]>([])
+  const [competitionId, setCompetitionId] = useState<string>('')
 
   const [form, setForm] = useState({
     opponent:   '',
@@ -20,12 +25,23 @@ export function StandaloneMatchButton() {
     notes:      '',
   })
 
+  useEffect(() => {
+    if (!open) return
+    Promise.all([
+      getCompetitions({ status: 'active',    limit: 50 }),
+      getCompetitions({ status: 'upcoming',  limit: 50 }),
+    ]).then(([a, u]) => {
+      setComps([...a.competitions, ...u.competitions].map((c) => ({ id: c.id, name: c.name, type: c.type })))
+    }).catch(() => {})
+  }, [open])
+
   function set(k: string, v: string | boolean) {
     setForm(prev => ({ ...prev, [k]: v }))
   }
 
   function reset() {
     setForm({ opponent: '', match_date: new Date().toISOString().split('T')[0], location: '', is_home: true, home_score: '', away_score: '', status: 'scheduled', notes: '' })
+    setCompetitionId('')
     setError('')
   }
 
@@ -36,7 +52,7 @@ export function StandaloneMatchButton() {
     start(async () => {
       try {
         await createMatch({
-          competition_id: null,
+          competition_id: competitionId || null,
           opponent:       form.opponent.trim(),
           match_date:     form.match_date,
           location:       form.location || undefined,
@@ -76,6 +92,25 @@ export function StandaloneMatchButton() {
 
             <form onSubmit={handleSubmit} className="p-5 space-y-4">
               <div className="grid grid-cols-2 gap-3">
+
+                {/* Competition selector */}
+                <div className="col-span-2">
+                  <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                    <Trophy className="w-3 h-3" />
+                    Torneo / Campeonato
+                  </label>
+                  <select
+                    value={competitionId}
+                    onChange={e => setCompetitionId(e.target.value)}
+                    className="mt-1 w-full h-9 px-3 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  >
+                    <option value="">⚡ Amistoso (sin torneo)</option>
+                    {competitions.map(c => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+
                 <div className="col-span-2">
                   <label className="text-xs font-medium text-muted-foreground">Rival *</label>
                   <input
