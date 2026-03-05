@@ -288,7 +288,7 @@ export function ClubLandingPage({ club, coaches, media, results, schedule, stats
       )}
 
       {/* ─── Stats ────────────────────────────────────────────── */}
-      {club.landing_show_stats && stats && (
+      {club.landing_show_stats && (
         <section className="py-16 px-4" style={{ backgroundColor: `${primary}06` }}>
           <div className="max-w-3xl mx-auto">
             <div className="text-center mb-10">
@@ -298,9 +298,9 @@ export function ClubLandingPage({ club, coaches, media, results, schedule, stats
             </div>
             <div className="grid grid-cols-3 gap-6 text-center">
               {[
-                { value: stats.athletes, label: 'Atletas activos' },
-                { value: stats.played,   label: 'Partidos jugados' },
-                { value: stats.wins,     label: 'Victorias' },
+                { value: (stats ?? { athletes: 0, played: 0, wins: 0 }).athletes, label: 'Atletas activos' },
+                { value: (stats ?? { athletes: 0, played: 0, wins: 0 }).played,   label: 'Partidos jugados' },
+                { value: (stats ?? { athletes: 0, played: 0, wins: 0 }).wins,     label: 'Victorias' },
               ].map(({ value, label }) => (
                 <div key={label} className="bg-white rounded-2xl border border-gray-100 shadow-sm py-8 px-4">
                   <p className="text-4xl font-extrabold" style={{ color: primary }}>{value}</p>
@@ -313,7 +313,7 @@ export function ClubLandingPage({ club, coaches, media, results, schedule, stats
       )}
 
       {/* ─── Results ──────────────────────────────────────────── */}
-      {club.landing_show_results && results.length > 0 && (
+      {club.landing_show_results && (
         <section className="py-16 px-4">
           <div className="max-w-3xl mx-auto">
             <div className="text-center mb-10">
@@ -321,37 +321,41 @@ export function ClubLandingPage({ club, coaches, media, results, schedule, stats
                 <Trophy className="w-4 h-4" /> Últimos resultados
               </div>
             </div>
-            <div className="space-y-3">
-              {results.map(m => {
-                const clubScore = m.is_home ? m.home_score : m.away_score
-                const oppScore  = m.is_home ? m.away_score : m.home_score
-                const win = (clubScore ?? 0) > (oppScore ?? 0)
-                const draw = clubScore === oppScore
-                return (
-                  <div key={m.id} className="flex items-center gap-4 bg-white border border-gray-100 rounded-xl px-5 py-4 shadow-sm">
-                    <span className={`w-2 h-2 rounded-full shrink-0 ${win ? 'bg-green-500' : draw ? 'bg-yellow-400' : 'bg-red-400'}`} />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-gray-900 truncate">
-                        {m.is_home ? `${club.name}` : (m.opponent ?? 'Rival')} vs {m.is_home ? (m.opponent ?? 'Rival') : club.name}
-                      </p>
-                      <p className="text-xs text-gray-500 mt-0.5">{fmtDate(m.match_date)}{m.location ? ` · ${m.location}` : ''}</p>
+            {results.length === 0 ? (
+              <p className="text-center text-sm text-gray-400">Aún no hay resultados registrados.</p>
+            ) : (
+              <div className="space-y-3">
+                {results.map(m => {
+                  const clubScore = m.is_home ? m.home_score : m.away_score
+                  const oppScore  = m.is_home ? m.away_score : m.home_score
+                  const win = (clubScore ?? 0) > (oppScore ?? 0)
+                  const draw = clubScore === oppScore
+                  return (
+                    <div key={m.id} className="flex items-center gap-4 bg-white border border-gray-100 rounded-xl px-5 py-4 shadow-sm">
+                      <span className={`w-2 h-2 rounded-full shrink-0 ${win ? 'bg-green-500' : draw ? 'bg-yellow-400' : 'bg-red-400'}`} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-gray-900 truncate">
+                          {m.is_home ? `${club.name}` : (m.opponent ?? 'Rival')} vs {m.is_home ? (m.opponent ?? 'Rival') : club.name}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-0.5">{fmtDate(m.match_date)}{m.location ? ` · ${m.location}` : ''}</p>
+                      </div>
+                      <div className="text-lg font-extrabold tabular-nums shrink-0" style={{ color: primary }}>
+                        {m.home_score ?? '—'} – {m.away_score ?? '—'}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {m.is_home ? <Home className="w-3 h-3 text-gray-400" /> : <Swords className="w-3 h-3 text-gray-400" />}
+                      </div>
                     </div>
-                    <div className="text-lg font-extrabold tabular-nums shrink-0" style={{ color: primary }}>
-                      {m.home_score ?? '—'} – {m.away_score ?? '—'}
-                    </div>
-                    <div className="flex items-center gap-1">
-                      {m.is_home ? <Home className="w-3 h-3 text-gray-400" /> : <Swords className="w-3 h-3 text-gray-400" />}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
+                  )
+                })}
+              </div>
+            )}
           </div>
         </section>
       )}
 
       {/* ─── Schedule ─────────────────────────────────────────── */}
-      {club.landing_show_schedule && schedule.length > 0 && (
+      {club.landing_show_schedule && (
         <section className="py-16 px-4" style={{ backgroundColor: `${primary}06` }}>
           <div className="max-w-3xl mx-auto">
             <div className="text-center mb-10">
@@ -359,28 +363,32 @@ export function ClubLandingPage({ club, coaches, media, results, schedule, stats
                 <CalendarDays className="w-4 h-4" /> Próximos partidos
               </div>
             </div>
-            <div className="space-y-3">
-              {schedule.map(m => (
-                <div key={m.id} className="flex items-center gap-4 bg-white border border-gray-100 rounded-xl px-5 py-4 shadow-sm">
-                  <Clock className="w-4 h-4 shrink-0" style={{ color: primary }} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-gray-900 truncate">
-                      vs {m.opponent ?? 'Por confirmar'}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-0.5">{fmtDate(m.match_date)}{m.location ? ` · ${m.location}` : ''}</p>
+            {schedule.length === 0 ? (
+              <p className="text-center text-sm text-gray-400">No hay partidos programados próximamente.</p>
+            ) : (
+              <div className="space-y-3">
+                {schedule.map(m => (
+                  <div key={m.id} className="flex items-center gap-4 bg-white border border-gray-100 rounded-xl px-5 py-4 shadow-sm">
+                    <Clock className="w-4 h-4 shrink-0" style={{ color: primary }} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-gray-900 truncate">
+                        vs {m.opponent ?? 'Por confirmar'}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-0.5">{fmtDate(m.match_date)}{m.location ? ` · ${m.location}` : ''}</p>
+                    </div>
+                    <span className="text-xs font-medium px-2.5 py-1 rounded-full" style={{ backgroundColor: `${primary}15`, color: primary }}>
+                      {m.is_home ? 'Local' : 'Visitante'}
+                    </span>
                   </div>
-                  <span className="text-xs font-medium px-2.5 py-1 rounded-full" style={{ backgroundColor: `${primary}15`, color: primary }}>
-                    {m.is_home ? 'Local' : 'Visitante'}
-                  </span>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         </section>
       )}
 
       {/* ─── Media Gallery ────────────────────────────────────── */}
-      {club.landing_show_media && media.length > 0 && (
+      {club.landing_show_media && (
         <section className="py-16 px-4">
           <div className="max-w-5xl mx-auto">
             <div className="text-center mb-10">
@@ -388,7 +396,10 @@ export function ClubLandingPage({ club, coaches, media, results, schedule, stats
                 <Film className="w-4 h-4" /> Galería
               </div>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            {media.length === 0 ? (
+              <p className="text-center text-sm text-gray-400">Activa contenido desde el Media Hub usando el ícono 🌐.</p>
+            ) : null}
+            <div className={`grid grid-cols-2 sm:grid-cols-3 gap-4 ${media.length === 0 ? 'hidden' : ''}`}>
               {media.map(item => {
                 const thumb = item.thumbnail_url ?? (item.type === 'video' ? getYoutubeThumbnail(item.url) : null)
                 return (
