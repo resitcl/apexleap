@@ -11,18 +11,22 @@ export async function getClubId(): Promise<string> {
   if (!userId) throw new Error('No autorizado')
 
   const supabase = createAdminClient()
-  const cookieStore = await cookies()
-  const preferred = cookieStore.get(CLUB_COOKIE)?.value
 
-  if (preferred) {
-    const { data } = await supabase
-      .from('user_clubs')
-      .select('club_id')
-      .eq('user_id', userId)
-      .eq('club_id', preferred)
-      .eq('is_active', true)
-      .maybeSingle()
-    if (data) return data.club_id as string
+  try {
+    const cookieStore = await cookies()
+    const preferred = cookieStore.get(CLUB_COOKIE)?.value
+    if (preferred) {
+      const { data } = await supabase
+        .from('user_clubs')
+        .select('club_id')
+        .eq('user_id', userId)
+        .eq('club_id', preferred)
+        .eq('is_active', true)
+        .maybeSingle()
+      if (data) return data.club_id as string
+    }
+  } catch {
+    // cookies() not available in this context — fall through to DB
   }
 
   const { data, error } = await supabase
