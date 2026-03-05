@@ -21,7 +21,7 @@ function clerkErrMsg(err: unknown): string {
 
 export async function inviteUserToClub(
   email: string,
-  role: 'admin' | 'coach' | 'athlete'
+  role: 'admin' | 'admin_athlete' | 'coach' | 'athlete'
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
     const { userId } = await auth()

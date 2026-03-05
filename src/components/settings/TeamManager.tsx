@@ -32,15 +32,24 @@ interface Props {
 }
 
 const ROLES = [
-  { value: 'admin',   label: 'Administrador' },
-  { value: 'coach',   label: 'Entrenador' },
-  { value: 'athlete', label: 'Atleta' },
+  { value: 'admin',         label: 'Administrador',            hint: 'Gestión del club' },
+  { value: 'admin_athlete', label: 'Administrador + Atleta',    hint: 'Gestión + participa como jugador' },
+  { value: 'coach',         label: 'Entrenador',                hint: 'Solo rol de entrenador' },
+  { value: 'athlete',       label: 'Atleta',                    hint: 'Solo jugador/alumno' },
 ]
 
 const ROLE_COLORS: Record<string, string> = {
-  admin:   'bg-primary/10 text-primary',
-  coach:   'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-  athlete: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+  admin:         'bg-primary/10 text-primary',
+  admin_athlete: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
+  coach:         'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+  athlete:       'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+}
+
+const ROLE_LABELS: Record<string, string> = {
+  admin:         'Administrador',
+  admin_athlete: 'Admin + Atleta',
+  coach:         'Entrenador',
+  athlete:       'Atleta',
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -55,7 +64,7 @@ export function TeamManager({ members, invitations, clubSlug }: Props) {
   const [isPending, start] = useTransition()
 
   const [email, setEmail] = useState('')
-  const [role, setRole]   = useState<'admin' | 'coach' | 'athlete'>('admin')
+  const [role, setRole]   = useState<'admin' | 'admin_athlete' | 'coach' | 'athlete'>('admin')
   const [copied, setCopied] = useState(false)
   const [working, setWorking] = useState<string | null>(null)
 
@@ -139,7 +148,7 @@ export function TeamManager({ members, invitations, clubSlug }: Props) {
               />
               <select
                 value={role}
-                onChange={e => setRole(e.target.value as 'admin' | 'coach' | 'athlete')}
+                onChange={e => setRole(e.target.value as 'admin' | 'admin_athlete' | 'coach' | 'athlete')}
                 className="h-9 px-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
               >
                 {ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
@@ -197,7 +206,7 @@ export function TeamManager({ members, invitations, clubSlug }: Props) {
                   <div className="min-w-0">
                     <p className="text-xs font-mono text-muted-foreground truncate">{m.user_id}</p>
                     <span className={`inline-block text-[10px] font-semibold px-1.5 py-0.5 rounded-full mt-0.5 ${ROLE_COLORS[m.role] ?? 'bg-muted'}`}>
-                      {ROLES.find(r => r.value === m.role)?.label ?? m.role}
+                      {ROLE_LABELS[m.role] ?? m.role}
                     </span>
                   </div>
                   <button
@@ -232,7 +241,7 @@ export function TeamManager({ members, invitations, clubSlug }: Props) {
                     <p className="text-sm font-medium truncate">{inv.email}</p>
                     <div className="flex items-center gap-1.5 mt-0.5">
                       <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${ROLE_COLORS[inv.role] ?? 'bg-muted'}`}>
-                        {ROLES.find(r => r.value === inv.role)?.label ?? inv.role}
+                        {ROLE_LABELS[inv.role] ?? inv.role}
                       </span>
                       <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${STATUS_COLORS[inv.status]}`}>
                         Pendiente
@@ -268,7 +277,7 @@ export function TeamManager({ members, invitations, clubSlug }: Props) {
                     <p className="text-sm truncate">{inv.email}</p>
                     <div className="flex items-center gap-1.5 mt-0.5">
                       <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${ROLE_COLORS[inv.role] ?? 'bg-muted'}`}>
-                        {ROLES.find(r => r.value === inv.role)?.label ?? inv.role}
+                        {ROLE_LABELS[inv.role] ?? inv.role}
                       </span>
                       <Badge variant="outline" className={`text-[10px] px-1.5 py-0 h-4 ${STATUS_COLORS[inv.status]}`}>
                         {inv.status === 'accepted' ? 'Aceptada' : inv.status === 'revoked' ? 'Revocada' : 'Expirada'}
