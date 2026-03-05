@@ -4,15 +4,10 @@
 -- Un entrenador es sólo entrenador.
 -- ============================================================
 
--- Drop old constraint and add new one that includes admin_athlete
-ALTER TABLE user_clubs
-  DROP CONSTRAINT IF EXISTS user_clubs_role_check;
+-- user_role is a ENUM type — add the new value directly
+ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'admin_athlete';
 
-ALTER TABLE user_clubs
-  ADD CONSTRAINT user_clubs_role_check
-  CHECK (role IN ('admin', 'admin_athlete', 'coach', 'athlete'));
-
--- Drop old constraint on club_invitations and add updated one
+-- club_invitations.role is TEXT with a CHECK constraint — update it
 ALTER TABLE club_invitations
   DROP CONSTRAINT IF EXISTS club_invitations_role_check;
 
