@@ -40,7 +40,6 @@ export async function inviteUserToClub(email: string, role: 'admin' | 'coach' | 
   try {
     const invitation = await clerk.invitations.createInvitation({
       emailAddress: email.toLowerCase().trim(),
-      redirectUrl: `${process.env.NEXT_PUBLIC_APP_URL}/sign-up`,
       publicMetadata: {
         pendingClubId: clubId,
         pendingRole: role,
