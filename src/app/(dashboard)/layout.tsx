@@ -25,6 +25,7 @@ import {
   User,
   ClipboardList,
   Swords,
+  Globe,
 } from "lucide-react"
 import Image from "next/image"
 import { MobileSidebar } from "@/components/layouts/MobileSidebar"
@@ -86,9 +87,10 @@ function buildNavGroups(v: ReturnType<typeof getSportVocab>) {
     {
       label: "Cuenta",
       items: [
-        { href: "/dashboard/athlete",        label: "Mi Portal",      icon: User },
-        { href: "/dashboard/settings/team",  label: "Equipo",         icon: Users },
-        { href: "/dashboard/settings",       label: "Configuración",  icon: Settings },
+        { href: "/dashboard/athlete",           label: "Mi Portal",      icon: User },
+        { href: "/dashboard/settings/team",   label: "Equipo",         icon: Users },
+        { href: "/dashboard/settings/landing",label: "Landing page",   icon: Globe },
+        { href: "/dashboard/settings",        label: "Configuración",  icon: Settings },
       ],
     },
   ]
