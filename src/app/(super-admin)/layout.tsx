@@ -4,6 +4,7 @@ import { redirect } from "next/navigation"
 import { isSuperAdmin } from "@/lib/actions/super-admin"
 import { ThemeToggle } from "@/components/layouts/ThemeToggle"
 import { UserNavClient } from "@/components/layouts/UserNavClient"
+import { SuperAdminChatWidget } from "@/components/super-admin/SuperAdminChatWidget"
 import {
   LayoutDashboard,
   Building2,
@@ -91,6 +92,7 @@ export default async function SuperAdminLayout({ children }: { children: React.R
           {children}
         </main>
       </div>
+      <SuperAdminChatWidget />
     </div>
   )
 }
