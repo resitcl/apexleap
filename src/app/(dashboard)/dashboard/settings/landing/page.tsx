@@ -33,6 +33,8 @@ export default async function LandingSettingsPage() {
           landing_description:       (settings as unknown as Record<string, unknown>).landing_description as string ?? null,
           landing_cta_label:         (settings as unknown as Record<string, unknown>).landing_cta_label as string ?? 'Iniciar sesión',
           landing_show_team:         (settings as unknown as Record<string, unknown>).landing_show_team as boolean ?? true,
+          landing_show_athletes:     (settings as unknown as Record<string, unknown>).landing_show_athletes as boolean ?? false,
+          landing_show_about:        (settings as unknown as Record<string, unknown>).landing_show_about as boolean ?? true,
           landing_show_media:        (settings as unknown as Record<string, unknown>).landing_show_media as boolean ?? false,
           landing_show_results:      (settings as unknown as Record<string, unknown>).landing_show_results as boolean ?? false,
           landing_show_schedule:     (settings as unknown as Record<string, unknown>).landing_show_schedule as boolean ?? false,

@@ -2,6 +2,8 @@ import { notFound } from 'next/navigation'
 import {
   getPublicClubLanding,
   getPublicClubCoaches,
+  getPublicClubAthletes,
+  getPublicClubCategories,
   getPublicFeaturedMedia,
   getPublicRecentResults,
   getPublicUpcomingSchedule,
@@ -35,8 +37,10 @@ export default async function ClubLandingRoute({ params }: { params: Promise<{ s
   const c = club as Record<string, unknown>
   const clubId = c.id as string
 
-  const [coaches, media, results, schedule, stats] = await Promise.all([
+  const [coaches, athletes, categories, media, results, schedule, stats] = await Promise.all([
     (c.landing_show_team as boolean)     ? getPublicClubCoaches(clubId)       : Promise.resolve([]),
+    (c.landing_show_athletes as boolean) ? getPublicClubAthletes(clubId)      : Promise.resolve([]),
+    (c.landing_show_about as boolean)    ? getPublicClubCategories(clubId)    : Promise.resolve([]),
     (c.landing_show_media as boolean)    ? getPublicFeaturedMedia(clubId)     : Promise.resolve([]),
     (c.landing_show_results as boolean)  ? getPublicRecentResults(clubId)     : Promise.resolve([]),
     (c.landing_show_schedule as boolean) ? getPublicUpcomingSchedule(clubId)  : Promise.resolve([]),
@@ -44,5 +48,5 @@ export default async function ClubLandingRoute({ params }: { params: Promise<{ s
   ])
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return <ClubLandingPage club={club as any} coaches={coaches} media={media} results={results} schedule={schedule} stats={stats} />
+  return <ClubLandingPage club={club as any} coaches={coaches} athletes={athletes} categories={categories} media={media} results={results} schedule={schedule} stats={stats} />
 }

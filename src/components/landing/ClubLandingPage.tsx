@@ -48,6 +48,20 @@ interface ScheduleMatch {
   location: string | null
 }
 
+interface Athlete {
+  id: string
+  name: string
+  photo_url: string | null
+  technical_meta: Record<string, unknown> | null
+}
+
+interface Category {
+  id: string
+  name: string
+  color: string | null
+  description: string | null
+}
+
 interface Stats {
   athletes: number
   played: number
@@ -72,6 +86,8 @@ interface Club {
   landing_headline: string | null
   landing_description: string | null
   landing_show_team: boolean
+  landing_show_athletes: boolean
+  landing_show_about: boolean
   landing_show_media: boolean
   landing_show_results: boolean
   landing_show_schedule: boolean
@@ -86,6 +102,8 @@ interface Club {
 interface Props {
   club: Club
   coaches: Coach[]
+  athletes: Athlete[]
+  categories: Category[]
   media: MediaItem[]
   results: Match[]
   schedule: ScheduleMatch[]
@@ -101,7 +119,7 @@ function fmtDate(iso: string) {
   return new Date(iso + 'T12:00:00').toLocaleDateString('es-CL', { weekday: 'short', day: 'numeric', month: 'short' })
 }
 
-export function ClubLandingPage({ club, coaches, media, results, schedule, stats }: Props) {
+export function ClubLandingPage({ club, coaches, athletes, categories, media, results, schedule, stats }: Props) {
   const primary = club.primary_color ?? '#111827'
   const ctaLabel = club.landing_cta_label ?? 'Iniciar sesión'
   const ga4 = club.analytics_ga4_id?.trim()
@@ -283,6 +301,94 @@ export function ClubLandingPage({ club, coaches, media, results, schedule, stats
                 </div>
               ))}
             </div>
+          </div>
+        </section>
+      )}
+
+      {/* ─── Athletes ──────────────────────────────────────────── */}
+      {club.landing_show_athletes && (
+        <section className="py-16 px-4" style={{ backgroundColor: `${primary}06` }}>
+          <div className="max-w-5xl mx-auto">
+            <div className="text-center mb-10">
+              <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: primary }}>
+                <Users className="w-4 h-4" /> Nuestros atletas
+              </div>
+            </div>
+            {athletes.length === 0 ? (
+              <p className="text-center text-sm text-gray-400">Aún no hay atletas registrados.</p>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-4">
+                {athletes.map(athlete => (
+                  <div key={athlete.id} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 text-center">
+                    {athlete.photo_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={athlete.photo_url}
+                        alt={athlete.name}
+                        className="w-16 h-16 rounded-full object-cover mx-auto mb-3 ring-2 ring-offset-1"
+                        style={{ outlineColor: `${primary}30` }}
+                      />
+                    ) : (
+                      <div
+                        className="w-16 h-16 rounded-full mx-auto mb-3 flex items-center justify-center text-white text-xl font-bold"
+                        style={{ backgroundColor: primary }}
+                      >
+                        {athlete.name.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <p className="text-sm font-medium text-gray-900 truncate">{athlete.name}</p>
+                    {athlete.technical_meta?.position != null && (
+                      <p className="text-xs text-gray-500 mt-0.5">{String(athlete.technical_meta.position)}</p>
+                    )}
+                    {athlete.technical_meta?.number != null && (
+                      <span className="inline-block mt-1 text-xs font-bold px-2 py-0.5 rounded-full" style={{ backgroundColor: `${primary}15`, color: primary }}>
+                        #{String(athlete.technical_meta.number)}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* ─── About / Categories ───────────────────────────────── */}
+      {club.landing_show_about && (
+        <section className="py-16 px-4">
+          <div className="max-w-4xl mx-auto">
+            <div className="text-center mb-10">
+              <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: primary }}>
+                <Dumbbell className="w-4 h-4" /> Sobre el club
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">{club.name}</h2>
+              {club.sport_type && (
+                <p className="text-lg font-medium mt-2" style={{ color: primary }}>{club.sport_type}</p>
+              )}
+              {club.description && (
+                <p className="text-gray-600 mt-4 max-w-2xl mx-auto leading-relaxed">{club.description}</p>
+              )}
+            </div>
+            {categories.length > 0 && (
+              <div className="mt-8">
+                <p className="text-center text-xs font-semibold uppercase tracking-widest text-gray-400 mb-4">Categorías</p>
+                <div className="flex flex-wrap justify-center gap-3">
+                  {categories.map(cat => (
+                    <span
+                      key={cat.id}
+                      className="px-4 py-2 rounded-full text-sm font-medium border"
+                      style={{
+                        backgroundColor: cat.color ? `${cat.color}15` : `${primary}10`,
+                        borderColor: cat.color ?? primary,
+                        color: cat.color ?? primary,
+                      }}
+                    >
+                      {cat.name}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </section>
       )}

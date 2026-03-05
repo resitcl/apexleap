@@ -22,6 +22,8 @@ export function LandingSettingsForm({ slug, initial }: Props) {
     landing_description:       initial.landing_description ?? '',
     landing_cta_label:         initial.landing_cta_label ?? 'Iniciar sesión',
     landing_show_team:         initial.landing_show_team ?? true,
+    landing_show_athletes:     initial.landing_show_athletes ?? false,
+    landing_show_about:        initial.landing_show_about ?? true,
     landing_show_media:        initial.landing_show_media ?? false,
     landing_show_results:      initial.landing_show_results ?? false,
     landing_show_schedule:     initial.landing_show_schedule ?? false,
@@ -165,6 +167,8 @@ export function LandingSettingsForm({ slug, initial }: Props) {
         </CardHeader>
         <CardContent className="space-y-4">
           {([
+            { key: 'landing_show_about',    id: 'show-about',    icon: BarChart2,   label: 'Sobre el club',         hint: 'Nombre, deporte, descripción y categorías' },
+            { key: 'landing_show_athletes', id: 'show-athletes', icon: Users,       label: 'Nuestros atletas',      hint: 'Muestra los jugadores/alumnos activos con foto' },
             { key: 'landing_show_stats',    id: 'show-stats',    icon: BarChart3,   label: 'Estadísticas del club', hint: 'Atletas activos, partidos jugados, victorias' },
             { key: 'landing_show_results',  id: 'show-results',  icon: Trophy,      label: 'Últimos resultados',    hint: 'Los 5 partidos más recientes con marcador' },
             { key: 'landing_show_schedule', id: 'show-schedule', icon: CalendarDays,label: 'Próximos partidos',     hint: 'Calendario de los próximos encuentros' },

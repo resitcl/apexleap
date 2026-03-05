@@ -9,7 +9,8 @@ const CLUB_LANDING_FIELDS = [
   'id','name','slug','sport_type','logo_url','primary_color','secondary_color',
   'city','country','address','phone','email','website','description',
   'landing_enabled','landing_headline','landing_description','landing_cta_label',
-  'landing_show_team','landing_trial_enabled','landing_trial_description','landing_trial_contact',
+  'landing_show_team','landing_show_athletes','landing_show_about',
+  'landing_trial_enabled','landing_trial_description','landing_trial_contact',
   'landing_show_media','landing_show_results','landing_show_schedule','landing_show_stats',
   'analytics_ga4_id',
 ].join(', ')
@@ -20,6 +21,8 @@ const landingSchema = z.object({
   landing_description:       z.string().max(1000).optional().nullable(),
   landing_cta_label:         z.string().max(40).optional().nullable(),
   landing_show_team:         z.boolean().default(true),
+  landing_show_athletes:     z.boolean().default(false),
+  landing_show_about:        z.boolean().default(true),
   landing_show_media:        z.boolean().default(false),
   landing_show_results:      z.boolean().default(false),
   landing_show_schedule:     z.boolean().default(false),
@@ -139,6 +142,29 @@ export async function getPublicClubCoaches(clubId: string) {
     .eq('club_id', clubId)
     .eq('is_active', true)
     .order('name')
+  return data ?? []
+}
+
+export async function getPublicClubAthletes(clubId: string) {
+  const supabase = createAdminClient()
+  const { data } = await supabase
+    .from('athletes')
+    .select('id, name, photo_url, technical_meta')
+    .eq('club_id', clubId)
+    .eq('status', 'active')
+    .order('name')
+    .limit(20)
+  return data ?? []
+}
+
+export async function getPublicClubCategories(clubId: string) {
+  const supabase = createAdminClient()
+  const { data } = await supabase
+    .from('club_categories')
+    .select('id, name, color, description')
+    .eq('club_id', clubId)
+    .eq('is_active', true)
+    .order('sort_order')
   return data ?? []
 }
 
