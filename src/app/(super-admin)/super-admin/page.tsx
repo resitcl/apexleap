@@ -18,10 +18,18 @@ const STATUS_BADGE: Record<string, { label: string; color: string }> = {
 }
 
 export default async function SuperAdminDashboard() {
-  const [kpis, clubs] = await Promise.all([
-    getSuperAdminKPIs(),
-    getAllClubs(),
-  ])
+  let kpis = {
+    total_clubs: 0, active_clubs: 0, inactive_clubs: 0,
+    total_athletes: 0, mrr: 0, revenue_this_month: 0,
+    new_clubs_this_month: 0, saas_breakdown: {} as Record<string, number>,
+  }
+  let clubs: Awaited<ReturnType<typeof getAllClubs>> = []
+
+  try {
+    const [k, c] = await Promise.all([getSuperAdminKPIs(), getAllClubs()])
+    kpis = k
+    clubs = c
+  } catch { /* show zeros on error */ }
 
   const fmt = (n: number) =>
     new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 }).format(n)
