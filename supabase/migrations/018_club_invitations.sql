@@ -23,5 +23,14 @@ CREATE INDEX IF NOT EXISTS idx_club_invitations_status  ON club_invitations(stat
 ALTER TABLE club_invitations ENABLE ROW LEVEL SECURITY;
 
 -- Service role bypasses RLS
-CREATE POLICY "service_role_all_invitations" ON club_invitations
-  FOR ALL USING (true) WITH CHECK (true);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE tablename = 'club_invitations'
+      AND policyname = 'service_role_all_invitations'
+  ) THEN
+    CREATE POLICY "service_role_all_invitations" ON club_invitations
+      FOR ALL USING (true) WITH CHECK (true);
+  END IF;
+END $$;
