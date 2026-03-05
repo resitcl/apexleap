@@ -26,16 +26,21 @@ export default async function LandingSettingsPage() {
       </div>
 
       <LandingSettingsForm
-        slug={settings.slug}
+        slug={(settings as unknown as Record<string, unknown>).slug as string}
         initial={{
-          landing_enabled:           settings.landing_enabled ?? false,
-          landing_headline:          settings.landing_headline ?? null,
-          landing_description:       settings.landing_description ?? null,
-          landing_show_team:         settings.landing_show_team ?? true,
-          landing_trial_enabled:     settings.landing_trial_enabled ?? false,
-          landing_trial_description: settings.landing_trial_description ?? null,
-          landing_trial_contact:     settings.landing_trial_contact ?? null,
-          landing_cta_label:         settings.landing_cta_label ?? 'Iniciar sesión',
+          landing_enabled:           (settings as unknown as Record<string, unknown>).landing_enabled as boolean ?? false,
+          landing_headline:          (settings as unknown as Record<string, unknown>).landing_headline as string ?? null,
+          landing_description:       (settings as unknown as Record<string, unknown>).landing_description as string ?? null,
+          landing_cta_label:         (settings as unknown as Record<string, unknown>).landing_cta_label as string ?? 'Iniciar sesión',
+          landing_show_team:         (settings as unknown as Record<string, unknown>).landing_show_team as boolean ?? true,
+          landing_show_media:        (settings as unknown as Record<string, unknown>).landing_show_media as boolean ?? false,
+          landing_show_results:      (settings as unknown as Record<string, unknown>).landing_show_results as boolean ?? false,
+          landing_show_schedule:     (settings as unknown as Record<string, unknown>).landing_show_schedule as boolean ?? false,
+          landing_show_stats:        (settings as unknown as Record<string, unknown>).landing_show_stats as boolean ?? false,
+          landing_trial_enabled:     (settings as unknown as Record<string, unknown>).landing_trial_enabled as boolean ?? false,
+          landing_trial_description: (settings as unknown as Record<string, unknown>).landing_trial_description as string ?? null,
+          landing_trial_contact:     (settings as unknown as Record<string, unknown>).landing_trial_contact as string ?? null,
+          analytics_ga4_id:          (settings as unknown as Record<string, unknown>).analytics_ga4_id as string ?? null,
         }}
       />
     </div>

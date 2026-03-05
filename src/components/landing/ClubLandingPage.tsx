@@ -1,10 +1,15 @@
 'use client'
 
 import { useState } from 'react'
+import Script from 'next/script'
 import Link from 'next/link'
 import Image from 'next/image'
 import { submitTrialRequest } from '@/lib/actions/landing'
-import { MapPin, Phone, Mail, Globe, Users, ChevronRight, Loader2, CheckCircle2, Dumbbell } from 'lucide-react'
+import {
+  MapPin, Phone, Mail, Globe, Users, ChevronRight, Loader2, CheckCircle2,
+  Dumbbell, Trophy, CalendarDays, Film, PlayCircle, Home,
+  TrendingUp, Swords, Clock,
+} from 'lucide-react'
 import { toast } from 'sonner'
 
 interface Coach {
@@ -13,6 +18,40 @@ interface Coach {
   specialty: string | null
   bio: string | null
   photo_url: string | null
+}
+
+interface MediaItem {
+  id: string
+  title: string
+  type: string
+  category: string
+  url: string
+  thumbnail_url: string | null
+  description: string | null
+}
+
+interface Match {
+  id: string
+  opponent: string | null
+  match_date: string
+  is_home: boolean
+  home_score: number | null
+  away_score: number | null
+  location: string | null
+}
+
+interface ScheduleMatch {
+  id: string
+  opponent: string | null
+  match_date: string
+  is_home: boolean
+  location: string | null
+}
+
+interface Stats {
+  athletes: number
+  played: number
+  wins: number
 }
 
 interface Club {
@@ -33,23 +72,54 @@ interface Club {
   landing_headline: string | null
   landing_description: string | null
   landing_show_team: boolean
+  landing_show_media: boolean
+  landing_show_results: boolean
+  landing_show_schedule: boolean
+  landing_show_stats: boolean
   landing_trial_enabled: boolean
   landing_trial_description: string | null
   landing_trial_contact: string | null
   landing_cta_label: string | null
+  analytics_ga4_id: string | null
 }
 
 interface Props {
   club: Club
   coaches: Coach[]
+  media: MediaItem[]
+  results: Match[]
+  schedule: ScheduleMatch[]
+  stats: Stats | null
 }
 
-export function ClubLandingPage({ club, coaches }: Props) {
+function getYoutubeThumbnail(url: string): string | null {
+  const m = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/)
+  return m ? `https://img.youtube.com/vi/${m[1]}/mqdefault.jpg` : null
+}
+
+function fmtDate(iso: string) {
+  return new Date(iso + 'T12:00:00').toLocaleDateString('es-CL', { weekday: 'short', day: 'numeric', month: 'short' })
+}
+
+export function ClubLandingPage({ club, coaches, media, results, schedule, stats }: Props) {
   const primary = club.primary_color ?? '#111827'
   const ctaLabel = club.landing_cta_label ?? 'Iniciar sesión'
+  const ga4 = club.analytics_ga4_id?.trim()
 
   return (
     <div className="min-h-screen bg-white font-sans">
+      {/* ─── GA4 Analytics ──────────────────────────────────── */}
+      {ga4 && (
+        <>
+          <Script src={`https://www.googletagmanager.com/gtag/js?id=${ga4}`} strategy="afterInteractive" />
+          <Script id="ga4-init" strategy="afterInteractive">{`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', '${ga4}');
+          `}</Script>
+        </>
+      )}
       {/* ─── Nav ──────────────────────────────────────────────── */}
       <nav className="sticky top-0 z-50 bg-white/95 backdrop-blur border-b border-gray-100 shadow-sm">
         <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
@@ -212,6 +282,142 @@ export function ClubLandingPage({ club, coaches }: Props) {
                   )}
                 </div>
               ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ─── Stats ────────────────────────────────────────────── */}
+      {club.landing_show_stats && stats && (
+        <section className="py-16 px-4" style={{ backgroundColor: `${primary}06` }}>
+          <div className="max-w-3xl mx-auto">
+            <div className="text-center mb-10">
+              <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: primary }}>
+                <TrendingUp className="w-4 h-4" /> Nuestros números
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-6 text-center">
+              {[
+                { value: stats.athletes, label: 'Atletas activos' },
+                { value: stats.played,   label: 'Partidos jugados' },
+                { value: stats.wins,     label: 'Victorias' },
+              ].map(({ value, label }) => (
+                <div key={label} className="bg-white rounded-2xl border border-gray-100 shadow-sm py-8 px-4">
+                  <p className="text-4xl font-extrabold" style={{ color: primary }}>{value}</p>
+                  <p className="text-sm text-gray-500 mt-1 font-medium">{label}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ─── Results ──────────────────────────────────────────── */}
+      {club.landing_show_results && results.length > 0 && (
+        <section className="py-16 px-4">
+          <div className="max-w-3xl mx-auto">
+            <div className="text-center mb-10">
+              <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: primary }}>
+                <Trophy className="w-4 h-4" /> Últimos resultados
+              </div>
+            </div>
+            <div className="space-y-3">
+              {results.map(m => {
+                const clubScore = m.is_home ? m.home_score : m.away_score
+                const oppScore  = m.is_home ? m.away_score : m.home_score
+                const win = (clubScore ?? 0) > (oppScore ?? 0)
+                const draw = clubScore === oppScore
+                return (
+                  <div key={m.id} className="flex items-center gap-4 bg-white border border-gray-100 rounded-xl px-5 py-4 shadow-sm">
+                    <span className={`w-2 h-2 rounded-full shrink-0 ${win ? 'bg-green-500' : draw ? 'bg-yellow-400' : 'bg-red-400'}`} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-gray-900 truncate">
+                        {m.is_home ? `${club.name}` : (m.opponent ?? 'Rival')} vs {m.is_home ? (m.opponent ?? 'Rival') : club.name}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-0.5">{fmtDate(m.match_date)}{m.location ? ` · ${m.location}` : ''}</p>
+                    </div>
+                    <div className="text-lg font-extrabold tabular-nums shrink-0" style={{ color: primary }}>
+                      {m.home_score ?? '—'} – {m.away_score ?? '—'}
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {m.is_home ? <Home className="w-3 h-3 text-gray-400" /> : <Swords className="w-3 h-3 text-gray-400" />}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ─── Schedule ─────────────────────────────────────────── */}
+      {club.landing_show_schedule && schedule.length > 0 && (
+        <section className="py-16 px-4" style={{ backgroundColor: `${primary}06` }}>
+          <div className="max-w-3xl mx-auto">
+            <div className="text-center mb-10">
+              <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: primary }}>
+                <CalendarDays className="w-4 h-4" /> Próximos partidos
+              </div>
+            </div>
+            <div className="space-y-3">
+              {schedule.map(m => (
+                <div key={m.id} className="flex items-center gap-4 bg-white border border-gray-100 rounded-xl px-5 py-4 shadow-sm">
+                  <Clock className="w-4 h-4 shrink-0" style={{ color: primary }} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-gray-900 truncate">
+                      vs {m.opponent ?? 'Por confirmar'}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-0.5">{fmtDate(m.match_date)}{m.location ? ` · ${m.location}` : ''}</p>
+                  </div>
+                  <span className="text-xs font-medium px-2.5 py-1 rounded-full" style={{ backgroundColor: `${primary}15`, color: primary }}>
+                    {m.is_home ? 'Local' : 'Visitante'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ─── Media Gallery ────────────────────────────────────── */}
+      {club.landing_show_media && media.length > 0 && (
+        <section className="py-16 px-4">
+          <div className="max-w-5xl mx-auto">
+            <div className="text-center mb-10">
+              <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: primary }}>
+                <Film className="w-4 h-4" /> Galería
+              </div>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              {media.map(item => {
+                const thumb = item.thumbnail_url ?? (item.type === 'video' ? getYoutubeThumbnail(item.url) : null)
+                return (
+                  <a
+                    key={item.id}
+                    href={item.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group relative aspect-video rounded-xl overflow-hidden bg-gray-100 shadow-sm hover:shadow-md transition-shadow block"
+                  >
+                    {thumb ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={thumb} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Film className="w-8 h-8 text-gray-400" />
+                      </div>
+                    )}
+                    {item.type === 'video' && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <PlayCircle className="w-10 h-10 text-white drop-shadow" />
+                      </div>
+                    )}
+                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-3">
+                      <p className="text-white text-xs font-medium truncate">{item.title}</p>
+                    </div>
+                  </a>
+                )
+              })}
             </div>
           </div>
         </section>

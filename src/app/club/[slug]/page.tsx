@@ -1,5 +1,12 @@
 import { notFound } from 'next/navigation'
-import { getPublicClubLanding, getPublicClubCoaches } from '@/lib/actions/landing'
+import {
+  getPublicClubLanding,
+  getPublicClubCoaches,
+  getPublicFeaturedMedia,
+  getPublicRecentResults,
+  getPublicUpcomingSchedule,
+  getPublicClubStats,
+} from '@/lib/actions/landing'
 import { ClubLandingPage } from '@/components/landing/ClubLandingPage'
 
 export const dynamic = 'force-dynamic'
@@ -8,13 +15,14 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug } = await params
   const club = await getPublicClubLanding(slug)
   if (!club) return { title: 'Club no encontrado' }
+  const c = club as Record<string, unknown>
   return {
-    title: club.name,
-    description: club.landing_description ?? club.description ?? `Bienvenido a ${club.name}`,
+    title: c.name as string,
+    description: (c.landing_description ?? c.description ?? `Bienvenido a ${c.name}`) as string,
     openGraph: {
-      title: club.name,
-      description: club.landing_description ?? club.description ?? '',
-      images: club.logo_url ? [club.logo_url] : [],
+      title: c.name as string,
+      description: (c.landing_description ?? c.description ?? '') as string,
+      images: c.logo_url ? [c.logo_url as string] : [],
     },
   }
 }
@@ -24,7 +32,17 @@ export default async function ClubLandingRoute({ params }: { params: Promise<{ s
   const club = await getPublicClubLanding(slug)
   if (!club) notFound()
 
-  const coaches = club.landing_show_team ? await getPublicClubCoaches(club.id) : []
+  const c = club as Record<string, unknown>
+  const clubId = c.id as string
 
-  return <ClubLandingPage club={club} coaches={coaches} />
+  const [coaches, media, results, schedule, stats] = await Promise.all([
+    (c.landing_show_team as boolean)     ? getPublicClubCoaches(clubId)       : Promise.resolve([]),
+    (c.landing_show_media as boolean)    ? getPublicFeaturedMedia(clubId)     : Promise.resolve([]),
+    (c.landing_show_results as boolean)  ? getPublicRecentResults(clubId)     : Promise.resolve([]),
+    (c.landing_show_schedule as boolean) ? getPublicUpcomingSchedule(clubId)  : Promise.resolve([]),
+    (c.landing_show_stats as boolean)    ? getPublicClubStats(clubId)         : Promise.resolve(null),
+  ])
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return <ClubLandingPage club={club as any} coaches={coaches} media={media} results={results} schedule={schedule} stats={stats} />
 }

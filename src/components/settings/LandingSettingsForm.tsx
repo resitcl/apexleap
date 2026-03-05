@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
-import { ExternalLink, Globe, Users, FlaskConical, Save, Eye } from 'lucide-react'
+import { ExternalLink, Globe, Users, FlaskConical, Save, Eye, Film, Trophy, CalendarDays, BarChart3, BarChart2 } from 'lucide-react'
 
 interface Props {
   slug: string
@@ -17,14 +17,19 @@ interface Props {
 export function LandingSettingsForm({ slug, initial }: Props) {
   const [isPending, start] = useTransition()
   const [form, setForm] = useState<LandingInput>({
-    landing_enabled:          initial.landing_enabled,
-    landing_headline:         initial.landing_headline ?? '',
-    landing_description:      initial.landing_description ?? '',
-    landing_show_team:        initial.landing_show_team,
-    landing_trial_enabled:    initial.landing_trial_enabled,
-    landing_trial_description:initial.landing_trial_description ?? '',
-    landing_trial_contact:    initial.landing_trial_contact ?? '',
-    landing_cta_label:        initial.landing_cta_label ?? 'Iniciar sesión',
+    landing_enabled:           initial.landing_enabled,
+    landing_headline:          initial.landing_headline ?? '',
+    landing_description:       initial.landing_description ?? '',
+    landing_cta_label:         initial.landing_cta_label ?? 'Iniciar sesión',
+    landing_show_team:         initial.landing_show_team ?? true,
+    landing_show_media:        initial.landing_show_media ?? false,
+    landing_show_results:      initial.landing_show_results ?? false,
+    landing_show_schedule:     initial.landing_show_schedule ?? false,
+    landing_show_stats:        initial.landing_show_stats ?? false,
+    landing_trial_enabled:     initial.landing_trial_enabled ?? false,
+    landing_trial_description: initial.landing_trial_description ?? '',
+    landing_trial_contact:     initial.landing_trial_contact ?? '',
+    analytics_ga4_id:          initial.analytics_ga4_id ?? '',
   })
 
   function set(key: keyof LandingInput, value: string | boolean) {
@@ -148,6 +153,41 @@ export function LandingSettingsForm({ slug, initial }: Props) {
         </CardContent>
       </Card>
 
+      {/* Dynamic sections */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <BarChart2 className="w-4 h-4" /> Secciones dinámicas
+          </CardTitle>
+          <CardDescription>
+            Activa qué información del club se muestra en la landing
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {([
+            { key: 'landing_show_stats',    id: 'show-stats',    icon: BarChart3,   label: 'Estadísticas del club', hint: 'Atletas activos, partidos jugados, victorias' },
+            { key: 'landing_show_results',  id: 'show-results',  icon: Trophy,      label: 'Últimos resultados',    hint: 'Los 5 partidos más recientes con marcador' },
+            { key: 'landing_show_schedule', id: 'show-schedule', icon: CalendarDays,label: 'Próximos partidos',     hint: 'Calendario de los próximos encuentros' },
+            { key: 'landing_show_media',    id: 'show-media',    icon: Film,        label: 'Galería / Media Hub',   hint: 'Muestra contenido marcado como "Publicar en landing"' },
+          ] as Array<{ key: keyof LandingInput; id: string; icon: React.ElementType; label: string; hint: string }>).map(({ key, id, icon: Icon, label, hint }) => (
+            <div key={key} className="flex items-center justify-between gap-4">
+              <div className="flex items-start gap-2.5">
+                <Icon className="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
+                <div>
+                  <Label htmlFor={id} className="text-sm font-medium">{label}</Label>
+                  <p className="text-xs text-muted-foreground mt-0.5">{hint}</p>
+                </div>
+              </div>
+              <Switch
+                id={id}
+                checked={!!form[key]}
+                onCheckedChange={(v: boolean) => set(key, v)}
+              />
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+
       {/* Trial class */}
       <Card>
         <CardHeader className="pb-3">
@@ -203,6 +243,33 @@ export function LandingSettingsForm({ slug, initial }: Props) {
               </Field>
             </>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Analytics */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <BarChart3 className="w-4 h-4" /> Google Analytics
+          </CardTitle>
+          <CardDescription>
+            Conecta Google Analytics 4 para ver el tráfico de tu landing page
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Field label="Measurement ID (GA4)">
+            <input
+              type="text"
+              value={form.analytics_ga4_id ?? ''}
+              onChange={e => set('analytics_ga4_id', e.target.value)}
+              placeholder="G-XXXXXXXXXX"
+              maxLength={30}
+              className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm font-mono focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Encuéntralo en Google Analytics → Admin → Data Streams → tu stream → Measurement ID
+            </p>
+          </Field>
         </CardContent>
       </Card>
 

@@ -92,6 +92,23 @@ export async function deleteMediaItem(id: string) {
   revalidatePath('/dashboard/media')
 }
 
+export async function toggleMediaLandingFeatured(id: string, featured: boolean): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const clubId = await getClubId()
+    const supabase = createAdminClient()
+    const { error } = await supabase
+      .from('media_items')
+      .update({ landing_featured: featured })
+      .eq('id', id)
+      .eq('club_id', clubId)
+    if (error) return { ok: false, error: error.message }
+    revalidatePath('/dashboard/media')
+    return { ok: true }
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : 'Error' }
+  }
+}
+
 export async function getMediaStats() {
   const clubId = await getClubId()
   const supabase = createAdminClient()

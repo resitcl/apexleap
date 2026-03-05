@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { NewMediaButton } from "@/components/media/NewMediaButton"
 import { DeleteMediaButton } from "@/components/media/DeleteMediaButton"
+import { LandingFeaturedButton } from "@/components/media/LandingFeaturedButton"
 import { Film, Image, ExternalLink, Video, FileText, PlayCircle } from "lucide-react"
 
 const CATEGORY_META: Record<string, { label: string; emoji: string }> = {
@@ -210,6 +211,10 @@ export default async function MediaPage({ searchParams }: PageProps) {
                           )}
                         </div>
                         <div className="flex items-center gap-1 shrink-0">
+                          <LandingFeaturedButton
+                            id={item.id as string}
+                            initialFeatured={(item as Record<string, unknown>).landing_featured as boolean ?? false}
+                          />
                           <a
                             href={item.url as string}
                             target="_blank"
