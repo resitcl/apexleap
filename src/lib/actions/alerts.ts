@@ -1,20 +1,11 @@
 'use server'
 
-import { auth } from '@clerk/nextjs/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-
-async function getClubId() {
-  const { userId } = await auth()
-  if (!userId) return null
-  const supabase = createAdminClient()
-  const { data } = await supabase
-    .from('user_clubs').select('club_id').eq('user_id', userId).eq('is_active', true).limit(1).single()
-  return data?.club_id as string | null
-}
+import { getClubId } from '@/lib/actions/club-context'
 
 export async function getSidebarAlerts() {
-  const clubId = await getClubId()
-  if (!clubId) return { overduePayments: 0, expiringSoonDocs: 0, expiringSubscriptions: 0, clubName: null, primaryColor: null, secondaryColor: null, logoUrl: null }
+  let clubId: string
+  try { clubId = await getClubId() } catch { return { overduePayments: 0, expiringSoonDocs: 0, expiringSubscriptions: 0, clubName: null, primaryColor: null, secondaryColor: null, logoUrl: null } }
 
   const supabase = createAdminClient()
   const today = new Date().toISOString().split('T')[0]
