@@ -32,6 +32,7 @@ export async function getClubId(): Promise<string> {
     .select('club_id')
     .eq('user_id', userId)
     .eq('is_active', true)
+    .order('created_at', { ascending: false })
     .limit(1)
     .single()
 

@@ -256,19 +256,15 @@ export async function superAdminEnterClub(clubId: string) {
 
   const supabase = createAdminClient()
 
-  // Link super admin to club if not already
-  const { data: existing } = await supabase
+  // Upsert: garantiza que la fila exista y esté activa antes de setear el cookie
+  const { error: upsertErr } = await supabase
     .from('user_clubs')
-    .select('id, is_active')
-    .eq('user_id', userId)
-    .eq('club_id', clubId)
-    .maybeSingle()
+    .upsert(
+      { user_id: userId, club_id: clubId, role: 'admin', is_active: true },
+      { onConflict: 'user_id,club_id', ignoreDuplicates: false }
+    )
 
-  if (!existing) {
-    await supabase.from('user_clubs').insert({ user_id: userId, club_id: clubId, role: 'admin', is_active: true })
-  } else if (!existing.is_active) {
-    await supabase.from('user_clubs').update({ is_active: true }).eq('id', existing.id)
-  }
+  if (upsertErr) throw new Error(`No se pudo vincular al club: ${upsertErr.message}`)
 
   const cookieStore = await cookies()
   cookieStore.set(CLUB_COOKIE, clubId, { path: '/', maxAge: 60 * 60 * 24 * 30, sameSite: 'lax' })
