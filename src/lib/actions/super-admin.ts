@@ -269,7 +269,8 @@ export async function superAdminEnterClub(clubId: string) {
   const cookieStore = await cookies()
   cookieStore.set(CLUB_COOKIE, clubId, { path: '/', maxAge: 60 * 60 * 24 * 30, sameSite: 'lax' })
 
-  return redirect('/dashboard')
+  revalidatePath('/dashboard')
+  return { ok: true }
 }
 
 // ─── Register / remove super admin ─────────────────────────────────────────
