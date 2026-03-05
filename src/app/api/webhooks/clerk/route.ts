@@ -12,6 +12,7 @@ type ClerkEvent = {
     last_name: string | null
     image_url: string | null
     created_at: number
+    public_metadata?: Record<string, unknown>
   }
 }
 
@@ -60,6 +61,30 @@ export async function POST(req: Request) {
       avatar_url: image_url ?? null,
       updated_at: new Date().toISOString(),
     }, { onConflict: 'clerk_id' })
+
+    // Auto-link user to club if there's a pending invitation for their email
+    if (evt.type === 'user.created' && email) {
+      const { data: invitation } = await supabase
+        .from('club_invitations')
+        .select('id, club_id, role')
+        .eq('email', email.toLowerCase())
+        .eq('status', 'pending')
+        .maybeSingle()
+
+      if (invitation) {
+        await supabase.from('user_clubs').upsert({
+          user_id: id,
+          club_id: invitation.club_id,
+          role: invitation.role,
+          is_active: true,
+        }, { onConflict: 'user_id,club_id' })
+
+        await supabase
+          .from('club_invitations')
+          .update({ status: 'accepted', accepted_at: new Date().toISOString() })
+          .eq('id', invitation.id)
+      }
+    }
   }
 
   if (evt.type === 'user.deleted') {

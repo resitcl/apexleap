@@ -86,8 +86,9 @@ function buildNavGroups(v: ReturnType<typeof getSportVocab>) {
     {
       label: "Cuenta",
       items: [
-        { href: "/dashboard/athlete",  label: "Mi Portal",      icon: User },
-        { href: "/dashboard/settings", label: "Configuración",  icon: Settings },
+        { href: "/dashboard/athlete",        label: "Mi Portal",      icon: User },
+        { href: "/dashboard/settings/team",  label: "Equipo",         icon: Users },
+        { href: "/dashboard/settings",       label: "Configuración",  icon: Settings },
       ],
     },
   ]
