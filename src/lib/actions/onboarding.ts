@@ -2,8 +2,10 @@
 
 import { auth } from '@clerk/nextjs/server'
 import { redirect } from 'next/navigation'
+import { cookies } from 'next/headers'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { z } from 'zod'
+import { CLUB_COOKIE } from '@/lib/constants'
 
 const createClubSchema = z.object({
   name: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
@@ -145,9 +147,12 @@ export async function joinClubBySlug(slug: string, role: 'admin' | 'coach' | 'at
     .single()
 
   if (existing) {
-    if (existing.is_active) throw new Error(`Ya tienes acceso al club "${club.name}".`)
-    // Reactivate
-    await supabase.from('user_clubs').update({ is_active: true, role }).eq('id', existing.id)
+    // Already has access (active or inactive) — set cookie and redirect
+    if (!existing.is_active) {
+      await supabase.from('user_clubs').update({ is_active: true, role }).eq('id', existing.id)
+    }
+    const cookieStore = await cookies()
+    cookieStore.set(CLUB_COOKIE, club.id, { path: '/', maxAge: 60 * 60 * 24 * 30, sameSite: 'lax' })
     redirect('/dashboard')
   }
 
@@ -157,5 +162,7 @@ export async function joinClubBySlug(slug: string, role: 'admin' | 'coach' | 'at
 
   if (linkErr) throw new Error(linkErr.message)
 
+  const cookieStore2 = await cookies()
+  cookieStore2.set(CLUB_COOKIE, club.id, { path: '/', maxAge: 60 * 60 * 24 * 30, sameSite: 'lax' })
   redirect('/dashboard')
 }
