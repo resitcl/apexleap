@@ -72,13 +72,13 @@ export function TeamManager({ members, invitations, clubSlug }: Props) {
       return
     }
     start(async () => {
-      try {
-        await inviteUserToClub(email.trim().toLowerCase(), role)
+      const result = await inviteUserToClub(email.trim().toLowerCase(), role)
+      if (!result.ok) {
+        toast.error(result.error)
+      } else {
         toast.success(`Invitación enviada a ${email}`)
         setEmail('')
         router.refresh()
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : 'Error al enviar invitación')
       }
     })
   }
@@ -87,13 +87,14 @@ export function TeamManager({ members, invitations, clubSlug }: Props) {
     if (!confirm('¿Revocar esta invitación?')) return
     setWorking(invId)
     start(async () => {
-      try {
-        await revokeInvitation(invId)
+      const result = await revokeInvitation(invId)
+      if (!result.ok) {
+        toast.error(result.error)
+      } else {
         toast.success('Invitación revocada')
         router.refresh()
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : 'Error')
-      } finally { setWorking(null) }
+      }
+      setWorking(null)
     })
   }
 
@@ -101,13 +102,14 @@ export function TeamManager({ members, invitations, clubSlug }: Props) {
     if (!confirm('¿Remover a este miembro del club?')) return
     setWorking(userId)
     start(async () => {
-      try {
-        await removeTeamMember(userId)
+      const result = await removeTeamMember(userId)
+      if (!result.ok) {
+        toast.error(result.error)
+      } else {
         toast.success('Miembro removido')
         router.refresh()
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : 'Error')
-      } finally { setWorking(null) }
+      }
+      setWorking(null)
     })
   }
 
