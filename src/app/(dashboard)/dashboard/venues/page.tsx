@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic"
 
 import { getVenues } from "@/lib/actions/venues"
 import { getSchedules } from "@/lib/actions/schedules"
+import { getClubInfo } from "@/lib/actions/club-context"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { MapPin, Navigation, Users, Home, Clock } from "lucide-react"
@@ -10,13 +11,15 @@ import { VenueToggleButton } from "@/components/venues/VenueToggleButton"
 import { EditVenueForm } from "@/components/venues/EditVenueForm"
 import { DeleteVenueButton } from "@/components/venues/DeleteVenueButton"
 import { ExportVenuesButton } from "@/components/venues/ExportVenuesButton"
+import { VenueQRButton } from "@/components/venues/VenueQRButton"
 
 export default async function VenuesPage() {
   let venues: Awaited<ReturnType<typeof getVenues>> = []
   let schedules: Awaited<ReturnType<typeof getSchedules>> = []
+  let clubInfo = { id: '', name: 'Club', slug: 'club' }
 
   try {
-    ;[venues, schedules] = await Promise.all([getVenues(), getSchedules()])
+    ;[venues, schedules, clubInfo] = await Promise.all([getVenues(), getSchedules(), getClubInfo()])
   } catch { /* show empty */ }
 
   const sessionsByVenue = schedules
@@ -155,6 +158,12 @@ export default async function VenuesPage() {
                     </Badge>
                   </div>
                   <div className="flex items-center gap-1">
+                    <VenueQRButton 
+                      venueId={venue.id} 
+                      venueName={venue.name}
+                      clubName={clubInfo.name}
+                      clubSlug={clubInfo.slug}
+                    />
                     <VenueToggleButton venueId={venue.id} isActive={venue.is_active} />
                     <EditVenueForm venue={venue} />
                     <DeleteVenueButton venueId={venue.id} venueName={venue.name} />

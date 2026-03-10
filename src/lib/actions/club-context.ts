@@ -51,6 +51,17 @@ export async function getClubSportType(): Promise<string | null> {
   return data?.sport_type ?? null
 }
 
+export async function getClubInfo(): Promise<{ id: string; name: string; slug: string }> {
+  const clubId = await getClubId()
+  const supabase = createAdminClient()
+  const { data } = await supabase
+    .from('clubs')
+    .select('id, name, slug')
+    .eq('id', clubId)
+    .single()
+  return { id: clubId, name: data?.name ?? 'Club', slug: data?.slug ?? 'club' }
+}
+
 export async function switchToClub(clubId: string): Promise<void> {
   const { userId } = await auth()
   if (!userId) throw new Error('No autorizado')
