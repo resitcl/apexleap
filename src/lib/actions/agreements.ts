@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getClubId } from '@/lib/actions/club-context'
+import { createGestdocClient } from '@/lib/gestdoc/client'
 
 // Types
 export interface AgreementTemplate {
@@ -325,7 +326,7 @@ export async function updateAgreementStatus(
 
 // ============ GESTDOC INTEGRATION ============
 
-export async function sendAgreementToGestdoc(agreementId: string) {
+export async function sendAgreementToGestdoc(agreementId: string, bpmnId?: string) {
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
@@ -335,7 +336,7 @@ export async function sendAgreementToGestdoc(agreementId: string) {
     .select(`
       *,
       athletes(id, name, document_number, email),
-      template:agreement_templates(name)
+      template:agreement_templates(name, gestdoc_bpmn_id)
     `)
     .eq('id', agreementId)
     .eq('club_id', clubId)
@@ -348,7 +349,7 @@ export async function sendAgreementToGestdoc(agreementId: string) {
   // Get club's GESTDOC credentials
   const { data: club } = await supabase
     .from('clubs')
-    .select('gestdoc_api_key, gestdoc_enabled, name')
+    .select('gestdoc_api_key, gestdoc_enabled, gestdoc_default_bpmn_id, name')
     .eq('id', clubId)
     .single()
 
@@ -356,21 +357,38 @@ export async function sendAgreementToGestdoc(agreementId: string) {
     throw new Error('GESTDOC no está configurado para este club')
   }
 
-  // TODO: Call GESTDOC API here
-  // This will be implemented once we have the API documentation
-  // For now, we'll create a placeholder that simulates the flow
+  // Determine which BPMN process to use
+  const processBpmnId = bpmnId || agreement.template?.gestdoc_bpmn_id || club.gestdoc_default_bpmn_id
+  if (!processBpmnId) {
+    throw new Error('No se ha configurado un proceso BPMN para este acuerdo')
+  }
 
-  const gestdocResponse = await callGestdocAPI({
-    apiKey: club.gestdoc_api_key,
-    action: 'create_document',
-    data: {
-      title: `${agreement.template?.name} - ${agreement.athletes?.name}`,
-      content: agreement.document_content,
-      signerRut: agreement.athletes?.document_number,
-      signerEmail: agreement.athletes?.email,
-      signerName: agreement.athletes?.name,
-      clubName: club.name,
-    },
+  // Create GESTDOC client with club's API key
+  const gestdoc = createGestdocClient(club.gestdoc_api_key)
+
+  // Prepare form data with agreement content
+  const formData: Record<string, string> = {
+    titulo: `${agreement.template?.name} - ${agreement.athletes?.name}`,
+    contenido: agreement.document_content,
+    nombre_firmante: agreement.athletes?.name ?? '',
+    rut_firmante: agreement.athletes?.document_number ?? '',
+    email_firmante: agreement.athletes?.email ?? '',
+    nombre_club: club.name,
+    fecha: new Date().toLocaleDateString('es-CL'),
+    ...(agreement.document_variables as Record<string, string> ?? {}),
+  }
+
+  // Call GESTDOC API to create and sign
+  const gestdocResponse = await gestdoc.createAndSign({
+    bpmn_id: processBpmnId,
+    form_data: formData,
+    signers: [
+      {
+        email: agreement.athletes?.email ?? '',
+        name: agreement.athletes?.name ?? '',
+        rut: agreement.athletes?.document_number ?? undefined,
+      },
+    ],
   })
 
   // Update agreement with GESTDOC info
@@ -378,8 +396,8 @@ export async function sendAgreementToGestdoc(agreementId: string) {
     .from('athlete_agreements')
     .update({
       status: 'sent_to_sign',
-      gestdoc_document_id: gestdocResponse.documentId,
-      gestdoc_signing_url: gestdocResponse.signingUrl,
+      gestdoc_document_id: gestdocResponse.id,
+      gestdoc_signing_url: gestdocResponse.signing_url ?? null,
       sent_at: new Date().toISOString(),
     })
     .eq('id', agreementId)
@@ -390,23 +408,67 @@ export async function sendAgreementToGestdoc(agreementId: string) {
   return updated as AthleteAgreement
 }
 
-// Placeholder for GESTDOC API call - will be replaced with actual implementation
-async function callGestdocAPI(params: {
-  apiKey: string
-  action: string
-  data: Record<string, unknown>
-}): Promise<{ documentId: string; signingUrl: string; transactionId: string }> {
-  // TODO: Replace with actual GESTDOC API call
-  // This is a placeholder that simulates the response
-  
-  console.log('GESTDOC API call:', params.action, params.data)
-  
-  // Simulate API response
-  return {
-    documentId: `GESTDOC-${Date.now()}`,
-    signingUrl: `https://gestdoc.example.com/sign/${Date.now()}`,
-    transactionId: `TXN-${Date.now()}`,
+export async function checkGestdocProcessStatus(agreementId: string) {
+  const clubId = await getClubId()
+  const supabase = createAdminClient()
+
+  const { data: agreement, error } = await supabase
+    .from('athlete_agreements')
+    .select('gestdoc_document_id, club_id')
+    .eq('id', agreementId)
+    .eq('club_id', clubId)
+    .single()
+
+  if (error || !agreement?.gestdoc_document_id) {
+    throw new Error('Acuerdo no encontrado o sin proceso GESTDOC')
   }
+
+  const { data: club } = await supabase
+    .from('clubs')
+    .select('gestdoc_api_key')
+    .eq('id', clubId)
+    .single()
+
+  if (!club?.gestdoc_api_key) {
+    throw new Error('GESTDOC no configurado')
+  }
+
+  const gestdoc = createGestdocClient(club.gestdoc_api_key)
+  const status = await gestdoc.getProcessStatus(agreement.gestdoc_document_id)
+
+  // Update agreement if signed
+  if (status.status === 'signed' || status.status === 'completed') {
+    await supabase
+      .from('athlete_agreements')
+      .update({
+        status: 'signed',
+        signed_at: status.updated_at ?? new Date().toISOString(),
+        gestdoc_signed_document_url: status.signed_document_url ?? null,
+      })
+      .eq('id', agreementId)
+
+    revalidatePath('/dashboard/athletes')
+  }
+
+  return status
+}
+
+export async function listAvailableBpmnProcesses() {
+  const clubId = await getClubId()
+  const supabase = createAdminClient()
+
+  const { data: club } = await supabase
+    .from('clubs')
+    .select('gestdoc_api_key, gestdoc_enabled')
+    .eq('id', clubId)
+    .single()
+
+  if (!club?.gestdoc_enabled || !club?.gestdoc_api_key) {
+    throw new Error('GESTDOC no está configurado')
+  }
+
+  const gestdoc = createGestdocClient(club.gestdoc_api_key)
+  return gestdoc.listBpmnProcesses()
 }
 
 // Webhook handler for GESTDOC callbacks

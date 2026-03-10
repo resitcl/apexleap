@@ -58,9 +58,13 @@ CREATE TABLE IF NOT EXISTS athlete_agreements (
   UNIQUE(athlete_id, template_id, status) -- Only one pending/active agreement per template
 );
 
+-- Add BPMN ID to templates for specific process per template
+ALTER TABLE agreement_templates ADD COLUMN IF NOT EXISTS gestdoc_bpmn_id TEXT;
+
 -- Club agreement settings
 ALTER TABLE clubs ADD COLUMN IF NOT EXISTS gestdoc_api_key TEXT;
 ALTER TABLE clubs ADD COLUMN IF NOT EXISTS gestdoc_enabled BOOLEAN DEFAULT false;
+ALTER TABLE clubs ADD COLUMN IF NOT EXISTS gestdoc_default_bpmn_id TEXT; -- Default BPMN process for agreements
 ALTER TABLE clubs ADD COLUMN IF NOT EXISTS agreement_intro_text TEXT; -- Custom intro shown before signing
 
 -- Indexes
