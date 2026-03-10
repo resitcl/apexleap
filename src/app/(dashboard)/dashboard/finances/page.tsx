@@ -21,6 +21,7 @@ import { DeleteExpenseButton } from "@/components/finances/DeleteExpenseButton"
 import { EditExpenseButton } from "@/components/finances/EditExpenseButton"
 import { MonthPicker } from "@/components/finances/MonthPicker"
 import { ExportCoachesButton } from "@/components/finances/ExportCoachesButton"
+import { FinancialProjection } from "@/components/finances/FinancialProjection"
 
 const CATEGORY_LABELS: Record<string, string> = {
   rent: "Arriendo", salary: "Salarios", supplies: "Insumos",
@@ -409,6 +410,7 @@ export default async function FinancesPage({ searchParams }: PageProps) {
       <div className="flex gap-1 border-b border-border overflow-x-auto">
         {[
           { key: "overview", label: "Resumen" },
+          { key: "projection", label: "📈 Proyección" },
           { key: "expenses", label: "Egresos" },
           { key: "coaches", label: "Staff / Nómina" },
           { key: "suppliers", label: `Proveedores${suppliers.length > 0 ? ` (${suppliers.length})` : ''}` },
@@ -536,6 +538,27 @@ export default async function FinancesPage({ searchParams }: PageProps) {
         </div>
         )
       })()}
+
+      {/* Projection Tab */}
+      {tab === "projection" && (
+        <FinancialProjection
+          historicalData={chartData}
+          currentMonthIncome={summary.totalIncome}
+          currentMonthExpenses={summary.totalExpenses}
+          pendingIncome={summary.pendingIncome}
+          fixedMonthlyExpenses={(() => {
+            const fixedCoaches = coaches
+              .filter((c) => c.salary_type === 'fixed' && c.salary_amount)
+              .reduce((s, c) => s + Number(c.salary_amount), 0)
+            const rentExpenses = expenses
+              .filter((e) => e.category === 'rent')
+              .reduce((s, e) => s + Number(e.amount), 0)
+            return fixedCoaches + rentExpenses
+          })()}
+          activeSubscriptions={0}
+          avgSubscriptionValue={0}
+        />
+      )}
 
       {/* Expenses Tab */}
       {tab === "expenses" && (
