@@ -37,6 +37,7 @@ import type { NotificationItem } from "@/components/layouts/NotificationBell"
 import { getClubSettings } from "@/lib/actions/settings"
 import { getSportVocab } from "@/lib/sport-vocab"
 import { isSuperAdmin } from "@/lib/actions/super-admin"
+import { AgreementGateWrapper } from "@/components/agreements/AgreementGateWrapper"
 
 function buildNavGroups(v: ReturnType<typeof getSportVocab>) {
   return [
@@ -286,7 +287,9 @@ export default async function DashboardLayout({
 
         {/* Scrollable page content */}
         <main className="flex-1 overflow-y-auto p-4 md:p-6 bg-background">
-          {children}
+          <AgreementGateWrapper>
+            {children}
+          </AgreementGateWrapper>
         </main>
 
         {/* AI Chat Assistant */}

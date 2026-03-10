@@ -206,6 +206,102 @@ export async function checkAthleteHasValidAgreements(athleteId: string): Promise
   return pending.length === 0
 }
 
+export async function getCurrentUserPendingAgreements() {
+  const { auth } = await import('@clerk/nextjs/server')
+  const { userId } = await auth()
+  if (!userId) return { hasPending: false, agreements: [], athleteId: null }
+
+  const supabase = createAdminClient()
+
+  // Get athlete record for current user
+  const { data: athlete } = await supabase
+    .from('athletes')
+    .select('id, club_id, name')
+    .eq('user_id', userId)
+    .single()
+
+  if (!athlete) return { hasPending: false, agreements: [], athleteId: null }
+
+  // Get required templates for this club
+  const { data: templates } = await supabase
+    .from('agreement_templates')
+    .select('id, name, description, content')
+    .eq('club_id', athlete.club_id)
+    .eq('is_active', true)
+    .eq('is_required_for_enrollment', true)
+
+  if (!templates || templates.length === 0) {
+    return { hasPending: false, agreements: [], athleteId: athlete.id }
+  }
+
+  // Get athlete's existing agreements (pending or signed)
+  const { data: existingAgreements } = await supabase
+    .from('athlete_agreements')
+    .select('id, template_id, status, valid_until, gestdoc_signing_url')
+    .eq('athlete_id', athlete.id)
+    .in('status', ['pending', 'sent_to_sign', 'signed'])
+
+  const agreementMap = new Map(
+    (existingAgreements ?? []).map(a => [a.template_id, a])
+  )
+
+  const now = new Date().toISOString()
+  const pendingTemplates: Array<{
+    templateId: string
+    templateName: string
+    templateDescription: string | null
+    agreementId: string | null
+    status: string
+    signingUrl: string | null
+  }> = []
+
+  for (const template of templates) {
+    const existing = agreementMap.get(template.id)
+    
+    if (!existing) {
+      // No agreement exists - needs to be created
+      pendingTemplates.push({
+        templateId: template.id,
+        templateName: template.name,
+        templateDescription: template.description,
+        agreementId: null,
+        status: 'not_created',
+        signingUrl: null,
+      })
+    } else if (existing.status === 'signed') {
+      // Check if expired
+      if (existing.valid_until && existing.valid_until < now) {
+        pendingTemplates.push({
+          templateId: template.id,
+          templateName: template.name,
+          templateDescription: template.description,
+          agreementId: existing.id,
+          status: 'expired',
+          signingUrl: null,
+        })
+      }
+      // If signed and not expired, skip
+    } else {
+      // Pending or sent_to_sign
+      pendingTemplates.push({
+        templateId: template.id,
+        templateName: template.name,
+        templateDescription: template.description,
+        agreementId: existing.id,
+        status: existing.status,
+        signingUrl: existing.gestdoc_signing_url,
+      })
+    }
+  }
+
+  return {
+    hasPending: pendingTemplates.length > 0,
+    agreements: pendingTemplates,
+    athleteId: athlete.id,
+    athleteName: athlete.name,
+  }
+}
+
 export async function createAthleteAgreement(params: {
   athleteId: string
   templateId: string
