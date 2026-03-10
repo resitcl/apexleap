@@ -206,7 +206,7 @@ export async function getCoachDashboard() {
 
     supabase
       .from('attendance')
-      .select('id, athlete_id, is_valid, checked_in_at, athletes(id, name, health_status, photo_url)')
+      .select('id, athlete_id, is_valid, checked_in_at, schedule_id, athletes(id, name, health_status, photo_url)')
       .eq('club_id', clubId)
       .gte('checked_in_at', today.toISOString())
       .lt('checked_in_at', tomorrow.toISOString())

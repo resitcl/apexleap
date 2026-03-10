@@ -8,6 +8,7 @@ import { getTodaySessions } from "@/lib/actions/dashboard"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Users, Clock, CheckCircle, AlertTriangle, Activity, Calendar, TrendingUp, Shield } from "lucide-react"
+import { SessionAttendanceView } from "@/components/coach/SessionAttendanceView"
 
 const SEMAFORO_CONFIG = {
   green:  { label: "Apto",        bg: "bg-green-500",  text: "text-green-700",  border: "border-green-200",  card: "bg-green-50",  emoji: "🟢" },
@@ -151,6 +152,28 @@ export default async function CoachPage() {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* Session Attendance View - for next/current session */}
+      {nextSession && (
+        <SessionAttendanceView
+          session={nextSession}
+          athletes={athletes.map(a => ({
+            id: a.id,
+            name: a.name,
+            photo_url: a.photo_url,
+            health_status: a.health_status,
+            semaforo: a.semaforo,
+          }))}
+          attendance={(data.attendanceToday ?? [])
+            .filter(att => att.schedule_id === nextSession.id || !att.schedule_id)
+            .map(att => ({
+              id: att.id,
+              athlete_id: att.athlete_id,
+              is_valid: att.is_valid,
+              checked_in_at: att.checked_in_at,
+            }))}
+        />
       )}
 
       {/* Semáforo detallado */}
