@@ -8,9 +8,10 @@ import { getAllMatches } from "@/lib/actions/matches"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Clock, MapPin, Users, Pencil, AlertCircle, Trophy, Swords } from "lucide-react"
+import { Plus, Clock, MapPin, Users, Pencil, AlertCircle, Trophy, Swords, Calendar as CalendarIcon } from "lucide-react"
 import { DeleteScheduleButton } from "@/components/calendar/DeleteScheduleButton"
 import { ExportSchedulesButton } from "@/components/calendar/ExportSchedulesButton"
+import { CalendarView } from "@/components/calendar/CalendarView"
 
 const DAYS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"]
 const DAY_COLORS = [
@@ -210,6 +211,43 @@ export default async function CalendarPage({ searchParams }: PageProps) {
           </Link>
         </div>
       </div>
+
+      {/* Monthly Calendar View */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <CalendarIcon className="w-4 h-4" />
+            Vista Mensual
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <CalendarView 
+            schedules={schedules.map(s => ({
+              id: s.id,
+              name: s.name,
+              day_of_week: s.day_of_week as number[],
+              start_time: s.start_time,
+              end_time: s.end_time,
+              is_active: s.is_active,
+              venue: s.venues as { id: string; name: string } | null,
+            }))}
+            events={upcomingEvents.map(ev => ev.kind === 'competition' ? {
+              kind: 'competition' as const,
+              id: ev.id,
+              name: ev.name,
+              date: ev.date,
+            } : {
+              kind: 'match' as const,
+              id: ev.id,
+              opponent: ev.opponent,
+              date: ev.date,
+              location: ev.location,
+              is_home: ev.is_home,
+              competitionId: ev.competitionId,
+            })}
+          />
+        </CardContent>
+      </Card>
 
       <div className="flex flex-wrap gap-2 items-center">
         <span className="text-xs text-muted-foreground font-medium">Día:</span>
