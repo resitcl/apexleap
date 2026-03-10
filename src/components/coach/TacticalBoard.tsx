@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef, useEffect, useState, useCallback } from 'react'
-import { Maximize2, Minimize2, Trash2, Undo2, Play, Square, Save, FolderOpen, Circle, Minus, Pencil, MousePointer, Eraser, RotateCcw } from 'lucide-react'
+import { Maximize2, Minimize2, Trash2, Undo2, Play, Square, Save, FolderOpen, Circle, Minus, Pencil, MousePointer, Eraser, RotateCcw, UserMinus, Disc } from 'lucide-react'
 
 /* ─── Types ─────────────────────────────────────────────────── */
 type Sport = 'basketball' | 'soccer' | 'futsal' | 'volleyball' | 'handball' | 'generic'
@@ -11,6 +11,8 @@ interface Player { id: string; x: number; y: number; team: 'home' | 'away'; num:
 interface DrawnPath { id: string; tool: 'pen' | 'arrow' | 'line'; pts: Pt[]; color: string; w: number }
 interface SavedPlay { id: string; name: string; sport: Sport; players: Player[]; paths: DrawnPath[] }
 interface AnimState { playing: boolean; start: Player[]; end: Player[]; progress: number; rafId: number }
+interface PositionSlot { id: number; players: Player[] | null }
+interface RecordedFrame { players: Player[]; timestamp: number }
 
 const SPORT_LABELS: Record<Sport, string> = {
   basketball: '🏀 Básquet', soccer: '⚽ Fútbol', futsal: '🥅 Futsal',
@@ -168,10 +170,10 @@ function drawPlayers(ctx: CanvasRenderingContext2D, players: Player[], selected:
 }
 
 /* ─── Main component ─────────────────────────────────────────── */
-export function TacticalBoard({ defaultSport = 'basketball' }: { defaultSport?: Sport }) {
+export function TacticalBoard({ clubSport = 'basketball' }: { clubSport?: Sport }) {
   const canvasRef   = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
-  const [sport, setSport]       = useState<Sport>(defaultSport)
+  const sport = clubSport // Fixed to club sport, no selector
   const [tool, setTool]         = useState<Tool>('select')
   const [penColor, setPenColor] = useState('#ffffff')
   const [penWidth, setPenWidth] = useState(3)
@@ -182,12 +184,31 @@ export function TacticalBoard({ defaultSport = 'basketball' }: { defaultSport?: 
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [savedPlays, setSavedPlays]     = useState<SavedPlay[]>([])
   const [showSaved, setShowSaved]       = useState(false)
+  
+  // Position slots (1-10)
+  const [positionSlots, setPositionSlots] = useState<PositionSlot[]>(
+    Array.from({ length: 10 }, (_, i) => ({ id: i + 1, players: null }))
+  )
+  const [showSlots, setShowSlots] = useState(false)
+  
+  // Recording state
+  const [isRecording, setIsRecording] = useState(false)
+  const recordedFramesRef = useRef<RecordedFrame[]>([])
+  const recordIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
   // Drawing state (mutable refs to avoid re-render during mousemove)
   const drawingRef = useRef<{ active: boolean; tool: Tool; pts: Pt[]; color: string; w: number } | null>(null)
   const dragRef    = useRef<{ active: boolean; id: string; offX: number; offY: number } | null>(null)
   const animRef    = useRef<AnimState>({ playing: false, start: [], end: [], progress: 0, rafId: 0 })
   const [animPlaying, setAnimPlaying] = useState(false)
+  
+  // Load position slots from localStorage
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(`tactical_slots_${sport}`)
+      if (raw) setPositionSlots(JSON.parse(raw))
+    } catch {}
+  }, [sport])
 
   // Load saved plays from localStorage
   useEffect(() => {
@@ -197,10 +218,10 @@ export function TacticalBoard({ defaultSport = 'basketball' }: { defaultSport?: 
     } catch {}
   }, [])
 
-  // Default players based on sport
+  // Default players based on sport (only on mount)
   useEffect(() => {
     const canvas = canvasRef.current; if (!canvas) return
-    const W = canvas.width, H = canvas.height
+    const W = canvas.width || 800, H = canvas.height || 500
     const homePts: Pt[] = sport === 'basketball' ? [
       {x:W*0.15,y:H*0.5},{x:W*0.3,y:H*0.3},{x:W*0.3,y:H*0.7},{x:W*0.45,y:H*0.38},{x:W*0.45,y:H*0.62}
     ] : sport === 'volleyball' ? [
@@ -218,7 +239,8 @@ export function TacticalBoard({ defaultSport = 'basketball' }: { defaultSport?: 
     setPlayers(newPlayers)
     setPaths([])
     setUndoStack([])
-  }, [sport])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Render loop
   const render = useCallback(() => {
@@ -397,7 +419,7 @@ export function TacticalBoard({ defaultSport = 'basketball' }: { defaultSport?: 
   function loadPlay(play: SavedPlay) {
     setPlayers(play.players)
     setPaths(play.paths)
-    setSport(play.sport)
+    // Sport is fixed to club sport, ignore play.sport
     setShowSaved(false)
   }
 
@@ -459,6 +481,113 @@ export function TacticalBoard({ defaultSport = 'basketball' }: { defaultSport?: 
     setSelectedId(null)
   }
 
+  /* ─── Remove last player ─── */
+  function removeLastPlayer() {
+    if (players.length === 0) return
+    setPlayers(prev => prev.slice(0, -1))
+  }
+
+  /* ─── Position Slots (1-10) ─── */
+  function saveToSlot(slotId: number) {
+    const updated = positionSlots.map(s => 
+      s.id === slotId ? { ...s, players: players.map(p => ({ ...p })) } : s
+    )
+    setPositionSlots(updated)
+    try { localStorage.setItem(`tactical_slots_${sport}`, JSON.stringify(updated)) } catch {}
+  }
+
+  function loadFromSlot(slotId: number) {
+    const slot = positionSlots.find(s => s.id === slotId)
+    if (slot?.players) {
+      setPlayers(slot.players.map(p => ({ ...p })))
+    }
+  }
+
+  function clearSlot(slotId: number) {
+    const updated = positionSlots.map(s => 
+      s.id === slotId ? { ...s, players: null } : s
+    )
+    setPositionSlots(updated)
+    try { localStorage.setItem(`tactical_slots_${sport}`, JSON.stringify(updated)) } catch {}
+  }
+
+  /* ─── Recording system ─── */
+  function startRecording() {
+    recordedFramesRef.current = [{ players: players.map(p => ({ ...p })), timestamp: 0 }]
+    setIsRecording(true)
+    const startTime = Date.now()
+    recordIntervalRef.current = setInterval(() => {
+      recordedFramesRef.current.push({
+        players: players.map(p => ({ ...p })),
+        timestamp: Date.now() - startTime
+      })
+    }, 100) // Record every 100ms
+  }
+
+  function stopRecording() {
+    if (recordIntervalRef.current) {
+      clearInterval(recordIntervalRef.current)
+      recordIntervalRef.current = null
+    }
+    setIsRecording(false)
+  }
+
+  function playRecording() {
+    const frames = recordedFramesRef.current
+    if (frames.length < 2) return
+    
+    setAnimPlaying(true)
+    const canvas = canvasRef.current!
+    const ctx = canvas.getContext('2d')!
+    const W = canvas.width, H = canvas.height
+    let frameIndex = 0
+    const totalDuration = frames[frames.length - 1].timestamp
+
+    function step() {
+      if (frameIndex >= frames.length) {
+        setAnimPlaying(false)
+        render()
+        return
+      }
+      
+      const frame = frames[frameIndex]
+      drawCourt(ctx, sport, W, H)
+      drawPaths(ctx, paths, null)
+      drawPlayers(ctx, frame.players, null)
+      
+      frameIndex++
+      if (frameIndex < frames.length) {
+        const nextDelay = frames[frameIndex].timestamp - frame.timestamp
+        setTimeout(step, nextDelay)
+      } else {
+        setAnimPlaying(false)
+        render()
+      }
+    }
+    
+    step()
+  }
+
+  // Cleanup recording on unmount
+  useEffect(() => {
+    return () => {
+      if (recordIntervalRef.current) clearInterval(recordIntervalRef.current)
+    }
+  }, [])
+
+  // Update recording when players move
+  useEffect(() => {
+    if (isRecording && recordedFramesRef.current.length > 0) {
+      const startTime = recordedFramesRef.current[0].timestamp === 0 
+        ? Date.now() - 100 
+        : Date.now() - recordedFramesRef.current[recordedFramesRef.current.length - 1].timestamp
+      recordedFramesRef.current.push({
+        players: players.map(p => ({ ...p })),
+        timestamp: Date.now() - (Date.now() - recordedFramesRef.current[recordedFramesRef.current.length - 1].timestamp - startTime)
+      })
+    }
+  }, [players, isRecording])
+
   const TOOLS: { id: Tool; icon: React.ReactNode; label: string }[] = [
     { id: 'select', icon: <MousePointer className="w-4 h-4" />, label: 'Mover' },
     { id: 'pen',    icon: <Pencil className="w-4 h-4" />,       label: 'Dibujar' },
@@ -471,16 +600,10 @@ export function TacticalBoard({ defaultSport = 'basketball' }: { defaultSport?: 
     <div className="flex flex-col h-full gap-2 select-none">
       {/* ── Top toolbar ── */}
       <div className="flex flex-wrap items-center gap-2 px-1">
-        {/* Sport selector */}
-        <select
-          value={sport}
-          onChange={e => setSport(e.target.value as Sport)}
-          className="text-xs rounded-lg border border-border bg-card px-2 py-1.5 font-medium"
-        >
-          {(Object.entries(SPORT_LABELS) as [Sport, string][]).map(([v, l]) => (
-            <option key={v} value={v}>{l}</option>
-          ))}
-        </select>
+        {/* Sport label (fixed to club sport) */}
+        <span className="text-xs font-medium px-2 py-1.5 rounded-lg bg-primary/10 text-primary">
+          {SPORT_LABELS[sport]}
+        </span>
 
         <div className="w-px h-6 bg-border" />
 
@@ -513,7 +636,7 @@ export function TacticalBoard({ defaultSport = 'basketball' }: { defaultSport?: 
 
         <div className="w-px h-6 bg-border" />
 
-        {/* Add players */}
+        {/* Add/Remove players */}
         <button onClick={() => addPlayer('home')} title="Añadir jugador local"
           className="text-xs px-2 py-1 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors font-medium">
           +🔵
@@ -521,6 +644,10 @@ export function TacticalBoard({ defaultSport = 'basketball' }: { defaultSport?: 
         <button onClick={() => addPlayer('away')} title="Añadir jugador visitante"
           className="text-xs px-2 py-1 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors font-medium">
           +🔴
+        </button>
+        <button onClick={removeLastPlayer} title="Eliminar último jugador"
+          className="text-xs px-2 py-1 rounded-lg bg-muted hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors font-medium">
+          <UserMinus className="w-4 h-4" />
         </button>
         {selectedId && (
           <button onClick={removeSelected} title="Eliminar jugador seleccionado"
@@ -531,18 +658,37 @@ export function TacticalBoard({ defaultSport = 'basketball' }: { defaultSport?: 
 
         <div className="flex-1" />
 
+        {/* Position Slots */}
+        <button onClick={() => setShowSlots(v => !v)} title="Slots de posiciones (1-10)"
+          className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${showSlots ? 'bg-primary text-primary-foreground' : 'bg-muted hover:bg-accent'}`}>
+          <Disc className="w-4 h-4" />
+        </button>
+
+        <div className="w-px h-6 bg-border" />
+
+        {/* Recording */}
+        <button 
+          onClick={isRecording ? stopRecording : startRecording}
+          title={isRecording ? 'Detener grabación' : 'Grabar jugada'}
+          className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${isRecording ? 'bg-red-600 text-white animate-pulse' : 'bg-muted hover:bg-red-600 hover:text-white'}`}>
+          <Circle className={`w-4 h-4 ${isRecording ? 'fill-current' : ''}`} />
+        </button>
+        <button 
+          onClick={playRecording}
+          disabled={animPlaying || recordedFramesRef.current.length < 2}
+          title={animPlaying ? 'Reproduciendo…' : 'Reproducir grabación'}
+          className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${animPlaying ? 'bg-green-600 text-white' : 'bg-muted hover:bg-green-600 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed'}`}>
+          {animPlaying ? <Square className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+        </button>
+
+        <div className="w-px h-6 bg-border" />
+
         {/* Actions */}
         <button onClick={undo} title="Deshacer" className="w-8 h-8 rounded-lg bg-muted hover:bg-accent flex items-center justify-center">
           <Undo2 className="w-4 h-4" />
         </button>
         <button onClick={clearBoard} title="Limpiar trazos" className="w-8 h-8 rounded-lg bg-muted hover:bg-accent flex items-center justify-center">
           <Trash2 className="w-4 h-4" />
-        </button>
-        <button onClick={() => { recordPlay(); startAnimation() }}
-          disabled={animPlaying}
-          title={animPlaying ? 'Reproduciendo…' : 'Reproducir jugada demo'}
-          className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${animPlaying ? 'bg-green-600 text-white' : 'bg-muted hover:bg-green-600 hover:text-white'}`}>
-          {animPlaying ? <Square className="w-4 h-4" onClick={e => { e.stopPropagation(); stopAnimation() }} /> : <Play className="w-4 h-4" />}
         </button>
         <button onClick={savePlay} title="Guardar jugada" className="w-8 h-8 rounded-lg bg-muted hover:bg-accent flex items-center justify-center">
           <Save className="w-4 h-4" />
@@ -556,6 +702,40 @@ export function TacticalBoard({ defaultSport = 'basketball' }: { defaultSport?: 
           {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
         </button>
       </div>
+
+      {/* ── Position Slots Bar ── */}
+      {showSlots && (
+        <div className="flex items-center gap-2 px-1 py-1.5 bg-muted/50 rounded-lg">
+          <span className="text-xs font-medium text-muted-foreground px-2">Slots:</span>
+          {positionSlots.map(slot => (
+            <div key={slot.id} className="flex items-center gap-0.5">
+              <button
+                onClick={() => slot.players ? loadFromSlot(slot.id) : saveToSlot(slot.id)}
+                title={slot.players ? `Cargar slot ${slot.id}` : `Guardar en slot ${slot.id}`}
+                className={`w-7 h-7 rounded-md text-xs font-bold transition-colors ${
+                  slot.players 
+                    ? 'bg-primary text-primary-foreground hover:bg-primary/80' 
+                    : 'bg-background border border-dashed border-border text-muted-foreground hover:border-primary hover:text-primary'
+                }`}
+              >
+                {slot.id}
+              </button>
+              {slot.players && (
+                <button
+                  onClick={() => clearSlot(slot.id)}
+                  title={`Borrar slot ${slot.id}`}
+                  className="w-4 h-4 rounded text-[10px] bg-destructive/10 text-destructive hover:bg-destructive/20 flex items-center justify-center"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          ))}
+          <span className="text-[10px] text-muted-foreground ml-2">
+            Click vacío = guardar · Click lleno = cargar
+          </span>
+        </div>
+      )}
 
       {/* ── Board area ── */}
       <div className="flex flex-1 gap-3 min-h-0">
@@ -580,9 +760,15 @@ export function TacticalBoard({ defaultSport = 'basketball' }: { defaultSport?: 
             <span className="flex items-center gap-1 bg-black/30 text-white px-2 py-1 rounded-md backdrop-blur-sm">
               <span className="w-3 h-3 rounded-full bg-red-500 inline-block" /> Visitante
             </span>
-            <span className="bg-black/30 text-white/70 px-2 py-1 rounded-md backdrop-blur-sm">
-              {animPlaying ? '▶ Animando…' : tool === 'select' ? 'Arrastra jugadores' : `Herramienta: ${TOOLS.find(t=>t.id===tool)?.label}`}
-            </span>
+            {isRecording ? (
+              <span className="bg-red-600 text-white px-2 py-1 rounded-md backdrop-blur-sm animate-pulse flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-white" /> GRABANDO — mueve los jugadores
+              </span>
+            ) : (
+              <span className="bg-black/30 text-white/70 px-2 py-1 rounded-md backdrop-blur-sm">
+                {animPlaying ? '▶ Reproduciendo…' : tool === 'select' ? 'Arrastra jugadores' : `Herramienta: ${TOOLS.find(t=>t.id===tool)?.label}`}
+              </span>
+            )}
           </div>
         </div>
 

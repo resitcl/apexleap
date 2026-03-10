@@ -40,6 +40,17 @@ export async function getClubId(): Promise<string> {
   return data.club_id as string
 }
 
+export async function getClubSportType(): Promise<string | null> {
+  const clubId = await getClubId()
+  const supabase = createAdminClient()
+  const { data } = await supabase
+    .from('clubs')
+    .select('sport_type')
+    .eq('id', clubId)
+    .single()
+  return data?.sport_type ?? null
+}
+
 export async function switchToClub(clubId: string): Promise<void> {
   const { userId } = await auth()
   if (!userId) throw new Error('No autorizado')
