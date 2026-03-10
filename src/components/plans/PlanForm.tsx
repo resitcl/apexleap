@@ -14,13 +14,18 @@ import { Separator } from '@/components/ui/separator'
 import { createPlan, updatePlan } from '@/lib/actions/plans'
 import type { PlanInput } from '@/lib/actions/plans'
 
+const optionalPositiveInt = z.preprocess(
+  (value) => value === '' || value == null ? null : value,
+  z.coerce.number().int().positive().nullable()
+)
+
 const formSchema = z.object({
   name: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
   description: z.string().optional(),
   price: z.coerce.number().min(0, 'El precio no puede ser negativo'),
   enrollment_fee: z.coerce.number().min(0).default(0),
   billing_cycle: z.enum(['monthly', 'quarterly', 'semiannual', 'annual', 'single']),
-  session_limit: z.coerce.number().int().positive().optional().nullable(),
+  session_limit: optionalPositiveInt,
   multi_sede: z.boolean().default(false),
   content_level: z.string().optional().nullable(),
   grace_period_days: z.coerce.number().int().min(0).default(3),
@@ -63,7 +68,7 @@ export function PlanForm({ planId, defaultValues }: Props) {
     try {
       const input: PlanInput = {
         ...values,
-        session_limit: values.session_limit || null,
+        session_limit: values.session_limit ?? null,
         content_level: values.content_level || null,
       }
 

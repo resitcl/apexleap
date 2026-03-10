@@ -2,13 +2,17 @@ import { auth } from "@clerk/nextjs/server"
 import { redirect } from "next/navigation"
 import { checkUserHasClub } from "@/lib/actions/onboarding"
 import { OnboardingForm } from "@/components/onboarding/OnboardingForm"
+import { getPostAuthRedirectPath } from "@/lib/auth/post-auth"
 
 export default async function OnboardingPage() {
   const { userId } = await auth()
   if (!userId) redirect("/sign-in")
 
   const hasClub = await checkUserHasClub()
-  if (hasClub) redirect("/dashboard")
+  if (hasClub) redirect(await getPostAuthRedirectPath())
+
+  const postAuthPath = await getPostAuthRedirectPath()
+  if (postAuthPath === "/super-admin") redirect(postAuthPath)
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">

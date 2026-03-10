@@ -1,10 +1,14 @@
 'use server'
 
-import { auth } from '@clerk/nextjs/server'
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { z } from 'zod'
 import { getClubId } from '@/lib/actions/club-context'
+
+const optionalPositiveInt = z.preprocess(
+  (value) => value === '' || value == null ? null : value,
+  z.coerce.number().int().positive().nullable()
+)
 
 const planSchema = z.object({
   name: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
@@ -12,7 +16,7 @@ const planSchema = z.object({
   price: z.coerce.number().min(0, 'El precio no puede ser negativo'),
   enrollment_fee: z.coerce.number().min(0).default(0),
   billing_cycle: z.enum(['monthly', 'quarterly', 'semiannual', 'annual', 'single']).default('monthly'),
-  session_limit: z.coerce.number().int().positive().optional().nullable(),
+  session_limit: optionalPositiveInt,
   multi_sede: z.boolean().default(false),
   content_level: z.string().optional().nullable(),
   grace_period_days: z.coerce.number().int().min(0).default(3),
