@@ -159,6 +159,65 @@ export async function markAttendanceInvalid(params: { attendanceId: string }) {
   revalidatePath('/dashboard/attendance')
 }
 
+export async function bulkCheckIn(params: {
+  athleteIds: string[]
+  date: string
+  scheduleId?: string
+}) {
+  const clubId = await getClubId()
+  const supabase = createAdminClient()
+
+  if (params.athleteIds.length === 0) {
+    throw new Error('Selecciona al menos un alumno')
+  }
+
+  // Parse the date and set time to noon to avoid timezone issues
+  const checkInDate = new Date(params.date + 'T12:00:00')
+  
+  // Validate date is not in the future
+  const today = new Date()
+  today.setHours(23, 59, 59, 999)
+  if (checkInDate > today) {
+    throw new Error('No puedes registrar asistencia para fechas futuras')
+  }
+
+  // Check for existing attendance on that date for these athletes
+  const dayStart = new Date(params.date + 'T00:00:00').toISOString()
+  const dayEnd = new Date(params.date + 'T23:59:59').toISOString()
+
+  const { data: existing } = await supabase
+    .from('attendance')
+    .select('athlete_id')
+    .eq('club_id', clubId)
+    .in('athlete_id', params.athleteIds)
+    .gte('checked_in_at', dayStart)
+    .lte('checked_in_at', dayEnd)
+
+  const existingIds = new Set((existing ?? []).map(e => e.athlete_id))
+  const newAthleteIds = params.athleteIds.filter(id => !existingIds.has(id))
+
+  if (newAthleteIds.length === 0) {
+    throw new Error('Todos los alumnos seleccionados ya tienen asistencia registrada en esa fecha')
+  }
+
+  // Insert attendance records
+  const records = newAthleteIds.map(athleteId => ({
+    club_id: clubId,
+    athlete_id: athleteId,
+    schedule_id: params.scheduleId ?? null,
+    checked_in_at: checkInDate.toISOString(),
+    is_valid: true,
+    notes: 'Registro histórico manual',
+  }))
+
+  const { error } = await supabase.from('attendance').insert(records)
+
+  if (error) throw new Error(error.message)
+  
+  revalidatePath('/dashboard/attendance')
+  return { count: newAthleteIds.length, skipped: existingIds.size }
+}
+
 export async function getAthleteAttendanceRate(athleteId: string, days = 30) {
   const clubId = await getClubId()
   const supabase = createAdminClient()

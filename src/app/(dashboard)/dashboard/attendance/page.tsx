@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { CheckSquare, Users, TrendingUp } from "lucide-react"
 import { InfoTooltip } from "@/components/ui/info-tooltip"
 import { ManualCheckInButton } from "@/components/attendance/ManualCheckInButton"
+import { BulkHistoricalAttendance } from "@/components/attendance/BulkHistoricalAttendance"
 import { QRCheckInDisplay } from "@/components/attendance/QRCheckInDisplay"
 import { ExportAttendanceButton } from "@/components/attendance/ExportAttendanceButton"
 import { JustifyAttendanceButton } from "@/components/attendance/JustifyAttendanceButton"
@@ -72,7 +73,10 @@ export default async function AttendancePage({ searchParams }: PageProps) {
             })()}
           </p>
         </div>
-        <ManualCheckInButton athletes={athletes} />
+        <div className="flex gap-2">
+          <BulkHistoricalAttendance athletes={athletes} schedules={schedules} />
+          <ManualCheckInButton athletes={athletes} />
+        </div>
       </div>
 
       {/* KPI Cards */}
