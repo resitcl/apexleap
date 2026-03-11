@@ -1,0 +1,122 @@
+# ============================================================
+# ApexLeap - Stack de Producción
+# ============================================================
+#
+# Levanta TODO el stack: Next.js + PostgreSQL + PostgREST + Proxy
+#
+# Uso:
+#   docker compose up -d --build
+#
+# El proxy nginx sirve todo en un solo puerto (80):
+#   /rest/v1/*  → PostgREST (API de Supabase)
+#   /*          → Next.js app
+#
+# Variables requeridas en .env:
+#   POSTGRES_PASSWORD, JWT_SECRET, ANON_KEY, SERVICE_ROLE_KEY,
+#   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY, CLERK_SECRET_KEY
+#
+# Ver DEPLOY.md para documentación completa.
+# ============================================================
+
+services:
+  # ==========================================
+  # PostgreSQL (supabase/postgres incluye roles
+  # anon, authenticated, authenticator, etc.)
+  # ==========================================
+  db:
+    container_name: apexleap-db
+    image: supabase/postgres:15.1.1.78
+    healthcheck:
+      test: pg_isready -U postgres -h localhost
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/init-db.sh:/docker-entrypoint-initdb.d/zz-apexleap-init.sh:ro
+      - ./supabase/migrations:/app/migrations:ro
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-apexleap-local-dev}
+      POSTGRES_DB: ${POSTGRES_DB:-postgres}
+    networks:
+      - apexleap
+
+  # ==========================================
+  # PostgREST - API REST sobre PostgreSQL
+  # ==========================================
+  rest:
+    container_name: apexleap-rest
+    image: postgrest/postgrest:v12.2.3
+    restart: unless-stopped
+    environment:
+      PGRST_DB_URI: postgres://authenticator:${POSTGRES_PASSWORD:-apexleap-local-dev}@db:5432/${POSTGRES_DB:-postgres}
+      PGRST_DB_SCHEMAS: ${PGRST_DB_SCHEMAS:-public}
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_JWT_SECRET: ${JWT_SECRET:-super-secret-jwt-token-with-at-least-32-characters-long}
+      PGRST_DB_USE_LEGACY_GUCS: "false"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - apexleap
+
+  # ==========================================
+  # Next.js App (producción)
+  # ==========================================
+  app:
+    container_name: apexleap-app
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
+        - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+        - NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+        - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-http://localhost}
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+      CLERK_SECRET_KEY: ${CLERK_SECRET_KEY}
+      CLERK_WEBHOOK_SECRET: ${CLERK_WEBHOOK_SECRET:-}
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - apexleap
+
+  # ==========================================
+  # Proxy - Punto de entrada único (puerto 80)
+  #   /rest/v1/* → PostgREST
+  #   /*         → Next.js app
+  # ==========================================
+  proxy:
+    container_name: apexleap-proxy
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    ports:
+      - "${PORT:-80}:80"
+    volumes:
+      - ./docker/proxy.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - rest
+      - app
+    networks:
+      - apexleap
+
+volumes:
+  postgres_data:
+    driver: local
+    name: apexleap_postgres_data
+
+networks:
+  apexleap:
+    driver: bridge
+    name: apexleap
