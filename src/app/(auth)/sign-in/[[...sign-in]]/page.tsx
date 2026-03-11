@@ -7,7 +7,12 @@ export default async function SignInPage() {
   const { userId } = await auth()
 
   if (userId) {
-    redirect(await getPostAuthRedirectPath())
+    const path = await getPostAuthRedirectPath()
+    // Only auto-redirect if user has a real destination (dashboard/super-admin).
+    // If they'd land on onboarding, show the sign-in form so they can switch accounts.
+    if (path !== '/onboarding') {
+      redirect(path)
+    }
   }
 
   return <SignIn forceRedirectUrl="/post-auth" fallbackRedirectUrl="/post-auth" />

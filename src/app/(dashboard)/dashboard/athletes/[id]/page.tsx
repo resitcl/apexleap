@@ -17,8 +17,10 @@ import { NewSubscriptionFromAthleteButton } from "@/components/athletes/NewSubsc
 import {
   ChevronLeft, Pencil, Phone, Mail, FileText,
   Calendar, CreditCard, CheckSquare, Activity, Heart,
-  Repeat2, ClipboardCheck, DollarSign
+  Repeat2, ClipboardCheck, DollarSign, Award
 } from "lucide-react"
+import { getClubSportType } from "@/lib/actions/club-context"
+import { getSportConfig, getSportFieldDisplayValue } from "@/lib/sport-fields"
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -33,6 +35,11 @@ export default async function AthleteDetailPage({ params }: PageProps) {
   } catch {
     notFound()
   }
+
+  let sportType: string | null = null
+  try { sportType = await getClubSportType() } catch { /* silent */ }
+  const sportConfig = getSportConfig(sportType)
+  const technicalMeta = (athlete as { technical_meta?: Record<string, unknown> }).technical_meta ?? {}
 
   const payments = (athlete.payments ?? []) as Array<{
     id: string; concept: string; amount: number;
@@ -178,6 +185,30 @@ export default async function AthleteDetailPage({ params }: PageProps) {
           </div>
         </CardContent>
       </Card>
+
+      {/* Sport-specific technical data */}
+      {sportConfig && Object.keys(technicalMeta).length > 0 && (
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-2 mb-3">
+              <Award className="w-4 h-4 text-primary" />
+              <p className="text-sm font-semibold">{sportConfig.sectionTitle}</p>
+            </div>
+            <div className="flex flex-wrap gap-x-6 gap-y-2">
+              {sportConfig.fields
+                .filter((f) => technicalMeta[f.key] !== undefined && technicalMeta[f.key] !== null)
+                .map((f) => (
+                  <div key={f.key} className="text-sm">
+                    <span className="text-muted-foreground">{f.label}: </span>
+                    <span className="font-medium">
+                      {getSportFieldDisplayValue(sportType, f.key, technicalMeta[f.key])}
+                    </span>
+                  </div>
+                ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Tabs: 4 pestañas de la Ficha 360° */}
       <div className="grid md:grid-cols-2 gap-6">

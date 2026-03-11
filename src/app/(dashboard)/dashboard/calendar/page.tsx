@@ -5,13 +5,15 @@ import { getSchedules } from "@/lib/actions/schedules"
 import { getVenues } from "@/lib/actions/venues"
 import { getCompetitions } from "@/lib/actions/competitions"
 import { getAllMatches } from "@/lib/actions/matches"
+import { getEvents } from "@/lib/actions/events"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Clock, MapPin, Users, Pencil, AlertCircle, Trophy, Swords, Calendar as CalendarIcon } from "lucide-react"
+import { Plus, Clock, MapPin, Users, Pencil, AlertCircle, Trophy, Swords, Calendar as CalendarIcon, CalendarPlus } from "lucide-react"
 import { DeleteScheduleButton } from "@/components/calendar/DeleteScheduleButton"
 import { ExportSchedulesButton } from "@/components/calendar/ExportSchedulesButton"
 import { CalendarView } from "@/components/calendar/CalendarView"
+import { NewEventDialog } from "@/components/calendar/NewEventDialog"
 
 const DAYS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"]
 const DAY_COLORS = [
@@ -76,10 +78,27 @@ export default async function CalendarPage({ searchParams }: PageProps) {
     }))
   } catch { /* tabla matches puede no existir aún */ }
 
-  // Unified upcoming events (competitions + matches) for the next 90 days
+  // Fetch custom events (tournaments, seminars, etc.)
+  let clubEvents: { id: string; name: string; description: string | null; event_type: string; event_date: string; end_date: string | null; start_time: string | null; end_time: string | null; location: string | null }[] = []
+  try {
+    clubEvents = (await getEvents()).map((e) => ({
+      id: e.id,
+      name: e.name,
+      description: e.description ?? null,
+      event_type: e.event_type,
+      event_date: e.event_date,
+      end_date: e.end_date ?? null,
+      start_time: e.start_time ?? null,
+      end_time: e.end_time ?? null,
+      location: e.location ?? null,
+    }))
+  } catch { /* tabla puede no existir aún */ }
+
+  // Unified upcoming events (competitions + matches + custom events) for the next 90 days
   type CalEvent =
     | { kind: 'competition'; id: string; name: string; date: string; endDate: string | null; type: string; status: string }
     | { kind: 'match'; id: string; opponent: string; date: string; location: string | null; is_home: boolean; status: string; competitionName: string | null; competitionId: string | null }
+    | { kind: 'event'; id: string; name: string; date: string; location: string | null; event_type: string; start_time: string | null; end_time: string | null; description: string | null }
 
   const upcomingEvents: CalEvent[] = [
     ...competitions
@@ -104,6 +123,19 @@ export default async function CalendarPage({ searchParams }: PageProps) {
       competitionName: m.competitions?.name ?? null,
       competitionId: m.competitions?.id ?? null,
     })),
+    ...clubEvents
+      .filter((e) => e.event_date >= todayStr)
+      .map((e): CalEvent => ({
+        kind: 'event',
+        id: e.id,
+        name: e.name,
+        date: e.event_date,
+        location: e.location,
+        event_type: e.event_type,
+        start_time: e.start_time,
+        end_time: e.end_time,
+        description: e.description,
+      })),
   ].sort((a, b) => a.date.localeCompare(b.date))
 
   const filteredSchedules = dow !== undefined
@@ -203,6 +235,7 @@ export default async function CalendarPage({ searchParams }: PageProps) {
             ...s,
             day_of_week: s.day_of_week as number[],
           }))} />
+          <NewEventDialog />
           <Link href="/dashboard/calendar/new">
             <Button className="gap-2">
               <Plus className="w-4 h-4" />
@@ -231,19 +264,33 @@ export default async function CalendarPage({ searchParams }: PageProps) {
               is_active: s.is_active,
               venue: s.venues as { id: string; name: string } | null,
             }))}
-            events={upcomingEvents.map(ev => ev.kind === 'competition' ? {
-              kind: 'competition' as const,
-              id: ev.id,
-              name: ev.name,
-              date: ev.date,
-            } : {
-              kind: 'match' as const,
-              id: ev.id,
-              opponent: ev.opponent,
-              date: ev.date,
-              location: ev.location,
-              is_home: ev.is_home,
-              competitionId: ev.competitionId,
+            events={upcomingEvents.map(ev => {
+              if (ev.kind === 'competition') return {
+                kind: 'competition' as const,
+                id: ev.id,
+                name: ev.name,
+                date: ev.date,
+              }
+              if (ev.kind === 'event') return {
+                kind: 'event' as const,
+                id: ev.id,
+                name: ev.name,
+                date: ev.date,
+                location: ev.location,
+                event_type: ev.event_type,
+                start_time: ev.start_time,
+                end_time: ev.end_time,
+                description: ev.description,
+              }
+              return {
+                kind: 'match' as const,
+                id: ev.id,
+                opponent: ev.opponent,
+                date: ev.date,
+                location: ev.location,
+                is_home: ev.is_home,
+                competitionId: ev.competitionId,
+              }
             })}
           />
         </CardContent>
@@ -471,6 +518,32 @@ export default async function CalendarPage({ searchParams }: PageProps) {
                           <Badge variant="outline" className="text-xs shrink-0 capitalize">{ev.type === 'tournament' ? 'Torneo' : ev.type === 'league' ? 'Liga' : ev.type === 'friendly' ? 'Amistoso' : 'Campeonato'}</Badge>
                         </div>
                       </Link>
+                    )
+                  }
+
+                  if (ev.kind === 'event') {
+                    const EVENT_TYPE_LABELS: Record<string, string> = {
+                      tournament: 'Torneo', seminar: 'Seminario', workshop: 'Taller',
+                      meeting: 'Reunión', graduation: 'Graduación', open_mat: 'Open Mat',
+                      friendly: 'Amistoso', exhibition: 'Exhibición', other: 'Evento',
+                    }
+                    return (
+                      <div key={`ev-${ev.id}`} className="p-3 rounded-lg border bg-card hover:border-primary transition-colors flex items-start gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center shrink-0">
+                          <CalendarPlus className="w-4 h-4 text-orange-600" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-semibold text-sm truncate">{ev.name}</p>
+                          <p className={`text-xs mt-0.5 font-medium ${urgency}`}>
+                            {daysUntil === 0 ? 'Hoy' : daysUntil === 1 ? 'Mañana' : `En ${daysUntil} días`} · {dateLabel}
+                          </p>
+                          {ev.location && <p className="text-xs text-muted-foreground flex items-center gap-1"><MapPin className="w-3 h-3" />{ev.location}</p>}
+                          {ev.start_time && <p className="text-xs text-muted-foreground">{ev.start_time.slice(0, 5)}{ev.end_time ? ` – ${ev.end_time.slice(0, 5)}` : ''}</p>}
+                        </div>
+                        <Badge variant="outline" className="text-xs shrink-0 border-orange-300 text-orange-700">
+                          {EVENT_TYPE_LABELS[ev.event_type] ?? ev.event_type}
+                        </Badge>
+                      </div>
                     )
                   }
 

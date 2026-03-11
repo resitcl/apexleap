@@ -40,6 +40,23 @@ import { isSuperAdmin } from "@/lib/actions/super-admin"
 import { AgreementGateWrapper } from "@/components/agreements/AgreementGateWrapper"
 
 function buildNavGroups(v: ReturnType<typeof getSportVocab>) {
+  const deportivoItems = [
+    { href: "/dashboard/athletes",    label: v.athletes,       icon: Users },
+    { href: "/dashboard/attendance",  label: "Asistencia",     icon: ClipboardCheck },
+    { href: "/dashboard/calendar",    label: "Calendario",     icon: Calendar },
+    { href: "/dashboard/coach",       label: v.coach,          icon: Dumbbell },
+  ]
+
+  // Team-sport-only modules: rosters, competitions, matches, tactical board
+  if (v.isTeamSport) {
+    deportivoItems.push(
+      { href: "/dashboard/rosters",      label: v.rosters,        icon: ClipboardList },
+      { href: "/dashboard/competitions", label: v.competitions,   icon: Trophy },
+      { href: "/dashboard/matches",      label: "Partidos",       icon: Swords },
+      { href: "/dashboard/coach/board",  label: "Pizarra",        icon: PenLine },
+    )
+  }
+
   return [
     {
       label: null,
@@ -49,16 +66,7 @@ function buildNavGroups(v: ReturnType<typeof getSportVocab>) {
     },
     {
       label: "Deportivo",
-      items: [
-        { href: "/dashboard/athletes",    label: v.athletes,       icon: Users },
-        { href: "/dashboard/attendance",  label: "Asistencia",     icon: ClipboardCheck },
-        { href: "/dashboard/calendar",    label: "Calendario",     icon: Calendar },
-        { href: "/dashboard/coach",       label: v.coach,          icon: Dumbbell },
-        { href: "/dashboard/rosters",     label: v.rosters,        icon: ClipboardList },
-        { href: "/dashboard/competitions",label: v.competitions,   icon: Trophy },
-        { href: "/dashboard/matches",      label: "Partidos",       icon: Swords },
-        { href: "/dashboard/coach/board", label: "Pizarra",        icon: PenLine },
-      ],
+      items: deportivoItems,
     },
     {
       label: "Finanzas",

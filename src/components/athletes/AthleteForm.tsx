@@ -13,8 +13,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { createAthlete, updateAthlete } from '@/lib/actions/athletes'
 import type { AthleteInput } from '@/lib/actions/athletes'
+import { getSportConfig } from '@/lib/sport-fields'
+import { SportSpecificFields } from '@/components/athletes/SportSpecificFields'
 
 type CategoryOption = { id: string; name: string; color?: string | null }
+type TechnicalMeta = Record<string, unknown>
 
 const formSchema = z.object({
   name: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
@@ -38,12 +41,16 @@ interface Props {
   athleteId?: string
   defaultValues?: Partial<FormValues & { jersey_number?: number | null; category?: string; category_id?: string | null }>
   categories?: CategoryOption[]
+  sportType?: string | null
+  defaultTechnicalMeta?: TechnicalMeta
 }
 
-export function AthleteForm({ athleteId, defaultValues, categories = [] }: Props) {
+export function AthleteForm({ athleteId, defaultValues, categories = [], sportType, defaultTechnicalMeta }: Props) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const isEditing = !!athleteId
+  const sportConfig = getSportConfig(sportType)
+  const [technicalMeta, setTechnicalMeta] = useState<TechnicalMeta>(defaultTechnicalMeta ?? {})
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -68,12 +75,17 @@ export function AthleteForm({ athleteId, defaultValues, categories = [] }: Props
   async function onSubmit(values: FormValues) {
     setLoading(true)
     try {
+      const cleanMeta: TechnicalMeta = {}
+      for (const [k, v] of Object.entries(technicalMeta)) {
+        if (v !== null && v !== undefined && v !== '') cleanMeta[k] = v
+      }
+
       const input: AthleteInput = {
         ...values,
-        jersey_number: values.jersey_number ?? null,
+        jersey_number: sportConfig?.hideJerseyNumber ? null : (values.jersey_number ?? null),
         category: values.category || 'General',
         category_id: values.category_id ?? null,
-        technical_meta: {},
+        technical_meta: cleanMeta,
         performance_meta: {},
       }
 
@@ -134,52 +146,73 @@ export function AthleteForm({ athleteId, defaultValues, categories = [] }: Props
         </CardContent>
       </Card>
 
-      {/* Deportivo */}
+      {/* Deportivo / Disciplina */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Deportivo</CardTitle>
+          <CardTitle className="text-base">{sportConfig?.sectionTitle ?? 'Deportivo'}</CardTitle>
         </CardHeader>
-        <CardContent className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-1.5">
-            <Label htmlFor="category">Categoría</Label>
-            <select
-                id="category"
-                value={form.watch('category_id') ?? ''}
-                onChange={(e) => {
-                  const selected = categories.find((c) => c.id === e.target.value)
-                  form.setValue('category_id', selected?.id ?? null)
-                  form.setValue('category', selected?.name ?? 'General')
-                }}
-                className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-              >
-                {categories.length > 0 ? (
-                  <>
-                    <option value="">Sin categoría</option>
-                    {categories.map((c) => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                  </>
-                ) : (
-                  <option value="">General (sin categorías definidas)</option>
-                )}
-              </select>
-            <p className="text-xs text-muted-foreground">El número de camiseta no puede repetirse dentro de la misma categoría</p>
-          </div>
+        <CardContent className="space-y-5">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="category">Categoría</Label>
+              <select
+                  id="category"
+                  value={form.watch('category_id') ?? ''}
+                  onChange={(e) => {
+                    const selected = categories.find((c) => c.id === e.target.value)
+                    form.setValue('category_id', selected?.id ?? null)
+                    form.setValue('category', selected?.name ?? 'General')
+                  }}
+                  className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                >
+                  {categories.length > 0 ? (
+                    <>
+                      <option value="">Sin categoría</option>
+                      {categories.map((c) => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </>
+                  ) : (
+                    <option value="">General (sin categorías definidas)</option>
+                  )}
+                </select>
+            </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="jersey_number">N° de camiseta</Label>
-            <input
-              id="jersey_number"
-              type="number" min="1" max="999"
-              placeholder="Ej: 10"
-              value={form.watch('jersey_number') ?? ''}
-              onChange={(e) => form.setValue('jersey_number', e.target.value ? Number(e.target.value) : null)}
-              className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-            />
-            {form.formState.errors.jersey_number && (
-              <p className="text-sm text-destructive">{form.formState.errors.jersey_number.message}</p>
+            {!sportConfig?.hideJerseyNumber && (
+              <div className="space-y-1.5">
+                <Label htmlFor="jersey_number">N° de camiseta</Label>
+                <input
+                  id="jersey_number"
+                  type="number" min="1" max="999"
+                  placeholder="Ej: 10"
+                  value={form.watch('jersey_number') ?? ''}
+                  onChange={(e) => form.setValue('jersey_number', e.target.value ? Number(e.target.value) : null)}
+                  className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+                {form.formState.errors.jersey_number && (
+                  <p className="text-sm text-destructive">{form.formState.errors.jersey_number.message}</p>
+                )}
+                <p className="text-xs text-muted-foreground">El número de camiseta no puede repetirse dentro de la misma categoría</p>
+              </div>
             )}
           </div>
+
+          {sportConfig && sportConfig.fields.length > 0 && (
+            <>
+              <div className="border-t pt-4">
+                <p className="text-sm font-medium text-muted-foreground mb-3">
+                  Datos específicos – {sportConfig.label}
+                </p>
+                <SportSpecificFields
+                  fields={sportConfig.fields}
+                  values={technicalMeta}
+                  onChange={(key, value) =>
+                    setTechnicalMeta((prev) => ({ ...prev, [key]: value }))
+                  }
+                />
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 

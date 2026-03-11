@@ -1,6 +1,5 @@
 'use server'
 
-import { auth } from '@clerk/nextjs/server'
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { z } from 'zod'
@@ -114,6 +113,68 @@ export async function createPayment(input: PaymentInput) {
     .single()
 
   if (error) throw new Error(error.message)
+
+  // Auto-create subscription if payment is paid and linked to a plan
+  if (parsed.status === 'paid' && parsed.plan_id) {
+    // Fetch plan details to get billing_cycle
+    const { data: plan } = await supabase
+      .from('plans')
+      .select('billing_cycle')
+      .eq('id', parsed.plan_id)
+      .single()
+
+    if (plan) {
+      const CYCLE_DAYS: Record<string, number> = {
+        monthly: 30,
+        quarterly: 90,
+        semiannual: 180,
+        annual: 365,
+        single: 0,
+      }
+
+      const startDate = parsed.paid_at ? new Date(parsed.paid_at) : new Date()
+      const startStr = startDate.toISOString().split('T')[0]
+      const days = CYCLE_DAYS[plan.billing_cycle] ?? 30
+      let endStr: string | null = null
+
+      if (days > 0) {
+        const endDate = new Date(startDate)
+        endDate.setDate(endDate.getDate() + days)
+        endStr = endDate.toISOString().split('T')[0]
+      }
+
+      // Cancel any existing active subscriptions for this athlete
+      await supabase
+        .from('subscriptions')
+        .update({ status: 'cancelled' })
+        .eq('club_id', clubId)
+        .eq('athlete_id', parsed.athlete_id)
+        .eq('status', 'active')
+
+      // Create new subscription
+      await supabase.from('subscriptions').insert({
+        club_id: clubId,
+        athlete_id: parsed.athlete_id,
+        plan_id: parsed.plan_id,
+        status: 'active',
+        start_date: startStr,
+        end_date: endStr,
+        payment_method: parsed.payment_method,
+        auto_renew: true,
+      })
+
+      // Update athlete status to active when creating an active subscription
+      await supabase
+        .from('athletes')
+        .update({ status: 'active' })
+        .eq('id', parsed.athlete_id)
+        .eq('club_id', clubId)
+
+      revalidatePath('/dashboard/subscriptions')
+      revalidatePath('/dashboard/athletes')
+    }
+  }
+
   revalidatePath('/dashboard/payments')
   revalidatePath(`/dashboard/athletes/${parsed.athlete_id}`)
   return data

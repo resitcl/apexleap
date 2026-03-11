@@ -5,10 +5,14 @@ import { Button } from "@/components/ui/button"
 import { AthleteForm } from "@/components/athletes/AthleteForm"
 import { ChevronLeft } from "lucide-react"
 import { getCategories } from "@/lib/actions/categories"
+import { getClubSportType } from "@/lib/actions/club-context"
 
 export default async function NewAthletePage() {
   let categories: Awaited<ReturnType<typeof getCategories>> = []
   try { categories = await getCategories(true) } catch { /* silent */ }
+
+  let sportType: string | null = null
+  try { sportType = await getClubSportType() } catch { /* silent */ }
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
@@ -25,7 +29,7 @@ export default async function NewAthletePage() {
         </div>
       </div>
 
-      <AthleteForm categories={categories} />
+      <AthleteForm categories={categories} sportType={sportType} />
     </div>
   )
 }

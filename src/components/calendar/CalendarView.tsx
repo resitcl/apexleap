@@ -1,9 +1,12 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { ChevronLeft, ChevronRight, Clock, MapPin, Trophy, Swords, Calendar as CalendarIcon } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Clock, MapPin, Trophy, Swords, Calendar as CalendarIcon, CalendarPlus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
+import { deleteEvent } from '@/lib/actions/events'
+import { toast } from 'sonner'
+import { useRouter } from 'next/navigation'
 
 interface Schedule {
   id: string
@@ -16,7 +19,7 @@ interface Schedule {
 }
 
 interface CalEvent {
-  kind: 'competition' | 'match'
+  kind: 'competition' | 'match' | 'event'
   id: string
   name?: string
   opponent?: string
@@ -24,6 +27,10 @@ interface CalEvent {
   location?: string | null
   is_home?: boolean
   competitionId?: string | null
+  event_type?: string
+  start_time?: string | null
+  end_time?: string | null
+  description?: string | null
 }
 
 interface Props {
@@ -42,8 +49,21 @@ function getFirstDayOfMonth(year: number, month: number) {
   return new Date(year, month, 1).getDay()
 }
 
+const EVENT_TYPE_LABELS: Record<string, string> = {
+  tournament: 'Torneo',
+  seminar: 'Seminario',
+  workshop: 'Taller',
+  meeting: 'Reunión',
+  graduation: 'Graduación',
+  open_mat: 'Open Mat',
+  friendly: 'Amistoso',
+  exhibition: 'Exhibición',
+  other: 'Evento',
+}
+
 export function CalendarView({ schedules, events }: Props) {
   const today = new Date()
+  const router = useRouter()
   const [currentMonth, setCurrentMonth] = useState(today.getMonth())
   const [currentYear, setCurrentYear] = useState(today.getFullYear())
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
@@ -218,7 +238,9 @@ export function CalendarView({ schedules, events }: Props) {
                     <div 
                       key={ev.id} 
                       className={`text-[10px] truncate px-1 py-0.5 rounded ${
-                        ev.kind === 'competition' ? 'bg-purple-100 text-purple-700' : 'bg-green-100 text-green-700'
+                        ev.kind === 'competition' ? 'bg-purple-100 text-purple-700' :
+                        ev.kind === 'event' ? 'bg-orange-100 text-orange-700' :
+                        'bg-green-100 text-green-700'
                       }`}
                     >
                       {ev.kind === 'match' ? `vs ${ev.opponent}` : ev.name}
@@ -278,29 +300,51 @@ export function CalendarView({ schedules, events }: Props) {
                 <div>
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Eventos</p>
                   <div className="space-y-2">
-                    {selectedItems.events.map(ev => (
-                      <Link 
-                        key={ev.id} 
-                        href={ev.kind === 'competition' ? `/dashboard/competitions/${ev.id}` : ev.competitionId ? `/dashboard/competitions/${ev.competitionId}` : '#'}
-                      >
+                    {selectedItems.events.map(ev => {
+                      const isCustomEvent = ev.kind === 'event'
+                      const href = ev.kind === 'competition'
+                        ? `/dashboard/competitions/${ev.id}`
+                        : ev.competitionId
+                          ? `/dashboard/competitions/${ev.competitionId}`
+                          : undefined
+
+                      const card = (
                         <div className="p-3 rounded-lg border bg-background hover:border-primary transition-colors flex items-start gap-3">
                           <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                            ev.kind === 'competition' ? 'bg-purple-100' : 'bg-green-100'
+                            ev.kind === 'competition' ? 'bg-purple-100' :
+                            ev.kind === 'event' ? 'bg-orange-100' :
+                            'bg-green-100'
                           }`}>
-                            {ev.kind === 'competition' 
+                            {ev.kind === 'competition'
                               ? <Trophy className="w-4 h-4 text-purple-600" />
-                              : <Swords className="w-4 h-4 text-green-600" />
+                              : ev.kind === 'event'
+                                ? <CalendarPlus className="w-4 h-4 text-orange-600" />
+                                : <Swords className="w-4 h-4 text-green-600" />
                             }
                           </div>
                           <div className="min-w-0 flex-1">
                             <p className="font-medium text-sm">
                               {ev.kind === 'match' ? `vs. ${ev.opponent}` : ev.name}
                             </p>
+                            {isCustomEvent && ev.event_type && (
+                              <span className="text-xs bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded font-medium">
+                                {EVENT_TYPE_LABELS[ev.event_type] ?? ev.event_type}
+                              </span>
+                            )}
+                            {ev.start_time && (
+                              <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                                <Clock className="w-3 h-3" />
+                                {ev.start_time.slice(0, 5)}{ev.end_time ? ` – ${ev.end_time.slice(0, 5)}` : ''}
+                              </p>
+                            )}
                             {ev.location && (
                               <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
                                 <MapPin className="w-3 h-3" />
                                 {ev.location}
                               </p>
+                            )}
+                            {isCustomEvent && ev.description && (
+                              <p className="text-xs text-muted-foreground mt-1">{ev.description}</p>
                             )}
                           </div>
                           {ev.kind === 'match' && ev.is_home !== undefined && (
@@ -310,9 +354,34 @@ export function CalendarView({ schedules, events }: Props) {
                               {ev.is_home ? 'Local' : 'Visita'}
                             </span>
                           )}
+                          {isCustomEvent && (
+                            <button
+                              type="button"
+                              onClick={async (e) => {
+                                e.preventDefault()
+                                e.stopPropagation()
+                                if (!confirm('¿Eliminar este evento?')) return
+                                try {
+                                  await deleteEvent(ev.id)
+                                  toast.success('Evento eliminado')
+                                  router.refresh()
+                                } catch { toast.error('Error al eliminar') }
+                              }}
+                              className="p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors shrink-0"
+                              title="Eliminar evento"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                         </div>
-                      </Link>
-                    ))}
+                      )
+
+                      return href ? (
+                        <Link key={ev.id} href={href}>{card}</Link>
+                      ) : (
+                        <div key={ev.id}>{card}</div>
+                      )
+                    })}
                   </div>
                 </div>
               )}
@@ -325,6 +394,9 @@ export function CalendarView({ schedules, events }: Props) {
       <div className="flex items-center gap-4 text-xs text-muted-foreground">
         <span className="flex items-center gap-1.5">
           <span className="w-3 h-3 rounded bg-blue-100" /> Sesiones
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded bg-orange-100" /> Eventos
         </span>
         <span className="flex items-center gap-1.5">
           <span className="w-3 h-3 rounded bg-purple-100" /> Competencias

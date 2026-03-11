@@ -2,8 +2,12 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { AthleteForm } from "@/components/athletes/AthleteForm"
 import { ChevronLeft } from "lucide-react"
+import { getClubSportType } from "@/lib/actions/club-context"
 
-export default function NewAthletePage() {
+export default async function NewAthletePage() {
+  let sportType: string | null = null
+  try { sportType = await getClubSportType() } catch { /* silent */ }
+
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div className="flex items-center gap-4">
@@ -19,7 +23,7 @@ export default function NewAthletePage() {
         </div>
       </div>
 
-      <AthleteForm />
+      <AthleteForm sportType={sportType} />
     </div>
   )
 }

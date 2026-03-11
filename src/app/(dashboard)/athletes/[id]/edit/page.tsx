@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import { getAthleteById } from "@/lib/actions/athletes"
+import { getClubSportType } from "@/lib/actions/club-context"
 import { AthleteForm } from "@/components/athletes/AthleteForm"
 import { Button } from "@/components/ui/button"
 import { ChevronLeft } from "lucide-react"
@@ -19,6 +20,9 @@ export default async function EditAthletePage({ params }: PageProps) {
     notFound()
   }
 
+  let sportType: string | null = null
+  try { sportType = await getClubSportType() } catch { /* silent */ }
+
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div className="flex items-center gap-4">
@@ -36,6 +40,8 @@ export default async function EditAthletePage({ params }: PageProps) {
 
       <AthleteForm
         athleteId={id}
+        sportType={sportType}
+        defaultTechnicalMeta={(athlete as { technical_meta?: Record<string, unknown> }).technical_meta ?? {}}
         defaultValues={{
           name: athlete.name,
           email: athlete.email ?? '',
