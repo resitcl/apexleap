@@ -15,6 +15,7 @@ import { JustifyAttendanceButton } from "@/components/attendance/JustifyAttendan
 import { getAthletes } from "@/lib/actions/athletes"
 import { getSchedules } from "@/lib/actions/schedules"
 import { getCategories } from "@/lib/actions/categories"
+import { getVenues } from "@/lib/actions/venues"
 
 interface PageProps {
   searchParams: Promise<{ tab?: string; from?: string; to?: string; page?: string; scheduleId?: string; athleteId?: string; categoryId?: string }>
@@ -35,15 +36,17 @@ export default async function AttendancePage({ searchParams }: PageProps) {
   let athletes: Array<{ id: string; name: string; category_id?: string | null }> = []
   let schedules: Array<{ id: string; name: string }> = []
   let categories: Array<{ id: string; name: string; color: string | null }> = []
+  let venuesForQR: Array<{ id: string; name: string; address: string | null; qr_token: string | null; lat: number | null; lng: number | null; geofence_radius: number | null }> = []
   let error: string | null = null
 
   try {
-    const [today, hist, athletesResult, schedulesResult, catsData] = await Promise.all([
+    const [today, hist, athletesResult, schedulesResult, catsData, venuesData] = await Promise.all([
       getAttendanceToday({ categoryId: categoryId || undefined }),
       getAttendanceHistory({ from: from || undefined, to: to || undefined, days: 30, limit: 50, page, scheduleId: scheduleId || undefined, athleteId: athleteId || undefined, categoryId: categoryId || undefined }),
       getAthletes({ limit: 200 }),
       getSchedules(),
       getCategories(true).catch(() => []),
+      getVenues().catch(() => []),
     ])
     schedules = (schedulesResult as Array<{ id: string; name: string; is_active: boolean }>)
       .filter((s) => s.is_active)
@@ -52,6 +55,9 @@ export default async function AttendancePage({ searchParams }: PageProps) {
     history = hist
     athletes = athletesResult.athletes.map((a) => ({ id: a.id, name: a.name, category_id: (a as { category_id?: string | null }).category_id ?? null }))
     categories = catsData.map((c) => ({ id: c.id, name: c.name, color: c.color ?? null }))
+    venuesForQR = (venuesData as Array<{ id: string; name: string; address: string | null; qr_token: string | null; lat: number | null; lng: number | null; geofence_radius: number | null }>)
+      .filter((v) => (v as { is_active?: boolean }).is_active !== false)
+      .map((v) => ({ id: v.id, name: v.name, address: v.address, qr_token: v.qr_token, lat: v.lat, lng: v.lng, geofence_radius: v.geofence_radius }))
   } catch (e) {
     error = e instanceof Error ? e.message : "Error al cargar asistencia"
   }
@@ -159,7 +165,7 @@ export default async function AttendancePage({ searchParams }: PageProps) {
 
       {tab === "today" && (
         <div className="grid md:grid-cols-2 gap-6">
-          <QRCheckInDisplay />
+          <QRCheckInDisplay venues={venuesForQR} />
           <Card>
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
