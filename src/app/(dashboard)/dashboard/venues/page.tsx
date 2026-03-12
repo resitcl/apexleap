@@ -125,12 +125,12 @@ export default async function VenuesPage() {
                 <div className="flex items-center gap-2 text-sm">
                   <Navigation className="w-4 h-4 shrink-0 text-blue-500" />
                   {venue.lat && venue.lng ? (
-                    <span className="text-muted-foreground font-mono text-xs">
-                      {Number(venue.lat).toFixed(4)}, {Number(venue.lng).toFixed(4)}
-                      <span className="ml-1 text-blue-600 font-sans font-medium">(radio: {venue.geofence_radius}m)</span>
+                    <span className="text-muted-foreground text-xs">
+                      Ubicación verificada en mapa
+                      <span className="ml-1 text-blue-600 font-medium">(radio: {venue.geofence_radius}m)</span>
                     </span>
                   ) : (
-                    <span className="text-muted-foreground/60 text-xs">Sin coordenadas GPS</span>
+                    <span className="text-muted-foreground/60 text-xs">Sin ubicación verificada</span>
                   )}
                 </div>
 

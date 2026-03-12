@@ -22,6 +22,12 @@ const DAYS = [
 
 interface Props {
   scheduleId?: string
+  venues?: Array<{
+    id: string
+    name: string
+    address?: string | null
+    city?: string | null
+  }>
   defaultValues?: {
     name?: string
     description?: string
@@ -31,12 +37,13 @@ interface Props {
     start_date?: string
     end_date?: string | null
     capacity?: number | null
+    venue_id?: string | null
     access_rule?: string
     is_active?: boolean
   }
 }
 
-export function ScheduleForm({ scheduleId, defaultValues }: Props) {
+export function ScheduleForm({ scheduleId, defaultValues, venues = [] }: Props) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
 
@@ -48,6 +55,7 @@ export function ScheduleForm({ scheduleId, defaultValues }: Props) {
     start_date:   defaultValues?.start_date   ?? new Date().toISOString().split('T')[0],
     end_date:     defaultValues?.end_date     ?? '',
     capacity:     String(defaultValues?.capacity ?? ''),
+    venue_id:     defaultValues?.venue_id     ?? '',
     access_rule:  defaultValues?.access_rule  ?? 'subscription',
     is_active:    defaultValues?.is_active    ?? true,
   })
@@ -78,6 +86,7 @@ export function ScheduleForm({ scheduleId, defaultValues }: Props) {
         start_date: form.start_date,
         end_date: form.end_date || null,
         capacity: form.capacity ? Number(form.capacity) : null,
+        venue_id: form.venue_id || null,
         access_rule: form.access_rule as 'open' | 'subscription' | 'profile',
         is_active: form.is_active,
       }
@@ -123,6 +132,25 @@ export function ScheduleForm({ scheduleId, defaultValues }: Props) {
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none"
               placeholder="Descripción opcional..."
             />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="venue_id">Sede</Label>
+            <select
+              id="venue_id"
+              value={form.venue_id}
+              onChange={(e) => setForm((p) => ({ ...p, venue_id: e.target.value }))}
+              className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            >
+              <option value="">Sin sede asignada</option>
+              {venues.map((venue) => (
+                <option key={venue.id} value={venue.id}>
+                  {venue.name}{venue.city ? ` · ${venue.city}` : ''}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-muted-foreground">
+              Asigna la sede para habilitar geofencing y QR fijo de asistencia en esa ubicación.
+            </p>
           </div>
         </CardContent>
       </Card>

@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { updateVenue } from '@/lib/actions/venues'
+import { VenueLocationFields } from '@/components/venues/VenueLocationFields'
 import { Pencil } from 'lucide-react'
 
 interface Props {
@@ -46,6 +47,7 @@ export function EditVenueForm({ venue }: Props) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!form.name) { toast.error('El nombre es requerido'); return }
+    if (form.address && (!form.lat || !form.lng)) { toast.error('Ubica la sede en el mapa antes de guardar'); return }
     setLoading(true)
     try {
       await updateVenue(venue.id, {
@@ -86,14 +88,6 @@ export function EditVenueForm({ venue }: Props) {
               <Label htmlFor="e-name">Nombre *</Label>
               <Input id="e-name" value={form.name} onChange={(e) => set('name', e.target.value)} />
             </div>
-            <div className="sm:col-span-2 space-y-1.5">
-              <Label htmlFor="e-address">Dirección</Label>
-              <Input id="e-address" value={form.address} onChange={(e) => set('address', e.target.value)} />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="e-city">Ciudad</Label>
-              <Input id="e-city" value={form.city} onChange={(e) => set('city', e.target.value)} />
-            </div>
             <div className="space-y-1.5">
               <Label htmlFor="e-capacity">Aforo</Label>
               <Input id="e-capacity" type="number" min="1" value={form.capacity} onChange={(e) => set('capacity', e.target.value)} />
@@ -106,23 +100,18 @@ export function EditVenueForm({ venue }: Props) {
               <Label htmlFor="e-close">Cierre</Label>
               <Input id="e-close" type="time" value={form.closing_time} onChange={(e) => set('closing_time', e.target.value)} />
             </div>
-          </div>
-
-          <div className="space-y-2 p-3 bg-muted/50 rounded-lg">
-            <p className="text-sm font-medium">Geofencing</p>
-            <div className="grid grid-cols-3 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="e-lat" className="text-xs">Latitud</Label>
-                <Input id="e-lat" value={form.lat} onChange={(e) => set('lat', e.target.value)} placeholder="-33.4372" className="text-xs" />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="e-lng" className="text-xs">Longitud</Label>
-                <Input id="e-lng" value={form.lng} onChange={(e) => set('lng', e.target.value)} placeholder="-70.6506" className="text-xs" />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="e-radius" className="text-xs">Radio (m)</Label>
-                <Input id="e-radius" type="number" min="10" value={form.geofence_radius} onChange={(e) => set('geofence_radius', e.target.value)} className="text-xs" />
-              </div>
+            <div className="sm:col-span-2">
+              <VenueLocationFields
+                address={form.address}
+                city={form.city}
+                lat={form.lat}
+                lng={form.lng}
+                radius={form.geofence_radius}
+                onAddressChange={(value) => setForm((p) => ({ ...p, address: value, lat: '', lng: '' }))}
+                onCityChange={(value) => setForm((p) => ({ ...p, city: value, lat: '', lng: '' }))}
+                onRadiusChange={(value) => set('geofence_radius', value)}
+                onLocationResolved={({ lat, lng }) => setForm((p) => ({ ...p, lat, lng }))}
+              />
             </div>
           </div>
 

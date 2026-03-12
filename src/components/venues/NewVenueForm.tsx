@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { createVenue } from '@/lib/actions/venues'
+import { VenueLocationFields } from '@/components/venues/VenueLocationFields'
 import { Plus } from 'lucide-react'
 
 export function NewVenueForm() {
@@ -25,6 +26,7 @@ export function NewVenueForm() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!form.name) { toast.error('El nombre es requerido'); return }
+    if (form.address && (!form.lat || !form.lng)) { toast.error('Ubica la sede en el mapa antes de guardar'); return }
     setLoading(true)
     try {
       await createVenue({
@@ -63,37 +65,22 @@ export function NewVenueForm() {
               <Label htmlFor="name">Nombre *</Label>
               <Input id="name" value={form.name} onChange={(e) => set('name', e.target.value)} placeholder="Dojo Central, Cancha Norte..." />
             </div>
-            <div className="sm:col-span-2 space-y-1.5">
-              <Label htmlFor="address">Dirección</Label>
-              <Input id="address" value={form.address} onChange={(e) => set('address', e.target.value)} placeholder="Av. Providencia 1234" />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="city">Ciudad</Label>
-              <Input id="city" value={form.city} onChange={(e) => set('city', e.target.value)} placeholder="Santiago" />
-            </div>
             <div className="space-y-1.5">
               <Label htmlFor="capacity">Aforo máximo</Label>
               <Input id="capacity" type="number" min="1" value={form.capacity} onChange={(e) => set('capacity', e.target.value)} placeholder="30" />
             </div>
-          </div>
-
-          <div className="space-y-2 p-3 bg-muted/50 rounded-lg">
-            <p className="text-sm font-medium">Geofencing QR Check-in</p>
-            <p className="text-xs text-muted-foreground">Coordenadas GPS para validar presencia física en el check-in</p>
-            <div className="grid grid-cols-3 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="lat" className="text-xs">Latitud</Label>
-                <Input id="lat" value={form.lat} onChange={(e) => set('lat', e.target.value)} placeholder="-33.4372" className="text-xs" />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="lng" className="text-xs">Longitud</Label>
-                <Input id="lng" value={form.lng} onChange={(e) => set('lng', e.target.value)} placeholder="-70.6506" className="text-xs" />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="radius" className="text-xs">Radio (m)</Label>
-                <Input id="radius" type="number" min="10" max="5000" value={form.geofence_radius}
-                  onChange={(e) => set('geofence_radius', e.target.value)} className="text-xs" />
-              </div>
+            <div className="sm:col-span-2">
+              <VenueLocationFields
+                address={form.address}
+                city={form.city}
+                lat={form.lat}
+                lng={form.lng}
+                radius={form.geofence_radius}
+                onAddressChange={(value) => set('address', value)}
+                onCityChange={(value) => set('city', value)}
+                onRadiusChange={(value) => set('geofence_radius', value)}
+                onLocationResolved={({ lat, lng }) => setForm((p) => ({ ...p, lat, lng }))}
+              />
             </div>
           </div>
 

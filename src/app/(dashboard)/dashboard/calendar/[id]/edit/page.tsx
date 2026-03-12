@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { Button } from "@/components/ui/button"
 import { ChevronLeft } from "lucide-react"
 import { ScheduleForm } from "@/components/calendar/ScheduleForm"
+import { getVenues } from "@/lib/actions/venues"
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -24,6 +25,8 @@ export default async function EditSchedulePage({ params }: PageProps) {
     .from("schedules").select("*").eq("id", id).eq("club_id", userClub.club_id).single()
   if (error || !schedule) notFound()
 
+  const venues = await getVenues().catch(() => [])
+
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div className="flex items-center gap-4">
@@ -40,6 +43,12 @@ export default async function EditSchedulePage({ params }: PageProps) {
       </div>
       <ScheduleForm
         scheduleId={id}
+        venues={venues.map((venue) => ({
+          id: venue.id,
+          name: venue.name,
+          address: venue.address ?? null,
+          city: venue.city ?? null,
+        }))}
         defaultValues={{
           name: schedule.name,
           description: schedule.description ?? '',
@@ -49,6 +58,7 @@ export default async function EditSchedulePage({ params }: PageProps) {
           start_date: schedule.start_date,
           end_date: schedule.end_date ?? '',
           capacity: schedule.capacity,
+          venue_id: schedule.venue_id ?? '',
           access_rule: schedule.access_rule as 'open' | 'subscription' | 'profile',
           is_active: schedule.is_active,
         }}

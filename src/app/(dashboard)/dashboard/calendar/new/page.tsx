@@ -4,8 +4,11 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { ChevronLeft } from "lucide-react"
 import { ScheduleForm } from "@/components/calendar/ScheduleForm"
+import { getVenues } from "@/lib/actions/venues"
 
-export default function NewSchedulePage() {
+export default async function NewSchedulePage() {
+  const venues = await getVenues().catch(() => [])
+
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div className="flex items-center gap-4">
@@ -20,7 +23,14 @@ export default function NewSchedulePage() {
           <p className="text-muted-foreground text-sm">Configura una sesión recurrente</p>
         </div>
       </div>
-      <ScheduleForm />
+      <ScheduleForm
+        venues={venues.map((venue) => ({
+          id: venue.id,
+          name: venue.name,
+          address: venue.address ?? null,
+          city: venue.city ?? null,
+        }))}
+      />
     </div>
   )
 }
