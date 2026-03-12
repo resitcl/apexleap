@@ -5,7 +5,7 @@ import crypto from 'crypto'
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ venueId: string }> }
 ) {
   try {
     const { userId } = await auth()
@@ -13,7 +13,7 @@ export async function POST(
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
 
-    const { id: venueId } = await params
+    const { venueId } = await params
     const supabase = createAdminClient()
 
     // Verify user belongs to the club that owns this venue
