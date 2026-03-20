@@ -38,6 +38,34 @@ import { getClubSettings } from "@/lib/actions/settings"
 import { getSportVocab } from "@/lib/sport-vocab"
 import { isSuperAdmin } from "@/lib/actions/super-admin"
 import { AgreementGateWrapper } from "@/components/agreements/AgreementGateWrapper"
+import { getUserRole } from "@/lib/actions/club-context"
+import type { UserRole } from "@/lib/actions/club-context"
+
+function buildAthleteNavGroups() {
+  return [
+    {
+      label: null,
+      items: [
+        { href: "/dashboard/athlete", label: "Mi Portal", icon: User },
+      ],
+    },
+    {
+      label: "Actividad",
+      items: [
+        { href: "/dashboard/calendar",   label: "Horarios",    icon: Calendar },
+        { href: "/dashboard/attendance", label: "Asistencia",  icon: ClipboardCheck },
+      ],
+    },
+    {
+      label: "Mi Cuenta",
+      items: [
+        { href: "/dashboard/athlete/payments",     label: "Mis Pagos",        icon: CreditCard },
+        { href: "/dashboard/athlete/subscription", label: "Mi Suscripción",   icon: Repeat2 },
+        { href: "/dashboard/athlete/documents",    label: "Mis Documentos",   icon: FileText },
+      ],
+    },
+  ]
+}
 
 function buildNavGroups(v: ReturnType<typeof getSportVocab>) {
   const deportivoItems = [
@@ -127,8 +155,12 @@ export default async function DashboardLayout({
   } catch { /* silent */ }
   try { superAdmin = await isSuperAdmin() } catch { /* silent */ }
 
+  let role: UserRole = 'admin'
+  try { role = await getUserRole() } catch { /* silent */ }
+  const isAthlete = role === 'athlete'
+
   const vocab = getSportVocab(sportType)
-  const NAV_GROUPS = buildNavGroups(vocab)
+  const NAV_GROUPS = isAthlete ? buildAthleteNavGroups() : buildNavGroups(vocab)
 
   const brandColor = alerts.primaryColor ?? '#000000'
 

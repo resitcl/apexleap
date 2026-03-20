@@ -58,6 +58,45 @@ export async function updateClubSettings(input: Partial<ClubInput>) {
   return data
 }
 
+export async function updatePaymentSettings(paymentSettings: {
+  enabled_methods: string[]
+  bank_info: {
+    bank_name: string; account_type: string; account_number: string
+    account_holder: string; rut: string; email: string
+  }
+  flow: { enabled: boolean; sandbox: boolean; api_key: string; secret_key: string; commerce_code: string }
+  webpay: { enabled: boolean; sandbox: boolean; api_key: string; secret_key: string; commerce_code: string }
+  mercadopago: { enabled: boolean; sandbox: boolean; api_key: string; secret_key: string; commerce_code: string }
+  khipu: { enabled: boolean; sandbox: boolean; api_key: string; secret_key: string; commerce_code: string }
+  cash_instructions: string
+}) {
+  const clubId = await getClubId()
+  const supabase = createAdminClient()
+
+  const { data: club } = await supabase
+    .from('clubs')
+    .select('settings')
+    .eq('id', clubId)
+    .single()
+
+  const currentSettings = (club?.settings ?? {}) as Record<string, unknown>
+
+  const updatedSettings = {
+    ...currentSettings,
+    payment_settings: paymentSettings,
+    bank_info: paymentSettings.bank_info,
+  }
+
+  const { error } = await supabase
+    .from('clubs')
+    .update({ settings: updatedSettings, updated_at: new Date().toISOString() })
+    .eq('id', clubId)
+
+  if (error) throw new Error(error.message)
+  revalidatePath('/dashboard/settings')
+  return { success: true }
+}
+
 export async function deleteClub(confirmName: string) {
   const clubId = await getClubId()
   const supabase = createAdminClient()

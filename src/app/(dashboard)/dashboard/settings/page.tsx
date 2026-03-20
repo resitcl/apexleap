@@ -6,6 +6,7 @@ import { getCategories } from "@/lib/actions/categories"
 import { ClubSettingsForm } from "@/components/settings/ClubSettingsForm"
 import { DeleteClubButton } from "@/components/settings/DeleteClubButton"
 import { CategoriesManager } from "@/components/settings/CategoriesManager"
+import { BankInfoForm } from "@/components/settings/BankInfoForm"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Settings, AlertTriangle, Calendar } from "lucide-react"
 import { Separator } from "@/components/ui/separator"
@@ -62,6 +63,7 @@ export default async function SettingsPage({ searchParams }: PageProps) {
       <div className="flex gap-1 border-b border-border">
         {[
           { key: "general",     label: "General" },
+          { key: "payments",    label: "Pagos" },
           { key: "categories",  label: "Categorías" },
           { key: "danger",      label: "Zona de Peligro" },
           { key: "seasons",     label: "Temporadas", href: "/dashboard/settings/seasons" },
@@ -84,6 +86,14 @@ export default async function SettingsPage({ searchParams }: PageProps) {
 
       {tab === "general" && (
         <ClubSettingsForm defaultValues={club ?? undefined} />
+      )}
+
+      {tab === "payments" && (
+        <BankInfoForm
+          defaultValues={
+            ((club?.settings as Record<string, unknown> | null)?.payment_settings as Record<string, unknown> | null) ?? null
+          }
+        />
       )}
 
       {tab === "categories" && (

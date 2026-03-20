@@ -3,6 +3,7 @@
 import { auth } from '@clerk/nextjs/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getClubId } from '@/lib/actions/club-context'
+import { clerkClient } from '@clerk/nextjs/server'
 
 
 export async function getDashboardSummary() {
@@ -656,6 +657,11 @@ export async function getAthletePortal() {
   if (!userClub) throw new Error('Club no encontrado')
   const clubId = userClub.club_id as string
 
+  // Use Clerk to get user email (consistent with enrollment)
+  const clerk = await clerkClient()
+  const user = await clerk.users.getUser(userId)
+  const email = user.emailAddresses[0]?.emailAddress ?? null
+
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   const tomorrow = new Date(today)
@@ -663,11 +669,8 @@ export async function getAthletePortal() {
   const monthStart = new Date(today.getFullYear(), today.getMonth(), 1).toISOString()
   const todayDow = today.getDay()
 
-  const { data: clerkUser } = await supabase.auth.getUser()
-  const clerkEmail = clerkUser?.user?.email ?? null
-
-  const { data: athletesByEmail } = clerkEmail
-    ? await supabase.from('athletes').select('id').eq('club_id', clubId).eq('email', clerkEmail).limit(1)
+  const { data: athletesByEmail } = email
+    ? await supabase.from('athletes').select('id').eq('club_id', clubId).eq('email', email).limit(1)
     : { data: null }
 
   const athleteId = athletesByEmail?.[0]?.id ?? null

@@ -4,8 +4,13 @@ import Link from "next/link"
 import { redirect } from "next/navigation"
 import { checkUserHasClub } from "@/lib/actions/onboarding"
 import { getAthletePortal } from "@/lib/actions/dashboard"
+import { getOnboardingData } from "@/lib/actions/athlete-enrollment"
+import { getUserRole } from "@/lib/actions/club-context"
+import { getSportConfig } from "@/lib/sport-fields"
+import { AthleteOnboardingWizard } from "@/components/athlete/AthleteOnboardingWizard"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Calendar, CheckCircle, AlertTriangle, Trophy, FileText, CreditCard, User } from "lucide-react"
 
 const SEMAFORO_CONFIG = {
@@ -21,6 +26,25 @@ const BILLING_LABEL: Record<string, string> = {
 export default async function AthletePage() {
   const hasClub = await checkUserHasClub().catch(() => false)
   if (!hasClub) redirect("/onboarding")
+
+  // Check if athlete needs onboarding (no active subscription)
+  const role = await getUserRole().catch(() => 'athlete' as const)
+  let onboardingData: Awaited<ReturnType<typeof getOnboardingData>> | null = null
+  if (role === 'athlete') {
+    onboardingData = await getOnboardingData().catch(() => null)
+  }
+
+  const showOnboarding = role === 'athlete' && onboardingData?.needsOnboarding === true
+
+  // Gate: if athlete needs onboarding, show ONLY the wizard overlay
+  if (showOnboarding && onboardingData) {
+    return (
+      <AthleteOnboardingWizard
+        data={onboardingData}
+        sportConfig={getSportConfig(onboardingData.club.sport_type)}
+      />
+    )
+  }
 
   let data: Awaited<ReturnType<typeof getAthletePortal>> | null = null
   let error = ""
@@ -45,44 +69,12 @@ export default async function AthletePage() {
 
   if (!athlete) {
     return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold">Mi Portal</h1>
-          <p className="text-muted-foreground capitalize">{todayDate}</p>
-        </div>
-
-        <Card className="border-dashed">
-          <CardContent className="py-16 text-center">
-            <User className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-40" />
-            <h3 className="font-semibold text-lg mb-1">Perfil no vinculado</h3>
-            <p className="text-muted-foreground text-sm mb-4 max-w-sm mx-auto">
-              Tu cuenta no está vinculada a un perfil de atleta. Solicita al administrador del club que asigne tu email a tu ficha.
-            </p>
-            <Link href="/dashboard">
-              <Badge variant="outline" className="cursor-pointer hover:bg-accent">Ir al Dashboard</Badge>
-            </Link>
-          </CardContent>
-        </Card>
-
-        {sessions.length > 0 && (
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Calendar className="w-4 h-4" /> Sesiones de Hoy
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-wrap gap-2">
-                {sessions.map((s) => (
-                  <div key={s.id} className="flex items-center gap-2 px-3 py-2 rounded-lg border text-sm">
-                    <span className="font-mono text-xs text-muted-foreground">{s.start_time.slice(0, 5)}</span>
-                    <span>{s.name}</span>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
+      <div className="flex flex-col items-center justify-center h-64 gap-4">
+        <p className="text-muted-foreground">No se encontró tu perfil de atleta.</p>
+        <p className="text-xs text-muted-foreground">Esto puede ocurrir si el pago aún está siendo procesado.</p>
+        <Button onClick={() => window.location.reload()} variant="outline" size="sm">
+          Reintentar
+        </Button>
       </div>
     )
   }

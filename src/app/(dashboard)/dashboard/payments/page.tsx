@@ -11,6 +11,8 @@ import { Plus, DollarSign, Clock, AlertTriangle, TrendingUp, CheckCircle } from 
 import { InfoTooltip } from "@/components/ui/info-tooltip"
 import { PaymentsFilter } from "@/components/payments/PaymentsFilter"
 import { MarkAsPaidButton } from "@/components/payments/MarkAsPaidButton"
+import { ConfirmTransferButton } from "@/components/payments/ConfirmTransferButton"
+import { PaymentRowClient } from "@/components/payments/PaymentRowClient"
 import { ExportPaymentsButton } from "@/components/payments/ExportPaymentsButton"
 import { BulkMarkAsPaidButton } from "@/components/payments/BulkMarkAsPaidButton"
 import { DeletePaymentButton } from "@/components/payments/DeletePaymentButton"
@@ -648,10 +650,33 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
             }
             return payments.map((payment) => {
             const athlete = payment.athletes as { id: string; name: string; photo_url: string | null } | null
-            const cfg = STATUS_CONFIG[payment.status] ?? { label: payment.status, variant: 'outline' as const }
             const athleteDebt = athlete ? (debtByAthlete[athlete.id] ?? 0) : 0
-            const showDebt = athleteDebt > Number(payment.amount) && (payment.status === 'pending' || payment.status === 'overdue')
             const isDuplicate = dupKeys.has(`${athlete?.id ?? payment.athlete_id ?? ''}|${payment.due_date?.slice(0, 7) ?? ''}`)
+            const notes = (payment as { notes?: string | null }).notes
+            const hasReceipt = notes && /https?:\/\/[^\s]+/i.test(notes)
+            const isTransfer = payment.payment_method === 'transfer' || (notes && notes.toLowerCase().includes('comprobante'))
+            const isPendingTransfer = (payment.status === 'pending' || payment.status === 'overdue') && (isTransfer || hasReceipt)
+
+            // Use PaymentRowClient for pending transfers (clickable row + confirm modal)
+            if (isPendingTransfer) {
+              return (
+                <PaymentRowClient
+                  key={payment.id}
+                  payment={{
+                    ...payment,
+                    notes: notes ?? null,
+                    athletes: athlete,
+                    plans: (payment as { plans?: { name: string; billing_cycle?: string } | null }).plans ?? null,
+                  }}
+                  athleteDebt={athleteDebt}
+                  isDuplicate={isDuplicate}
+                />
+              )
+            }
+
+            // Standard row for non-transfer payments
+            const cfg = STATUS_CONFIG[payment.status] ?? { label: payment.status, variant: 'outline' as const }
+            const showDebt = athleteDebt > Number(payment.amount) && (payment.status === 'pending' || payment.status === 'overdue')
 
             return (
               <Card key={payment.id}>
@@ -728,9 +753,9 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
                           const label = METHOD_LABEL[payment.payment_method] ?? payment.payment_method
                           return <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${style}`}>{label}</span>
                         })()}
-                        {(payment as { notes?: string | null }).notes && (
-                          <span className="italic truncate max-w-[200px]" title={(payment as { notes?: string | null }).notes ?? ''}>
-                            📝 {(payment as { notes?: string | null }).notes}
+                        {notes && (
+                          <span className="italic truncate max-w-[200px]" title={notes}>
+                            📝 {notes}
                           </span>
                         )}
                       </div>
@@ -745,9 +770,9 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
                       </div>
                       <div className="flex items-center gap-1.5">
                         <EditPaymentButton payment={payment} />
-                        {payment.status === 'pending' || payment.status === 'overdue' ? (
+                        {(payment.status === 'pending' || payment.status === 'overdue') && (
                           <MarkAsPaidButton paymentId={payment.id} />
-                        ) : null}
+                        )}
                         <DeletePaymentButton paymentId={payment.id} />
                       </div>
                     </div>

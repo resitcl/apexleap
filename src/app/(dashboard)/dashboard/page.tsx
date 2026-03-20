@@ -4,6 +4,7 @@ import Link from "next/link"
 import { redirect } from "next/navigation"
 import { getDashboardSummary, getRecentActivity, getMonthlyRevenue, getTodaySessions, getOverdueAlerts, getUpcomingSchedules, getExpiringSubscriptions, getWeeklyAttendanceRate, getExpiredDocuments, getAthletesWithoutPlan, getWeeklyAttendanceByDay, getMonthlyRetentionRate, getDormantAthletes } from "@/lib/actions/dashboard"
 import { checkUserHasClub } from "@/lib/actions/onboarding"
+import { getUserRole } from "@/lib/actions/club-context"
 import { getCompetitions } from "@/lib/actions/competitions"
 import { getActiveSeason } from "@/lib/actions/seasons"
 import { getCoaches } from "@/lib/actions/finances"
@@ -17,6 +18,10 @@ import { InfoTooltip } from "@/components/ui/info-tooltip"
 export default async function DashboardPage() {
   const hasClub = await checkUserHasClub().catch(() => false)
   if (!hasClub) redirect("/onboarding")
+
+  // Athletes should see their own portal, not the admin dashboard
+  const role = await getUserRole().catch(() => 'admin' as const)
+  if (role === 'athlete') redirect("/dashboard/athlete")
 
   let summary = {
     totalAthletes: 0,

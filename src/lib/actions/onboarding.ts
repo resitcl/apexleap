@@ -122,6 +122,23 @@ export async function createClubForUser(input: CreateClubInput) {
   redirect('/dashboard')
 }
 
+/**
+ * Public: fetch basic club info by slug (no auth required).
+ * Used by tenant sign-in / sign-up pages to show branding.
+ */
+export async function getClubBySlug(slug: string) {
+  const supabase = createAdminClient()
+  const { data, error } = await supabase
+    .from('clubs')
+    .select('id, name, slug, sport_type, city, country, is_active')
+    .eq('slug', slug.trim().toLowerCase())
+    .single()
+
+  if (error || !data) return null
+  if (!data.is_active) return null
+  return data
+}
+
 export async function joinClubBySlug(slug: string, role: 'admin' | 'coach' | 'athlete' = 'admin') {
   const { userId } = await auth()
   if (!userId) throw new Error('No autorizado')
