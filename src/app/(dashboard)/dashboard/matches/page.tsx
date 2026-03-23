@@ -103,7 +103,7 @@ function MatchRow({ match }: { match: Awaited<ReturnType<typeof getAllMatches>>[
     ? ourScore! > theirScore! ? 'text-green-600' : ourScore! < theirScore! ? 'text-red-600' : 'text-yellow-600'
     : ''
 
-  const href = comp ? `/dashboard/competitions/${comp.id}` : '#'
+  const href = `/dashboard/matches/${match.id}`
 
   return (
     <Link href={href}>

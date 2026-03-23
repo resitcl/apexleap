@@ -511,3 +511,221 @@ export async function uploadTransferReceipt(formData: FormData) {
 
   return { url: urlData.publicUrl }
 }
+
+/**
+ * Athlete updates their own profile data (personal info + sport-specific technical_meta).
+ */
+export async function saveAthleteProfileSelf(profile: {
+  name: string
+  phone?: string
+  birth_date?: string
+  emergency_contact?: string
+  emergency_phone?: string
+  technical_meta: Record<string, unknown>
+}) {
+  const { userId } = await auth()
+  if (!userId) throw new Error('No autorizado')
+
+  const clubId = await getClubId()
+  const supabase = createAdminClient()
+
+  const clerk = await clerkClient()
+  const user = await clerk.users.getUser(userId)
+  const email = user.emailAddresses[0]?.emailAddress ?? null
+  if (!email) throw new Error('No se encontró email asociado a tu cuenta')
+
+  const { data: athlete } = await supabase
+    .from('athletes')
+    .select('id')
+    .eq('club_id', clubId)
+    .eq('email', email)
+    .maybeSingle()
+
+  if (!athlete) throw new Error('No se encontró tu perfil de atleta')
+
+  const { error } = await supabase
+    .from('athletes')
+    .update({
+      name: profile.name,
+      phone: profile.phone ?? null,
+      birth_date: profile.birth_date ?? null,
+      emergency_contact: profile.emergency_contact ?? null,
+      emergency_phone: profile.emergency_phone ?? null,
+      technical_meta: profile.technical_meta,
+    })
+    .eq('id', athlete.id)
+    .eq('club_id', clubId)
+
+  if (error) throw new Error('Error al guardar el perfil: ' + error.message)
+
+  revalidatePath('/dashboard/athlete')
+  revalidatePath('/dashboard/athlete/profile')
+}
+
+// ─── Team-sport athlete-facing data ──────────────────────────────────────────
+
+async function getMyAthleteId(): Promise<{ athleteId: string; clubId: string }> {
+  const { userId } = await auth()
+  if (!userId) throw new Error('No autorizado')
+  const clubId = await getClubId()
+  const supabase = createAdminClient()
+  const clerk = await clerkClient()
+  const user = await clerk.users.getUser(userId)
+  const email = user.emailAddresses[0]?.emailAddress ?? null
+  
+  console.log("[DEBUG getMyAthleteId] userId:", userId, "email:", email, "clubId:", clubId)
+  
+  if (!email) throw new Error('No se encontró email')
+  const { data } = await supabase
+    .from('athletes').select('id, email, name').eq('club_id', clubId).eq('email', email).maybeSingle()
+  
+  console.log("[DEBUG getMyAthleteId] athlete lookup result:", data)
+  
+  if (!data) throw new Error('Perfil de atleta no encontrado')
+  return { athleteId: data.id, clubId }
+}
+
+/**
+ * Get rosters (call-ups) where this athlete is included.
+ */
+export async function getMyRosters() {
+  const { athleteId, clubId } = await getMyAthleteId()
+  const supabase = createAdminClient()
+
+  console.log("[DEBUG getMyRosters] athleteId:", athleteId, "clubId:", clubId)
+
+  const { data, error } = await supabase
+    .from('roster_athletes')
+    .select(`
+      id, number, position, is_captain, status,
+      rosters (
+        id, name, match_date, opponent, venue, notes,
+        competitions ( id, name, type )
+      )
+    `)
+    .eq('athlete_id', athleteId)
+
+  console.log("[DEBUG getMyRosters] query result:", { data: data?.length ?? 0, error: error?.message })
+
+  if (error) throw new Error(error.message)
+
+  type RosterRow = {
+    id: string; number: number | null; position: string | null
+    is_captain: boolean; status: string
+    rosters: {
+      id: string; name: string; match_date: string
+      opponent: string | null; venue: string | null; notes: string | null
+      competitions: { id: string; name: string; type: string } | null
+    } | null
+  }
+
+  return ((data ?? []) as unknown as RosterRow[])
+    .filter((r) => r.rosters !== null)
+    .sort((a, b) => (b.rosters!.match_date).localeCompare(a.rosters!.match_date))
+}
+
+/**
+ * Get matches where the athlete was in the roster.
+ */
+export async function getMyMatches() {
+  const { athleteId, clubId } = await getMyAthleteId()
+  const supabase = createAdminClient()
+
+  // Get roster IDs this athlete belongs to
+  const { data: rosterRows } = await supabase
+    .from('roster_athletes')
+    .select('roster_id')
+    .eq('athlete_id', athleteId)
+
+  const rosterIds = (rosterRows ?? []).map((r) => r.roster_id).filter(Boolean)
+  if (rosterIds.length === 0) return []
+
+  // Get matches linked to those rosters
+  const { data: matches, error } = await supabase
+    .from('matches')
+    .select('*, competitions(id, name)')
+    .eq('club_id', clubId)
+    .in('roster_id', rosterIds)
+    .order('match_date', { ascending: false })
+
+  if (error) throw new Error(error.message)
+  return matches ?? []
+}
+
+/**
+ * Get aggregated personal stats for this athlete across all matches.
+ */
+export async function getMyStats() {
+  const { athleteId, clubId } = await getMyAthleteId()
+  const supabase = createAdminClient()
+
+  const { data, error } = await supabase
+    .from('match_events')
+    .select('event_type, event_value, match_id, matches(match_date, opponent, competitions(name))')
+    .eq('club_id', clubId)
+    .eq('athlete_id', athleteId)
+    .order('created_at', { ascending: false })
+
+  if (error) throw new Error(error.message)
+
+  type EventRow = {
+    event_type: string; event_value: number; match_id: string
+    matches: { match_date: string; opponent: string | null; competitions: { name: string } | null } | null
+  }
+
+  const events = (data ?? []) as unknown as EventRow[]
+
+  // Aggregate totals
+  const totals: Record<string, number> = {}
+  for (const ev of events) {
+    totals[ev.event_type] = (totals[ev.event_type] ?? 0) + Number(ev.event_value)
+  }
+
+  // Per-match breakdown
+  const byMatch = new Map<string, { match_date: string; opponent: string; competition: string; stats: Record<string, number> }>()
+  for (const ev of events) {
+    if (!byMatch.has(ev.match_id)) {
+      byMatch.set(ev.match_id, {
+        match_date: ev.matches?.match_date ?? '',
+        opponent: ev.matches?.opponent ?? '—',
+        competition: ev.matches?.competitions?.name ?? '',
+        stats: {},
+      })
+    }
+    const entry = byMatch.get(ev.match_id)!
+    entry.stats[ev.event_type] = (entry.stats[ev.event_type] ?? 0) + Number(ev.event_value)
+  }
+
+  return {
+    totals,
+    matchCount: byMatch.size,
+    byMatch: Array.from(byMatch.values()).sort((a, b) => b.match_date.localeCompare(a.match_date)),
+  }
+}
+
+/**
+ * Get a specific roster where this athlete is included.
+ */
+export async function getMyRosterById(rosterId: string) {
+  const { athleteId, clubId } = await getMyAthleteId()
+  const supabase = createAdminClient()
+
+  const { data, error } = await supabase
+    .from('roster_athletes')
+    .select(`
+      id, number, position, is_captain, status,
+      rosters (
+        id, name, match_date, opponent, venue, notes,
+        competitions ( id, name, type, status ),
+        matches ( id, home_score, away_score, status, is_home )
+      )
+    `)
+    .eq('roster_id', rosterId)
+    .eq('athlete_id', athleteId)
+    .single()
+
+  if (error) throw new Error(error.message)
+  if (!data) throw new Error('Citación no encontrada')
+
+  return data
+}

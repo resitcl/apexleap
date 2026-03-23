@@ -41,20 +41,33 @@ import { AgreementGateWrapper } from "@/components/agreements/AgreementGateWrapp
 import { getUserRole } from "@/lib/actions/club-context"
 import type { UserRole } from "@/lib/actions/club-context"
 
-function buildAthleteNavGroups() {
+function buildAthleteNavGroups(v: ReturnType<typeof getSportVocab>) {
+  const actividadItems = [
+    { href: "/dashboard/athlete/schedule",    label: "Horarios",    icon: Calendar },
+    { href: "/dashboard/athlete/attendance",  label: "Asistencia",  icon: ClipboardCheck },
+    { href: "/dashboard/athlete/content",     label: "Contenido",   icon: Film },
+  ]
+
+  // Team-sport-only modules for athletes
+  if (v.isTeamSport) {
+    actividadItems.push(
+      { href: "/dashboard/athlete/rosters",  label: "Mis Citaciones", icon: ClipboardList },
+      { href: "/dashboard/athlete/matches",  label: "Mis Partidos",   icon: Swords },
+      { href: "/dashboard/athlete/stats",    label: "Mis Stats",      icon: BarChart3 },
+    )
+  }
+
   return [
     {
       label: null,
       items: [
-        { href: "/dashboard/athlete", label: "Mi Portal", icon: User },
+        { href: "/dashboard/athlete",         label: "Mi Portal",    icon: User },
+        { href: "/dashboard/athlete/profile", label: "Mi Perfil",    icon: PenLine },
       ],
     },
     {
       label: "Actividad",
-      items: [
-        { href: "/dashboard/calendar",   label: "Horarios",    icon: Calendar },
-        { href: "/dashboard/attendance", label: "Asistencia",  icon: ClipboardCheck },
-      ],
+      items: actividadItems,
     },
     {
       label: "Mi Cuenta",
@@ -160,7 +173,7 @@ export default async function DashboardLayout({
   const isAthlete = role === 'athlete'
 
   const vocab = getSportVocab(sportType)
-  const NAV_GROUPS = isAthlete ? buildAthleteNavGroups() : buildNavGroups(vocab)
+  const NAV_GROUPS = isAthlete ? buildAthleteNavGroups(vocab) : buildNavGroups(vocab)
 
   const brandColor = alerts.primaryColor ?? '#000000'
 

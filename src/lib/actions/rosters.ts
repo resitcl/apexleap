@@ -157,7 +157,11 @@ export async function getRostersHub() {
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
-  const today = new Date().toISOString().split('T')[0]
+  const today = new Date()
+  const sevenDaysAgo = new Date(today)
+  sevenDaysAgo.setDate(today.getDate() - 7)
+  
+  const fromDate = sevenDaysAgo.toISOString().split('T')[0]
 
   const [rostersRes, overdueRes] = await Promise.all([
     supabase
@@ -171,9 +175,9 @@ export async function getRostersHub() {
         )
       `)
       .eq('club_id', clubId)
-      .gte('match_date', today)
+      .gte('match_date', fromDate)
       .order('match_date', { ascending: true })
-      .limit(30),
+      .limit(50),
 
     supabase
       .from('payments')

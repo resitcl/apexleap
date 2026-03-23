@@ -4,6 +4,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { auth } from "@clerk/nextjs/server"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { getClubId } from "@/lib/actions/club-context"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -38,25 +39,38 @@ interface PageProps {
 export default async function CompetitionDetailPage({ params }: PageProps) {
   const { id } = await params
   const { userId } = await auth()
-  if (!userId) notFound()
+  
+  if (!userId) {
+    notFound()
+  }
+
+  // Use getClubId for consistent club resolution (cookie-first)
+  let clubId: string
+  try {
+    clubId = await getClubId()
+  } catch {
+    notFound()
+  }
 
   const admin = createAdminClient()
-
-  const { data: userClub } = await admin
-    .from("user_clubs").select("club_id").eq("user_id", userId).eq("is_active", true).single()
-  if (!userClub) notFound()
 
   const { data: comp, error: compErr } = await admin
     .from("competitions")
     .select("*")
     .eq("id", id)
-    .eq("club_id", userClub.club_id)
+    .eq("club_id", clubId)
     .single()
-  if (compErr || !comp) notFound()
+  
+  if (compErr || !comp) {
+    notFound()
+  }
 
   const { data: clubData } = await admin
-    .from("user_clubs").select("clubs(name)").eq("user_id", userId).eq("is_active", true).single()
-  const clubName = ((clubData?.clubs as unknown) as { name: string } | null)?.name ?? "Local"
+    .from("clubs")
+    .select("name")
+    .eq("id", clubId)
+    .single()
+  const clubName = clubData?.name ?? "Local"
 
   const { data: rosters } = await admin
     .from("rosters")
@@ -68,7 +82,7 @@ export default async function CompetitionDetailPage({ params }: PageProps) {
   const [matchesRaw, playerStats, athletesRaw, settings] = await Promise.allSettled([
     getMatches(id),
     getPlayerStatsForCompetition(id),
-    admin.from("athletes").select("id, name").eq("club_id", userClub.club_id).eq("status", "active").order("name"),
+    admin.from("athletes").select("id, name").eq("club_id", clubId).eq("status", "active").order("name"),
     getClubSettings(),
   ])
 
