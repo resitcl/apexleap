@@ -6,8 +6,10 @@ import { getMySubscriptionStatus } from "@/lib/actions/athlete-enrollment"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { getClubId } from "@/lib/actions/club-context"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { CheckCircle, XCircle, CalendarDays, TrendingUp, Flame } from "lucide-react"
+import { CheckCircle, XCircle, CalendarDays, TrendingUp, Flame, QrCode, Camera } from "lucide-react"
+import Link from "next/link"
 
 export default async function AthleteAttendancePage() {
   const hasClub = await checkUserHasClub().catch(() => false)
@@ -120,18 +122,36 @@ export default async function AthleteAttendancePage() {
         </Card>
       </div>
 
+      {/* QR Scan Button */}
+      <Link href="/dashboard/attendance/qr">
+        <Card className="bg-gradient-to-r from-primary/10 to-primary/5 border-primary/20 hover:border-primary/40 transition-colors cursor-pointer">
+          <CardContent className="py-5 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                <Camera className="w-6 h-6 text-primary" />
+              </div>
+              <div>
+                <p className="font-semibold">Escanear QR de Asistencia</p>
+                <p className="text-sm text-muted-foreground">Abre la cámara para marcar tu asistencia</p>
+              </div>
+            </div>
+            <QrCode className="w-8 h-8 text-primary/60" />
+          </CardContent>
+        </Card>
+      </Link>
+
       {/* Trend indicator */}
       {(validThisMonth > 0 || validPrevMonth > 0) && (
-        <Card className={validThisMonth >= validPrevMonth ? "border-green-200 bg-green-50/40" : "border-orange-200 bg-orange-50/40"}>
+        <Card className={validThisMonth >= validPrevMonth ? "bg-muted/50 border-border" : "bg-muted/50 border-border"}>
           <CardContent className="py-4 flex items-center gap-3">
-            <TrendingUp className={`w-6 h-6 shrink-0 ${validThisMonth >= validPrevMonth ? "text-green-600" : "text-orange-500"}`} />
+            <TrendingUp className={`w-6 h-6 shrink-0 ${validThisMonth >= validPrevMonth ? "text-primary" : "text-muted-foreground"}`} />
             <div>
               {validThisMonth > validPrevMonth ? (
-                <p className="text-sm font-medium text-green-700">
+                <p className="text-sm font-medium text-foreground">
                   ¡Vas {validThisMonth - validPrevMonth} check-ins por encima del mes anterior! Sigue así 💪
                 </p>
               ) : validThisMonth < validPrevMonth ? (
-                <p className="text-sm font-medium text-orange-700">
+                <p className="text-sm font-medium text-foreground">
                   Tienes {validPrevMonth - validThisMonth} check-ins menos que el mes anterior. ¡Puedes mejorar!
                 </p>
               ) : (

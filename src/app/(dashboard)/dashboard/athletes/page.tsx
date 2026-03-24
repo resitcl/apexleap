@@ -4,11 +4,12 @@ import Link from "next/link"
 import { getAthletes } from "@/lib/actions/athletes"
 import { getPlans } from "@/lib/actions/plans"
 import { getCategories } from "@/lib/actions/categories"
+import { getPendingEnrollments } from "@/lib/actions/athlete-enrollment"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { UserPlus, Search, AlertCircle } from "lucide-react"
+import { UserPlus, Search, AlertCircle, Clock } from "lucide-react"
 import { AthletesSearch } from "@/components/athletes/AthletesSearch"
 import { HealthStatusBadge } from "@/components/athletes/HealthStatusBadge"
 import { ExportAthletesButton } from "@/components/athletes/ExportAthletesButton"
@@ -54,6 +55,7 @@ export default async function AthletesPage({ searchParams }: PageProps) {
   let error: string | null = null
   let plans: { id: string; name: string }[] = []
   let categories: { id: string; name: string; color: string | null }[] = []
+  let pendingEnrollmentsCount = 0
 
   try {
     const filterParams = {
@@ -65,17 +67,19 @@ export default async function AthletesPage({ searchParams }: PageProps) {
       categoryId: params.categoryId || undefined,
       sort: sort || undefined,
     }
-    const [result, allResult, plansData, catsData] = await Promise.all([
+    const [result, allResult, plansData, catsData, pendingEnrollments] = await Promise.all([
       getAthletes({ ...filterParams, page, limit: 20 }),
       getAthletes({ ...filterParams, page: 1, limit: 1000 }),
       getPlans(),
       getCategories(true).catch(() => []),
+      getPendingEnrollments().catch(() => []),
     ])
     athletes = result.athletes
     allAthletes = allResult.athletes
     total = result.total
     plans = plansData.map((p) => ({ id: p.id, name: p.name }))
     categories = catsData.map((c) => ({ id: c.id, name: c.name, color: c.color ?? null }))
+    pendingEnrollmentsCount = pendingEnrollments.length
   } catch (e) {
     error = e instanceof Error ? e.message : "Error al cargar alumnos"
   }
@@ -366,6 +370,17 @@ export default async function AthletesPage({ searchParams }: PageProps) {
           </p>
         </div>
         <div className="flex gap-2">
+          {pendingEnrollmentsCount > 0 && (
+            <Link href="/dashboard/athletes/pending">
+              <Button variant="outline" className="gap-2 border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-700">
+                <Clock className="w-4 h-4" />
+                Pendientes
+                <Badge variant="secondary" className="ml-1 bg-amber-200 text-amber-800">
+                  {pendingEnrollmentsCount}
+                </Badge>
+              </Button>
+            </Link>
+          )}
           <ExportAthletesButton athletes={allAthletes} />
           <Link href="/dashboard/athletes/new">
             <Button className="gap-2">

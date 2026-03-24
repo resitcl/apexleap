@@ -57,7 +57,25 @@ export default async function AthleteRosterDetailPage({ params }: PageProps) {
     notFound()
   }
 
-  const roster = rosterData.rosters!
+  type RosterInfo = {
+    id: string
+    name: string
+    match_date: string
+    opponent: string | null
+    venue: string | null
+    notes: string | null
+    competitions: { id: string; name: string; type: string; status: string } | null
+    matches: { id: string; home_score: number | null; away_score: number | null; status: string; is_home: boolean }[] | null
+  }
+  
+  // Supabase may return nested relation as object or array depending on query
+  const rostersData = rosterData.rosters as unknown
+  const roster: RosterInfo | null = Array.isArray(rostersData) 
+    ? (rostersData[0] as RosterInfo | undefined) ?? null 
+    : (rostersData as RosterInfo | null)
+  
+  if (!roster) notFound()
+  
   const statusM = STATUS_META[rosterData.status] ?? STATUS_META.pending
   const isToday = roster.match_date === new Date().toISOString().split('T')[0]
   const match = roster.matches?.[0]

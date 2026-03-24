@@ -7,9 +7,11 @@ import { getMySubscriptionStatus } from "@/lib/actions/athlete-enrollment"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { CreditCard, Clock, CheckCircle, AlertTriangle, Calendar, Repeat2, ShieldCheck } from "lucide-react"
+import { CreditCard, Clock, CheckCircle, AlertTriangle, Calendar, Repeat2, ShieldCheck, Info } from "lucide-react"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { getClubId } from "@/lib/actions/club-context"
+import { getAthletePaymentStatus } from "@/lib/actions/billing"
+import { formatPeriod } from "@/lib/billing-utils"
 
 const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   paid:      { label: "Pagado",    variant: "default" },
@@ -40,9 +42,12 @@ export default async function AthletePaymentsPage() {
   const supabase = createAdminClient()
   const athleteId = subStatus.athlete!.id
 
+  // Get detailed payment status with periods
+  const paymentStatus = await getAthletePaymentStatus(athleteId).catch(() => null)
+
   const { data: payments } = await supabase
     .from('payments')
-    .select('id, concept, amount, status, due_date, paid_at, created_at')
+    .select('id, concept, amount, status, due_date, paid_at, created_at, period_start, period_end')
     .eq('club_id', clubId)
     .eq('athlete_id', athleteId)
     .order('due_date', { ascending: false })
@@ -56,6 +61,7 @@ export default async function AthletePaymentsPage() {
   const pendingPayments = paymentsList.filter((p) => p.status === 'pending')
   const overduePayments = paymentsList.filter((p) => p.status === 'overdue')
   const totalPaid = paymentsList.filter((p) => p.status === 'paid').reduce((sum, p) => sum + Number(p.amount), 0)
+  const totalOverdue = overduePayments.reduce((sum, p) => sum + Number(p.amount), 0)
 
   // Days until subscription expires
   let daysLeft: number | null = null
@@ -110,6 +116,33 @@ export default async function AthletePaymentsPage() {
                 )}
               </div>
             </div>
+            
+            {/* Period coverage info */}
+            {paymentStatus?.currentPeriod && (
+              <div className="mt-3 pt-3 border-t border-border/50">
+                <div className="flex items-center gap-2 text-sm">
+                  <Info className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-muted-foreground">Período actual:</span>
+                  <span className="font-medium">
+                    {formatPeriod(
+                      new Date(paymentStatus.currentPeriod.start),
+                      new Date(paymentStatus.currentPeriod.end)
+                    )}
+                  </span>
+                </div>
+                {paymentStatus.nextBillingDate && (
+                  <div className="flex items-center gap-2 text-sm mt-1">
+                    <Calendar className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-muted-foreground">Próximo pago:</span>
+                    <span className="font-medium">
+                      {new Date(paymentStatus.nextBillingDate).toLocaleDateString('es-CL', { 
+                        day: 'numeric', month: 'long', year: 'numeric' 
+                      })}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
       ) : (
@@ -129,11 +162,18 @@ export default async function AthletePaymentsPage() {
       {/* Alerts */}
       {overduePayments.length > 0 && (
         <Card className="border-destructive/40 bg-destructive/5">
-          <CardContent className="py-3 flex items-center gap-3">
-            <AlertTriangle className="w-5 h-5 text-destructive shrink-0" />
-            <p className="text-sm text-destructive font-medium">
-              Tienes {overduePayments.length} pago{overduePayments.length > 1 ? "s" : ""} vencido{overduePayments.length > 1 ? "s" : ""}. Contáctate con el club para regularizar.
-            </p>
+          <CardContent className="py-3">
+            <div className="flex items-center gap-3">
+              <AlertTriangle className="w-5 h-5 text-destructive shrink-0" />
+              <div className="flex-1">
+                <p className="text-sm text-destructive font-medium">
+                  Tienes {overduePayments.length} pago{overduePayments.length > 1 ? "s" : ""} vencido{overduePayments.length > 1 ? "s" : ""} por un total de <strong>${totalOverdue.toLocaleString('es-CL')}</strong>
+                </p>
+                <p className="text-xs text-destructive/80 mt-0.5">
+                  Contáctate con el club para regularizar tu situación y mantener tu membresía activa.
+                </p>
+              </div>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -191,6 +231,7 @@ export default async function AthletePaymentsPage() {
             <div className="space-y-2">
               {paymentsList.map((p) => {
                 const cfg = STATUS_CONFIG[p.status] ?? STATUS_CONFIG.pending
+                const hasPeriod = p.period_start && p.period_end
                 return (
                   <div key={p.id} className="flex items-center gap-3 py-2.5 border-b border-border/50 last:border-0">
                     <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${
@@ -205,15 +246,23 @@ export default async function AthletePaymentsPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{p.concept ?? 'Pago'}</p>
-                      <p className="text-xs text-muted-foreground flex items-center gap-1">
-                        <Calendar className="w-3 h-3" />
-                        {p.due_date
-                          ? `Vence: ${new Date(p.due_date).toLocaleDateString('es-CL')}`
-                          : ''}
-                        {p.paid_at
-                          ? ` · Pagado: ${new Date(p.paid_at).toLocaleDateString('es-CL')}`
-                          : ''}
-                      </p>
+                      <div className="text-xs text-muted-foreground space-y-0.5">
+                        {hasPeriod && (
+                          <p className="flex items-center gap-1">
+                            <ShieldCheck className="w-3 h-3" />
+                            Cubre: {formatPeriod(new Date(p.period_start!), new Date(p.period_end!))}
+                          </p>
+                        )}
+                        <p className="flex items-center gap-1">
+                          <Calendar className="w-3 h-3" />
+                          {p.due_date
+                            ? `Vence: ${new Date(p.due_date).toLocaleDateString('es-CL')}`
+                            : ''}
+                          {p.paid_at
+                            ? ` · Pagado: ${new Date(p.paid_at).toLocaleDateString('es-CL')}`
+                            : ''}
+                        </p>
+                      </div>
                     </div>
                     <div className="text-right shrink-0">
                       <p className="font-semibold text-sm">${Number(p.amount).toLocaleString('es-CL')}</p>

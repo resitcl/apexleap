@@ -685,17 +685,19 @@ export async function getAthletePortal() {
       attendanceToday: attTodayRes.data ?? [],
       sessions: (sessionsRes.data ?? []).map((s) => ({ id: s.id, name: s.name, start_time: s.start_time as string, end_time: s.end_time as string, capacity: s.capacity as number | null })),
       monthCheckIns: 0,
+      weeklyCheckIns: [] as number[],
       semaforo: 'green' as const,
       upcomingComps: [],
     }
   }
 
-  const [athleteRes, attTodayRes, monthAttRes, sessionsRes, rostersRes] = await Promise.all([
+  const [athleteRes, attTodayRes, monthAttRes, sessionsRes, rostersRes, weeklyAttRes] = await Promise.all([
     supabase.from('athletes').select('*, subscriptions(id, status, start_date, end_date, plans(id, name, price, billing_cycle)), payments(id, concept, amount, status, due_date, paid_at), documents(id, name, status, expiry_date)').eq('id', athleteId).eq('club_id', clubId).single(),
     supabase.from('attendance').select('id, is_valid, checked_in_at').eq('club_id', clubId).eq('athlete_id', athleteId).gte('checked_in_at', today.toISOString()).lt('checked_in_at', tomorrow.toISOString()),
     supabase.from('attendance').select('id, is_valid').eq('club_id', clubId).eq('athlete_id', athleteId).gte('checked_in_at', monthStart),
     supabase.from('schedules').select('id, name, start_time, end_time, capacity').eq('club_id', clubId).eq('is_active', true).contains('day_of_week', [todayDow]).order('start_time').limit(10),
     supabase.from('rosters').select('id, competitions(id, name, type, start_date, location)').eq('athlete_id', athleteId),
+    supabase.from('attendance').select('checked_in_at').eq('club_id', clubId).eq('athlete_id', athleteId).eq('is_valid', true).gte('checked_in_at', new Date(Date.now() - 56 * 86_400_000).toISOString()).order('checked_in_at'),
   ])
 
   const athlete = athleteRes.data
@@ -705,6 +707,15 @@ export async function getAthletePortal() {
     athlete?.health_status === 'observation' ? 'yellow' : 'green'
 
   const monthCheckIns = (monthAttRes.data ?? []).filter((r) => r.is_valid).length
+
+  // Weekly check-ins for last 8 weeks (index 0 = oldest, 7 = this week)
+  const todayMs = new Date().setHours(23, 59, 59, 999)
+  const weeklyCheckIns: number[] = Array(8).fill(0)
+  for (const rec of weeklyAttRes.data ?? []) {
+    const daysAgo = Math.floor((todayMs - new Date(rec.checked_in_at).getTime()) / 86_400_000)
+    const weekIdx = 7 - Math.floor(daysAgo / 7)
+    if (weekIdx >= 0 && weekIdx < 8) weeklyCheckIns[weekIdx]++
+  }
 
   type RosterComp = { id: string; name: string; type: string; start_date: string; location: string | null }
   const todayISO = new Date().toISOString().split('T')[0]
@@ -720,6 +731,7 @@ export async function getAthletePortal() {
     attendanceToday: attTodayRes.data ?? [],
     sessions: (sessionsRes.data ?? []).map((s) => ({ id: s.id, name: s.name, start_time: s.start_time as string, end_time: s.end_time as string, capacity: s.capacity as number | null })),
     monthCheckIns,
+    weeklyCheckIns,
     semaforo,
     upcomingComps,
   }

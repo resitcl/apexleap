@@ -203,18 +203,33 @@ export async function getOnboardingData() {
   const fullName = [user.firstName, user.lastName].filter(Boolean).join(' ') || ''
   const photoUrl = user.imageUrl ?? null
 
+  // Check if this is a team sport that requires approval
+  const TEAM_SPORTS = ['Fútbol', 'Básquetbol', 'Vóley', 'Rugby', 'Hockey', 'Handball', 'Waterpolo']
+  const isTeamSport = TEAM_SPORTS.includes(club?.sport_type ?? '')
+
   // Current athlete record (if exists)
-  type OnboardingAthlete = { id: string; name: string; phone: string | null; birth_date: string | null; emergency_contact: string | null; emergency_phone: string | null; technical_meta: Record<string, unknown> | null }
+  type OnboardingAthlete = { 
+    id: string; name: string; phone: string | null; birth_date: string | null; 
+    emergency_contact: string | null; emergency_phone: string | null; 
+    technical_meta: Record<string, unknown> | null;
+    enrollment_status: string | null;
+  }
   let athlete: OnboardingAthlete | null = null
   if (email) {
     const { data } = await supabase
       .from('athletes')
-      .select('id, name, phone, birth_date, emergency_contact, emergency_phone, technical_meta')
+      .select('id, name, phone, birth_date, emergency_contact, emergency_phone, technical_meta, enrollment_status')
       .eq('club_id', clubId)
       .eq('email', email)
       .maybeSingle()
     athlete = data as OnboardingAthlete | null
   }
+  
+  // For team sports: check if athlete needs approval before payment
+  const needsApproval = isTeamSport && (!athlete || athlete.enrollment_status === null)
+  const isPendingApproval = isTeamSport && athlete?.enrollment_status === 'pending_approval'
+  const isApproved = !isTeamSport || athlete?.enrollment_status === 'approved'
+  const isRejected = athlete?.enrollment_status === 'rejected'
 
   // Active or pending_payment subscription
   let hasActiveSubscription = false
@@ -250,7 +265,13 @@ export async function getOnboardingData() {
     .eq('is_visible', true)
     .order('price', { ascending: true })
 
-  const profileComplete = !!athlete && Object.keys(athlete.technical_meta ?? {}).length > 0
+  // Check if profile is complete: has basic info + sport-specific fields
+  const hasBasicInfo = !!athlete && !!athlete.phone && !!athlete.birth_date
+  const hasSportFields = !!athlete && Object.keys(athlete.technical_meta ?? {}).length > 0
+  const profileComplete = hasBasicInfo && hasSportFields
+  
+  // Check if platform tour has been completed (stored in technical_meta)
+  const tourCompleted = !!athlete?.technical_meta?.onboarding_tour_completed
 
   // Extract bank_info from club settings
   const settings = (club?.settings ?? {}) as Record<string, unknown>
@@ -264,13 +285,23 @@ export async function getOnboardingData() {
   } | null) ?? null
 
   return {
-    needsOnboarding: !hasActiveSubscription,
+    // For team sports: must be approved before payment
+    needsEnrollmentRequest: isTeamSport && needsApproval && !hasActiveSubscription,
+    isPendingApproval,
+    isRejected,
+    isApproved,
+    isTeamSport,
+    // Original onboarding states (only applicable after approval for team sports)
+    needsOnboarding: !hasActiveSubscription && isApproved,
+    needsProfileOnboarding: hasActiveSubscription && !profileComplete,
+    needsPlatformTour: hasActiveSubscription && profileComplete && !tourCompleted,
     hasPendingPayment,
     club: club ?? { id: clubId, name: 'Club', slug: '', sport_type: null, logo_url: null, primary_color: null, settings: {} },
     bankInfo,
     user: { fullName, email, photoUrl },
     athlete,
     profileComplete,
+    tourCompleted,
     hasActiveSubscription,
     plans: plans ?? [],
   }
@@ -348,6 +379,260 @@ export async function saveAthleteProfile(profile: {
 
   revalidatePath('/dashboard/athlete')
   return { success: true, athleteId: athlete.id }
+}
+
+/**
+ * Request enrollment for team sports (creates athlete record with pending_approval status).
+ */
+export async function requestEnrollment(profile: {
+  name: string
+  phone?: string
+  birth_date?: string
+  emergency_contact?: string
+  emergency_phone?: string
+  technical_meta?: Record<string, unknown>
+  notes?: string
+}) {
+  const { userId } = await auth()
+  if (!userId) throw new Error('No autorizado')
+
+  const clubId = await getClubId()
+  const supabase = createAdminClient()
+
+  const clerk = await clerkClient()
+  const user = await clerk.users.getUser(userId)
+  const email = user.emailAddresses[0]?.emailAddress ?? null
+  if (!email) throw new Error('No se encontró un email asociado a tu cuenta')
+
+  // Check if athlete already exists
+  const { data: existing } = await supabase
+    .from('athletes')
+    .select('id, enrollment_status')
+    .eq('club_id', clubId)
+    .eq('email', email)
+    .maybeSingle()
+
+  if (existing) {
+    // Update existing record
+    const { error } = await supabase
+      .from('athletes')
+      .update({
+        name: profile.name,
+        phone: profile.phone || null,
+        birth_date: profile.birth_date || null,
+        emergency_contact: profile.emergency_contact || null,
+        emergency_phone: profile.emergency_phone || null,
+        technical_meta: profile.technical_meta || {},
+        enrollment_status: 'pending_approval',
+        enrollment_requested_at: new Date().toISOString(),
+        notes: profile.notes || null,
+      })
+      .eq('id', existing.id)
+      .eq('club_id', clubId)
+
+    if (error) throw new Error('Error al enviar solicitud: ' + error.message)
+  } else {
+    // Create new athlete with pending status
+    const { error } = await supabase
+      .from('athletes')
+      .insert({
+        club_id: clubId,
+        user_id: userId,
+        name: profile.name,
+        email,
+        phone: profile.phone || null,
+        birth_date: profile.birth_date || null,
+        emergency_contact: profile.emergency_contact || null,
+        emergency_phone: profile.emergency_phone || null,
+        technical_meta: profile.technical_meta || {},
+        performance_meta: {},
+        status: 'inactive', // Will become active after approval + payment
+        health_status: 'healthy',
+        enrollment_status: 'pending_approval',
+        enrollment_requested_at: new Date().toISOString(),
+        notes: profile.notes || null,
+      })
+
+    if (error) throw new Error('Error al crear solicitud: ' + error.message)
+  }
+
+  revalidatePath('/dashboard/athlete')
+  revalidatePath('/dashboard/athletes')
+  return { success: true }
+}
+
+/**
+ * Approve or reject an athlete's enrollment request (admin/coach only).
+ */
+export async function reviewEnrollment(
+  athleteId: string, 
+  decision: 'approved' | 'rejected',
+  notes?: string
+) {
+  const { userId } = await auth()
+  if (!userId) throw new Error('No autorizado')
+
+  const clubId = await getClubId()
+  const supabase = createAdminClient()
+
+  // Get reviewer's user_club record
+  const { data: reviewer } = await supabase
+    .from('user_clubs')
+    .select('id, role')
+    .eq('user_id', userId)
+    .eq('club_id', clubId)
+    .maybeSingle()
+
+  if (!reviewer || !['admin', 'coach'].includes(reviewer.role)) {
+    throw new Error('No tienes permisos para aprobar solicitudes')
+  }
+
+  // Get athlete info for email notification
+  const { data: athlete } = await supabase
+    .from('athletes')
+    .select('id, name, email, enrollment_status')
+    .eq('id', athleteId)
+    .eq('club_id', clubId)
+    .single()
+
+  if (!athlete) throw new Error('Atleta no encontrado')
+  if (athlete.enrollment_status !== 'pending_approval') {
+    throw new Error('Esta solicitud ya fue procesada')
+  }
+
+  // Update athlete status
+  const { error } = await supabase
+    .from('athletes')
+    .update({
+      enrollment_status: decision,
+      enrollment_reviewed_at: new Date().toISOString(),
+      enrollment_reviewed_by: reviewer.id,
+      enrollment_notes: notes || null,
+      status: decision === 'approved' ? 'active' : 'inactive',
+    })
+    .eq('id', athleteId)
+    .eq('club_id', clubId)
+
+  if (error) throw new Error('Error al procesar solicitud: ' + error.message)
+
+  // Get club info for email
+  const { data: club } = await supabase
+    .from('clubs')
+    .select('name, slug')
+    .eq('id', clubId)
+    .single()
+
+  // Send email notification
+  if (athlete.email && club) {
+    try {
+      await sendEnrollmentDecisionEmail({
+        to: athlete.email,
+        athleteName: athlete.name,
+        clubName: club.name,
+        clubSlug: club.slug,
+        decision,
+        notes,
+      })
+    } catch (emailErr) {
+      console.error('Error sending enrollment decision email:', emailErr)
+      // Don't fail the whole operation if email fails
+    }
+  }
+
+  revalidatePath('/dashboard/athlete')
+  revalidatePath('/dashboard/athletes')
+  return { success: true }
+}
+
+/**
+ * Get pending enrollment requests for admin/coach.
+ */
+export async function getPendingEnrollments() {
+  const { userId } = await auth()
+  if (!userId) throw new Error('No autorizado')
+
+  const clubId = await getClubId()
+  const supabase = createAdminClient()
+
+  const { data, error } = await supabase
+    .from('athletes')
+    .select('id, name, email, phone, birth_date, technical_meta, enrollment_requested_at, notes')
+    .eq('club_id', clubId)
+    .eq('enrollment_status', 'pending_approval')
+    .order('enrollment_requested_at', { ascending: true })
+
+  if (error) throw new Error(error.message)
+  return data ?? []
+}
+
+/**
+ * Send email notification for enrollment decision.
+ */
+async function sendEnrollmentDecisionEmail(params: {
+  to: string
+  athleteName: string
+  clubName: string
+  clubSlug: string
+  decision: 'approved' | 'rejected'
+  notes?: string
+}) {
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://apexleap.cl'
+  const joinUrl = `${baseUrl}/${params.clubSlug}/signin`
+
+  const subject = params.decision === 'approved'
+    ? `¡Bienvenido a ${params.clubName}! Tu solicitud fue aprobada`
+    : `Actualización sobre tu solicitud en ${params.clubName}`
+
+  const html = params.decision === 'approved'
+    ? `
+      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+        <h1 style="color: #16a34a;">¡Felicitaciones, ${params.athleteName}!</h1>
+        <p>Tu solicitud de inscripción en <strong>${params.clubName}</strong> ha sido <strong style="color: #16a34a;">aprobada</strong>.</p>
+        ${params.notes ? `<p><em>Mensaje del club: ${params.notes}</em></p>` : ''}
+        <p>Ya puedes completar tu inscripción seleccionando un plan y realizando el pago.</p>
+        <div style="margin: 24px 0;">
+          <a href="${joinUrl}" style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; display: inline-block;">
+            Completar Inscripción
+          </a>
+        </div>
+        <p style="color: #6b7280; font-size: 14px;">Si tienes alguna pregunta, contacta directamente al club.</p>
+      </div>
+    `
+    : `
+      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+        <h1 style="color: #dc2626;">Hola, ${params.athleteName}</h1>
+        <p>Lamentamos informarte que tu solicitud de inscripción en <strong>${params.clubName}</strong> no fue aprobada en esta oportunidad.</p>
+        ${params.notes ? `<p><em>Mensaje del club: ${params.notes}</em></p>` : ''}
+        <p>Si tienes alguna pregunta, puedes contactar directamente al club.</p>
+        <p style="color: #6b7280; font-size: 14px;">Gracias por tu interés en ${params.clubName}.</p>
+      </div>
+    `
+
+  // Use Resend or other email service
+  const resendApiKey = process.env.RESEND_API_KEY
+  if (!resendApiKey) {
+    console.log('RESEND_API_KEY not configured, skipping email')
+    return
+  }
+
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${resendApiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: process.env.RESEND_FROM_EMAIL || 'ApexLeap <noreply@apexleap.cl>',
+      to: params.to,
+      subject,
+      html,
+    }),
+  })
+
+  if (!response.ok) {
+    const error = await response.text()
+    throw new Error(`Email send failed: ${error}`)
+  }
 }
 
 /**
@@ -560,6 +845,49 @@ export async function saveAthleteProfileSelf(profile: {
 
   revalidatePath('/dashboard/athlete')
   revalidatePath('/dashboard/athlete/profile')
+}
+
+/**
+ * Mark the platform tour as completed for the current athlete.
+ */
+export async function markTourCompleted() {
+  const { userId } = await auth()
+  if (!userId) throw new Error('No autorizado')
+
+  const clubId = await getClubId()
+  const supabase = createAdminClient()
+
+  const clerk = await clerkClient()
+  const user = await clerk.users.getUser(userId)
+  const email = user.emailAddresses[0]?.emailAddress ?? null
+  if (!email) throw new Error('No se encontró email')
+
+  const { data: athlete } = await supabase
+    .from('athletes')
+    .select('id, technical_meta')
+    .eq('club_id', clubId)
+    .eq('email', email)
+    .maybeSingle()
+
+  if (!athlete) throw new Error('No se encontró tu perfil de atleta')
+
+  const currentMeta = (athlete.technical_meta ?? {}) as Record<string, unknown>
+  
+  const { error } = await supabase
+    .from('athletes')
+    .update({
+      technical_meta: {
+        ...currentMeta,
+        onboarding_tour_completed: true,
+        onboarding_tour_completed_at: new Date().toISOString(),
+      },
+    })
+    .eq('id', athlete.id)
+    .eq('club_id', clubId)
+
+  if (error) throw new Error('Error al guardar: ' + error.message)
+
+  revalidatePath('/dashboard/athlete')
 }
 
 // ─── Team-sport athlete-facing data ──────────────────────────────────────────
