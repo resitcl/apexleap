@@ -4,6 +4,12 @@ import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { z } from 'zod'
 import { getClubId } from '@/lib/actions/club-context'
+import {
+  calculatePeriodEnd,
+  calculateNextPeriodStart,
+  getBillingAnchorDay,
+  type BillingCycle,
+} from '@/lib/billing-utils'
 
 const paymentSchema = z.object({
   athlete_id: z.string().uuid('Alumno inválido'),
@@ -20,6 +26,85 @@ const paymentSchema = z.object({
 
 export type PaymentInput = z.infer<typeof paymentSchema>
 
+// ─────────────────────────────────────────────────────────────
+// Private helper: activate/renew subscription when a payment is
+// confirmed as paid. Used by markAsPaid, bulkMarkAsPaid,
+// confirmTransferPayment and createPayment to stay consistent.
+// ─────────────────────────────────────────────────────────────
+async function _activateSubscription(
+  supabase: ReturnType<typeof createAdminClient>,
+  clubId: string,
+  payment: { athlete_id: string; plan_id: string | null },
+  paidAtDate: Date,
+  paymentMethod: string,
+) {
+  if (!payment.plan_id || !payment.athlete_id) return
+
+  const { data: plan } = await supabase
+    .from('plans')
+    .select('billing_cycle')
+    .eq('id', payment.plan_id)
+    .single()
+
+  if (!plan) return
+
+  const cycle = plan.billing_cycle as BillingCycle
+  const startStr = paidAtDate.toISOString().split('T')[0]
+
+  const periodEnd = calculatePeriodEnd(paidAtDate, cycle)
+  const endStr = periodEnd ? periodEnd.toISOString().split('T')[0] : null
+
+  const anchorDay = getBillingAnchorDay(paidAtDate)
+
+  const nextStart = calculateNextPeriodStart(paidAtDate, cycle)
+  const nextBillingStr = nextStart ? nextStart.toISOString().split('T')[0] : null
+
+  // Manual/transfer methods should NOT auto-renew (require explicit payment each cycle)
+  const autoRenew = paymentMethod !== 'transfer' && paymentMethod !== 'cash' && paymentMethod !== 'manual'
+
+  // Cancel any pending_payment subscriptions for this athlete
+  await supabase
+    .from('subscriptions')
+    .update({ status: 'cancelled' })
+    .eq('club_id', clubId)
+    .eq('athlete_id', payment.athlete_id)
+    .eq('status', 'pending_payment')
+
+  // Cancel any active subscriptions for this athlete
+  await supabase
+    .from('subscriptions')
+    .update({ status: 'cancelled' })
+    .eq('club_id', clubId)
+    .eq('athlete_id', payment.athlete_id)
+    .eq('status', 'active')
+
+  // Create new active subscription with full period metadata
+  await supabase.from('subscriptions').insert({
+    club_id: clubId,
+    athlete_id: payment.athlete_id,
+    plan_id: payment.plan_id,
+    status: 'active',
+    start_date: startStr,
+    end_date: endStr,
+    payment_method: paymentMethod,
+    auto_renew: autoRenew,
+    billing_anchor_day: anchorDay,
+    current_period_start: startStr,
+    current_period_end: endStr,
+    next_billing_date: nextBillingStr,
+  })
+
+  // Ensure athlete is marked active
+  await supabase
+    .from('athletes')
+    .update({ status: 'active' })
+    .eq('id', payment.athlete_id)
+    .eq('club_id', clubId)
+}
+
+// ─────────────────────────────────────────────────────────────
+// Queries
+// ─────────────────────────────────────────────────────────────
 
 export async function getPayments(params?: {
   status?: string
@@ -90,8 +175,8 @@ export async function getPaymentSummary() {
   }
 
   for (const p of data ?? []) {
-    if (p.status === 'paid') summary.total_collected += Number(p.amount)
-    if (p.status === 'pending') summary.total_pending += Number(p.amount)
+    if (p.status === 'paid')    summary.total_collected += Number(p.amount)
+    if (p.status === 'pending') summary.total_pending   += Number(p.amount)
     if (p.status === 'overdue') {
       summary.total_overdue += Number(p.amount)
       summary.count_overdue++
@@ -100,6 +185,10 @@ export async function getPaymentSummary() {
 
   return summary
 }
+
+// ─────────────────────────────────────────────────────────────
+// Mutations
+// ─────────────────────────────────────────────────────────────
 
 export async function createPayment(input: PaymentInput) {
   const clubId = await getClubId()
@@ -114,67 +203,20 @@ export async function createPayment(input: PaymentInput) {
 
   if (error) throw new Error(error.message)
 
-  // Auto-create subscription if payment is paid and linked to a plan
+  // Auto-create subscription if payment is created as paid and linked to a plan
   if (parsed.status === 'paid' && parsed.plan_id) {
-    // Fetch plan details to get billing_cycle
-    const { data: plan } = await supabase
-      .from('plans')
-      .select('billing_cycle')
-      .eq('id', parsed.plan_id)
-      .single()
-
-    if (plan) {
-      const CYCLE_DAYS: Record<string, number> = {
-        monthly: 30,
-        quarterly: 90,
-        semiannual: 180,
-        annual: 365,
-        single: 0,
-      }
-
-      const startDate = parsed.paid_at ? new Date(parsed.paid_at) : new Date()
-      const startStr = startDate.toISOString().split('T')[0]
-      const days = CYCLE_DAYS[plan.billing_cycle] ?? 30
-      let endStr: string | null = null
-
-      if (days > 0) {
-        const endDate = new Date(startDate)
-        endDate.setDate(endDate.getDate() + days)
-        endStr = endDate.toISOString().split('T')[0]
-      }
-
-      // Cancel any existing active subscriptions for this athlete
-      await supabase
-        .from('subscriptions')
-        .update({ status: 'cancelled' })
-        .eq('club_id', clubId)
-        .eq('athlete_id', parsed.athlete_id)
-        .eq('status', 'active')
-
-      // Create new subscription
-      await supabase.from('subscriptions').insert({
-        club_id: clubId,
-        athlete_id: parsed.athlete_id,
-        plan_id: parsed.plan_id,
-        status: 'active',
-        start_date: startStr,
-        end_date: endStr,
-        payment_method: parsed.payment_method,
-        auto_renew: true,
-      })
-
-      // Update athlete status to active when creating an active subscription
-      await supabase
-        .from('athletes')
-        .update({ status: 'active' })
-        .eq('id', parsed.athlete_id)
-        .eq('club_id', clubId)
-
-      revalidatePath('/dashboard/subscriptions')
-      revalidatePath('/dashboard/athletes')
-      revalidatePath(`/dashboard/athletes/${parsed.athlete_id}`)
-      revalidatePath('/dashboard/athlete')
-    }
+    const paidAtDate = parsed.paid_at ? new Date(parsed.paid_at) : new Date()
+    await _activateSubscription(
+      supabase,
+      clubId,
+      { athlete_id: parsed.athlete_id, plan_id: parsed.plan_id },
+      paidAtDate,
+      parsed.payment_method ?? 'manual',
+    )
+    revalidatePath('/dashboard/subscriptions')
+    revalidatePath('/dashboard/athletes')
+    revalidatePath(`/dashboard/athletes/${parsed.athlete_id}`)
+    revalidatePath('/dashboard/athlete')
   }
 
   revalidatePath('/dashboard/payments')
@@ -182,15 +224,31 @@ export async function createPayment(input: PaymentInput) {
   return data
 }
 
+/**
+ * Mark a single payment as paid and activate the linked subscription.
+ * Previously this only updated the payment status — subscription was never touched.
+ */
 export async function markAsPaid(id: string, method: string, paidAt?: string) {
   const clubId = await getClubId()
   const supabase = createAdminClient()
+
+  // Fetch payment before updating so we have athlete_id + plan_id
+  const { data: payment, error: fetchError } = await supabase
+    .from('payments')
+    .select('id, athlete_id, plan_id')
+    .eq('id', id)
+    .eq('club_id', clubId)
+    .single()
+
+  if (fetchError || !payment) throw new Error('Pago no encontrado')
+
+  const paidAtDate = paidAt ? new Date(paidAt) : new Date()
 
   const { data, error } = await supabase
     .from('payments')
     .update({
       status: 'paid',
-      paid_at: paidAt ? new Date(paidAt).toISOString() : new Date().toISOString(),
+      paid_at: paidAtDate.toISOString(),
       payment_method: method,
     })
     .eq('id', id)
@@ -199,24 +257,45 @@ export async function markAsPaid(id: string, method: string, paidAt?: string) {
     .single()
 
   if (error) throw new Error(error.message)
+
+  // Activate subscription using the same logic as confirmTransferPayment
+  if (payment.plan_id) {
+    await _activateSubscription(supabase, clubId, payment, paidAtDate, method)
+    revalidatePath('/dashboard/subscriptions')
+    revalidatePath('/dashboard/athletes')
+    revalidatePath(`/dashboard/athletes/${payment.athlete_id}`)
+    revalidatePath('/dashboard/athlete')
+  }
+
   revalidatePath('/dashboard/payments')
   return data
 }
 
-export async function updatePayment(id: string, input: { concept?: string; amount?: number; due_date?: string; notes?: string | null; type?: string; payment_method?: string | null }) {
+export async function updatePayment(id: string, input: {
+  concept?: string
+  amount?: number
+  due_date?: string
+  notes?: string | null
+  type?: string
+  payment_method?: string | null
+}) {
   const clubId = await getClubId()
   const supabase = createAdminClient()
-  const safeUpdate = Object.fromEntries(Object.entries({ ...input }).filter(([, v]) => v !== undefined))
-  const { error } = await supabase.from('payments')
+  const safeUpdate = Object.fromEntries(
+    Object.entries({ ...input }).filter(([, v]) => v !== undefined),
+  )
+  const { error } = await supabase
+    .from('payments')
     .update(safeUpdate)
-    .eq('id', id).eq('club_id', clubId)
+    .eq('id', id)
+    .eq('club_id', clubId)
   if (error) throw new Error(error.message)
   revalidatePath('/dashboard/payments')
 }
 
 export async function updatePaymentStatus(
   id: string,
-  status: 'pending' | 'paid' | 'overdue' | 'failed' | 'cancelled'
+  status: 'pending' | 'paid' | 'overdue' | 'failed' | 'cancelled',
 ) {
   const clubId = await getClubId()
   const supabase = createAdminClient()
@@ -244,17 +323,16 @@ export async function deletePayment(id: string) {
 }
 
 /**
- * Confirm a transfer payment: mark as paid + activate subscription for billing cycle.
- * Used by admin to confirm pending transfer payments with receipt.
+ * Confirm a transfer payment: mark as paid and activate the subscription.
+ * The payment_method is forced to 'transfer'.
  */
 export async function confirmTransferPayment(paymentId: string, paidAt?: string) {
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
-  // Get payment with plan info
   const { data: payment, error: paymentError } = await supabase
     .from('payments')
-    .select('*, plans(billing_cycle)')
+    .select('id, athlete_id, plan_id')
     .eq('id', paymentId)
     .eq('club_id', clubId)
     .single()
@@ -262,14 +340,12 @@ export async function confirmTransferPayment(paymentId: string, paidAt?: string)
   if (paymentError || !payment) throw new Error('Pago no encontrado')
 
   const paidAtDate = paidAt ? new Date(paidAt) : new Date()
-  const paidAtISO = paidAtDate.toISOString()
 
-  // Mark payment as paid
   const { error: updateError } = await supabase
     .from('payments')
     .update({
       status: 'paid',
-      paid_at: paidAtISO,
+      paid_at: paidAtDate.toISOString(),
       payment_method: 'transfer',
     })
     .eq('id', paymentId)
@@ -277,65 +353,8 @@ export async function confirmTransferPayment(paymentId: string, paidAt?: string)
 
   if (updateError) throw new Error(updateError.message)
 
-  // Activate subscription if payment is linked to a plan
   if (payment.plan_id && payment.athlete_id) {
-    const plan = payment.plans as { billing_cycle: string } | null
-    const billingCycle = plan?.billing_cycle ?? 'monthly'
-
-    const CYCLE_DAYS: Record<string, number> = {
-      monthly: 30,
-      quarterly: 90,
-      semiannual: 180,
-      annual: 365,
-      single: 0,
-    }
-
-    const startDate = paidAtDate
-    const startStr = startDate.toISOString().split('T')[0]
-    const days = CYCLE_DAYS[billingCycle] ?? 30
-    let endStr: string | null = null
-
-    if (days > 0) {
-      const endDate = new Date(startDate)
-      endDate.setDate(endDate.getDate() + days)
-      endStr = endDate.toISOString().split('T')[0]
-    }
-
-    // Cancel any existing pending_payment subscriptions for this athlete+plan
-    await supabase
-      .from('subscriptions')
-      .update({ status: 'cancelled' })
-      .eq('club_id', clubId)
-      .eq('athlete_id', payment.athlete_id)
-      .eq('status', 'pending_payment')
-
-    // Cancel any existing active subscriptions for this athlete
-    await supabase
-      .from('subscriptions')
-      .update({ status: 'cancelled' })
-      .eq('club_id', clubId)
-      .eq('athlete_id', payment.athlete_id)
-      .eq('status', 'active')
-
-    // Create new active subscription
-    await supabase.from('subscriptions').insert({
-      club_id: clubId,
-      athlete_id: payment.athlete_id,
-      plan_id: payment.plan_id,
-      status: 'active',
-      start_date: startStr,
-      end_date: endStr,
-      payment_method: 'transfer',
-      auto_renew: false,
-    })
-
-    // Update athlete status to active
-    await supabase
-      .from('athletes')
-      .update({ status: 'active' })
-      .eq('id', payment.athlete_id)
-      .eq('club_id', clubId)
-
+    await _activateSubscription(supabase, clubId, payment, paidAtDate, 'transfer')
     revalidatePath('/dashboard/subscriptions')
     revalidatePath('/dashboard/athletes')
     revalidatePath(`/dashboard/athletes/${payment.athlete_id}`)
@@ -346,15 +365,32 @@ export async function confirmTransferPayment(paymentId: string, paidAt?: string)
   return { success: true }
 }
 
+/**
+ * Bulk mark multiple payments as paid.
+ * For each payment linked to a plan, also activates the subscription.
+ */
 export async function bulkMarkAsPaid(ids: string[], method = 'manual') {
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
+  // Fetch affected payments so we can activate subscriptions
+  const { data: payments, error: fetchError } = await supabase
+    .from('payments')
+    .select('id, athlete_id, plan_id')
+    .in('id', ids)
+    .eq('club_id', clubId)
+    .in('status', ['pending', 'overdue'])
+
+  if (fetchError) throw new Error(fetchError.message)
+
+  const paidAtDate = new Date()
+
+  // Update all payments in one query
   const { error, count } = await supabase
     .from('payments')
     .update({
       status: 'paid',
-      paid_at: new Date().toISOString(),
+      paid_at: paidAtDate.toISOString(),
       payment_method: method,
     })
     .in('id', ids)
@@ -362,6 +398,44 @@ export async function bulkMarkAsPaid(ids: string[], method = 'manual') {
     .in('status', ['pending', 'overdue'])
 
   if (error) throw new Error(error.message)
+
+  // Activate subscriptions for each payment that has a plan
+  const withPlan = (payments ?? []).filter((p) => p.plan_id)
+  for (const p of withPlan) {
+    await _activateSubscription(supabase, clubId, p, paidAtDate, method)
+  }
+
+  if (withPlan.length > 0) {
+    revalidatePath('/dashboard/subscriptions')
+    revalidatePath('/dashboard/athletes')
+    revalidatePath('/dashboard/athlete')
+  }
+
   revalidatePath('/dashboard/payments')
+  return count ?? 0
+}
+
+/**
+ * Sync overdue status: mark all pending payments past their due_date as overdue.
+ * Call this from an admin action or a scheduled route to keep statuses current.
+ * Returns the number of payments updated.
+ */
+export async function syncOverduePayments() {
+  const clubId = await getClubId()
+  const supabase = createAdminClient()
+
+  const today = new Date().toISOString().split('T')[0]
+
+  const { error, count } = await supabase
+    .from('payments')
+    .update({ status: 'overdue' })
+    .eq('club_id', clubId)
+    .eq('status', 'pending')
+    .lt('due_date', today)
+
+  if (error) throw new Error(error.message)
+
+  revalidatePath('/dashboard/payments')
+  revalidatePath('/dashboard/athlete/payments')
   return count ?? 0
 }

@@ -4,6 +4,13 @@ import { auth, clerkClient } from '@clerk/nextjs/server'
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getClubId } from '@/lib/actions/club-context'
+import {
+  calculatePeriodEnd,
+  calculateNextPeriodStart,
+  getBillingAnchorDay,
+  calculatePeriodStartForPayment,
+  type BillingCycle,
+} from '@/lib/billing-utils'
 
 /**
  * Get visible plans for the current club (public-facing, for athlete selection).
@@ -127,22 +134,18 @@ export async function enrollInPlan(planId: string) {
     .eq('athlete_id', athlete.id)
     .eq('status', 'active')
 
-  // Calculate end date based on billing cycle
+  // Calculate period dates using proper month-based billing
   const startDate = new Date()
   const startStr = startDate.toISOString().split('T')[0]
+  const cycle = plan.billing_cycle as BillingCycle
 
-  const CYCLE_DAYS: Record<string, number> = {
-    monthly: 30, quarterly: 90, semiannual: 180, annual: 365, single: 0,
-  }
-  const days = CYCLE_DAYS[plan.billing_cycle] ?? 30
-  let endStr: string | null = null
-  if (days > 0) {
-    const endDate = new Date(startDate)
-    endDate.setDate(endDate.getDate() + days)
-    endStr = endDate.toISOString().split('T')[0]
-  }
+  const periodEnd = calculatePeriodEnd(startDate, cycle)
+  const endStr = periodEnd ? periodEnd.toISOString().split('T')[0] : null
+  const anchorDay = getBillingAnchorDay(startDate)
+  const nextStart = calculateNextPeriodStart(startDate, cycle)
+  const nextBillingStr = nextStart ? nextStart.toISOString().split('T')[0] : null
 
-  // Create subscription
+  // Create subscription (active immediately — athlete gains access while first payment is pending)
   const { error: subErr } = await supabase
     .from('subscriptions')
     .insert({
@@ -153,11 +156,15 @@ export async function enrollInPlan(planId: string) {
       start_date: startStr,
       end_date: endStr,
       auto_renew: true,
+      billing_anchor_day: anchorDay,
+      current_period_start: startStr,
+      current_period_end: endStr,
+      next_billing_date: nextBillingStr,
     })
 
   if (subErr) throw new Error('Error al crear la suscripción: ' + subErr.message)
 
-  // Create initial payment record (pending) — non-blocking
+  // Create initial payment record (pending) with period tracking
   if (plan.price > 0) {
     await supabase
       .from('payments')
@@ -169,6 +176,8 @@ export async function enrollInPlan(planId: string) {
         amount: plan.price,
         status: 'pending',
         due_date: startStr,
+        period_start: startStr,
+        period_end: endStr,
       })
   }
 
@@ -1056,4 +1065,94 @@ export async function getMyRosterById(rosterId: string) {
   if (!data) throw new Error('Citación no encontrada')
 
   return data
+}
+
+/**
+ * Athlete self-submits a payment for an existing subscription (renewal/overdue).
+ * Creates a pending payment record tied to their subscription.
+ * For transfer: stores the receipt URL in notes. Admin confirms manually.
+ * For other methods (cash, card, etc.): creates a pending record for admin to confirm.
+ */
+export async function submitSelfPayment(params: {
+  paymentMethod: string
+  receiptUrl?: string
+  concept?: string
+}) {
+  const { userId } = await auth()
+  if (!userId) throw new Error('No autorizado')
+
+  const clubId = await getClubId()
+  const supabase = createAdminClient()
+
+  const clerk = await clerkClient()
+  const user = await clerk.users.getUser(userId)
+  const email = user.emailAddresses[0]?.emailAddress ?? null
+  if (!email) throw new Error('No se encontró un email asociado a tu cuenta')
+
+  // Get athlete
+  const { data: athlete } = await supabase
+    .from('athletes')
+    .select('id')
+    .eq('club_id', clubId)
+    .eq('email', email)
+    .maybeSingle()
+
+  if (!athlete) throw new Error('No se encontró tu perfil de atleta')
+
+  // Get active subscription + plan (including billing anchor day for period calc)
+  const { data: subscription } = await supabase
+    .from('subscriptions')
+    .select('id, plan_id, billing_anchor_day, plans(id, name, price, billing_cycle)')
+    .eq('club_id', clubId)
+    .eq('athlete_id', athlete.id)
+    .eq('status', 'active')
+    .maybeSingle()
+
+  if (!subscription) throw new Error('No se encontró una suscripción activa. Contacta al club.')
+
+  const plansData = subscription.plans as unknown
+  const plan = Array.isArray(plansData)
+    ? plansData[0]
+    : (plansData as { id: string; name: string; price: number; billing_cycle: string } | null)
+
+  if (!plan) throw new Error('No se encontró el plan asociado a tu suscripción')
+
+  const today = new Date()
+  const todayStr = today.toISOString().split('T')[0]
+  const cycle = plan.billing_cycle as BillingCycle
+
+  // Determine the billing period this payment covers
+  const anchorDay = subscription.billing_anchor_day ?? getBillingAnchorDay(today)
+  const { periodStart, periodEnd } = calculatePeriodStartForPayment(anchorDay, today, cycle)
+  const periodStartStr = periodStart.toISOString().split('T')[0]
+  const periodEndStr = periodEnd ? periodEnd.toISOString().split('T')[0] : null
+
+  const month = periodStart.toLocaleDateString('es-CL', { month: 'long', year: 'numeric' })
+  const concept = params.concept || `${plan.name} – ${month}`
+
+  const notes = params.receiptUrl ? `Comprobante: ${params.receiptUrl}` : null
+
+  const { error } = await supabase
+    .from('payments')
+    .insert({
+      club_id: clubId,
+      athlete_id: athlete.id,
+      plan_id: plan.id,
+      subscription_id: subscription.id,
+      concept,
+      amount: plan.price,
+      status: 'pending',
+      due_date: todayStr,
+      payment_method: params.paymentMethod,
+      notes,
+      period_start: periodStartStr,
+      period_end: periodEndStr,
+    })
+
+  if (error) throw new Error('Error al registrar el pago: ' + error.message)
+
+  revalidatePath('/dashboard/athlete/payments')
+  revalidatePath('/dashboard/payments')
+
+  return { success: true, isTransfer: params.paymentMethod === 'transfer' }
 }
