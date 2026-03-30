@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import {
   Building2, Users, TrendingUp, DollarSign,
-  CheckCircle2, XCircle, CreditCard,
+  CheckCircle2, XCircle, CreditCard, Calendar,
 } from "lucide-react"
 
 const STATUS_BADGE: Record<string, { label: string; color: string }> = {
@@ -35,74 +35,108 @@ export default async function SuperAdminDashboard() {
     new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 }).format(n)
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold">Panel de Control · Super Admin</h1>
-        <p className="text-muted-foreground text-sm mt-0.5">
-          Vista global de todos los clubes y facturación SaaS de ApexLeap
-        </p>
+    <div className="space-y-4 pb-12 pt-1">
+      {/* ── GREETING ── */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-4xl sm:text-5xl font-black leading-[1.1] tracking-tighter">
+            Super <span className="text-primary">Admin.</span>
+          </h1>
+          <p className="text-[15px] text-muted-foreground/70 font-normal mt-2 leading-relaxed">
+            {kpis.total_clubs > 0
+              ? `${kpis.total_clubs} clubes · ${kpis.active_clubs} activos · ${kpis.total_athletes.toLocaleString("es-CL")} atletas`
+              : 'Vista global de todos los clubes y facturación SaaS.'}
+          </p>
+        </div>
+        <div className="hidden sm:flex items-center gap-2.5 text-[11px] font-bold uppercase tracking-[0.15em] text-muted-foreground/80 shrink-0 border border-border/40 rounded-xl px-4 py-3 bg-card/40">
+          <Calendar className="w-4 h-4" />
+          <span>{new Date().toLocaleDateString("es-CL", { weekday: "short", day: "numeric", month: "short" })}</span>
+        </div>
       </div>
 
-      {/* KPI Grid */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {[
-          {
-            label: "Clubes Totales",
-            value: kpis.total_clubs,
-            sub: `${kpis.active_clubs} activos · ${kpis.inactive_clubs} inactivos`,
-            icon: Building2,
-            color: "text-blue-500",
-          },
-          {
-            label: "Atletas Activos",
-            value: kpis.total_athletes.toLocaleString("es-CL"),
-            sub: "en todos los clubes",
-            icon: Users,
-            color: "text-violet-500",
-          },
-          {
-            label: "MRR Estimado",
-            value: fmt(kpis.mrr),
-            sub: "facturación mensual recurrente",
-            icon: TrendingUp,
-            color: "text-green-500",
-          },
-          {
-            label: "Cobrado Este Mes",
-            value: fmt(kpis.revenue_this_month),
-            sub: `${kpis.new_clubs_this_month} club${kpis.new_clubs_this_month !== 1 ? "s" : ""} nuevo${kpis.new_clubs_this_month !== 1 ? "s" : ""}`,
-            icon: DollarSign,
-            color: "text-emerald-500",
-          },
-        ].map((kpi) => (
-          <Card key={kpi.label}>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">{kpi.label}</CardTitle>
-              <kpi.icon className={`w-4 h-4 ${kpi.color}`} />
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold">{kpi.value}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">{kpi.sub}</p>
-            </CardContent>
-          </Card>
-        ))}
+      {/* ── KPI ROW ── */}
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-[1fr_1fr_1fr_1fr_1.6fr] gap-3">
+
+        <Link href="/super-admin/clubs" className="block">
+          <div className="rounded-2xl bg-card p-5 hover:bg-muted/40 dark:hover:bg-white/[0.04] transition-colors h-full">
+            <div className="flex items-center gap-2.5 mb-5">
+              <Building2 className="w-5 h-5 text-muted-foreground/50" />
+              <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70">Clubes</p>
+            </div>
+            <p className="text-4xl font-black tracking-tight text-primary leading-none">{kpis.total_clubs}</p>
+            <p className="text-[13px] text-muted-foreground/50 mt-2 font-normal">{kpis.active_clubs} activos · {kpis.inactive_clubs} inactivos</p>
+          </div>
+        </Link>
+
+        <div className="rounded-2xl bg-card p-5 h-full">
+          <div className="flex items-center gap-2.5 mb-5">
+            <Users className="w-5 h-5 text-muted-foreground/50" />
+            <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70">Atletas</p>
+          </div>
+          <p className="text-4xl font-black tracking-tight text-primary leading-none">{kpis.total_athletes.toLocaleString("es-CL")}</p>
+          <p className="text-[13px] text-muted-foreground/50 mt-2 font-normal">en todos los clubes</p>
+        </div>
+
+        <Link href="/super-admin/billing" className="block">
+          <div className="rounded-2xl bg-card p-5 hover:bg-muted/40 dark:hover:bg-white/[0.04] transition-colors h-full">
+            <div className="flex items-center gap-2.5 mb-5">
+              <TrendingUp className="w-5 h-5 text-muted-foreground/50" />
+              <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70">MRR</p>
+            </div>
+            <p className="text-4xl font-black tracking-tight text-primary leading-none">{fmt(kpis.mrr)}</p>
+            <p className="text-[13px] text-muted-foreground/50 mt-2 font-normal">mensual recurrente</p>
+          </div>
+        </Link>
+
+        <Link href="/super-admin/billing" className="block">
+          <div className="rounded-2xl bg-card p-5 hover:bg-muted/40 dark:hover:bg-white/[0.04] transition-colors h-full">
+            <div className="flex items-center gap-2.5 mb-5">
+              <DollarSign className="w-5 h-5 text-muted-foreground/50" />
+              <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70">Cobrado</p>
+            </div>
+            <p className="text-4xl font-black tracking-tight text-primary leading-none">{fmt(kpis.revenue_this_month)}</p>
+            <p className="text-[13px] text-muted-foreground/50 mt-2 font-normal">este mes</p>
+          </div>
+        </Link>
+
+        {/* Featured: Nuevos clubes este mes */}
+        <div className="rounded-2xl bg-card p-5 h-full flex flex-col col-span-2 md:col-span-2 lg:col-span-1">
+          <div className="flex items-start justify-between mb-3">
+            <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70">Nuevos Este Mes</p>
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+              <Building2 className="w-5 h-5 text-primary" />
+            </div>
+          </div>
+          <p className="text-3xl lg:text-4xl font-black leading-none text-foreground tracking-tight">
+            {kpis.new_clubs_this_month}
+          </p>
+          <p className="text-[13px] text-muted-foreground/50 mt-1.5 font-normal">
+            club{kpis.new_clubs_this_month !== 1 ? "s" : ""} nuevo{kpis.new_clubs_this_month !== 1 ? "s" : ""}
+          </p>
+          {Object.keys(kpis.saas_breakdown).length > 0 && (
+            <div className="mt-auto pt-3 flex flex-wrap gap-x-3 gap-y-1">
+              {Object.entries(kpis.saas_breakdown).filter(([,v]) => v > 0).map(([status, count]) => (
+                <span key={status} className="text-[11px] text-muted-foreground/70 font-medium">
+                  {count} {status}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* SaaS Status breakdown */}
-      <div className="grid gap-4 sm:grid-cols-4">
+      <div className="grid gap-3 grid-cols-3 sm:grid-cols-5">
         {Object.entries(STATUS_BADGE).map(([status, meta]) => {
           const count = kpis.saas_breakdown[status] ?? 0
           return (
-            <Card key={status} className="text-center py-3">
-              <CardContent className="pt-0 pb-0 flex flex-col items-center gap-1">
-                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${meta.color}`}>
-                  {meta.label}
-                </span>
-                <p className="text-2xl font-bold">{count}</p>
-                <p className="text-xs text-muted-foreground">club{count !== 1 ? "s" : ""}</p>
-              </CardContent>
-            </Card>
+            <div key={status} className="rounded-2xl bg-card p-4 flex flex-col items-center gap-1 text-center">
+              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${meta.color}`}>
+                {meta.label}
+              </span>
+              <p className="text-3xl font-black tracking-tight text-foreground leading-none mt-1">{count}</p>
+              <p className="text-[11px] text-muted-foreground/50 font-normal">club{count !== 1 ? "s" : ""}</p>
+            </div>
           )
         })}
       </div>
@@ -110,7 +144,7 @@ export default async function SuperAdminDashboard() {
       {/* All Clubs list */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <h2 className="font-semibold text-lg">Todos los Clubes</h2>
+          <h2 className="text-xl font-black tracking-tight">Todos los Clubes</h2>
           <Link href="/super-admin/clubs" className="text-sm text-primary hover:underline">
             Ver gestión completa →
           </Link>

@@ -5,6 +5,12 @@ import { getSchedules } from "@/lib/actions/schedules"
 import { getClubInfo } from "@/lib/actions/club-context"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import {
+  DashboardEmptyState,
+  DashboardMetricCard,
+  DashboardPage,
+  DashboardPageHeader,
+} from "@/components/ui/dashboard-kit"
 import { MapPin, Navigation, Users, Home, Clock } from "lucide-react"
 import { NewVenueForm } from "@/components/venues/NewVenueForm"
 import { VenueToggleButton } from "@/components/venues/VenueToggleButton"
@@ -32,13 +38,25 @@ export default async function VenuesPage() {
 
   const active = venues.filter((v) => v.is_active).length
   const maxCapVenue = venues.filter((v) => v.is_active && v.capacity).reduce<typeof venues[number] | null>((best, v) => (!best || (v.capacity ?? 0) > (best.capacity ?? 0) ? v : best), null)
+  const totalCapacity = venues.filter((v) => v.is_active && v.capacity).reduce((sum, v) => sum + (v.capacity ?? 0), 0)
+  const totalSessions = Object.values(sessionsByVenue).reduce((sum, count) => sum + count, 0)
+  const capacityEnabledVenues = venues.filter((v) => v.is_active && v.capacity && v.capacity > 0)
+  const avgUtilization = capacityEnabledVenues.length > 0
+    ? Math.round(capacityEnabledVenues
+      .map((v) => {
+        const sessions = sessionsByVenue[v.id] ?? 0
+        const maxPossible = v.capacity! * 7
+        return sessions > 0 ? Math.min(Math.round((sessions / maxPossible) * 100), 100) : 0
+      })
+      .reduce((sum, pct) => sum + pct, 0) / capacityEnabledVenues.length)
+    : 0
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-3xl font-bold">Sedes</h1>
-          <p className="text-muted-foreground">
+    <DashboardPage>
+      <DashboardPageHeader
+        title="Sedes"
+        subtitle={
+          <>
             {active} sede{active !== 1 ? "s" : ""} activa{active !== 1 ? "s" : ""}
             {(() => {
               const totalCap = venues.filter((v) => v.is_active && v.capacity).reduce((sum, v) => sum + (v.capacity ?? 0), 0)
@@ -62,26 +80,58 @@ export default async function VenuesPage() {
               const color = avgUtil >= 70 ? 'text-green-600' : avgUtil >= 40 ? 'text-yellow-600' : 'text-muted-foreground/70'
               return <span className={`ml-2 ${color}`}>· utilización ~{avgUtil}%</span>
             })()}
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <ExportVenuesButton venues={venues.map((v) => ({ ...v, activeSessions: sessionsByVenue[v.id] ?? 0 }))} />
-          <NewVenueForm />
-        </div>
+          </>
+        }
+        actions={
+          <>
+            <ExportVenuesButton venues={venues.map((v) => ({ ...v, activeSessions: sessionsByVenue[v.id] ?? 0 }))} />
+            <NewVenueForm />
+          </>
+        }
+      />
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <DashboardMetricCard
+          label="Sedes activas"
+          value={active}
+          description="Infraestructura operativa"
+          icon={<Home className="w-4 h-4" />}
+          tone="default"
+          valueClassName="text-3xl"
+        />
+        <DashboardMetricCard
+          label="Aforo total"
+          value={totalCapacity > 0 ? totalCapacity.toLocaleString("es-CL") : "—"}
+          description="Capacidad combinada"
+          icon={<Users className="w-4 h-4" />}
+          tone="info"
+          valueClassName="text-3xl"
+        />
+        <DashboardMetricCard
+          label="Sesiones activas"
+          value={totalSessions}
+          description="Uso del calendario"
+          icon={<Clock className="w-4 h-4" />}
+          tone="success"
+          valueClassName="text-3xl"
+        />
+        <DashboardMetricCard
+          label="Utilización"
+          value={capacityEnabledVenues.length > 0 ? `${avgUtilization}%` : "—"}
+          description="Promedio estimado"
+          icon={<Navigation className="w-4 h-4" />}
+          tone={avgUtilization >= 70 ? "success" : avgUtilization >= 40 ? "warning" : "default"}
+          valueClassName="text-3xl"
+        />
       </div>
 
       {venues.length === 0 ? (
-        <Card>
-          <CardContent className="py-20 text-center">
-            <MapPin className="w-14 h-14 mx-auto mb-3 text-muted-foreground opacity-40" />
-            <h3 className="font-semibold text-lg mb-1">Sin sedes configuradas</h3>
-            <p className="text-muted-foreground text-sm max-w-md mx-auto mb-4">
-              Agrega las instalaciones de tu club. Configura las coordenadas GPS para
-              activar el geofencing del check-in QR.
-            </p>
-            <NewVenueForm />
-          </CardContent>
-        </Card>
+        <DashboardEmptyState
+          icon={<MapPin className="w-8 h-8" />}
+          title="Sin sedes configuradas"
+          description="Agrega las instalaciones de tu club. Configura las coordenadas GPS para activar el geofencing del check-in QR."
+          action={<NewVenueForm />}
+        />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {venues.map((venue) => (
@@ -174,6 +224,6 @@ export default async function VenuesPage() {
           ))}
         </div>
       )}
-    </div>
+    </DashboardPage>
   )
 }

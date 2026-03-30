@@ -4,8 +4,7 @@ import { redirect } from "next/navigation"
 import { checkUserHasClub } from "@/lib/actions/onboarding"
 import { getMyStats } from "@/lib/actions/athlete-enrollment"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { BarChart3, Trophy, Calendar, Zap, Target, TrendingUp } from "lucide-react"
+import { Activity, Trophy, CalendarDays, TrendingUp, BarChart3, Target } from "lucide-react"
 
 const STAT_ICONS: Record<string, string> = {
   goles: "⚽", goals: "⚽", puntos: "🏀", points: "🏀",
@@ -37,21 +36,23 @@ export default async function AthleteStatsPage() {
   const topStat = statKeys[0]
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
+    <div className="space-y-8 pb-12 pt-1">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold flex items-center gap-2">
-          <BarChart3 className="w-8 h-8" /> Mis Estadísticas
+        <h1 className="text-4xl md:text-5xl font-black tracking-tighter uppercase leading-none text-foreground flex items-center gap-3">
+          <Activity className="w-10 h-10 text-primary" /> Rendimiento
         </h1>
-        <p className="text-muted-foreground">Rendimiento personal acumulado en todas las competencias</p>
+        <p className="text-sm md:text-base text-muted-foreground/80 mt-3 max-w-xl font-medium">
+          Métricas de desempeño técnico y físico asignadas por el cuerpo técnico.
+        </p>
       </div>
 
       {matchCount === 0 || statKeys.length === 0 ? (
-        <Card className="border-dashed">
+        <Card className="rounded-2xl border-dashed border-white/[0.05] bg-muted/5">
           <CardContent className="py-16 text-center">
-            <BarChart3 className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-40" />
+            <BarChart3 className="w-12 h-12 mx-auto mb-3 text-muted-foreground/30" />
             <h3 className="font-semibold text-lg mb-1">Sin estadísticas registradas</h3>
-            <p className="text-muted-foreground text-sm">
+            <p className="text-muted-foreground text-sm font-medium">
               Cuando el cuerpo técnico registre estadísticas en los partidos, aparecerán aquí.
             </p>
           </CardContent>
@@ -59,45 +60,34 @@ export default async function AthleteStatsPage() {
       ) : (
         <>
           {/* Summary KPIs */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            <Card className="overflow-hidden">
-              <div className="h-1 bg-gradient-to-r from-blue-500 to-cyan-400" />
-              <CardContent className="py-4 text-center">
-                <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center mx-auto mb-2">
-                  <Zap className="w-5 h-5 text-blue-600" />
-                </div>
-                <div className="text-2xl font-bold text-blue-600">{matchCount}</div>
-                <p className="text-[11px] text-muted-foreground mt-0.5">Partidos con stats</p>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <Card className="rounded-2xl border border-white/[0.04] bg-card shadow-sm hover:border-primary/20 transition-colors">
+              <CardContent className="py-6 flex flex-col items-center justify-center text-center h-full">
+                <div className="text-4xl font-black text-primary drop-shadow-[0_0_8px_rgba(var(--primary),0.3)]">{matchCount}</div>
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-2">Partidos Computados</p>
               </CardContent>
             </Card>
 
             {topStat && (
-              <Card className="overflow-hidden">
-                <div className="h-1 bg-gradient-to-r from-green-500 to-emerald-400" />
-                <CardContent className="py-4 text-center">
-                  <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center mx-auto mb-2">
-                    <Target className="w-5 h-5 text-green-600" />
-                  </div>
-                  <div className="text-2xl font-bold text-green-600">{totals[topStat]}</div>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">
-                    {STAT_ICONS[topStat.toLowerCase()] ?? "📊"} {statLabel(topStat)} (total)
+              <Card className="rounded-2xl border border-white/[0.04] bg-card shadow-sm hover:border-primary/20 transition-colors">
+                <CardContent className="py-6 flex flex-col items-center justify-center text-center h-full relative overflow-hidden">
+                  <div className="absolute top-0 w-full h-1 bg-gradient-to-r from-primary/50 to-primary/10" />
+                  <div className="text-4xl font-black text-foreground">{totals[topStat]}</div>
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-2 flex items-center gap-1">
+                    {STAT_ICONS[topStat.toLowerCase()] ?? "🎯"} {statLabel(topStat)} Totales
                   </p>
                 </CardContent>
               </Card>
             )}
 
             {topStat && matchCount > 0 && (
-              <Card className="overflow-hidden">
-                <div className="h-1 bg-gradient-to-r from-amber-400 to-orange-500" />
-                <CardContent className="py-4 text-center">
-                  <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center mx-auto mb-2">
-                    <TrendingUp className="w-5 h-5 text-amber-600" />
-                  </div>
-                  <div className="text-2xl font-bold text-amber-600">
+              <Card className="rounded-2xl border border-white/[0.04] bg-card shadow-sm hover:border-primary/20 transition-colors">
+                <CardContent className="py-6 flex flex-col items-center justify-center text-center h-full">
+                  <div className="text-4xl font-black text-amber-500 drop-shadow-[0_0_8px_rgba(245,158,11,0.3)]">
                     {(totals[topStat] / matchCount).toFixed(1)}
                   </div>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">
-                    {statLabel(topStat)} por partido
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-2 flex items-center gap-1">
+                    {statLabel(topStat)} / Partido <TrendingUp className="w-3 h-3 text-amber-500" />
                   </p>
                 </CardContent>
               </Card>
@@ -105,28 +95,28 @@ export default async function AthleteStatsPage() {
           </div>
 
           {/* All-time totals */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Trophy className="w-4 h-4 text-amber-500" />
-                Totales Acumulados
+          <Card className="rounded-2xl border border-white/[0.04] shadow-sm overflow-hidden">
+            <CardHeader className="pb-4 border-b border-border/30 bg-muted/10 px-6 pt-6">
+              <CardTitle className="text-lg font-black tracking-tight uppercase flex items-center gap-2">
+                <Trophy className="w-5 h-5 text-primary" /> Totales Acumulados
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            <CardContent className="p-6">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
                 {statKeys.map((key) => {
                   const icon = STAT_ICONS[key.toLowerCase()] ?? "📊"
                   const avg = matchCount > 0 ? (totals[key] / matchCount).toFixed(1) : "0"
                   const maxInMatch = Math.max(...byMatch.map((m) => m.stats[key] ?? 0))
 
                   return (
-                    <div key={key} className="rounded-xl border p-3 text-center hover:shadow-sm transition-shadow">
-                      <span className="text-2xl">{icon}</span>
-                      <p className="text-2xl font-bold mt-1">{totals[key]}</p>
-                      <p className="text-xs font-medium text-muted-foreground">{statLabel(key)}</p>
-                      <div className="flex items-center justify-center gap-3 mt-2 text-[10px] text-muted-foreground">
-                        <span>Prom: <strong>{avg}</strong></span>
-                        <span>Máx: <strong>{maxInMatch}</strong></span>
+                    <div key={key} className="rounded-xl border border-white/[0.04] bg-muted/5 p-4 text-center hover:bg-muted/20 transition-colors hover:border-primary/20 group">
+                      <span className="text-3xl drop-shadow-sm group-hover:scale-110 transition-transform inline-block">{icon}</span>
+                      <p className="text-2xl font-black mt-2 tracking-tight text-foreground">{totals[key]}</p>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1">{statLabel(key)}</p>
+                      <div className="flex items-center justify-center gap-3 mt-3 text-[10px] text-muted-foreground/60 p-2 bg-background/50 rounded flex-wrap">
+                        <span className="font-medium whitespace-nowrap">Prom: <span className="text-primary font-bold ml-1">{avg}</span></span>
+                        <span className="w-1 h-1 rounded-full bg-muted-foreground/30"></span>
+                        <span className="font-medium whitespace-nowrap">Máx: <span className="text-foreground font-bold ml-1">{maxInMatch}</span></span>
                       </div>
                     </div>
                   )
@@ -137,50 +127,47 @@ export default async function AthleteStatsPage() {
 
           {/* Per-match breakdown */}
           {byMatch.length > 0 && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Calendar className="w-4 h-4" />
-                  Detalle por Partido
+            <Card className="rounded-2xl border border-white/[0.04] shadow-sm overflow-hidden">
+              <CardHeader className="pb-4 border-b border-border/30 bg-muted/10 px-6 pt-6">
+                <CardTitle className="text-lg font-black tracking-tight uppercase flex items-center gap-2">
+                  <CalendarDays className="w-5 h-5 text-primary" /> Detalle por Partido
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-border">
-                        <th className="text-left px-3 py-2.5 font-medium text-muted-foreground text-xs">Fecha</th>
-                        <th className="text-left px-3 py-2.5 font-medium text-muted-foreground text-xs">Rival</th>
-                        <th className="text-left px-3 py-2.5 font-medium text-muted-foreground text-xs">Competencia</th>
+              <CardContent className="p-0 overflow-x-auto">
+                <table className="w-full text-sm text-left whitespace-nowrap">
+                  <thead className="bg-muted/5 text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 border-b border-border/30">
+                    <tr>
+                      <th className="px-6 py-4">Fecha</th>
+                      <th className="px-6 py-4">Rival</th>
+                      <th className="px-6 py-4">Competencia</th>
+                      {statKeys.map((k) => (
+                        <th key={k} className="px-4 py-4 text-center">
+                          {STAT_ICONS[k.toLowerCase()] ?? ""} {statLabel(k)}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/20">
+                    {byMatch.map((m, i) => (
+                      <tr key={i} className="hover:bg-muted/5 transition-colors">
+                        <td className="px-6 py-4 font-medium text-foreground text-xs uppercase tracking-wider">
+                          {m.match_date ? new Date(m.match_date + "T12:00:00").toLocaleDateString("es-CL", { day: "numeric", month: "short" }) : "—"}
+                        </td>
+                        <td className="px-6 py-4 text-sm font-bold tracking-tight text-foreground">{m.opponent}</td>
+                        <td className="px-6 py-4 text-xs font-semibold text-muted-foreground/80">{m.competition || "—"}</td>
                         {statKeys.map((k) => (
-                          <th key={k} className="text-center px-2 py-2.5 font-medium text-muted-foreground text-xs">
-                            {STAT_ICONS[k.toLowerCase()] ?? ""} {statLabel(k)}
-                          </th>
+                          <td key={k} className="px-4 py-4 text-center">
+                            {m.stats[k] ? (
+                              <span className="font-mono font-bold text-primary text-sm bg-primary/10 px-2 py-0.5 rounded">{m.stats[k]}</span>
+                            ) : (
+                              <span className="text-muted-foreground/30">—</span>
+                            )}
+                          </td>
                         ))}
                       </tr>
-                    </thead>
-                    <tbody>
-                      {byMatch.map((m, i) => (
-                        <tr key={i} className={`border-b border-border/50 ${i % 2 !== 0 ? "bg-muted/20" : ""}`}>
-                          <td className="px-3 py-2 text-xs whitespace-nowrap">
-                            {m.match_date ? new Date(m.match_date + "T12:00:00").toLocaleDateString("es-CL", { day: "numeric", month: "short" }) : "—"}
-                          </td>
-                          <td className="px-3 py-2 font-medium text-xs">{m.opponent}</td>
-                          <td className="px-3 py-2 text-xs text-muted-foreground">{m.competition || "—"}</td>
-                          {statKeys.map((k) => (
-                            <td key={k} className="text-center px-2 py-2 text-sm">
-                              {m.stats[k] ? (
-                                <span className="font-semibold">{m.stats[k]}</span>
-                              ) : (
-                                <span className="text-muted-foreground">—</span>
-                              )}
-                            </td>
-                          ))}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                    ))}
+                  </tbody>
+                </table>
               </CardContent>
             </Card>
           )}

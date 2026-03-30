@@ -5,7 +5,13 @@ import { getDocuments } from "@/lib/actions/documents"
 import { getAthletes } from "@/lib/actions/athletes"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { FolderOpen, AlertTriangle, ExternalLink } from "lucide-react"
+import {
+  DashboardEmptyState,
+  DashboardMetricCard,
+  DashboardPage,
+  DashboardPageHeader,
+} from "@/components/ui/dashboard-kit"
+import { FolderOpen, AlertTriangle, ExternalLink, Users } from "lucide-react"
 import { NewDocumentForm } from "@/components/documents/NewDocumentForm"
 import { DeleteDocumentButton } from "@/components/documents/DeleteDocumentButton"
 import { EditDocumentButton } from "@/components/documents/EditDocumentButton"
@@ -48,7 +54,7 @@ export default async function DocumentsPage({ searchParams }: PageProps) {
       getDocuments({ category, status, search: search || undefined }),
       getAthletes({ limit: 200 }),
     ])
-      docs = d
+    docs = d
     athleteList = a.athletes.map((x) => ({ id: x.id, name: x.name }))
   } catch { /* empty */ }
 
@@ -58,63 +64,98 @@ export default async function DocumentsPage({ searchParams }: PageProps) {
   }
 
   const today = new Date().toISOString().split('T')[0]
+  const expiringThreshold = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
   const expiringSoon = docs.filter((d) => d.expiry_date && d.expiry_date > today &&
-    new Date(d.expiry_date) < new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)).length
+    new Date(d.expiry_date) < expiringThreshold).length
   const expired = docs.filter((d) => d.status === 'expired' || (d.expiry_date && d.expiry_date < today)).length
 
   const counts = docs.reduce<Record<string, number>>((acc, d) => {
     acc[d.category] = (acc[d.category] ?? 0) + 1
     return acc
   }, {})
+  const uniqueAthletesCount = new Set(docs.map((d) => (d.athletes as { id: string } | null)?.id).filter(Boolean)).size
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-3xl font-bold">Documentos</h1>
-          <p className="text-muted-foreground">
+    <DashboardPage>
+      <DashboardPageHeader
+        title="Documentos"
+        subtitle={
+          <>
             {docs.length} documento{docs.length !== 1 ? "s" : ""} registrado{docs.length !== 1 ? "s" : ""}
-            {(() => {
-              const uniqueAthletes = new Set(docs.map((d) => (d.athletes as { id: string } | null)?.id).filter(Boolean)).size
-              return uniqueAthletes > 0 ? (
-                <span className="ml-2 font-medium text-primary">· {uniqueAthletes} atleta{uniqueAthletes !== 1 ? 's' : ''} con documentos</span>
-              ) : null
-            })()}
+            {uniqueAthletesCount > 0 && <span className="ml-2 font-medium text-primary">· {uniqueAthletesCount} atleta{uniqueAthletesCount !== 1 ? 's' : ''} con documentos</span>}
             {expired > 0 && <span className="ml-2 text-red-600 font-medium">· {expired} vencido{expired !== 1 ? 's' : ''}</span>}
             {expiringSoon > 0 && <span className="ml-2 text-yellow-600 font-medium">· {expiringSoon} vence{expiringSoon !== 1 ? 'n' : ''} en 30 días</span>}
-          </p>
-        </div>
-        <div className="flex gap-2 flex-wrap">
-        <ExportDocumentsButton
-          docs={docs.map((d) => ({ ...d, athletes: d.athletes as { name: string } | null }))}
-          filename={`documentos${category ? `-${category}` : ''}${status ? `-${status}` : ''}`}
+          </>
+        }
+        icon={<FolderOpen className="w-10 h-10" />}
+        actions={
+          <div className="flex gap-2 flex-wrap">
+            <ExportDocumentsButton
+              docs={docs.map((d) => ({ ...d, athletes: d.athletes as { name: string } | null }))}
+              filename={`documentos${category ? `-${category}` : ''}${status ? `-${status}` : ''}`}
+            />
+            <NewDocumentForm athletes={athleteList} />
+          </div>
+        }
+      />
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <DashboardMetricCard
+          label="Total"
+          value={docs.length}
+          description="Documentos visibles"
+          icon={<FolderOpen className="w-4 h-4" />}
+          tone="default"
+          valueClassName="text-3xl"
         />
-        <NewDocumentForm athletes={athleteList} />
-      </div>
+        <DashboardMetricCard
+          label="Atletas con docs"
+          value={uniqueAthletesCount}
+          description="Cobertura documental"
+          icon={<Users className="w-4 h-4" />}
+          tone="info"
+          valueClassName="text-3xl"
+        />
+        <DashboardMetricCard
+          label="Vencidos"
+          value={expired}
+          description="Requieren acción"
+          icon={<AlertTriangle className="w-4 h-4" />}
+          tone={expired > 0 ? "danger" : "success"}
+          valueClassName="text-3xl"
+        />
+        <DashboardMetricCard
+          label="Próximos a vencer"
+          value={expiringSoon}
+          description="Ventana 30 días"
+          icon={<AlertTriangle className="w-4 h-4" />}
+          tone={expiringSoon > 0 ? "warning" : "default"}
+          valueClassName="text-3xl"
+        />
       </div>
 
       {expiringSoon > 0 && (
         <DismissibleAlert dismissKey={`docs-expiring-${expiringSoon}`}>
-        <Card>
-          <CardHeader className="pb-0 pt-4 px-5">
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
-              <CardTitle className="text-sm font-semibold">Alertas de documentos</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent className="px-5 pt-1 pb-2">
-            <div className="py-3 flex items-center gap-3">
-              <div className="w-0.5 h-10 rounded-full bg-amber-400 shrink-0" />
-              <div className="flex-1">
-                <p className="text-sm font-medium">
-                  {expiringSoon} documento{expiringSoon > 1 ? "s" : ""} vence{expiringSoon === 1 ? "" : "n"} en los próximos 30 días
-                </p>
-                <p className="text-xs text-muted-foreground">Revisar y renovar antes del vencimiento</p>
+          <Card>
+            <CardHeader className="pb-0 pt-4 px-5">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
+                <CardTitle className="text-sm font-semibold">Alertas de documentos</CardTitle>
               </div>
-              <Link href="/dashboard/documents?expiring=30" className="text-xs text-primary hover:underline shrink-0">Ver →</Link>
-            </div>
-          </CardContent>
-        </Card>
+            </CardHeader>
+            <CardContent className="px-5 pt-1 pb-2">
+              <div className="py-3 flex items-center gap-3">
+                <div className="w-0.5 h-10 rounded-full bg-amber-400 shrink-0" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium">
+                    {expiringSoon} documento{expiringSoon > 1 ? "s" : ""} vence{expiringSoon === 1 ? "" : "n"} en los próximos 30 días
+                  </p>
+                  <p className="text-xs text-muted-foreground">Revisar y renovar antes del vencimiento</p>
+                </div>
+                <Link href="/dashboard/documents?expiring=30" className="text-xs text-primary hover:underline shrink-0">Ver →</Link>
+              </div>
+            </CardContent>
+          </Card>
         </DismissibleAlert>
       )}
 
@@ -178,16 +219,12 @@ export default async function DocumentsPage({ searchParams }: PageProps) {
       </div>
 
       {docs.length === 0 ? (
-        <Card>
-          <CardContent className="py-16 text-center">
-            <FolderOpen className="w-14 h-14 mx-auto mb-3 text-muted-foreground opacity-40" />
-            <h3 className="font-semibold text-lg mb-1">Sin documentos registrados</h3>
-            <p className="text-muted-foreground text-sm mb-4">
-              {category ? `No hay documentos en la categoría "${CATEGORY_LABELS[category]?.label ?? category}"` : "Sube el primer documento del club"}
-            </p>
-            <NewDocumentForm athletes={athleteList} />
-          </CardContent>
-        </Card>
+        <DashboardEmptyState
+          icon={<FolderOpen className="w-8 h-8" />}
+          title="Sin documentos registrados"
+          description={category ? `No hay documentos en la categoría "${CATEGORY_LABELS[category]?.label ?? category}".` : "Sube el primer documento del club para activar el archivo central."}
+          action={<NewDocumentForm athletes={athleteList} />}
+        />
       ) : (
         <div className="space-y-2">
           {docs.map((doc) => {
@@ -250,6 +287,6 @@ export default async function DocumentsPage({ searchParams }: PageProps) {
           })}
         </div>
       )}
-    </div>
+    </DashboardPage>
   )
 }

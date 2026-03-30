@@ -1,8 +1,14 @@
 export const dynamic = "force-dynamic"
 
 import { getRules, getRuleAffectedCounts, getRuleLastTriggerDates } from "@/lib/actions/rules"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import {
+  DashboardEmptyState,
+  DashboardMetricCard,
+  DashboardPage,
+  DashboardPageHeader,
+} from "@/components/ui/dashboard-kit"
 import { ShieldCheck, ShieldAlert, ShieldOff } from "lucide-react"
 import Link from "next/link"
 import { ToggleRuleButton } from "@/components/rules/ToggleRuleButton"
@@ -77,22 +83,61 @@ export default async function RulesPage({ searchParams }: PageProps) {
     acc[r.type].push(r)
     return acc
   }, {})
+  const totalAffected = Object.values(affected).reduce((sum, count) => sum + count, 0)
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-3xl font-bold">Reglas</h1>
-          <p className="text-muted-foreground">
+    <DashboardPage>
+      <DashboardPageHeader
+        title="Reglas"
+        subtitle={
+          <>
             Motor de bloqueos automáticos del club
             {active > 0 && <span className="ml-2 text-green-600 font-medium">· {active} activa{active !== 1 ? 's' : ''}</span>}
             {inactive > 0 && <span className="ml-2 text-muted-foreground/60">· {inactive} inactiva{inactive !== 1 ? 's' : ''}</span>}
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <ExportRulesButton rules={rules.map((r) => ({ ...r, condition: r.condition as Record<string, unknown> }))} affected={affected} lastTrigger={lastTrigger} />
-          <NewRuleForm />
-        </div>
+          </>
+        }
+        icon={<ShieldCheck className="w-10 h-10" />}
+        actions={
+          <div className="flex gap-2">
+            <ExportRulesButton rules={rules.map((r) => ({ ...r, condition: r.condition as Record<string, unknown> }))} affected={affected} lastTrigger={lastTrigger} />
+            <NewRuleForm />
+          </div>
+        }
+      />
+
+      <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-4">
+        <DashboardMetricCard
+          label="Reglas activas"
+          value={active}
+          description="Aplicándose hoy"
+          icon={<ShieldCheck className="w-4 h-4" />}
+          tone="success"
+          valueClassName="text-3xl"
+        />
+        <DashboardMetricCard
+          label="Reglas inactivas"
+          value={inactive}
+          description="Disponibles pero apagadas"
+          icon={<ShieldOff className="w-4 h-4" />}
+          tone="default"
+          valueClassName="text-3xl"
+        />
+        <DashboardMetricCard
+          label="Configuradas"
+          value={rules.length}
+          description="Total por club"
+          icon={<ShieldAlert className="w-4 h-4" />}
+          tone="info"
+          valueClassName="text-3xl"
+        />
+        <DashboardMetricCard
+          label="Afectados"
+          value={totalAffected}
+          description="Impacto agregado"
+          icon={<ShieldAlert className="w-4 h-4" />}
+          tone={totalAffected > 0 ? "warning" : "default"}
+          valueClassName="text-3xl"
+        />
       </div>
 
       {/* Type filter */}
@@ -116,55 +161,17 @@ export default async function RulesPage({ searchParams }: PageProps) {
         })}
       </div>
 
-      {/* KPIs */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <ShieldCheck className="w-8 h-8 text-green-500" />
-              <div>
-                <p className="text-2xl font-bold">{active}</p>
-                <p className="text-xs text-muted-foreground">Reglas activas</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <ShieldOff className="w-8 h-8 text-muted-foreground" />
-              <div>
-                <p className="text-2xl font-bold">{inactive}</p>
-                <p className="text-xs text-muted-foreground">Reglas desactivadas</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <ShieldAlert className="w-8 h-8 text-blue-500" />
-              <div>
-                <p className="text-2xl font-bold">{rules.length}</p>
-                <p className="text-xs text-muted-foreground">Total configuradas</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
       {error ? (
         <Card>
           <CardContent className="py-12 text-center text-destructive">{error}</CardContent>
         </Card>
       ) : rules.length === 0 ? (
-        <Card>
-          <CardContent className="py-16 text-center text-muted-foreground">
-            <ShieldCheck className="w-12 h-12 mx-auto mb-2 opacity-40" />
-            <p className="font-medium">Sin reglas configuradas</p>
-            <p className="text-sm mt-1">Las reglas por defecto se crean al registrar el club</p>
-          </CardContent>
-        </Card>
+        <DashboardEmptyState
+          icon={<ShieldCheck className="w-8 h-8" />}
+          title="Sin reglas configuradas"
+          description="Las reglas base se crean al registrar el club, pero puedes personalizar bloqueos, advertencias y excepciones desde aquí."
+          action={<NewRuleForm />}
+        />
       ) : (
         <div className="space-y-6">
           {Object.entries(TYPE_CONFIG).map(([type, cfg]) => {
@@ -248,6 +255,6 @@ export default async function RulesPage({ searchParams }: PageProps) {
           })}
         </div>
       )}
-    </div>
+    </DashboardPage>
   )
 }

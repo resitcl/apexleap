@@ -5,7 +5,7 @@ import { getAllClubs, getSaasPlans } from "@/lib/actions/super-admin"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { requireSuperAdmin } from "@/lib/actions/super-admin"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { DollarSign, TrendingUp, AlertCircle, CheckCircle2 } from "lucide-react"
+import { DollarSign, TrendingUp, AlertCircle, CheckCircle2, Calendar } from "lucide-react"
 
 async function getBillingData() {
   await requireSuperAdmin()
@@ -83,33 +83,61 @@ export default async function SuperAdminBillingPage() {
   })
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Facturación SaaS</h1>
-        <p className="text-muted-foreground text-sm mt-0.5">
-          Estado de pagos, MRR y planes por club
-        </p>
+    <div className="space-y-4 pb-12 pt-1">
+      {/* ── GREETING ── */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-4xl sm:text-5xl font-black leading-[1.1] tracking-tighter">
+            Facturación <span className="text-primary">SaaS.</span>
+          </h1>
+          <p className="text-[15px] text-muted-foreground/70 font-normal mt-2 leading-relaxed">
+            Estado de pagos, MRR y planes por club
+          </p>
+        </div>
+        <div className="hidden sm:flex items-center gap-2.5 text-[11px] font-bold uppercase tracking-[0.15em] text-muted-foreground/80 shrink-0 border border-border/40 rounded-xl px-4 py-3 bg-card/40">
+          <Calendar className="w-4 h-4" />
+          <span>{new Date().toLocaleDateString("es-CL", { weekday: "short", day: "numeric", month: "short" })}</span>
+        </div>
       </div>
 
-      {/* KPIs */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {[
-          { label: "MRR Total",           value: fmt(totalMrr),        sub: "mensual recurrente estimado",          icon: TrendingUp,   color: "text-green-500" },
-          { label: "Cobrado Este Mes",     value: fmt(paidThisMonth),   sub: "pagos confirmados",                    icon: DollarSign,   color: "text-emerald-500" },
-          { label: "Por Cobrar",           value: fmt(pendingTotal),    sub: `${history.filter(h=>h.status==='pending').length} facturas pendientes`, icon: AlertCircle,  color: "text-yellow-500" },
-          { label: "Vencidos / Past Due",  value: pastDueClubs.length,  sub: "clubes con pago atrasado",             icon: AlertCircle,  color: "text-red-500" },
-        ].map((kpi) => (
-          <Card key={kpi.label}>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-xs font-medium text-muted-foreground">{kpi.label}</CardTitle>
-              <kpi.icon className={`w-4 h-4 ${kpi.color}`} />
-            </CardHeader>
-            <CardContent>
-              <p className="text-xl font-bold">{kpi.value}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">{kpi.sub}</p>
-            </CardContent>
-          </Card>
-        ))}
+      {/* ── KPI ROW ── */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+
+        <div className="rounded-2xl bg-card p-5 h-full">
+          <div className="flex items-center gap-2.5 mb-5">
+            <TrendingUp className="w-5 h-5 text-muted-foreground/50" />
+            <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70">MRR Total</p>
+          </div>
+          <p className="text-4xl font-black tracking-tight text-primary leading-none">{fmt(totalMrr)}</p>
+          <p className="text-[13px] text-muted-foreground/50 mt-2 font-normal">mensual recurrente</p>
+        </div>
+
+        <div className="rounded-2xl bg-card p-5 h-full">
+          <div className="flex items-center gap-2.5 mb-5">
+            <DollarSign className="w-5 h-5 text-muted-foreground/50" />
+            <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70">Cobrado</p>
+          </div>
+          <p className="text-4xl font-black tracking-tight text-primary leading-none">{fmt(paidThisMonth)}</p>
+          <p className="text-[13px] text-muted-foreground/50 mt-2 font-normal">pagos confirmados</p>
+        </div>
+
+        <div className="rounded-2xl bg-card p-5 h-full">
+          <div className="flex items-center gap-2.5 mb-5">
+            <AlertCircle className="w-5 h-5 text-muted-foreground/50" />
+            <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70">Por Cobrar</p>
+          </div>
+          <p className={`text-4xl font-black tracking-tight leading-none ${pendingTotal > 0 ? 'text-amber-500' : 'text-foreground'}`}>{fmt(pendingTotal)}</p>
+          <p className="text-[13px] text-muted-foreground/50 mt-2 font-normal">{history.filter(h=>h.status==='pending').length} facturas pendientes</p>
+        </div>
+
+        <div className="rounded-2xl bg-card p-5 h-full">
+          <div className="flex items-center gap-2.5 mb-5">
+            <AlertCircle className="w-5 h-5 text-muted-foreground/50" />
+            <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70">Past Due</p>
+          </div>
+          <p className={`text-4xl font-black tracking-tight leading-none ${pastDueClubs.length > 0 ? 'text-red-500' : 'text-foreground'}`}>{pastDueClubs.length}</p>
+          <p className="text-[13px] text-muted-foreground/50 mt-2 font-normal">clubes con pago atrasado</p>
+        </div>
       </div>
 
       {/* MRR by plan */}

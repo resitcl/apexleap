@@ -68,7 +68,25 @@ export default async function AthleteDetailPage({ params }: PageProps) {
     : null
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-5xl mx-auto space-y-4 pb-12 pt-1">
+      {/* ── GREETING ── */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-4xl sm:text-5xl font-black leading-[1.1] tracking-tighter">
+            Alumno: <span className="text-primary">{athlete.name.split(' ')[0]}.</span>
+          </h1>
+          <p className="text-[15px] text-muted-foreground/70 font-normal mt-2 leading-relaxed">
+            {activeSub ? `Plan: ${activeSub.plans?.name ?? ''}` : 'Sin plan activo'}
+            {overduePayments.length > 0 && ` · ${overduePayments.length} pago${overduePayments.length > 1 ? 's' : ''} vencido${overduePayments.length > 1 ? 's' : ''}`}
+            {athlete.status !== 'active' && ` · ${athlete.status === 'inactive' ? 'Inactivo' : 'Suspendido'}`}
+          </p>
+        </div>
+        <div className="hidden sm:flex items-center gap-2.5 text-[11px] font-bold uppercase tracking-[0.15em] text-muted-foreground/80 shrink-0 border border-border/40 rounded-xl px-4 py-3 bg-card/40">
+          <Calendar className="w-4 h-4" />
+          <span>{new Date().toLocaleDateString("es-CL", { weekday: "short", day: "numeric", month: "short" })}</span>
+        </div>
+      </div>
+
       {/* Header */}
       <div className="flex items-center gap-3 flex-wrap">
         <Link href="/dashboard/athletes">
@@ -78,30 +96,25 @@ export default async function AthleteDetailPage({ params }: PageProps) {
           </Button>
         </Link>
         <div className="flex-1" />
-        {/* Acciones rápidas */}
-        <Link href={`/dashboard/subscriptions/new?athleteId=${id}`}>
-          <Button variant="outline" size="sm" className="gap-1.5">
-            <Repeat2 className="w-3.5 h-3.5" />
-            Asignar Plan
-          </Button>
-        </Link>
+        {/* Acciones secundarias */}
+        <AthleteNotesButton athleteId={id} currentNotes={athlete.notes ?? null} />
+        <LogInjuryForm athleteId={id} />
+        <ExportAthleteButton
+          athlete={athlete}
+          payments={payments}
+          attendance={attendance}
+        />
+        {/* Acciones primarias */}
+        <NewSubscriptionFromAthleteButton athleteId={id} />
         <Link href={`/dashboard/payments/new?athleteId=${id}`}>
           <Button variant="outline" size="sm" className="gap-1.5">
             <DollarSign className="w-3.5 h-3.5" />
             Registrar Pago
           </Button>
         </Link>
-        <ExportAthleteButton
-          athlete={athlete}
-          payments={payments}
-          attendance={attendance}
-        />
-        <NewSubscriptionFromAthleteButton athleteId={id} />
         <ManualCheckInButton athleteId={id} />
-        <AthleteNotesButton athleteId={id} currentNotes={athlete.notes ?? null} />
-        <LogInjuryForm athleteId={id} />
         <Link href={`/dashboard/athletes/${id}/edit`}>
-          <Button variant="outline" size="sm" className="gap-1.5">
+          <Button size="sm" className="gap-1.5">
             <Pencil className="w-3.5 h-3.5" />
             Editar
           </Button>
@@ -186,6 +199,74 @@ export default async function AthleteDetailPage({ params }: PageProps) {
         </CardContent>
       </Card>
 
+      {/* ── KPI ROW ── */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+
+        {/* Asistencia */}
+        <div className="rounded-2xl bg-card p-5 h-full">
+          <div className="flex items-center gap-2.5 mb-5">
+            <ClipboardCheck className="w-5 h-5 text-muted-foreground/50" />
+            <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70">Asistencia</p>
+          </div>
+          <p className={`text-4xl font-black tracking-tight leading-none ${attendanceRate !== null && attendanceRate >= 70 ? 'text-primary' : attendanceRate !== null && attendanceRate >= 40 ? 'text-amber-500' : attendanceRate !== null ? 'text-red-500' : 'text-muted-foreground/30'}`}>
+            {attendanceRate !== null ? `${attendanceRate}%` : '—'}
+          </p>
+          <p className="text-[13px] text-muted-foreground/50 mt-2 font-normal">tasa de asistencia</p>
+        </div>
+
+        {/* Pagos */}
+        <Link href={`/dashboard/payments?athleteId=${id}`} className="block">
+          <div className="rounded-2xl bg-card p-5 hover:bg-muted/40 dark:hover:bg-white/[0.04] transition-colors h-full">
+            <div className="flex items-center gap-2.5 mb-5">
+              <CreditCard className="w-5 h-5 text-muted-foreground/50" />
+              <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70">Pagos</p>
+            </div>
+            <p className={`text-[28px] font-black tracking-tight leading-none uppercase ${overduePayments.length > 0 ? 'text-red-500' : 'text-foreground'}`}>
+              {overduePayments.length > 0 ? overduePayments.length : 'Al día'}
+            </p>
+            <p className={`text-[13px] mt-2 font-normal ${overduePayments.length > 0 ? 'text-muted-foreground/50' : 'text-primary'}`}>
+              {overduePayments.length > 0 ? `pago${overduePayments.length > 1 ? 's' : ''} vencido${overduePayments.length > 1 ? 's' : ''}` : 'sin deuda'}
+            </p>
+          </div>
+        </Link>
+
+        {/* Salud */}
+        <div className="rounded-2xl bg-card p-5 h-full">
+          <div className="flex items-center gap-2.5 mb-5">
+            <Activity className="w-5 h-5 text-muted-foreground/50" />
+            <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70">Salud</p>
+          </div>
+          <p className={`text-[22px] font-black tracking-tight leading-none uppercase ${
+            athlete.health_status === 'healthy' ? 'text-primary' :
+            athlete.health_status === 'injured' ? 'text-red-500' : 'text-amber-500'
+          }`}>
+            {athlete.health_status === 'healthy' ? 'Apto' :
+             athlete.health_status === 'injured' ? 'Lesionado' : 'Obs.'}
+          </p>
+          <p className="text-[13px] text-muted-foreground/50 mt-2 font-normal">estado físico actual</p>
+        </div>
+
+        {/* Documentos */}
+        <div className="rounded-2xl bg-card p-5 h-full">
+          <div className="flex items-center gap-2.5 mb-5">
+            <FileText className="w-5 h-5 text-muted-foreground/50" />
+            <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70">Documentos</p>
+          </div>
+          <p className={`text-[28px] font-black tracking-tight leading-none uppercase ${
+            documents.filter(d => d.status === 'expired').length > 0 ? 'text-amber-500' : 'text-foreground'
+          }`}>
+            {documents.filter(d => d.status === 'expired').length > 0
+              ? documents.filter(d => d.status === 'expired').length
+              : documents.length > 0 ? 'OK' : '—'}
+          </p>
+          <p className="text-[13px] text-muted-foreground/50 mt-2 font-normal">
+            {documents.filter(d => d.status === 'expired').length > 0
+              ? `vencido${documents.filter(d => d.status === 'expired').length > 1 ? 's' : ''}`
+              : `${documents.length} doc${documents.length !== 1 ? 's' : ''} en total`}
+          </p>
+        </div>
+      </div>
+
       {/* Sport-specific technical data */}
       {sportConfig && Object.keys(technicalMeta).length > 0 && (
         <Card>
@@ -211,7 +292,7 @@ export default async function AthleteDetailPage({ params }: PageProps) {
       )}
 
       {/* Tabs: 4 pestañas de la Ficha 360° */}
-      <div className="grid md:grid-cols-2 gap-6">
+      <div className="grid md:grid-cols-2 lg:grid-cols-[1fr_340px] gap-3 items-start">
 
         {/* 1. Pestaña Administrativa */}
         <Card>

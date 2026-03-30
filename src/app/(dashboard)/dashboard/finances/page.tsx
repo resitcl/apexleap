@@ -8,10 +8,10 @@ import { NewSupplierButton } from "@/components/finances/NewSupplierButton"
 import { DeleteSupplierButton } from "@/components/finances/DeleteSupplierButton"
 import { ExportExpensesButton } from "@/components/finances/ExportExpensesButton"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
-  TrendingUp, TrendingDown, DollarSign, AlertCircle, Users, Building2
+  TrendingUp, TrendingDown, DollarSign, AlertCircle, Users, Building2,
+  Wallet, PieChart, BarChart3, UserCog, Truck,
 } from "lucide-react"
 import { InfoTooltip } from "@/components/ui/info-tooltip"
 import { NewExpenseForm } from "@/components/finances/NewExpenseForm"
@@ -22,6 +22,11 @@ import { EditExpenseButton } from "@/components/finances/EditExpenseButton"
 import { MonthPicker } from "@/components/finances/MonthPicker"
 import { ExportCoachesButton } from "@/components/finances/ExportCoachesButton"
 import { FinancialProjection } from "@/components/finances/FinancialProjection"
+import {
+  DashboardPage,
+  DashboardPageHeader,
+  DashboardMetricCard,
+} from "@/components/ui/dashboard-kit"
 
 const CATEGORY_LABELS: Record<string, string> = {
   rent: "Arriendo", salary: "Salarios", supplies: "Insumos",
@@ -82,100 +87,60 @@ export default async function FinancesPage({ searchParams }: PageProps) {
   const monthLabel = new Date(month + "-02").toLocaleDateString("es-CL", { month: "long", year: "numeric" })
   const chartMax = Math.max(...chartData.flatMap((m) => [m.income, m.expenses]), 1)
 
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-3xl font-bold">Administración Financiera</h1>
-          <p className="text-sm text-muted-foreground flex flex-wrap items-center gap-x-2">
-            <span className="capitalize">{monthLabel}</span>
-            {summary.totalIncome > 0 && (
-              <span className="text-green-600 font-medium">· Ingresos: ${summary.totalIncome.toLocaleString('es-CL')}</span>
-            )}
-            {summary.totalExpenses > 0 && (
-              <span className="text-red-600 font-medium">· Egresos: ${summary.totalExpenses.toLocaleString('es-CL')}</span>
-            )}
-            {summary.netBalance !== 0 && (
-              <span className={summary.netBalance >= 0 ? 'text-green-600 font-medium' : 'text-red-600 font-medium'}>
-                · Balance: ${summary.netBalance.toLocaleString('es-CL')}
-              </span>
-            )}
-          </p>
-        </div>
-        <MonthPicker month={month} tab={tab} />
-      </div>
+  const TABS = [
+    { key: "overview", label: "Resumen", icon: <PieChart className="w-4 h-4" /> },
+    { key: "projection", label: "Proyección", icon: <BarChart3 className="w-4 h-4" /> },
+    { key: "expenses", label: "Egresos", icon: <TrendingDown className="w-4 h-4" /> },
+    { key: "coaches", label: "Staff / Nómina", icon: <UserCog className="w-4 h-4" /> },
+    { key: "suppliers", label: `Proveedores${suppliers.length > 0 ? ` (${suppliers.length})` : ''}`, icon: <Truck className="w-4 h-4" /> },
+  ]
 
-      {/* KPI Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <div className="flex items-center gap-1">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Ingresos</CardTitle>
-              <InfoTooltip text="Total de pagos recibidos en el mes seleccionado. Solo incluye pagos con estado 'pagado'." />
-            </div>
-            <TrendingUp className="h-4 w-4 text-green-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">
-              ${summary.totalIncome.toLocaleString("es-CL")}
-            </div>
-            {prevSummary.totalIncome > 0 && (() => {
-              const pct = Math.round(((summary.totalIncome - prevSummary.totalIncome) / prevSummary.totalIncome) * 100)
-              return <p className={`text-xs font-medium mt-0.5 ${pct >= 0 ? 'text-green-600' : 'text-red-600'}`}>{pct >= 0 ? '▲' : '▼'} {Math.abs(pct)}% vs mes anterior</p>
-            })()}
-            {!prevSummary.totalIncome && <p className="text-xs text-muted-foreground">pagos recibidos</p>}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <div className="flex items-center gap-1">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Egresos</CardTitle>
-              <InfoTooltip text="Total de gastos registrados en el mes: arriendo, salarios, insumos, marketing y otros." />
-            </div>
-            <TrendingDown className="h-4 w-4 text-red-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600">
-              ${summary.totalExpenses.toLocaleString("es-CL")}
-            </div>
-            {prevSummary.totalExpenses > 0 && (() => {
-              const pct = Math.round(((summary.totalExpenses - prevSummary.totalExpenses) / prevSummary.totalExpenses) * 100)
-              return <p className={`text-xs font-medium mt-0.5 ${pct <= 0 ? 'text-green-600' : 'text-red-600'}`}>{pct >= 0 ? '▲' : '▼'} {Math.abs(pct)}% vs mes anterior</p>
-            })()}
-            {!prevSummary.totalExpenses && <p className="text-xs text-muted-foreground">gastos del mes</p>}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <div className="flex items-center gap-1">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Balance Neto</CardTitle>
-              <InfoTooltip text="Resultado del mes: ingresos menos egresos. Verde = superávit, rojo = déficit." />
-            </div>
-            <DollarSign className="h-4 w-4 text-blue-500" />
-          </CardHeader>
-          <CardContent>
-            <div className={`text-2xl font-bold ${summary.netBalance >= 0 ? "text-green-600" : "text-red-600"}`}>
-              ${summary.netBalance.toLocaleString("es-CL")}
-            </div>
-            <p className="text-xs text-muted-foreground">ingresos − egresos</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <div className="flex items-center gap-1">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Por cobrar</CardTitle>
-              <InfoTooltip text="Pagos emitidos pero no cobrados aún (pendientes + vencidos). Representa ingreso potencial." />
-            </div>
-            <AlertCircle className="h-4 w-4 text-yellow-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">
-              ${summary.pendingIncome.toLocaleString("es-CL")}
-            </div>
-            <p className="text-xs text-muted-foreground">pagos pendientes</p>
-          </CardContent>
-        </Card>
+  return (
+    <DashboardPage>
+      {/* ── PREMIUM HEADER ── */}
+      <DashboardPageHeader
+        icon={<Wallet className="w-10 h-10" />}
+        title="Finanzas"
+        subtitle={`Administración financiera del club — ${monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1)}`}
+        actions={<MonthPicker month={month} tab={tab} />}
+      />
+
+      {/* ── KPI ROW ── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <DashboardMetricCard
+          icon={<TrendingUp className="w-4 h-4" />}
+          label="Ingresos"
+          value={`$${summary.totalIncome.toLocaleString("es-CL")}`}
+          description={prevSummary.totalIncome > 0 ? (() => {
+            const pct = Math.round(((summary.totalIncome - prevSummary.totalIncome) / prevSummary.totalIncome) * 100)
+            return `${pct >= 0 ? '▲' : '▼'} ${Math.abs(pct)}% vs mes anterior`
+          })() : "pagos recibidos"}
+          tone="success"
+        />
+        <DashboardMetricCard
+          icon={<TrendingDown className="w-4 h-4" />}
+          label="Egresos"
+          value={`$${summary.totalExpenses.toLocaleString("es-CL")}`}
+          description={prevSummary.totalExpenses > 0 ? (() => {
+            const pct = Math.round(((summary.totalExpenses - prevSummary.totalExpenses) / prevSummary.totalExpenses) * 100)
+            return `${pct >= 0 ? '▲' : '▼'} ${Math.abs(pct)}% vs mes anterior`
+          })() : "gastos del mes"}
+          tone="danger"
+        />
+        <DashboardMetricCard
+          icon={<DollarSign className="w-4 h-4" />}
+          label="Balance Neto"
+          value={`$${summary.netBalance.toLocaleString("es-CL")}`}
+          description="ingresos − egresos"
+          tone={summary.netBalance >= 0 ? "success" : "danger"}
+        />
+        <DashboardMetricCard
+          icon={<AlertCircle className="w-4 h-4" />}
+          label="Por Cobrar"
+          value={`$${summary.pendingIncome.toLocaleString("es-CL")}`}
+          description="pagos pendientes"
+          tone="warning"
+        />
         {expenses.length > 0 && (() => {
           const maxExp = expenses.slice().sort((a, b) => Number(b.amount) - Number(a.amount))[0]
           if (!maxExp) return null
@@ -406,24 +371,19 @@ export default async function FinancesPage({ searchParams }: PageProps) {
         </Card>
       )}
 
-      {/* Tabs */}
-      <div className="flex gap-1 border-b border-border overflow-x-auto">
-        {[
-          { key: "overview", label: "Resumen" },
-          { key: "projection", label: "📈 Proyección" },
-          { key: "expenses", label: "Egresos" },
-          { key: "coaches", label: "Staff / Nómina" },
-          { key: "suppliers", label: `Proveedores${suppliers.length > 0 ? ` (${suppliers.length})` : ''}` },
-        ].map((t) => (
+      {/* ── TABS ── */}
+      <div className="flex gap-1.5 overflow-x-auto pb-1">
+        {TABS.map((t) => (
           <Link
             key={t.key}
             href={`/dashboard/finances?tab=${t.key}&month=${month}`}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${
               tab === t.key
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
+                ? "bg-primary/10 text-primary border border-primary/20"
+                : "bg-white/[0.02] text-muted-foreground hover:text-foreground hover:bg-white/[0.04] border border-transparent"
             }`}
           >
+            {t.icon}
             {t.label}
           </Link>
         ))}
@@ -836,6 +796,6 @@ export default async function FinancesPage({ searchParams }: PageProps) {
           )}
         </div>
       )}
-    </div>
+    </DashboardPage>
   )
 }

@@ -4,18 +4,18 @@ import Link from "next/link"
 import { redirect } from "next/navigation"
 import { checkUserHasClub } from "@/lib/actions/onboarding"
 import { getMyRosters } from "@/lib/actions/athlete-enrollment"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { ClipboardList, Calendar, MapPin, Trophy, Shirt, Shield, ChevronRight } from "lucide-react"
+import { ClipboardList, Calendar, MapPin, Trophy, Shirt, ExternalLink } from "lucide-react"
 
 const TYPE_LABELS: Record<string, string> = {
   tournament: "Torneo", league: "Liga", friendly: "Amistoso", championship: "Campeonato",
 }
 
 const STATUS_META: Record<string, { label: string; color: string }> = {
-  confirmed: { label: "Confirmado", color: "bg-green-100 text-green-700 border-green-200" },
-  pending:   { label: "Pendiente",  color: "bg-yellow-100 text-yellow-700 border-yellow-200" },
-  declined:  { label: "Descartado", color: "bg-red-100 text-red-700 border-red-200" },
+  confirmed: { label: "Confirmado", color: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" },
+  pending:   { label: "Pendiente",  color: "bg-amber-500/10 text-amber-500 border-amber-500/20" },
+  declined:  { label: "Descartado", color: "bg-destructive/10 text-destructive border-destructive/20" },
 }
 
 export default async function AthleteRostersPage() {
@@ -32,58 +32,59 @@ export default async function AthleteRostersPage() {
   const past = rosters.filter((r) => r.rosters!.match_date < today)
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
+    <div className="space-y-8 pb-12 pt-1">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold flex items-center gap-2">
-          <ClipboardList className="w-8 h-8" /> Mis Citaciones
+        <h1 className="text-4xl md:text-5xl font-black tracking-tighter uppercase leading-none text-foreground flex items-center gap-3">
+          <ClipboardList className="w-10 h-10 text-primary" /> Mis Citaciones
         </h1>
-        <p className="text-muted-foreground">Convocatorias en las que has sido incluido</p>
+        <p className="text-sm md:text-base text-muted-foreground/80 mt-3 max-w-xl font-medium">
+          Convocatorias oficiales, torneos y partidos en los que el cuerpo técnico te ha incluido.
+        </p>
       </div>
 
-      {/* Stats summary */}
-      <div className="grid grid-cols-3 gap-3">
-        <Card>
-          <CardContent className="py-4 text-center">
-            <div className="text-2xl font-bold text-blue-600">{rosters.length}</div>
-            <p className="text-[11px] text-muted-foreground mt-0.5">Total citaciones</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="py-4 text-center">
-            <div className="text-2xl font-bold text-green-600">{upcoming.length}</div>
-            <p className="text-[11px] text-muted-foreground mt-0.5">Próximas</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="py-4 text-center">
-            <div className="text-2xl font-bold text-primary">
-              {rosters.filter((r) => r.is_captain).length > 0 ? "©" : "—"}
-            </div>
-            <p className="text-[11px] text-muted-foreground mt-0.5">
-              {rosters.filter((r) => r.is_captain).length > 0 ? "Capitán" : "Jugador"}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+      {rosters.length > 0 && (
+        <div className="grid grid-cols-3 gap-4">
+          <Card className="rounded-2xl border-white/[0.04] bg-card shadow-sm hover:border-primary/20 transition-colors">
+            <CardContent className="py-6 flex flex-col items-center justify-center text-center h-full">
+              <div className="text-4xl font-black text-primary drop-shadow-[0_0_8px_rgba(var(--primary),0.3)]">{rosters.length}</div>
+              <p className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground mt-2">Total Citaciones</p>
+            </CardContent>
+          </Card>
+          <Card className="rounded-2xl border-emerald-500/30 bg-emerald-500/5 shadow-sm">
+            <CardContent className="py-6 flex flex-col items-center justify-center text-center h-full">
+              <div className="text-3xl font-black text-emerald-500">{upcoming.length}</div>
+              <p className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground mt-2">Próximas</p>
+            </CardContent>
+          </Card>
+          <Card className="rounded-2xl border-amber-500/30 bg-amber-500/5 shadow-sm">
+            <CardContent className="py-6 flex flex-col items-center justify-center text-center h-full">
+              <div className="text-3xl font-black text-amber-500">
+                {rosters.filter((r) => r.is_captain).length > 0 ? "©" : "—"}
+              </div>
+              <p className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground mt-2">
+                {rosters.filter((r) => r.is_captain).length > 0 ? "Capitán" : "Jugador"}
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {rosters.length === 0 ? (
-        <Card className="border-dashed">
-          <CardContent className="py-16 text-center">
-            <ClipboardList className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-40" />
-            <h3 className="font-semibold text-lg mb-1">Sin citaciones aún</h3>
-            <p className="text-muted-foreground text-sm">
-              Cuando el cuerpo técnico te incluya en una nómina, aparecerá aquí.
-            </p>
+        <Card className="border-dashed border-white/[0.05] bg-muted/5 rounded-2xl">
+          <CardContent className="py-20 text-center">
+            <ClipboardList className="w-16 h-16 mx-auto mb-4 text-muted-foreground/30" />
+            <h3 className="text-xl font-black tracking-tight text-foreground mb-2 uppercase">Sin citaciones aún</h3>
+            <p className="text-muted-foreground text-sm font-medium">Cuando el cuerpo técnico te incluya en una nómina, aparecerá aquí.</p>
           </CardContent>
         </Card>
       ) : (
-        <>
+        <div className="grid md:grid-cols-1 gap-8">
           {/* Upcoming */}
           {upcoming.length > 0 && (
-            <div className="space-y-3">
-              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-widest px-1">
-                Próximas Citaciones
+            <div className="space-y-4">
+              <h2 className="text-lg font-black tracking-tight uppercase flex items-center gap-2 mb-2">
+                <Calendar className="w-5 h-5 text-primary" /> Próximas Citaciones
               </h2>
               {upcoming.map((r) => {
                 const roster = r.rosters!
@@ -92,70 +93,81 @@ export default async function AthleteRostersPage() {
                 const score = (() => { try { return JSON.parse(roster.notes ?? '') } catch { return null } })()
 
                 return (
-                  <Link key={r.id} href={`/dashboard/athlete/rosters/${roster.id}`}>
-                    <Card className={`overflow-hidden cursor-pointer hover:shadow-md transition-all ${isToday ? "ring-2 ring-primary/50" : ""}`}>
-                      {isToday && <div className="h-1 bg-gradient-to-r from-primary to-blue-500" />}
-                      <CardContent className="py-4">
-                        <div className="flex items-start gap-4">
-                        {/* Jersey number */}
-                        <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-primary/10 to-primary/5 flex flex-col items-center justify-center shrink-0 border border-primary/20">
-                          {r.number ? (
-                            <>
-                              <Shirt className="w-4 h-4 text-primary/60" />
-                              <span className="text-lg font-bold text-primary leading-tight">{r.number}</span>
-                            </>
-                          ) : (
-                            <Shirt className="w-6 h-6 text-primary/40" />
-                          )}
-                        </div>
-
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <p className="font-bold text-base">{roster.name}</p>
-                            {isToday && <Badge variant="default" className="text-xs">Hoy</Badge>}
-                            {r.is_captain && <Badge className="bg-yellow-100 text-yellow-700 border-yellow-200 text-xs">© Capitán</Badge>}
-                            <Badge className={`text-xs ${statusM.color}`}>{statusM.label}</Badge>
-                          </div>
-
-                          <div className="flex items-center gap-3 mt-1.5 text-sm text-muted-foreground flex-wrap">
-                            <span className="flex items-center gap-1">
-                              <Calendar className="w-3.5 h-3.5" />
-                              {new Date(roster.match_date + "T12:00:00").toLocaleDateString("es-CL", { weekday: "short", day: "numeric", month: "long" })}
-                            </span>
-                            {roster.opponent && (
-                              <span className="font-medium text-foreground">vs. {roster.opponent}</span>
-                            )}
-                            {roster.venue && (
-                              <span className="flex items-center gap-1">
-                                <MapPin className="w-3.5 h-3.5" />
-                                {roster.venue}
-                              </span>
-                            )}
-                          </div>
-
-                          <div className="flex items-center gap-3 mt-1.5 flex-wrap">
-                            {r.position && (
-                              <span className="text-xs bg-muted px-2 py-0.5 rounded-md font-medium">{r.position}</span>
-                            )}
-                            {roster.competitions && (
-                              <span className="text-xs text-muted-foreground flex items-center gap-1">
-                                <Trophy className="w-3 h-3" />
-                                {TYPE_LABELS[roster.competitions.type] ?? roster.competitions.type} · {roster.competitions.name}
-                              </span>
-                            )}
-                          </div>
-
-                          {score && score.status === "live" && (
-                            <div className="mt-2 inline-flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg px-3 py-1.5">
-                              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                              <span className="text-sm font-bold">{score.home} – {score.away}</span>
-                              <span className="text-xs text-red-600">En vivo</span>
+                  <Link key={r.id} href={`/dashboard/athlete/rosters/${roster.id}`} className="block group">
+                    <Card className={`rounded-2xl border-white/[0.04] bg-card overflow-hidden transition-all shadow-sm group-hover:bg-muted/5 group-hover:border-primary/20 ${isToday ? "ring-1 ring-primary/50" : ""}`}>
+                      {isToday && <div className="h-1 bg-gradient-to-r from-primary/80 to-primary/20" />}
+                      <CardContent className="p-5 sm:p-6">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                          <div className="flex items-start gap-4">
+                            {/* Jersey number */}
+                            <div className={`w-14 h-14 rounded-2xl flex flex-col items-center justify-center shrink-0 border ${isToday ? 'bg-primary/10 border-primary/20' : 'bg-muted/40 border-white/[0.04]'}`}>
+                              {r.number ? (
+                                <>
+                                  <Shirt className={`w-4 h-4 mb-0.5 ${isToday ? 'text-primary' : 'text-muted-foreground'}`} />
+                                  <span className={`text-xl font-black leading-none ${isToday ? 'text-primary' : 'text-foreground'}`}>{r.number}</span>
+                                </>
+                              ) : (
+                                <Shirt className="w-6 h-6 text-muted-foreground/40" />
+                              )}
                             </div>
-                          )}
+
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-3 flex-wrap">
+                                <p className="font-black text-xl tracking-tight leading-none text-foreground uppercase">{roster.name}</p>
+                                {isToday && <Badge className="text-[9px] uppercase font-black tracking-widest bg-primary text-primary-foreground px-2">Hoy</Badge>}
+                                {r.is_captain && <Badge className="text-[9px] uppercase font-black tracking-widest bg-amber-500 text-amber-950 px-2 pointer-events-none">© Capitán</Badge>}
+                              </div>
+
+                              <div className="flex items-center gap-4 mt-3 text-[10px] uppercase font-bold tracking-widest text-muted-foreground flex-wrap">
+                                <span className="flex items-center gap-1.5 border border-white/[0.04] bg-background px-2 py-1 rounded">
+                                  <Calendar className="w-3.5 h-3.5 text-primary" />
+                                  {new Date(roster.match_date + "T12:00:00").toLocaleDateString("es-CL", { weekday: "long", day: "numeric", month: "long" })}
+                                </span>
+                                {roster.opponent && (
+                                  <span className="flex items-center gap-1.5 text-foreground">
+                                    <span className="text-muted-foreground/40">vs.</span> {roster.opponent}
+                                  </span>
+                                )}
+                              </div>
+                              
+                              <div className="flex items-center gap-3 mt-2 flex-wrap text-muted-foreground/80">
+                                {r.position && (
+                                  <Badge variant="outline" className="text-[9px] uppercase font-black tracking-widest border-white/[0.04] bg-muted/30">
+                                    {r.position}
+                                  </Badge>
+                                )}
+                                {roster.competitions && (
+                                  <span className="text-[10px] uppercase font-bold tracking-widest flex items-center gap-1.5">
+                                    <Trophy className="w-3.5 h-3.5" />
+                                    {TYPE_LABELS[roster.competitions.type] ?? roster.competitions.type} <span className="text-muted-foreground/30">•</span> {roster.competitions.name}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className="flex flex-col items-end gap-3 self-end sm:self-center">
+                            <Badge className={`text-[10px] uppercase font-black tracking-widest px-3 py-1 ${statusM.color}`}>
+                              {statusM.label}
+                            </Badge>
+                            <ExternalLink className="w-5 h-5 text-muted-foreground/40 group-hover:text-primary transition-colors" />
+                          </div>
                         </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+
+                        {/* Live Score */}
+                        {score && score.status === "live" && (
+                          <div className="mt-5 pt-5 border-t border-border/30 flex items-center justify-between">
+                            <div className="flex items-center gap-3 text-red-500">
+                              <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
+                              <span className="text-[10px] uppercase font-black tracking-widest">En juego</span>
+                            </div>
+                            <span className="text-2xl font-black tracking-tighter bg-card px-4 py-1 rounded-sm border border-red-500/20 text-foreground shadow-sm">
+                              {score.home} <span className="text-muted-foreground/40 font-medium">–</span> {score.away}
+                            </span>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
                   </Link>
                 )
               })}
@@ -164,47 +176,46 @@ export default async function AthleteRostersPage() {
 
           {/* Past */}
           {past.length > 0 && (
-            <div className="space-y-3">
-              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-widest px-1">
-                Citaciones Pasadas
+            <div className="space-y-3 mt-6">
+              <h2 className="text-lg font-black tracking-tight uppercase flex items-center gap-2 mb-4">
+                <ClipboardList className="w-5 h-5 text-muted-foreground" /> Citaciones Pasadas
               </h2>
-              {past.slice(0, 20).map((r) => {
-                const roster = r.rosters!
-                const score = (() => { try { return JSON.parse(roster.notes ?? '') } catch { return null } })()
+              <div className="grid md:grid-cols-2 gap-4">
+                {past.slice(0, 20).map((r) => {
+                  const roster = r.rosters!
+                  const score = (() => { try { return JSON.parse(roster.notes ?? '') } catch { return null } })()
 
-                return (
-                  <Link key={r.id} href={`/dashboard/athlete/rosters/${roster.id}`}>
-                    <Card className="opacity-80 hover:opacity-100 transition-opacity cursor-pointer hover:shadow-md">
-                      <CardContent className="py-3">
-                      <div className="flex items-center gap-3">
-                        {r.number && (
-                          <span className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center text-sm font-bold shrink-0">
-                            {r.number}
-                          </span>
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <p className="text-sm font-medium truncate">{roster.name}</p>
-                            {r.is_captain && <span className="text-xs text-yellow-600 font-bold">©</span>}
+                  return (
+                    <Link key={r.id} href={`/dashboard/athlete/rosters/${roster.id}`} className="block group">
+                      <Card className="rounded-2xl border-white/[0.04] bg-muted/20 hover:bg-muted/40 transition-colors shadow-none hover:shadow-sm">
+                        <CardContent className="py-4 px-5">
+                          <div className="flex items-center justify-between gap-4">
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2">
+                                <p className="text-sm font-black tracking-tight uppercase truncate">{roster.name}</p>
+                                {r.is_captain && <span className="text-[10px] bg-amber-500 text-amber-950 px-1 py-0.5 rounded font-black tracking-widest">©</span>}
+                              </div>
+                              <p className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground/70 mt-1 truncate">
+                                {new Date(roster.match_date + "T12:00:00").toLocaleDateString("es-CL", { day: "numeric", month: "short" })}
+                                {roster.opponent && <><span className="mx-1 text-muted-foreground/30">•</span> vs. {roster.opponent}</>}
+                                {r.position && <><span className="mx-1 text-muted-foreground/30">•</span> {r.position}</>}
+                              </p>
+                            </div>
+                            {score && score.status === "finished" && (
+                              <span className="text-sm font-black tracking-tighter text-foreground whitespace-nowrap bg-background border border-white/[0.04] px-2 py-0.5 rounded">
+                                {score.home} – {score.away}
+                              </span>
+                            )}
                           </div>
-                          <p className="text-xs text-muted-foreground">
-                            {new Date(roster.match_date + "T12:00:00").toLocaleDateString("es-CL", { day: "numeric", month: "short" })}
-                            {roster.opponent && ` · vs. ${roster.opponent}`}
-                            {r.position && ` · ${r.position}`}
-                          </p>
-                        </div>
-                        {score && score.status === "finished" && (
-                          <span className="text-sm font-bold text-muted-foreground">{score.home} – {score.away}</span>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                  </Link>
-                )
-              })}
+                        </CardContent>
+                      </Card>
+                    </Link>
+                  )
+                })}
+              </div>
             </div>
           )}
-        </>
+        </div>
       )}
     </div>
   )

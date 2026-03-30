@@ -2,45 +2,76 @@ export const dynamic = "force-dynamic"
 
 import Link from "next/link"
 import { redirect } from "next/navigation"
-import { getDashboardSummary, getRecentActivity, getMonthlyRevenue, getTodaySessions, getOverdueAlerts, getUpcomingSchedules, getExpiringSubscriptions, getWeeklyAttendanceRate, getExpiredDocuments, getAthletesWithoutPlan, getWeeklyAttendanceByDay, getMonthlyRetentionRate, getDormantAthletes } from "@/lib/actions/dashboard"
+import {
+  getDashboardSummary,
+  getRecentActivity,
+  getMonthlyRevenue,
+  getTodaySessions,
+  getOverdueAlerts,
+  getUpcomingSchedules,
+  getExpiringSubscriptions,
+  getWeeklyAttendanceRate,
+  getExpiredDocuments,
+  getAthletesWithoutPlan,
+  getWeeklyAttendanceByDay,
+  getMonthlyRetentionRate,
+  getDormantAthletes,
+  getAthleteGrowth,
+  getMonthlyAttendance,
+  getUpcomingMatches,
+  getSeasonRecord,
+  getBeltDistribution,
+  getUpcomingGraduations,
+  getSmartAlerts,
+} from "@/lib/actions/dashboard"
 import { checkUserHasClub } from "@/lib/actions/onboarding"
 import { getUserRole } from "@/lib/actions/club-context"
 import { getCompetitions } from "@/lib/actions/competitions"
 import { getActiveSeason } from "@/lib/actions/seasons"
-import { getCoaches } from "@/lib/actions/finances"
-import { getInventoryItems } from "@/lib/actions/inventory"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { getClubSettings } from "@/lib/actions/settings"
+import { getSportVocab } from "@/lib/sport-vocab"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Users, DollarSign, ClipboardCheck, AlertCircle, AlertTriangle, UserPlus, CreditCard, QrCode, UserCheck, TrendingUp, FileWarning, Clock } from "lucide-react"
-import { InfoTooltip } from "@/components/ui/info-tooltip"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import {
+  Users, DollarSign, AlertCircle, AlertTriangle, UserPlus,
+  CreditCard, QrCode, UserCheck, TrendingUp, TrendingDown,
+  Calendar, Wallet, ChevronRight, Trophy, Swords, Award,
+  Activity, FileText, ClipboardCheck, BarChart3, MapPin,
+  Zap, Settings, Clock, Phone, Camera, IdCard, UserX,
+} from "lucide-react"
 
 export default async function DashboardPage() {
   const hasClub = await checkUserHasClub().catch(() => false)
   if (!hasClub) redirect("/onboarding")
 
-  // Athletes should see their own portal, not the admin dashboard
   const role = await getUserRole().catch(() => 'admin' as const)
   if (role === 'athlete') redirect("/dashboard/athlete")
 
+  // Get club settings for sport type
+  let sportType: string | null = null
+  let clubName = 'Tu Club'
+  try {
+    const settings = await getClubSettings()
+    const s = settings as { sport_type?: string | null; name?: string | null }
+    sportType = s?.sport_type ?? null
+    clubName = s?.name ?? 'Tu Club'
+  } catch { /* silent */ }
+
+  const vocab = getSportVocab(sportType)
+  const isTeamSport = vocab.isTeamSport
+
+  // Initialize data
   let summary = {
-    totalAthletes: 0,
-    mrr: 0,
-    monthlyIncome: 0,
-    pendingAmount: 0,
-    overdueAmount: 0,
-    todayCheckIns: 0,
-    semaforoCount: { green: 0, yellow: 0, red: 0 },
+    totalAthletes: 0, mrr: 0, monthlyIncome: 0, pendingAmount: 0, overdueAmount: 0,
+    todayCheckIns: 0, semaforoCount: { green: 0, yellow: 0, red: 0 },
     topAthletes: [] as { id: string; name: string; count: number }[],
-    activeSubscriptions: 0,
-    topDebtors: [] as { id: string; name: string; debt: number }[],
-    totalAllAthletes: 0,
-    newThisMonth: 0,
-    cancelledThisMonth: 0,
-    prevMonthIncome: 0,
+    activeSubscriptions: 0, topDebtors: [] as { id: string; name: string; debt: number }[],
+    totalAllAthletes: 0, newThisMonth: 0, cancelledThisMonth: 0, prevMonthIncome: 0,
   }
   let activity: Awaited<ReturnType<typeof getRecentActivity>> = []
   let monthlyRevenue: Awaited<ReturnType<typeof getMonthlyRevenue>> = []
+  let athleteGrowth: Awaited<ReturnType<typeof getAthleteGrowth>> = []
+  let monthlyAttendance: Awaited<ReturnType<typeof getMonthlyAttendance>> = []
   let todaySessions: Awaited<ReturnType<typeof getTodaySessions>> = []
   let overdueAlerts: Awaited<ReturnType<typeof getOverdueAlerts>> = []
   let upcomingSchedules: Awaited<ReturnType<typeof getUpcomingSchedules>> = []
@@ -51,19 +82,33 @@ export default async function DashboardPage() {
   let athletesWithoutPlan = 0
   let retention: Awaited<ReturnType<typeof getMonthlyRetentionRate>> = null
   let upcomingComps: { id: string; name: string; type: string; start_date: string; location: string | null }[] = []
-  let brokenItems: { id: string; name: string }[] = []
-  let coaches: { id: string; name: string }[] = []
   let dormantCount = 0
-  let dormantCount14 = 0
-  let staleItemsCount = 0
+
+  // Team sport specific
+  let upcomingMatches: Awaited<ReturnType<typeof getUpcomingMatches>> = []
+  let seasonRecord = { wins: 0, draws: 0, losses: 0, total: 0 }
+
+  // Academy specific
+  let beltDistribution: Record<string, number> = {}
+  let upcomingGraduations: Awaited<ReturnType<typeof getUpcomingGraduations>> = []
+
+  // Smart alerts
+  let smartAlerts: Awaited<ReturnType<typeof getSmartAlerts>> = {
+    noEmergencyContact: 0, noPhoto: 0, noBirthDate: 0, noDocumentNumber: 0,
+    noEmail: 0, noPhone: 0, newAthletes: 0, incompleteProfiles: 0, totalActive: 0,
+    sampleNoEmergency: [], sampleIncomplete: [],
+  }
+
   type ActiveSeason = { id: string; name: string; type: string; year: number; start_date: string; end_date: string }
   let activeSeason: ActiveSeason | null = null
 
   try {
-    ;[summary, activity, monthlyRevenue, todaySessions, overdueAlerts, upcomingSchedules, expiringSubscriptions, weeklyAttendance, weeklyByDay, expiredDocs, athletesWithoutPlan, retention, coaches] = await Promise.all([
+    const results = await Promise.all([
       getDashboardSummary(),
-      getRecentActivity(12),
+      getRecentActivity(8),
       getMonthlyRevenue(6),
+      getAthleteGrowth(6),
+      getMonthlyAttendance(6),
       getTodaySessions(),
       getOverdueAlerts(),
       getUpcomingSchedules(),
@@ -73,1196 +118,828 @@ export default async function DashboardPage() {
       getExpiredDocuments(),
       getAthletesWithoutPlan(),
       getMonthlyRetentionRate(),
-      getCoaches(),
+      getDormantAthletes(30),
     ])
-    dormantCount = await getDormantAthletes(30)
-    dormantCount14 = await getDormantAthletes(14)
+    summary = results[0]
+    activity = results[1]
+    monthlyRevenue = results[2]
+    athleteGrowth = results[3]
+    monthlyAttendance = results[4]
+    todaySessions = results[5]
+    overdueAlerts = results[6]
+    upcomingSchedules = results[7]
+    expiringSubscriptions = results[8]
+    weeklyAttendance = results[9]
+    weeklyByDay = results[10]
+    expiredDocs = results[11]
+    athletesWithoutPlan = results[12]
+    retention = results[13]
+    dormantCount = results[14]
+
     activeSeason = (await getActiveSeason().catch(() => null)) as ActiveSeason | null
     const compResult = await getCompetitions({ status: 'upcoming', limit: 5 })
     upcomingComps = compResult.competitions.map((c) => ({
       id: c.id, name: c.name, type: c.type, start_date: c.start_date, location: c.location ?? null,
     }))
-    const invResult = await getInventoryItems({ condition: 'broken', limit: 100 })
-    brokenItems = (invResult.items ?? []).map((i) => ({ id: i.id, name: i.name }))
-    const allInvResult = await getInventoryItems({ limit: 2000 })
-    const ninetyAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString()
-    staleItemsCount = (allInvResult.items ?? []).filter((i) => (i.updated_at ?? i.created_at ?? '') < ninetyAgo).length
+
+    // Sport-specific data
+    if (isTeamSport) {
+      upcomingMatches = await getUpcomingMatches(3).catch(() => [])
+      seasonRecord = await getSeasonRecord().catch(() => ({ wins: 0, draws: 0, losses: 0, total: 0 }))
+    } else {
+      beltDistribution = await getBeltDistribution().catch(() => ({}))
+      upcomingGraduations = await getUpcomingGraduations().catch(() => [])
+    }
+
+    // Smart alerts
+    smartAlerts = await getSmartAlerts().catch(() => ({
+      noEmergencyContact: 0, noPhoto: 0, noBirthDate: 0, noDocumentNumber: 0,
+      noEmail: 0, noPhone: 0, newAthletes: 0, incompleteProfiles: 0, totalActive: 0,
+      sampleNoEmergency: [], sampleIncomplete: [],
+    }))
   } catch {
     // show zeros on error
   }
 
+  // Computed values
   const total = summary.semaforoCount.green + summary.semaforoCount.yellow + summary.semaforoCount.red
-  const greenPct  = total ? Math.round((summary.semaforoCount.green  / total) * 100) : 0
+  const greenPct = total ? Math.round((summary.semaforoCount.green / total) * 100) : 0
   const yellowPct = total ? Math.round((summary.semaforoCount.yellow / total) * 100) : 0
-  const redPct    = total ? Math.round((summary.semaforoCount.red    / total) * 100) : 0
+  const redPct = total ? Math.round((summary.semaforoCount.red / total) * 100) : 0
+
+  const today = new Date()
+  const todayDate = today.toLocaleDateString("es-CL", { weekday: "long", day: "numeric", month: "long" })
+  const hour = today.getHours()
+  const greeting = hour < 12 ? "Buenos días" : hour < 19 ? "Buenas tardes" : "Buenas noches"
+
+  // Revenue trend
+  const curRev = monthlyRevenue[monthlyRevenue.length - 1]
+  const prevRev = monthlyRevenue.length >= 2 ? monthlyRevenue[monthlyRevenue.length - 2] : null
+  const revTrend = curRev && prevRev && prevRev.amount > 0
+    ? Math.round(((curRev.amount - prevRev.amount) / prevRev.amount) * 100)
+    : 0
+
+  // Athlete growth trend
+  const curGrowth = athleteGrowth[athleteGrowth.length - 1]
+  const prevGrowth = athleteGrowth.length >= 2 ? athleteGrowth[athleteGrowth.length - 2] : null
+  const growthTrend = curGrowth && prevGrowth && prevGrowth.total > 0
+    ? Math.round(((curGrowth.total - prevGrowth.total) / prevGrowth.total) * 100)
+    : 0
+
+  // Alert counts
+  const alertCount = [
+    overdueAlerts.length > 0,
+    summary.semaforoCount.red > 0,
+    dormantCount > 0,
+    expiredDocs.length > 0,
+    expiringSubscriptions.length > 0,
+  ].filter(Boolean).length
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-12 pt-1">
+
       {/* Active Season Banner */}
       {activeSeason && (
-        <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-primary/20 bg-primary/5 text-sm">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-primary/70">Temporada</span>
-          <span className="font-semibold text-primary">{activeSeason.name}</span>
-          <span className="text-muted-foreground">·</span>
-          <span className="text-xs text-muted-foreground">
+        <div className="flex items-center gap-3 px-4 py-3 rounded-2xl border border-primary/20 bg-primary/5">
+          <Trophy className="w-4 h-4 text-primary" />
+          <span className="text-[10px] font-black uppercase tracking-wider text-primary/70">Temporada</span>
+          <span className="font-bold text-primary">{activeSeason.name}</span>
+          <span className="text-muted-foreground/50">·</span>
+          <span className="text-xs text-muted-foreground/70">
             {new Date(activeSeason.start_date + 'T12:00:00').toLocaleDateString('es-CL', { day: 'numeric', month: 'short' })}
             {' → '}
             {new Date(activeSeason.end_date + 'T12:00:00').toLocaleDateString('es-CL', { day: 'numeric', month: 'short', year: 'numeric' })}
           </span>
-          <Link href="/dashboard/settings/seasons" className="ml-auto text-[10px] text-muted-foreground hover:text-foreground">
+          <Link href="/dashboard/settings/seasons" className="ml-auto text-[10px] font-bold text-primary/60 hover:text-primary transition-colors">
             Gestionar →
           </Link>
         </div>
       )}
 
-      <div className="flex items-start justify-between gap-3 flex-wrap">
+      {/* ── GREETING ── */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Dashboard</h1>
-          <p className="text-muted-foreground">
-            {new Date().toLocaleDateString("es-CL", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
-            {activity.length > 0 && (() => {
-              const last = activity[0]
-              return (
-                <span className="ml-2 text-sm">
-                  · última actividad: <span className="font-medium">{last.label}</span>
-                  <span className="text-muted-foreground/70 ml-1">({new Date(last.time).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })})</span>
-                </span>
-              )
-            })()}
+          <h1 className="text-5xl sm:text-6xl font-black leading-[1.1] tracking-tighter">
+            {greeting}, <span className="text-primary">Admin.</span>
+          </h1>
+          <p className="text-base text-muted-foreground/70 mt-2 font-medium">
+            {summary.totalAthletes > 0
+              ? `${summary.totalAthletes} ${vocab.athletes.toLowerCase()} activos · ${summary.activeSubscriptions} con plan`
+              : `Gestiona ${clubName} desde aquí.`}
           </p>
         </div>
-        <Link href="/dashboard/athletes/new">
-          <Button className="gap-2">
-            <UserPlus className="w-4 h-4" />
-            Nuevo Alumno
-          </Button>
-        </Link>
-      </div>
-
-      {/* KPI Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <div className="flex items-center gap-1">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Alumnos Activos</CardTitle>
-              <InfoTooltip text="Atletas con estado activo en el club. Excluye suspendidos e inactivos." />
-            </div>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{summary.totalAthletes}</div>
-            <p className="text-xs text-muted-foreground">
-              {summary.totalAllAthletes > 0 && (
-                <span className="font-medium text-foreground">
-                  {Math.round((summary.totalAthletes / summary.totalAllAthletes) * 100)}% activos
-                </span>
-              )}
-              {summary.activeSubscriptions > 0 && (
-                <span className="ml-1.5 text-green-600 font-medium">· {summary.activeSubscriptions} con plan</span>
-              )}
-              {summary.newThisMonth > 0 && (
-                <span className="ml-1.5 text-blue-600 font-medium">· +{summary.newThisMonth} este mes</span>
-              )}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Link href={`/dashboard/finances?tab=overview&month=${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}`}>
-          <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <div className="flex items-center gap-1">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Ingresos del Mes</CardTitle>
-                <InfoTooltip text="Suma total de pagos recibidos en el mes actual. Solo cuenta pagos con estado 'pagado'." />
-              </div>
-              <DollarSign className="h-4 w-4 text-green-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-600">
-                ${summary.monthlyIncome.toLocaleString("es-CL")}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {new Date().toLocaleDateString("es-CL", { month: "long", year: "numeric" })}
-                {summary.totalAthletes > 0 && summary.monthlyIncome > 0 && (
-                  <span className="ml-1 text-muted-foreground/70">· ${Math.round(summary.monthlyIncome / summary.totalAthletes).toLocaleString('es-CL')}/atleta</span>
-                )}
-                {summary.prevMonthIncome > 0 && (() => {
-                  const diff = summary.monthlyIncome - summary.prevMonthIncome
-                  const pct = Math.round((diff / summary.prevMonthIncome) * 100)
-                  if (pct === 0) return null
-                  return (
-                    <span className={`ml-1 font-medium ${pct > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      {pct > 0 ? '▲' : '▼'}{Math.abs(pct)}% vs mes anterior
-                    </span>
-                  )
-                })()}
-              </p>
-            </CardContent>
-          </Card>
-        </Link>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <div className="flex items-center gap-1">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Check-ins Hoy</CardTitle>
-              <InfoTooltip text="Asistencias registradas hoy mediante QR o manualmente. Solo cuenta check-ins válidos." />
-            </div>
-            <ClipboardCheck className="h-4 w-4 text-blue-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{summary.todayCheckIns}</div>
-            <p className="text-xs text-muted-foreground">
-              asistencias válidas
-              {todaySessions.length > 0 && (
-                <span className="ml-1 text-blue-600">· {todaySessions.length} sesión{todaySessions.length !== 1 ? 'es' : ''} hoy</span>
-              )}
-            </p>
-            {todaySessions.length > 0 && (
-              <div className="mt-1.5 flex flex-wrap gap-1">
-                {todaySessions.slice(0, 3).map((s) => {
-                  const occ = s.capacity && s.capacity > 0
-                    ? Math.round((s.todayCheckIns / s.capacity) * 100)
-                    : null
-                  return (
-                    <Link key={s.id} href={`/dashboard/calendar/${s.id}`}>
-                      <span className="text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded font-medium hover:bg-blue-100 transition-colors">
-                        {s.start_time.slice(0, 5)} {s.name}
-                        {s.todayCheckIns > 0 && (
-                          <span className="ml-1 opacity-75">
-                            {s.todayCheckIns}{s.capacity ? `/${s.capacity}` : ''}{occ !== null ? ` (${occ}%)` : ''}
-                          </span>
-                        )}
-                      </span>
-                    </Link>
-                  )
-                })}
-                {todaySessions.length > 3 && (
-                  <span className="text-[10px] text-muted-foreground">+{todaySessions.length - 3} más</span>
-                )}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <div className="flex items-center gap-1">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Cuentas por Cobrar</CardTitle>
-              <InfoTooltip text="Suma total de deudas vencidas. Son pagos con fecha de vencimiento pasada y sin pagar." />
-            </div>
-            <AlertCircle className="h-4 w-4 text-red-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600">
-              ${summary.overdueAmount.toLocaleString("es-CL")}
-            </div>
-            <p className="text-xs text-muted-foreground">deudas vencidas</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Attendance KPI */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Link href="/dashboard/attendance?tab=history">
-          <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <div className="flex items-center gap-1">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Asistencia 7 días</CardTitle>
-                <InfoTooltip text="Porcentaje de check-ins válidos sobre el total de los últimos 7 días. 80%+ es óptimo." />
-              </div>
-              <TrendingUp className="h-4 w-4 text-indigo-500" />
-            </CardHeader>
-            <CardContent>
-              <div className={`text-2xl font-bold ${
-                weeklyAttendance.rate >= 80 ? 'text-green-600' :
-                weeklyAttendance.rate >= 50 ? 'text-yellow-600' : 'text-red-600'
-              }`}>{weeklyAttendance.rate}%</div>
-              <p className="text-xs text-muted-foreground">
-                {weeklyAttendance.valid} válidos de {weeklyAttendance.total} check-ins
-                {summary.totalAthletes > 0 && weeklyAttendance.valid > 0 && (
-                  <span className="ml-1 text-muted-foreground/70">· {(weeklyAttendance.valid / summary.totalAthletes).toFixed(1)} ses/atleta</span>
-                )}
-                {weeklyAttendance.rate > 0 && (
-                  <span className="ml-1 text-muted-foreground/60">· ~{weeklyAttendance.rate}% prom. mensual</span>
-                )}
-              </p>
-            </CardContent>
-          </Card>
-        </Link>
-        {upcomingSchedules.length > 0 && (() => {
-          const totalWeekly = upcomingSchedules.reduce((s, d) => s + d.sessions.length, 0)
-          if (totalWeekly === 0) return null
-          return (
-            <Link href="/dashboard/calendar">
-              <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <div className="flex items-center gap-1">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">Sesiones Activas</CardTitle>
-                    <InfoTooltip text="Total de sesiones programadas en los próximos 7 días según el calendario del club." />
-                  </div>
-                  <ClipboardCheck className="h-4 w-4 text-indigo-500" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{totalWeekly}</div>
-                  <p className="text-xs text-muted-foreground">en los próximos 7 días</p>
-                </CardContent>
-              </Card>
-            </Link>
-          )
-        })()}
-        {weeklyByDay.length > 1 && (() => {
-          const todayISO = new Date().toISOString().split('T')[0]
-          const todayData = weeklyByDay.find((d) => d.date === todayISO)
-          const pastDays  = weeklyByDay.filter((d) => d.date < todayISO && d.total > 0)
-          if (!todayData || pastDays.length === 0) return null
-          const avg = Math.round(pastDays.reduce((s, d) => s + d.total, 0) / pastDays.length)
-          const diff = todayData.total - avg
-          const color = diff >= 0 ? 'text-green-600' : 'text-yellow-600'
-          return (
-            <Link href="/dashboard/attendance">
-              <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Check-ins Hoy</CardTitle>
-                  <QrCode className="h-4 w-4 text-primary" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{todayData.total}</div>
-                  <p className={`text-xs font-medium ${color}`}>
-                    {diff >= 0 ? '+' : ''}{diff} vs prom. semanal ({avg}/día)
-                  </p>
-                </CardContent>
-              </Card>
-            </Link>
-          )
-        })()}
-        <Link href="/dashboard/payments?status=overdue">
-          <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <div className="flex items-center gap-1">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Morosos</CardTitle>
-              <InfoTooltip text="Cantidad de pagos vencidos pendientes de cobro. Un atleta puede tener más de uno." />
-            </div>
-              <CreditCard className="h-4 w-4 text-orange-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-orange-600">{overdueAlerts.length}</div>
-              <p className="text-xs text-muted-foreground">pagos vencidos pendientes</p>
-            </CardContent>
-          </Card>
-        </Link>
-        <Link href="/dashboard/athletes?health=injured">
-          <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <div className="flex items-center gap-1">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Semáforos Rojos</CardTitle>
-              <InfoTooltip text="Atletas con semáforo rojo: bloqueados por mora, lesión o regla del club. No pueden entrenar ni competir." />
-            </div>
-            <UserCheck className="h-4 w-4 text-red-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-red-600">{summary.semaforoCount.red}</div>
-              <p className="text-xs text-muted-foreground">atletas bloqueados</p>
-            </CardContent>
-          </Card>
-        </Link>
-        {retention !== null && (
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <div className="flex items-center gap-1">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Retención Mensual</CardTitle>
-                <InfoTooltip text="% de atletas del mes anterior que siguen activos este mes. 80%+ es saludable para un club." />
-              </div>
-              <TrendingUp className="h-4 w-4 text-teal-500" />
-            </CardHeader>
-            <CardContent>
-              <div className={`text-2xl font-bold ${
-                retention.rate >= 80 ? 'text-green-600' :
-                retention.rate >= 60 ? 'text-yellow-600' : 'text-red-600'
-              }`}>{retention.rate}%</div>
-              <p className="text-xs text-muted-foreground">{retention.retained}/{retention.total} atletas del mes anterior</p>
-            </CardContent>
-          </Card>
-        )}
-        {athletesWithoutPlan > 0 && (
-          <Link href="/dashboard/subscriptions">
-            <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <div className="flex items-center gap-1">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Sin Plan</CardTitle>
-                <InfoTooltip text="Atletas activos que no tienen ninguna suscripción asignada. Posible pérdida de ingresos." />
-              </div>
-                <Users className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{athletesWithoutPlan}</div>
-                <p className="text-xs text-muted-foreground">activos sin suscripción</p>
-              </CardContent>
-            </Card>
+        <div className="flex items-center gap-3 shrink-0">
+          <Link href="/dashboard/athletes/new">
+            <button className="h-11 px-5 rounded-full bg-emerald-400 text-black font-bold text-sm flex items-center gap-2 hover:bg-emerald-300 transition-colors shadow-lg shadow-emerald-400/20">
+              <UserPlus className="w-4 h-4" />
+              Nuevo {vocab.athlete}
+            </button>
           </Link>
-        )}
-        {summary.monthlyIncome + summary.overdueAmount > 0 && (() => {
-          const base = summary.monthlyIncome + summary.overdueAmount
-          const rate = Math.round((summary.monthlyIncome / base) * 100)
-          return (
-            <Link href="/dashboard/payments">
-              <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <div className="flex items-center gap-1">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Cobranza</CardTitle>
-                  <InfoTooltip text="Porcentaje cobrado vs lo esperado este mes. Se calcula como ingresos / (ingresos + deudas vencidas)." />
-                </div>
-                  <TrendingUp className="h-4 w-4 text-emerald-500" />
-                </CardHeader>
-                <CardContent>
-                  <div className={`text-2xl font-bold ${rate >= 80 ? 'text-green-600' : rate >= 60 ? 'text-yellow-600' : 'text-red-600'}`}>{rate}%</div>
-                  <p className="text-xs text-muted-foreground">cobrado / esperado este mes</p>
-                </CardContent>
-              </Card>
-            </Link>
-          )
-        })()}
-        {(() => {
-          const withCap = todaySessions.filter((s) => s.capacity && s.capacity > 0)
-          if (withCap.length === 0) return null
-          const avgPct = Math.round(
-            withCap.reduce((sum, s) => sum + (s.todayCheckIns / s.capacity!) * 100, 0) / withCap.length
-          )
-          return (
-            <Link href="/dashboard/calendar">
-              <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <div className="flex items-center gap-1">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Ocupación Hoy</CardTitle>
-                  <InfoTooltip text="Promedio de ocupación de las sesiones de hoy que tienen aforo configurado. Calculado como check-ins / capacidad." />
-                </div>
-                  <Clock className="h-4 w-4 text-blue-500" />
-                </CardHeader>
-                <CardContent>
-                  <div className={`text-2xl font-bold ${avgPct >= 80 ? 'text-red-600' : avgPct >= 50 ? 'text-yellow-600' : 'text-green-600'}`}>{avgPct}%</div>
-                  <p className="text-xs text-muted-foreground">promedio {withCap.length} sesión{withCap.length !== 1 ? 'es' : ''}</p>
-                </CardContent>
-              </Card>
-            </Link>
-          )
-        })()}
-        {summary.totalAthletes > 0 && summary.monthlyIncome > 0 && (
-          <Link href="/dashboard/payments">
-            <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <div className="flex items-center gap-1">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Pago Prom./Atleta</CardTitle>
-                <InfoTooltip text="Ingreso mensual dividido por la cantidad de atletas activos. Indica el valor promedio por alumno." />
-              </div>
-                <CreditCard className="h-4 w-4 text-indigo-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-indigo-600">
-                  ${Math.round(summary.monthlyIncome / summary.totalAthletes).toLocaleString('es-CL')}
-                </div>
-                <p className="text-xs text-muted-foreground">ingreso mensual ÷ activos</p>
-              </CardContent>
-            </Card>
-          </Link>
-        )}
-        {expiredDocs.length > 0 && (() => {
-          const in7 = new Date(); in7.setDate(in7.getDate() + 7)
-          const in7ISO = in7.toISOString().split('T')[0]
-          const today = new Date().toISOString().split('T')[0]
-          const expiredCount = expiredDocs.filter((d) => d.isExpired).length
-          const thisWeek = expiredDocs.filter((d) => !d.isExpired && d.expiry_date >= today && d.expiry_date <= in7ISO).length
-          const later = expiredDocs.filter((d) => !d.isExpired && d.expiry_date > in7ISO).length
-          return (
-            <Link href="/dashboard/documents">
-              <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <div className="flex items-center gap-1">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Docs Vencidos</CardTitle>
-                <InfoTooltip text="Documentos del club (contratos, fichas, certificados) con fecha de vencimiento superada o próxima." />
-              </div>
-                  <FileWarning className="h-4 w-4 text-yellow-500" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-yellow-600">{expiredCount}</div>
-                  <p className="text-xs text-muted-foreground">
-                    {thisWeek > 0 && <span className="text-orange-600 font-medium">+{thisWeek} esta semana</span>}
-                    {thisWeek > 0 && later > 0 && ' · '}
-                    {later > 0 && `+${later} este mes`}
-                    {thisWeek === 0 && later === 0 && 'documentos vencidos'}
-                  </p>
-                </CardContent>
-              </Card>
-            </Link>
-          )
-        })()}
-      </div>
-
-      {/* Weekly attendance bar chart */}
-      {weeklyByDay.some((d) => d.total > 0) && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-primary" />
-              Asistencia Últimos 7 Días
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {(() => {
-              const maxVal = Math.max(...weeklyByDay.map((d) => d.total), 1)
-              return (
-                <div className="flex items-end gap-2 h-24">
-                  {weeklyByDay.map((d) => (
-                    <div key={d.date} className="flex-1 flex flex-col items-center gap-1">
-                      <span className="text-xs text-muted-foreground font-medium">{d.total > 0 ? d.total : ''}</span>
-                      <div className="w-full relative rounded-t overflow-hidden bg-muted" style={{ height: `${Math.max((d.total / maxVal) * 64, d.total > 0 ? 8 : 2)}px` }}>
-                        <div
-                          className="absolute bottom-0 left-0 right-0 bg-primary/80 rounded-t"
-                          style={{ height: `${d.total > 0 ? Math.round((d.valid / d.total) * 100) : 0}%` }}
-                        />
-                      </div>
-                      <span className="text-xs text-muted-foreground">{d.label}</span>
-                    </div>
-                  ))}
-                </div>
-              )
-            })()}
-            <p className="text-xs text-muted-foreground mt-2">Barras azules = check-ins válidos · gris = total</p>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* ── Alertas del club ── */}
-      {(() => {
-        const dormant14Pct  = summary.totalAthletes > 4 ? Math.round((dormantCount14 / summary.totalAthletes) * 100) : 0
-        const weekTotal     = weeklyByDay.reduce((s, d) => s + d.total, 0)
-        const churnRate     = summary.cancelledThisMonth > 0 && summary.activeSubscriptions > 0
-          ? Math.round((summary.cancelledThisMonth / (summary.activeSubscriptions + summary.cancelledThisMonth)) * 100) : 0
-        const redPctVal     = summary.totalAthletes > 4 ? Math.round((summary.semaforoCount.red / summary.totalAthletes) * 100) : 0
-        const subPct        = summary.totalAthletes > 4 ? Math.round((summary.activeSubscriptions / summary.totalAthletes) * 100) : 100
-        const curRev        = monthlyRevenue[monthlyRevenue.length - 1]
-        const prevRev       = monthlyRevenue[monthlyRevenue.length - 2]
-        const revDrop       = monthlyRevenue.length >= 2 && curRev && prevRev && prevRev.amount > 0 && curRev.amount < prevRev.amount
-          ? Math.round(((prevRev.amount - curRev.amount) / prevRev.amount) * 100) : 0
-        const withCap       = todaySessions.filter((s) => s.capacity && s.capacity > 0)
-        const lowOcc        = withCap
-          .map((s) => ({ ...s, pct: Math.round((s.todayCheckIns / s.capacity!) * 100) }))
-          .filter((s) => s.pct < 50).sort((a, b) => a.pct - b.pct).slice(0, 3)
-        const expiredCount  = expiredDocs.filter((d) => d.isExpired).length
-        const expiringSoonCount = expiredDocs.filter((d) => !d.isExpired).length
-
-        const flags = {
-          overdue:        overdueAlerts.length > 3,
-          topDebtors:     summary.topDebtors.length > 0,
-          redAthletes:    summary.semaforoCount.red > 0,
-          churn:          churnRate >= 10,
-          lowIncome:      summary.mrr > 0 && summary.monthlyIncome < summary.mrr * 0.7,
-          revDrop:        revDrop > 0,
-          noPlan:         athletesWithoutPlan > 5,
-          lowSubs:        summary.totalAthletes > 4 && summary.activeSubscriptions < summary.totalAthletes * 0.5,
-          yellowAthletes: summary.semaforoCount.yellow > 3,
-          dormant14:      summary.totalAthletes > 4 && dormantCount14 > 0 && dormant14Pct >= 30,
-          dormant30:      dormantCount > 0,
-          noCheckinsToday: summary.totalAthletes > 4 && todaySessions.length > 0 && summary.todayCheckIns === 0,
-          noCheckinsWeek: summary.totalAthletes > 4 && weeklyByDay.length > 0 && weekTotal === 0,
-          lowOcc:         lowOcc.length > 0,
-          noSessions:     todaySessions.length === 0,
-          docs:           expiredDocs.length > 0,
-        }
-        const alertCount = Object.values(flags).filter(Boolean).length
-        if (alertCount === 0) return null
-
-        return (
-          <Card>
-            <CardHeader className="pb-0 pt-4 px-5">
-              <div className="flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 text-amber-500 shrink-0" />
-                <CardTitle className="text-sm font-semibold">Alertas del club</CardTitle>
-                <span className="ml-auto text-xs text-muted-foreground">{alertCount} alerta{alertCount !== 1 ? 's' : ''}</span>
-              </div>
-            </CardHeader>
-            <CardContent className="px-5 pt-1 pb-2">
-              <div className="divide-y divide-border">
-
-                {flags.overdue && (
-                  <div className="py-3 flex items-start gap-3">
-                    <div className="w-0.5 self-stretch rounded-full bg-red-500 shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium">{overdueAlerts.length} pagos vencidos sin gestionar</p>
-                      {overdueAlerts.length <= 5 && (
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          {overdueAlerts.slice(0, 3).map((a) => (a as { name?: string }).name ?? '').filter(Boolean).join(', ')}{overdueAlerts.length > 3 ? '...' : ''}
-                        </p>
-                      )}
-                    </div>
-                    <Link href="/dashboard/payments?status=overdue" className="text-xs text-primary hover:underline shrink-0 pt-0.5">Ver →</Link>
-                  </div>
-                )}
-
-                {flags.topDebtors && (
-                  <div className="py-3 flex items-start gap-3">
-                    <div className="w-0.5 self-stretch rounded-full bg-red-500 shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Top deudores</p>
-                      <div className="flex flex-wrap gap-x-4 gap-y-0.5">
-                        {summary.topDebtors.map((d) => (
-                          <span key={d.id} className="text-sm">
-                            {d.name}: <span className="font-semibold text-red-600">${d.debt.toLocaleString('es-CL')}</span>
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                    <Link href="/dashboard/payments?status=overdue" className="text-xs text-primary hover:underline shrink-0 pt-0.5">Ver →</Link>
-                  </div>
-                )}
-
-                {flags.redAthletes && (
-                  <div className="py-3 flex items-center gap-3">
-                    <div className="w-0.5 h-10 rounded-full bg-red-500 shrink-0" />
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">
-                        {summary.semaforoCount.red} atleta{summary.semaforoCount.red !== 1 ? 's' : ''} con semáforo rojo
-                        {redPctVal >= 20 && <span className="text-muted-foreground font-normal"> · {redPctVal}% del total</span>}
-                      </p>
-                      <p className="text-xs text-muted-foreground">Revisar lesiones y bloqueos</p>
-                    </div>
-                    <Link href="/dashboard/athletes?health=injured" className="text-xs text-primary hover:underline shrink-0">Ver →</Link>
-                  </div>
-                )}
-
-                {flags.churn && (
-                  <div className="py-3 flex items-center gap-3">
-                    <div className="w-0.5 h-10 rounded-full bg-red-500 shrink-0" />
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">Churn mensual del {churnRate}%</p>
-                      <p className="text-xs text-muted-foreground">{summary.cancelledThisMonth} suscripción{summary.cancelledThisMonth !== 1 ? 'es' : ''} cancelada{summary.cancelledThisMonth !== 1 ? 's' : ''} este mes</p>
-                    </div>
-                    <Link href="/dashboard/subscriptions?status=cancelled" className="text-xs text-primary hover:underline shrink-0">Ver →</Link>
-                  </div>
-                )}
-
-                {flags.lowIncome && (
-                  <div className="py-3 flex items-center gap-3">
-                    <div className="w-0.5 h-10 rounded-full bg-orange-500 shrink-0" />
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">Ingresos del mes por debajo del MRR esperado</p>
-                      <p className="text-xs text-muted-foreground">${summary.monthlyIncome.toLocaleString('es-CL')} vs ${Math.round(summary.mrr).toLocaleString('es-CL')} esperado</p>
-                    </div>
-                    <Link href="/dashboard/finances" className="text-xs text-primary hover:underline shrink-0">Ver →</Link>
-                  </div>
-                )}
-
-                {flags.revDrop && curRev && prevRev && (
-                  <div className="py-3 flex items-center gap-3">
-                    <div className="w-0.5 h-10 rounded-full bg-orange-500 shrink-0" />
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">Ingresos bajaron {revDrop}% vs {prevRev.month}</p>
-                      <p className="text-xs text-muted-foreground">${curRev.amount.toLocaleString('es-CL')} este mes vs ${prevRev.amount.toLocaleString('es-CL')} el anterior</p>
-                    </div>
-                    <Link href="/dashboard/finances" className="text-xs text-primary hover:underline shrink-0">Ver →</Link>
-                  </div>
-                )}
-
-                {flags.noPlan && (
-                  <div className="py-3 flex items-center gap-3">
-                    <div className="w-0.5 h-10 rounded-full bg-amber-400 shrink-0" />
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">{athletesWithoutPlan} atletas activos sin plan de suscripción</p>
-                    </div>
-                    <Link href="/dashboard/subscriptions" className="text-xs text-primary hover:underline shrink-0">Ver →</Link>
-                  </div>
-                )}
-
-                {flags.lowSubs && (
-                  <div className="py-3 flex items-center gap-3">
-                    <div className="w-0.5 h-10 rounded-full bg-amber-400 shrink-0" />
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">Solo {subPct}% de atletas activos tienen suscripción</p>
-                      <p className="text-xs text-muted-foreground">{summary.activeSubscriptions} de {summary.totalAthletes} atletas</p>
-                    </div>
-                    <Link href="/dashboard/subscriptions" className="text-xs text-primary hover:underline shrink-0">Ver →</Link>
-                  </div>
-                )}
-
-                {flags.yellowAthletes && (
-                  <div className="py-3 flex items-center gap-3">
-                    <div className="w-0.5 h-10 rounded-full bg-amber-400 shrink-0" />
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">{summary.semaforoCount.yellow} atletas en observación</p>
-                      <p className="text-xs text-muted-foreground">Seguimiento recomendado</p>
-                    </div>
-                    <Link href="/dashboard/athletes?health=observation" className="text-xs text-primary hover:underline shrink-0">Ver →</Link>
-                  </div>
-                )}
-
-                {flags.docs && (
-                  <div className="py-3 flex items-start gap-3">
-                    <div className="w-0.5 self-stretch rounded-full bg-amber-400 shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium">
-                        {expiredCount > 0 && `${expiredCount} documento${expiredCount > 1 ? 's' : ''} vencido${expiredCount > 1 ? 's' : ''}`}
-                        {expiredCount > 0 && expiringSoonCount > 0 && ' · '}
-                        {expiringSoonCount > 0 && `${expiringSoonCount} vence${expiringSoonCount === 1 ? '' : 'n'} en 30 días`}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {expiredDocs.slice(0, 3).map((d) => `${d.name}${d.athletes ? ` (${d.athletes.name})` : ''}`).join(' · ')}
-                        {expiredDocs.length > 3 && ` +${expiredDocs.length - 3} más`}
-                      </p>
-                    </div>
-                    <Link href="/dashboard/documents" className="text-xs text-primary hover:underline shrink-0 pt-0.5">Ver →</Link>
-                  </div>
-                )}
-
-                {flags.dormant14 && (
-                  <div className="py-3 flex items-center gap-3">
-                    <div className="w-0.5 h-10 rounded-full bg-amber-400 shrink-0" />
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">{dormant14Pct}% de atletas ({dormantCount14}) sin check-in</p>
-                      <p className="text-xs text-muted-foreground">Últimos 14 días</p>
-                    </div>
-                    <Link href="/dashboard/athletes?inactive=1" className="text-xs text-primary hover:underline shrink-0">Ver →</Link>
-                  </div>
-                )}
-
-                {flags.dormant30 && (
-                  <div className="py-3 flex items-center gap-3">
-                    <div className="w-0.5 h-10 rounded-full bg-slate-400 shrink-0" />
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">{dormantCount} atleta{dormantCount !== 1 ? 's' : ''} sin check-in en más de 30 días</p>
-                    </div>
-                    <Link href="/dashboard/athletes" className="text-xs text-primary hover:underline shrink-0">Ver →</Link>
-                  </div>
-                )}
-
-                {flags.noCheckinsToday && (
-                  <div className="py-3 flex items-center gap-3">
-                    <div className="w-0.5 h-10 rounded-full bg-amber-400 shrink-0" />
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">0 check-ins hoy</p>
-                      <p className="text-xs text-muted-foreground">Hay {todaySessions.length} sesión{todaySessions.length !== 1 ? 'es' : ''} programada{todaySessions.length !== 1 ? 's' : ''}</p>
-                    </div>
-                    <Link href="/dashboard/attendance" className="text-xs text-primary hover:underline shrink-0">Ver →</Link>
-                  </div>
-                )}
-
-                {flags.noCheckinsWeek && (
-                  <div className="py-3 flex items-center gap-3">
-                    <div className="w-0.5 h-10 rounded-full bg-slate-400 shrink-0" />
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">Sin check-ins registrados esta semana</p>
-                      <p className="text-xs text-muted-foreground">{summary.totalAthletes} atletas activos</p>
-                    </div>
-                    <Link href="/dashboard/attendance" className="text-xs text-primary hover:underline shrink-0">Ver →</Link>
-                  </div>
-                )}
-
-                {flags.lowOcc && (
-                  <div className="py-3 flex items-start gap-3">
-                    <div className="w-0.5 self-stretch rounded-full bg-blue-400 shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Baja ocupación hoy</p>
-                      <div className="flex flex-wrap gap-x-4 gap-y-0.5">
-                        {lowOcc.map((s) => (
-                          <span key={s.id} className="text-sm">
-                            {s.name} {s.start_time.slice(0,5)}: <span className="font-semibold">{s.pct}%</span> ({s.todayCheckIns}/{s.capacity})
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                    <Link href="/dashboard/calendar" className="text-xs text-primary hover:underline shrink-0 pt-0.5">Ver →</Link>
-                  </div>
-                )}
-
-                {flags.noSessions && (
-                  <div className="py-3 flex items-center gap-3">
-                    <div className="w-0.5 h-10 rounded-full bg-blue-400 shrink-0" />
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">No hay sesiones programadas para hoy</p>
-                      <p className="text-xs text-muted-foreground">¿Falta configurar el horario?</p>
-                    </div>
-                    <Link href="/dashboard/calendar" className="text-xs text-primary hover:underline shrink-0">Ver →</Link>
-                  </div>
-                )}
-
-              </div>
-            </CardContent>
-          </Card>
-        )
-      })()}
-
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {/* Semáforo de Disponibilidad */}
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <CardTitle>Semáforo de Disponibilidad</CardTitle>
-              <InfoTooltip text="Sistema de 3 colores que indica si un atleta puede entrenar y competir. 🟢 Apto · 🟡 En observación (lesión leve o mora próxima) · 🔴 Bloqueado (mora, lesión grave o regla del club)." side="bottom" />
-            </div>
-            <CardDescription>Elegibilidad para entrenar y competir</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {total === 0 ? (
-              <div className="text-center py-8 border-2 border-dashed rounded-lg text-muted-foreground">
-                <Users className="w-10 h-10 mx-auto mb-2 opacity-40" />
-                <p className="text-sm">Sin atletas registrados aún</p>
-                <Link href="/dashboard/athletes/new" className="mt-2 inline-block">
-                  <Button size="sm" variant="outline" className="mt-2">Agregar Alumno</Button>
-                </Link>
-              </div>
-            ) : (
-              <>
-                {/* Bar */}
-                <div className="flex rounded-full overflow-hidden h-4">
-                  {greenPct  > 0 && <div className="bg-green-500  transition-all" style={{ width: `${greenPct}%`  }} />}
-                  {yellowPct > 0 && <div className="bg-yellow-500 transition-all" style={{ width: `${yellowPct}%` }} />}
-                  {redPct    > 0 && <div className="bg-red-500    transition-all" style={{ width: `${redPct}%`    }} />}
-                </div>
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="flex flex-col items-center p-3 bg-green-50 rounded-lg border border-green-100">
-                    <span className="text-2xl font-bold text-green-700">{summary.semaforoCount.green}</span>
-                    <span className="text-xs text-green-600 font-medium">🟢 Aptos</span>
-                  </div>
-                  <div className="flex flex-col items-center p-3 bg-yellow-50 rounded-lg border border-yellow-100">
-                    <span className="text-2xl font-bold text-yellow-700">{summary.semaforoCount.yellow}</span>
-                    <span className="text-xs text-yellow-600 font-medium">🟡 Observación</span>
-                  </div>
-                  <div className="flex flex-col items-center p-3 bg-red-50 rounded-lg border border-red-100">
-                    <span className="text-2xl font-bold text-red-700">{summary.semaforoCount.red}</span>
-                    <span className="text-xs text-red-600 font-medium">🔴 Bloqueados</span>
-                  </div>
-                </div>
-              </>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Quick Actions */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Acciones Rápidas</CardTitle>
-            <CardDescription>Atajos frecuentes</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-2">
-              {[
-                { href: "/dashboard/athletes/new",       label: "Nuevo Alumno",      icon: "👤", color: "bg-blue-50 hover:bg-blue-100 text-blue-700" },
-                { href: "/dashboard/payments/new",       label: "Registrar Pago",    icon: "💳", color: "bg-green-50 hover:bg-green-100 text-green-700" },
-                { href: "/dashboard/attendance?tab=today", label: "Check-in Manual", icon: "📋", color: "bg-purple-50 hover:bg-purple-100 text-purple-700" },
-                { href: "/dashboard/documents/new",      label: "Subir Documento",   icon: "📄", color: "bg-orange-50 hover:bg-orange-100 text-orange-700" },
-                { href: "/dashboard/competitions/new",   label: "Nueva Competencia", icon: "🏆", color: "bg-yellow-50 hover:bg-yellow-100 text-yellow-700" },
-                { href: "/dashboard/calendar/new",       label: "Nueva Sesión",      icon: "�", color: "bg-pink-50 hover:bg-pink-100 text-pink-700" },
-              ].map((item) => (
-                <Link key={item.href} href={item.href}>
-                  <div className={`flex flex-col items-center gap-1.5 p-3 rounded-lg transition-colors cursor-pointer text-center ${item.color}`}>
-                    <span className="text-2xl">{item.icon}</span>
-                    <span className="text-xs font-medium leading-tight">{item.label}</span>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Top athletes by attendance this month */}
-      {summary.topAthletes.length > 0 && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              🏅 Top Asistencias del Mes
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {summary.topAthletes.map((ath, i) => {
-                const HEALTH = (ath as { health_status?: string }).health_status
-                const healthBadge = HEALTH === 'injured' ? '🔴' : HEALTH === 'observation' ? '🟡' : null
-                return (
-                  <div key={ath.id} className="flex items-center justify-between gap-3 text-sm">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-muted-foreground w-5 text-right">{i + 1}.</span>
-                      <Link href={`/dashboard/athletes/${ath.id}`} className="font-medium hover:underline">{ath.name}</Link>
-                      {healthBadge && <span title={HEALTH}>{healthBadge}</span>}
-                    </div>
-                    <span className="text-xs font-semibold bg-primary/10 text-primary px-2 py-0.5 rounded-full">
-                      {ath.count} check-ins
-                    </span>
-                  </div>
-                )
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Overdue Alerts */}
-      {overdueAlerts.length > 0 && (
-        <Card className="border-destructive/40 bg-destructive/5">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 text-destructive" />
-              Pagos morosos &gt;7 días ({overdueAlerts.length})
-            </CardTitle>
-            <CardDescription>Alumnos con deudas vencidas que requieren gestión</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {overdueAlerts.map((alert) => {
-              const daysPast = Math.floor((Date.now() - new Date(alert.due_date).getTime()) / 86400000)
-              return (
-                <div key={alert.id} className="flex items-center justify-between gap-3 text-sm">
-                  <div className="flex-1 min-w-0">
-                    {alert.athletes && (
-                      <Link href={`/dashboard/athletes/${alert.athletes.id}`}
-                        className="font-medium hover:underline">
-                        {alert.athletes.name}
-                      </Link>
-                    )}
-                    <p className="text-xs text-muted-foreground truncate">{alert.concept}</p>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-destructive font-semibold">${Number(alert.amount).toLocaleString('es-CL')}</span>
-                    <Badge variant="destructive" className="text-xs">{daysPast}d vencido</Badge>
-                  </div>
-                </div>
-              )
-            })}
-            <div className="pt-1">
-              <Link href="/dashboard/payments?status=overdue"
-                className="text-xs text-destructive hover:underline">Ver todos los pagos vencidos →</Link>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Activity Feed */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <CardTitle>Actividad Reciente</CardTitle>
-            <InfoTooltip text="Feed en tiempo real de los últimos pagos registrados, check-ins y nuevos alumnos del club." side="bottom" />
+          <div className="hidden sm:flex items-center gap-2.5 text-[11px] font-bold uppercase tracking-[0.15em] text-muted-foreground/80 border border-white/[0.06] rounded-2xl px-4 py-3 bg-card/40">
+            <Calendar className="w-4 h-4 text-emerald-400" />
+            <span>{todayDate}</span>
           </div>
-          <CardDescription>Últimos pagos, check-ins y alumnos</CardDescription>
-        </CardHeader>
-        <CardContent className="p-0">
-          {activity.length === 0 ? (
-            <div className="py-8 text-center text-muted-foreground text-sm">
-              Sin actividad reciente
+        </div>
+      </div>
+
+      {/* ── KPI ROW ── */}
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-[1fr_1fr_1fr_1fr_1.6fr] gap-4">
+
+        {/* Alumnos Activos */}
+        <Link href="/dashboard/athletes" className="block group">
+          <div className="rounded-[20px] bg-[#111111] border border-white/[0.04] p-5 hover:bg-[#1a1a1a] transition-colors h-full flex flex-col justify-between shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
+            <div className="flex items-center gap-2.5 mb-5">
+              <Users className="w-4 h-4 text-muted-foreground/50 group-hover:text-emerald-400 transition-colors" />
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">{vocab.athletes}</p>
             </div>
+            <div>
+              <p className="text-4xl font-black tracking-tight text-emerald-400 leading-none">{summary.totalAthletes}</p>
+              <p className="text-[12px] text-muted-foreground/50 mt-2 font-medium flex items-center gap-1.5">
+                {summary.newThisMonth > 0 ? (
+                  <><TrendingUp className="w-3 h-3 text-emerald-400" /> +{summary.newThisMonth} este mes</>
+                ) : (
+                  'activos'
+                )}
+              </p>
+            </div>
+          </div>
+        </Link>
+
+        {/* Ingresos del Mes */}
+        <Link href={`/dashboard/finances?tab=overview&month=${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`} className="block group">
+          <div className="rounded-[20px] bg-[#111111] border border-white/[0.04] p-5 hover:bg-[#1a1a1a] transition-colors h-full flex flex-col justify-between shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
+            <div className="flex items-center gap-2.5 mb-5">
+              <Wallet className="w-4 h-4 text-muted-foreground/50 group-hover:text-emerald-400 transition-colors" />
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Ingresos</p>
+            </div>
+            <div>
+              <p className="text-4xl font-black tracking-tight text-emerald-400 leading-none">
+                ${summary.monthlyIncome >= 1000000 ? `${(summary.monthlyIncome / 1000000).toFixed(1)}M` : summary.monthlyIncome >= 1000 ? `${Math.round(summary.monthlyIncome / 1000)}k` : summary.monthlyIncome.toLocaleString('es-CL')}
+              </p>
+              <p className="text-[12px] text-muted-foreground/50 mt-2 font-medium flex items-center gap-1.5">
+                {revTrend !== 0 ? (
+                  <>{revTrend > 0 ? <TrendingUp className="w-3 h-3 text-emerald-400" /> : <TrendingDown className="w-3 h-3 text-red-400" />} {revTrend > 0 ? '+' : ''}{revTrend}% vs mes ant.</>
+                ) : (
+                  'este mes'
+                )}
+              </p>
+            </div>
+          </div>
+        </Link>
+
+        {/* Check-ins Hoy */}
+        <Link href="/dashboard/attendance" className="block group">
+          <div className="rounded-[20px] bg-[#111111] border border-white/[0.04] p-5 hover:bg-[#1a1a1a] transition-colors h-full flex flex-col justify-between shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
+            <div className="flex items-center gap-2.5 mb-5">
+              <QrCode className="w-4 h-4 text-muted-foreground/50 group-hover:text-emerald-400 transition-colors" />
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Check-ins</p>
+            </div>
+            <div>
+              <p className="text-4xl font-black tracking-tight text-white leading-none">{summary.todayCheckIns}</p>
+              <p className="text-[12px] text-muted-foreground/50 mt-2 font-medium">
+                {todaySessions.length > 0 ? `${todaySessions.length} sesión${todaySessions.length !== 1 ? 'es' : ''} hoy` : 'hoy'}
+              </p>
+            </div>
+          </div>
+        </Link>
+
+        {/* Deudas Vencidas */}
+        <Link href="/dashboard/payments?status=overdue" className="block group">
+          <div className="rounded-[20px] bg-[#111111] border border-white/[0.04] p-5 hover:bg-[#1a1a1a] transition-colors h-full flex flex-col justify-between shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
+            <div className="flex items-center gap-2.5 mb-5">
+              <AlertCircle className="w-4 h-4 text-muted-foreground/50 group-hover:text-red-400 transition-colors" />
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Por Cobrar</p>
+            </div>
+            <div>
+              <p className={`text-4xl font-black tracking-tight leading-none ${summary.overdueAmount > 0 ? 'text-red-500' : 'text-emerald-400'}`}>
+                {summary.overdueAmount > 0
+                  ? `$${summary.overdueAmount >= 1000000 ? `${(summary.overdueAmount / 1000000).toFixed(1)}M` : summary.overdueAmount >= 1000 ? `${Math.round(summary.overdueAmount / 1000)}k` : summary.overdueAmount.toLocaleString('es-CL')}`
+                  : 'Al día'}
+              </p>
+              <p className="text-[12px] text-muted-foreground/50 mt-2 font-medium">
+                {overdueAlerts.length > 0 ? `${overdueAlerts.length} vencidos` : 'sin deudas'}
+              </p>
+            </div>
+          </div>
+        </Link>
+
+        {/* Featured: Estado del Club (Semáforo) */}
+        <div className="rounded-[20px] bg-[#111111] border border-white/[0.04] p-5 h-full flex flex-col col-span-2 md:col-span-2 lg:col-span-1 shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
+          <div className="flex items-start justify-between mb-3">
+            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">
+              Estado {vocab.team}
+            </p>
+            <div className="w-10 h-10 rounded-xl bg-emerald-400/10 flex items-center justify-center shrink-0">
+              <UserCheck className="w-5 h-5 text-emerald-400" />
+            </div>
+          </div>
+          {total > 0 ? (
+            <>
+              <p className="text-4xl font-black leading-none text-white tracking-tight">
+                {greenPct}%
+              </p>
+              <p className="text-[12px] text-muted-foreground/50 mt-1.5 font-medium">aptos para entrenar</p>
+              <div className="mt-auto pt-4">
+                <div className="flex rounded-full overflow-hidden h-2.5 mb-3 bg-white/[0.04]">
+                  {greenPct > 0 && <div className="bg-emerald-400 transition-all" style={{ width: `${greenPct}%` }} />}
+                  {yellowPct > 0 && <div className="bg-amber-400 transition-all" style={{ width: `${yellowPct}%` }} />}
+                  {redPct > 0 && <div className="bg-red-500 transition-all" style={{ width: `${redPct}%` }} />}
+                </div>
+                <div className="flex gap-4">
+                  <span className="text-[11px] text-emerald-400 font-bold">{summary.semaforoCount.green} 🟢</span>
+                  <span className="text-[11px] text-amber-400 font-bold">{summary.semaforoCount.yellow} 🟡</span>
+                  <span className="text-[11px] text-red-400 font-bold">{summary.semaforoCount.red} 🔴</span>
+                </div>
+              </div>
+            </>
           ) : (
-            <div className="divide-y divide-border">
-              {activity.map((item) => {
-                const Icon =
-                  item.type === 'payment' ? CreditCard :
-                  item.type === 'checkin' ? QrCode : UserCheck
-
-                const iconColor =
-                  item.type === 'payment' ? 'text-green-500 bg-green-50' :
-                  item.type === 'checkin' ? 'text-blue-500 bg-blue-50' :
-                  'text-purple-500 bg-purple-50'
-
-                const timeAgo = (() => {
-                  const diff = Date.now() - new Date(item.time).getTime()
-                  const mins = Math.floor(diff / 60000)
-                  const hrs  = Math.floor(diff / 3600000)
-                  const days = Math.floor(diff / 86400000)
-                  if (mins < 60) return `hace ${mins}m`
-                  if (hrs  < 24) return `hace ${hrs}h`
-                  return `hace ${days}d`
-                })()
-
-                return (
-                  <div key={item.id} className="flex items-center gap-3 px-6 py-3 hover:bg-muted/30 transition-colors">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${iconColor}`}>
-                      <Icon className="w-4 h-4" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{item.label}</p>
-                      <p className="text-xs text-muted-foreground truncate">{item.sublabel}</p>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      {item.badge && item.type === 'payment' && (
-                        <Badge variant={
-                          item.badge === 'paid'    ? 'default' :
-                          item.badge === 'pending' ? 'secondary' : 'destructive'
-                        } className="text-xs">
-                          {item.badge === 'paid' ? 'Pagado' : item.badge === 'pending' ? 'Pendiente' : 'Moroso'}
-                        </Badge>
-                      )}
-                      {item.type === 'checkin' && (
-                        <Badge variant={item.badge === 'valid' ? 'default' : 'secondary'} className="text-xs">
-                          {item.badge === 'valid' ? '✓ Válido' : '✗ Inválido'}
-                        </Badge>
-                      )}
-                      <span className="text-xs text-muted-foreground w-14 text-right">{timeAgo}</span>
-                    </div>
-                  </div>
-                )
-              })}
+            <div className="flex-1 flex flex-col justify-center">
+              <p className="text-3xl font-black leading-none text-muted-foreground/30 tracking-tight">—</p>
+              <p className="text-[12px] text-muted-foreground/50 mt-1.5 font-medium">sin {vocab.athletes.toLowerCase()}</p>
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      {/* Monthly Revenue Chart */}
-      {monthlyRevenue.length > 0 && (() => {
-        const maxAmount = Math.max(...monthlyRevenue.map((m) => m.amount), 1)
-        return (
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center justify-between">
-                <span>Ingresos Últimos 6 Meses</span>
-                <span className="text-sm font-normal text-muted-foreground">
-                  Total: ${monthlyRevenue.reduce((s, m) => s + m.amount, 0).toLocaleString("es-CL")}
-                  {(() => {
-                    const cur = monthlyRevenue[monthlyRevenue.length - 1]
-                    const prev = monthlyRevenue.length >= 2 ? monthlyRevenue[monthlyRevenue.length - 2] : null
-                    if (!cur || cur.amount === 0) return null
-                    const dayOfMonth = new Date().getDate()
-                    const daysInMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate()
-                    const dailyRate = cur.amount / dayOfMonth
-                    const projected = Math.round(dailyRate * daysInMonth)
-                    const meta = prev && prev.amount > 0 ? prev.amount : null
+      {/* ── ALERTS STRIP ── */}
+      {alertCount > 0 && (
+        <div className="flex flex-wrap gap-3">
+          {overdueAlerts.length > 0 && (
+            <Link href="/dashboard/payments?status=overdue" className="flex-1 min-w-[200px] bg-red-500/10 border border-red-500/20 rounded-2xl p-4 flex items-center gap-3 hover:bg-red-500/[0.15] transition-colors group">
+              <div className="w-9 h-9 rounded-xl bg-red-500/20 flex items-center justify-center shrink-0">
+                <CreditCard className="w-4 h-4 text-red-500" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-red-500">{overdueAlerts.length} pagos vencidos</p>
+                <p className="text-[10px] text-red-500/60 font-medium truncate">
+                  ${summary.overdueAmount.toLocaleString('es-CL')} por cobrar
+                </p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-red-500/40 group-hover:translate-x-0.5 transition-transform shrink-0" />
+            </Link>
+          )}
+          {summary.semaforoCount.red > 0 && (
+            <Link href="/dashboard/athletes?health=injured" className="flex-1 min-w-[200px] bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4 flex items-center gap-3 hover:bg-amber-500/[0.15] transition-colors group">
+              <div className="w-9 h-9 rounded-xl bg-amber-500/20 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-4 h-4 text-amber-500" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-amber-500">{summary.semaforoCount.red} bloqueados</p>
+                <p className="text-[10px] text-amber-500/60 font-medium">Semáforo rojo</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-amber-500/40 group-hover:translate-x-0.5 transition-transform shrink-0" />
+            </Link>
+          )}
+          {dormantCount > 0 && (
+            <Link href="/dashboard/athletes?inactive=1" className="flex-1 min-w-[200px] bg-white/[0.02] border border-white/[0.04] rounded-2xl p-4 flex items-center gap-3 hover:bg-white/[0.04] transition-colors group">
+              <div className="w-9 h-9 rounded-xl bg-white/[0.04] flex items-center justify-center shrink-0">
+                <Activity className="w-4 h-4 text-muted-foreground/50" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-foreground">{dormantCount} inactivos</p>
+                <p className="text-[10px] text-muted-foreground/50 font-medium">Sin check-in 30+ días</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-muted-foreground/30 group-hover:translate-x-0.5 transition-transform shrink-0" />
+            </Link>
+          )}
+        </div>
+      )}
+
+      {/* ── SMART ALERTS: Profile Data ── */}
+      {(smartAlerts.noEmergencyContact > 0 || smartAlerts.noPhoto > 0 || smartAlerts.incompleteProfiles > 0) && (
+        <div className="rounded-[20px] bg-[#111111] border border-white/[0.04] p-5 shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-sm font-black tracking-tight flex items-center gap-2">
+              <UserX className="w-4 h-4 text-amber-400" />
+              Datos de {vocab.athletes} Incompletos
+            </p>
+            <Link href="/dashboard/athletes" className="text-[10px] font-bold text-primary hover:underline">
+              Ver todos →
+            </Link>
+          </div>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {smartAlerts.noEmergencyContact > 0 && (
+              <Link href="/dashboard/athletes?filter=noEmergency" className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/[0.04] hover:bg-white/[0.04] transition-colors group">
+                <div className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center shrink-0">
+                  <Phone className="w-3.5 h-3.5 text-red-400" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-foreground">{smartAlerts.noEmergencyContact}</p>
+                  <p className="text-[9px] text-muted-foreground/50 font-medium">Sin contacto emergencia</p>
+                </div>
+              </Link>
+            )}
+            {smartAlerts.noPhoto > 0 && (
+              <Link href="/dashboard/athletes?filter=noPhoto" className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/[0.04] hover:bg-white/[0.04] transition-colors group">
+                <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center shrink-0">
+                  <Camera className="w-3.5 h-3.5 text-amber-400" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-foreground">{smartAlerts.noPhoto}</p>
+                  <p className="text-[9px] text-muted-foreground/50 font-medium">Sin foto de perfil</p>
+                </div>
+              </Link>
+            )}
+            {smartAlerts.noBirthDate > 0 && (
+              <Link href="/dashboard/athletes?filter=noBirthDate" className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/[0.04] hover:bg-white/[0.04] transition-colors group">
+                <div className="w-8 h-8 rounded-lg bg-cyan-500/10 flex items-center justify-center shrink-0">
+                  <Calendar className="w-3.5 h-3.5 text-cyan-400" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-foreground">{smartAlerts.noBirthDate}</p>
+                  <p className="text-[9px] text-muted-foreground/50 font-medium">Sin fecha nacimiento</p>
+                </div>
+              </Link>
+            )}
+            {smartAlerts.noDocumentNumber > 0 && (
+              <Link href="/dashboard/athletes?filter=noDocument" className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/[0.04] hover:bg-white/[0.04] transition-colors group">
+                <div className="w-8 h-8 rounded-lg bg-violet-500/10 flex items-center justify-center shrink-0">
+                  <IdCard className="w-3.5 h-3.5 text-violet-400" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-foreground">{smartAlerts.noDocumentNumber}</p>
+                  <p className="text-[9px] text-muted-foreground/50 font-medium">Sin RUT/Documento</p>
+                </div>
+              </Link>
+            )}
+          </div>
+          {smartAlerts.sampleNoEmergency.length > 0 && (
+            <p className="text-[10px] text-muted-foreground/40 mt-3 truncate">
+              Sin emergencia: {smartAlerts.sampleNoEmergency.join(', ')}{smartAlerts.noEmergencyContact > 3 ? ` +${smartAlerts.noEmergencyContact - 3} más` : ''}
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* ── MAIN CONTENT GRID ── */}
+      <div className="grid lg:grid-cols-[1fr_360px] gap-6 items-start">
+
+        {/* LEFT COLUMN - Charts */}
+        <div className="space-y-6">
+
+          {/* Revenue Trend Chart */}
+          {monthlyRevenue.length > 0 && (() => {
+            const maxAmount = Math.max(...monthlyRevenue.map((m) => m.amount), 1)
+            return (
+              <div className="rounded-[20px] bg-[#111111] border border-white/[0.04] p-6 shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6">
+                  <div>
+                    <p className="text-xl font-black tracking-tight">Ingresos</p>
+                    <p className="text-sm text-muted-foreground/50 font-medium mt-1">
+                      Últimos 6 meses · Total: ${monthlyRevenue.reduce((s, m) => s + m.amount, 0).toLocaleString("es-CL")}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <DollarSign className="w-5 h-5 text-emerald-400" />
+                    {revTrend !== 0 && (
+                      <Badge variant={revTrend > 0 ? 'default' : 'destructive'} className="text-[10px] font-bold">
+                        {revTrend > 0 ? '+' : ''}{revTrend}%
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-end gap-3 h-32">
+                  {monthlyRevenue.map((m, i) => {
+                    const pct = maxAmount > 0 ? Math.max((m.amount / maxAmount) * 100, m.amount > 0 ? 8 : 2) : 2
+                    const isCurrentMonth = i === monthlyRevenue.length - 1
                     return (
-                      <span className="ml-2 text-xs">
-                        · ${Math.round(dailyRate).toLocaleString('es-CL')}/día
-                        {meta && <span className={projected >= meta ? ' text-green-600' : ' text-orange-500'}> · proy. ${projected.toLocaleString('es-CL')}</span>}
-                      </span>
+                      <div key={m.month} className="flex-1 flex flex-col items-center gap-1.5">
+                        <span className="text-[10px] text-muted-foreground/40 font-bold">
+                          {m.amount > 0 ? `$${Math.round(m.amount / 1000)}k` : ''}
+                        </span>
+                        <div
+                          className={`w-full rounded-md transition-all ${isCurrentMonth ? 'bg-emerald-400' : 'bg-emerald-400/25'}`}
+                          style={{ height: `${pct}%` }}
+                        />
+                        <span className={`text-[10px] font-bold uppercase ${isCurrentMonth ? 'text-emerald-400' : 'text-muted-foreground/30'}`}>
+                          {m.label}
+                        </span>
+                      </div>
                     )
-                  })()}
-                </span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-end gap-2 h-28">
-                {monthlyRevenue.map((m, i) => {
-                  const pct = maxAmount > 0 ? Math.max((m.amount / maxAmount) * 100, 2) : 2
-                  const isCurrentMonth = i === monthlyRevenue.length - 1
+                  })}
+                </div>
+              </div>
+            )
+          })()}
+
+          {/* Athlete Growth Chart */}
+          {athleteGrowth.length > 0 && athleteGrowth.some(g => g.total > 0) && (() => {
+            const maxTotal = Math.max(...athleteGrowth.map((g) => g.total), 1)
+            return (
+              <div className="rounded-[20px] bg-[#111111] border border-white/[0.04] p-6 shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6">
+                  <div>
+                    <p className="text-xl font-black tracking-tight">Crecimiento {vocab.athletes}</p>
+                    <p className="text-sm text-muted-foreground/50 font-medium mt-1">
+                      Evolución últimos 6 meses
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5 text-cyan-400" />
+                    {growthTrend !== 0 && (
+                      <Badge variant={growthTrend >= 0 ? 'default' : 'destructive'} className="text-[10px] font-bold">
+                        {growthTrend > 0 ? '+' : ''}{growthTrend}%
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-end gap-3 h-32">
+                  {athleteGrowth.map((g, i) => {
+                    const pct = maxTotal > 0 ? Math.max((g.total / maxTotal) * 100, g.total > 0 ? 8 : 2) : 2
+                    const isCurrentMonth = i === athleteGrowth.length - 1
+                    return (
+                      <div key={g.month} className="flex-1 flex flex-col items-center gap-1.5">
+                        <span className="text-[10px] text-muted-foreground/40 font-bold">
+                          {g.total > 0 ? g.total : ''}
+                        </span>
+                        <div className="w-full flex flex-col justify-end" style={{ height: `${pct}%` }}>
+                          {g.new > 0 && (
+                            <div className="w-full bg-cyan-400 rounded-t-md" style={{ height: `${(g.new / g.total) * 100}%`, minHeight: '4px' }} />
+                          )}
+                          <div className={`w-full rounded-b-md ${isCurrentMonth ? 'bg-cyan-400/60' : 'bg-cyan-400/25'}`} style={{ flex: 1 }} />
+                        </div>
+                        <span className={`text-[10px] font-bold uppercase ${isCurrentMonth ? 'text-cyan-400' : 'text-muted-foreground/30'}`}>
+                          {g.label}
+                        </span>
+                      </div>
+                    )
+                  })}
+                </div>
+                <p className="text-[10px] text-muted-foreground/40 mt-3">
+                  <span className="inline-block w-2 h-2 rounded-sm bg-cyan-400 mr-1" /> Nuevos del mes
+                  <span className="inline-block w-2 h-2 rounded-sm bg-cyan-400/25 ml-3 mr-1" /> Acumulado
+                </p>
+              </div>
+            )
+          })()}
+
+          {/* Weekly Attendance Chart */}
+          {weeklyByDay.some((d) => d.total > 0) && (() => {
+            const maxVal = Math.max(...weeklyByDay.map((d) => d.total), 1)
+            return (
+              <div className="rounded-[20px] bg-[#111111] border border-white/[0.04] p-6 shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6">
+                  <div>
+                    <p className="text-xl font-black tracking-tight">Asistencia Semanal</p>
+                    <p className="text-sm text-muted-foreground/50 font-medium mt-1">
+                      Últimos 7 días · {weeklyAttendance.rate}% válidos
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <BarChart3 className="w-5 h-5 text-violet-400" />
+                  </div>
+                </div>
+                <div className="flex items-end gap-3 h-28">
+                  {weeklyByDay.map((d) => {
+                    const heightPct = maxVal > 0 ? Math.max((d.total / maxVal) * 100, d.total > 0 ? 8 : 2) : 2
+                    const validPct = d.total > 0 ? (d.valid / d.total) * 100 : 0
+                    const isToday = d.label === 'Hoy'
+                    return (
+                      <div key={d.date} className="flex-1 flex flex-col items-center gap-1.5">
+                        <span className="text-[10px] text-muted-foreground/40 font-bold">
+                          {d.total > 0 ? d.total : ''}
+                        </span>
+                        <div className="w-full relative rounded-md overflow-hidden bg-white/[0.02]" style={{ height: `${heightPct}%` }}>
+                          <div
+                            className={`absolute bottom-0 left-0 right-0 ${isToday ? 'bg-violet-400' : 'bg-violet-400/40'} rounded-md`}
+                            style={{ height: `${validPct}%` }}
+                          />
+                        </div>
+                        <span className={`text-[10px] font-bold uppercase ${isToday ? 'text-violet-400' : 'text-muted-foreground/30'}`}>
+                          {d.label}
+                        </span>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )
+          })()}
+
+          {/* Activity Feed */}
+          {activity.length > 0 && (
+            <div className="rounded-[20px] bg-[#111111] border border-white/[0.04] overflow-hidden shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
+              <div className="px-6 py-4 border-b border-white/[0.04]">
+                <p className="text-lg font-black tracking-tight">Actividad Reciente</p>
+              </div>
+              <div className="divide-y divide-white/[0.04]">
+                {activity.slice(0, 6).map((item) => {
+                  const Icon = item.type === 'payment' ? CreditCard : item.type === 'checkin' ? QrCode : UserCheck
+                  const iconColor = item.type === 'payment' ? 'text-emerald-400 bg-emerald-400/10' :
+                    item.type === 'checkin' ? 'text-violet-400 bg-violet-400/10' : 'text-cyan-400 bg-cyan-400/10'
+                  const timeAgo = (() => {
+                    const diff = Date.now() - new Date(item.time).getTime()
+                    const mins = Math.floor(diff / 60000)
+                    const hrs = Math.floor(diff / 3600000)
+                    const days = Math.floor(diff / 86400000)
+                    if (mins < 60) return `${mins}m`
+                    if (hrs < 24) return `${hrs}h`
+                    return `${days}d`
+                  })()
                   return (
-                    <div key={m.month} className="flex-1 flex flex-col items-center gap-1">
-                      <span className="text-xs text-muted-foreground font-medium">
-                        {m.amount > 0 ? `$${Math.round(m.amount / 1000)}k` : ''}
-                      </span>
-                      <div
-                        className={`w-full rounded-t-sm transition-all ${
-                          isCurrentMonth ? 'bg-primary' : 'bg-primary/30'
-                        }`}
-                        style={{ height: `${pct}%` }}
-                        title={`${m.label}: $${m.amount.toLocaleString('es-CL')}`}
-                      />
-                      <span className={`text-xs capitalize ${
-                        isCurrentMonth ? 'text-primary font-semibold' : 'text-muted-foreground'
-                      }`}>{m.label}</span>
+                    <div key={item.id} className="flex items-center gap-3 px-6 py-3 hover:bg-white/[0.02] transition-colors">
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${iconColor}`}>
+                        <Icon className="w-4 h-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold truncate">{item.label}</p>
+                        <p className="text-[11px] text-muted-foreground/50 truncate">{item.sublabel}</p>
+                      </div>
+                      <span className="text-[10px] font-bold text-muted-foreground/40 shrink-0">{timeAgo}</span>
                     </div>
                   )
                 })}
               </div>
-            </CardContent>
-          </Card>
-        )
-      })()}
+            </div>
+          )}
+        </div>
 
-      {/* Latest today check-ins widget */}
-      {(() => {
-        const todayStr = new Date().toISOString().split('T')[0]
-        const todayCheckIns = activity
-          .filter((a) => a.type === 'checkin' && a.time.startsWith(todayStr))
-          .slice(0, 5)
-        if (todayCheckIns.length === 0) return null
-        return (
-          <Link href="/dashboard/calendar">
-            <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
-              <CardHeader className="pb-2 pt-4 px-6">
-                <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                  <QrCode className="w-4 h-4 text-primary" />
-                  Últimos check-ins de hoy
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="pb-4 px-6 space-y-1">
-                {todayCheckIns.map((c) => (
-                  <div key={c.id} className="flex items-center justify-between text-xs">
-                    <span className="font-medium">{c.label}</span>
-                    <span className="text-muted-foreground">{c.sublabel} · {new Date(c.time).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}</span>
+        {/* RIGHT COLUMN - Sidebar */}
+        <div className="space-y-6">
+
+          {/* Quick Actions */}
+          <div className="rounded-[20px] bg-[#111111] border border-white/[0.04] p-5 shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
+            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 mb-4">Acciones Rápidas</p>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { href: "/dashboard/athletes/new", label: `Nuevo ${vocab.athlete}`, icon: UserPlus, color: "bg-emerald-400/10 text-emerald-400 hover:bg-emerald-400/20" },
+                { href: "/dashboard/payments/new", label: "Registrar Pago", icon: CreditCard, color: "bg-cyan-400/10 text-cyan-400 hover:bg-cyan-400/20" },
+                { href: "/dashboard/attendance?tab=today", label: "Check-in", icon: QrCode, color: "bg-violet-400/10 text-violet-400 hover:bg-violet-400/20" },
+                { href: "/dashboard/documents/new", label: "Documento", icon: FileText, color: "bg-amber-400/10 text-amber-400 hover:bg-amber-400/20" },
+                { href: "/dashboard/competitions/new", label: vocab.competition, icon: Trophy, color: "bg-pink-400/10 text-pink-400 hover:bg-pink-400/20" },
+                { href: "/dashboard/settings", label: "Configuración", icon: Settings, color: "bg-white/[0.04] text-muted-foreground/60 hover:bg-white/[0.08]" },
+              ].map((item) => (
+                <Link key={item.href} href={item.href}>
+                  <div className={`flex flex-col items-center gap-2 p-3 rounded-xl transition-colors cursor-pointer ${item.color}`}>
+                    <item.icon className="w-5 h-5" />
+                    <span className="text-[10px] font-bold leading-tight text-center">{item.label}</span>
                   </div>
-                ))}
-              </CardContent>
-            </Card>
-          </Link>
-        )
-      })()}
-
-      {/* Top debtors widget */}
-      {overdueAlerts.length > 0 && (() => {
-        const byAthlete: Record<string, { name: string; id: string; debt: number }> = {}
-        for (const a of overdueAlerts) {
-          const athlete = a.athletes
-          if (!athlete) continue
-          if (!byAthlete[athlete.id]) byAthlete[athlete.id] = { id: athlete.id, name: athlete.name, debt: 0 }
-          byAthlete[athlete.id].debt += Number(a.amount)
-        }
-        const top3 = Object.values(byAthlete).sort((a, b) => b.debt - a.debt).slice(0, 3)
-        if (top3.length === 0) return null
-        return (
-          <Card>
-            <CardHeader className="pb-2 pt-4 px-6">
-              <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                <CreditCard className="w-4 h-4 text-orange-500" />
-                Top deudores
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pb-4 px-6 space-y-1">
-              {top3.map((d) => (
-                <Link key={d.id} href={`/dashboard/athletes/${d.id}`} className="flex items-center justify-between text-xs hover:bg-accent/50 rounded px-1 py-0.5 transition-colors">
-                  <span className="font-medium">{d.name}</span>
-                  <span className="text-red-600 font-semibold">${d.debt.toLocaleString('es-CL')}</span>
                 </Link>
               ))}
-            </CardContent>
-          </Card>
-        )
-      })()}
+            </div>
+          </div>
 
-      {staleItemsCount > 0 && (
-        <Link href="/dashboard/inventory">
-          <Card className="border-slate-200 bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer">
-            <CardContent className="py-3">
-              <div className="flex items-center gap-3">
-                <Clock className="w-5 h-5 text-slate-500 shrink-0" />
-                <p className="text-sm text-slate-700 font-medium">
-                  {staleItemsCount} ítem{staleItemsCount !== 1 ? 's' : ''} de inventario sin revisar en más de 90 días
-                </p>
+          {/* TEAM SPORT: Upcoming Matches */}
+          {isTeamSport && upcomingMatches.length > 0 && (
+            <div className="rounded-[20px] bg-[#111111] border border-white/[0.04] p-5 shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-lg font-black tracking-tight">Próximos Partidos</p>
+                <Swords className="w-5 h-5 text-emerald-400" />
               </div>
-            </CardContent>
-          </Card>
-        </Link>
-      )}
+              <div className="space-y-3">
+                {upcomingMatches.map((m) => {
+                  const matchDate = new Date(m.match_date + 'T12:00:00')
+                  return (
+                    <div key={m.id} className="flex gap-3">
+                      <div className="w-12 h-12 rounded-xl bg-white/[0.04] border border-white/[0.04] flex flex-col items-center justify-center shrink-0">
+                        <span className="text-[9px] uppercase font-bold text-muted-foreground/50 leading-none">
+                          {matchDate.toLocaleDateString('es-CL', { month: 'short' })}
+                        </span>
+                        <span className="text-sm font-black text-foreground leading-tight mt-0.5">{matchDate.getDate()}</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold leading-snug truncate">vs. {m.opponent ?? 'Por definir'}</p>
+                        <p className="text-[10px] text-muted-foreground/50 font-medium mt-1 flex items-center gap-2">
+                          <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${m.is_home ? 'bg-emerald-400/10 text-emerald-400' : 'bg-white/[0.04] text-muted-foreground/60'}`}>
+                            {m.is_home ? 'LOCAL' : 'VISITA'}
+                          </span>
+                          {m.location && <span className="flex items-center gap-1 truncate"><MapPin className="w-3 h-3" />{m.location}</span>}
+                        </p>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+              <Link href="/dashboard/competitions" className="mt-4 text-xs text-emerald-400 font-bold inline-flex items-center gap-1 hover:gap-2 transition-all">
+                Ver todos <ChevronRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+          )}
 
-      {/* Broken inventory alert */}
-      {brokenItems.length > 0 && (
-        <Link href="/dashboard/inventory?condition=broken">
-          <Card className="border-red-200 bg-red-50 hover:bg-red-100 transition-colors cursor-pointer">
-            <CardContent className="py-3">
-              <div className="flex items-center gap-3">
-                <AlertCircle className="w-5 h-5 text-red-600 shrink-0" />
-                <p className="text-sm text-red-800 font-medium">
-                  {brokenItems.length} ítem{brokenItems.length !== 1 ? 's' : ''} en mal estado (roto{brokenItems.length !== 1 ? 's' : ''})
-                  {brokenItems.length <= 3 && (
-                    <span className="ml-1 font-normal">— {brokenItems.map((i) => i.name).join(', ')}</span>
+          {/* TEAM SPORT: Season Record */}
+          {isTeamSport && seasonRecord.total > 0 && (
+            <div className="rounded-[20px] bg-[#111111] border border-white/[0.04] p-5 shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-lg font-black tracking-tight">Récord Temporada</p>
+                <BarChart3 className="w-5 h-5 text-cyan-400" />
+              </div>
+              <div className="flex items-center gap-5 mb-4">
+                <div><p className="text-2xl font-black text-emerald-400">{seasonRecord.wins}</p><p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground/40 mt-0.5">Victorias</p></div>
+                <div><p className="text-2xl font-black text-amber-400">{seasonRecord.draws}</p><p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground/40 mt-0.5">Empates</p></div>
+                <div><p className="text-2xl font-black text-red-400">{seasonRecord.losses}</p><p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground/40 mt-0.5">Derrotas</p></div>
+              </div>
+              <div className="h-2 rounded-full bg-white/[0.04] overflow-hidden flex">
+                {seasonRecord.wins > 0 && <div className="bg-emerald-400 h-full" style={{ width: `${(seasonRecord.wins / seasonRecord.total) * 100}%` }} />}
+                {seasonRecord.draws > 0 && <div className="bg-amber-400 h-full" style={{ width: `${(seasonRecord.draws / seasonRecord.total) * 100}%` }} />}
+                {seasonRecord.losses > 0 && <div className="bg-red-400 h-full" style={{ width: `${(seasonRecord.losses / seasonRecord.total) * 100}%` }} />}
+              </div>
+            </div>
+          )}
+
+          {/* ACADEMY: Belt Distribution */}
+          {!isTeamSport && Object.keys(beltDistribution).length > 0 && (
+            <div className="rounded-[20px] bg-[#111111] border border-white/[0.04] p-5 shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-lg font-black tracking-tight">Distribución Rangos</p>
+                <Award className="w-5 h-5 text-amber-400" />
+              </div>
+              <div className="space-y-2">
+                {Object.entries(beltDistribution)
+                  .filter(([belt]) => belt !== 'unassigned')
+                  .sort((a, b) => b[1] - a[1])
+                  .slice(0, 5)
+                  .map(([belt, count]) => {
+                    const totalBelts = Object.values(beltDistribution).reduce((a, b) => a + b, 0)
+                    const pct = Math.round((count / totalBelts) * 100)
+                    const BELT_COLORS: Record<string, string> = {
+                      white: 'bg-white/80', blue: 'bg-blue-500', purple: 'bg-purple-500',
+                      brown: 'bg-amber-700', black: 'bg-black border border-white/20',
+                    }
+                    return (
+                      <div key={belt} className="flex items-center gap-3">
+                        <div className={`w-4 h-4 rounded-full ${BELT_COLORS[belt] ?? 'bg-muted-foreground/30'}`} />
+                        <span className="text-sm font-bold capitalize flex-1">{belt}</span>
+                        <span className="text-sm font-bold text-muted-foreground/50">{count}</span>
+                        <span className="text-[10px] font-bold text-muted-foreground/30 w-10 text-right">{pct}%</span>
+                      </div>
+                    )
+                  })}
+              </div>
+            </div>
+          )}
+
+          {/* ACADEMY: Upcoming Graduations */}
+          {!isTeamSport && upcomingGraduations.length > 0 && (
+            <div className="rounded-[20px] bg-[#111111] border border-white/[0.04] p-5 shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-lg font-black tracking-tight">Candidatos Graduación</p>
+                <Zap className="w-5 h-5 text-amber-400" />
+              </div>
+              <div className="space-y-3">
+                {upcomingGraduations.map((a) => (
+                  <Link key={a.id} href={`/dashboard/athletes/${a.id}`} className="flex items-center gap-3 group">
+                    <Avatar className="w-9 h-9 border border-white/[0.04]">
+                      <AvatarImage src={a.photo_url ?? undefined} />
+                      <AvatarFallback className="bg-[#1a1a1a] text-[10px] font-bold">
+                        {a.name.slice(0, 2).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold truncate group-hover:text-emerald-400 transition-colors">{a.name}</p>
+                      <p className="text-[10px] text-muted-foreground/50 font-medium capitalize">
+                        {a.belt} · {a.stripes} grados
+                      </p>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-muted-foreground/20 group-hover:text-emerald-400 transition-colors" />
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Upcoming Competitions */}
+          {upcomingComps.length > 0 && (
+            <div className="rounded-[20px] bg-[#111111] border border-white/[0.04] p-5 shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-lg font-black tracking-tight">{vocab.competitions}</p>
+                <Trophy className="w-5 h-5 text-pink-400" />
+              </div>
+              <div className="space-y-3">
+                {upcomingComps.slice(0, 3).map((c) => {
+                  const compDate = new Date(c.start_date + 'T12:00:00')
+                  const daysTo = Math.ceil((compDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+                  return (
+                    <div key={c.id} className="flex gap-3">
+                      <div className="w-12 h-12 rounded-xl bg-pink-400/10 border border-pink-400/20 flex flex-col items-center justify-center shrink-0">
+                        <span className="text-[9px] uppercase font-bold text-pink-400/60 leading-none">
+                          {compDate.toLocaleDateString('es-CL', { month: 'short' })}
+                        </span>
+                        <span className="text-sm font-black text-pink-400 leading-tight mt-0.5">{compDate.getDate()}</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold leading-snug truncate">{c.name}</p>
+                        <p className="text-[10px] text-muted-foreground/50 font-medium mt-1 flex items-center gap-2">
+                          {c.location && <span className="flex items-center gap-1 truncate"><MapPin className="w-3 h-3" />{c.location}</span>}
+                          <span className="text-pink-400 font-bold">{daysTo}d</span>
+                        </p>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+              <Link href="/dashboard/competitions" className="mt-4 text-xs text-pink-400 font-bold inline-flex items-center gap-1 hover:gap-2 transition-all">
+                Ver todas <ChevronRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+          )}
+
+          {/* Upcoming Sessions */}
+          {upcomingSchedules.length > 0 && (
+            <div className="rounded-[20px] bg-[#111111] border border-white/[0.04] p-5 shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-lg font-black tracking-tight">Agenda 7 días</p>
+                <ClipboardCheck className="w-5 h-5 text-violet-400" />
+              </div>
+              <div className="space-y-3">
+                {upcomingSchedules.slice(0, 4).map((day) => (
+                  <div key={day.date}>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/40 mb-2">{day.label}</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {day.sessions.slice(0, 4).map((s) => (
+                        <span key={s.id} className="text-[10px] font-bold bg-violet-400/10 text-violet-400 px-2 py-1 rounded-lg">
+                          {s.start_time.slice(0, 5)} {s.name}
+                        </span>
+                      ))}
+                      {day.sessions.length > 4 && (
+                        <span className="text-[10px] font-bold text-muted-foreground/40 px-2 py-1">
+                          +{day.sessions.length - 4}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <Link href="/dashboard/calendar" className="mt-4 text-xs text-violet-400 font-bold inline-flex items-center gap-1 hover:gap-2 transition-all">
+                Ver calendario <ChevronRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+          )}
+
+          {/* Retention & Stats */}
+          {retention !== null && (
+            <div className="rounded-[20px] bg-[#111111] border border-white/[0.04] p-5 shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50">Retención</p>
+                <TrendingUp className="w-4 h-4 text-teal-400" />
+              </div>
+              <p className={`text-3xl font-black ${retention.rate >= 80 ? 'text-emerald-400' : retention.rate >= 60 ? 'text-amber-400' : 'text-red-400'}`}>
+                {retention.rate}%
+              </p>
+              <p className="text-[11px] text-muted-foreground/50 mt-1">
+                {retention.retained}/{retention.total} del mes anterior
+              </p>
+            </div>
+          )}
+
+          {/* Athletes Without Plan Alert */}
+          {athletesWithoutPlan > 0 && (
+            <Link href="/dashboard/subscriptions" className="block">
+              <div className="rounded-[20px] bg-white/[0.02] border border-white/[0.04] p-4 hover:bg-white/[0.04] transition-colors">
+                <div className="flex items-center gap-3">
+                  <Users className="w-5 h-5 text-muted-foreground/50" />
+                  <div>
+                    <p className="text-sm font-bold text-foreground">
+                      {athletesWithoutPlan} sin plan
+                    </p>
+                    <p className="text-[10px] text-muted-foreground/50">Activos sin suscripción</p>
+                  </div>
+                </div>
+              </div>
+            </Link>
+          )}
+
+          {/* Monthly Attendance Trend */}
+          {monthlyAttendance.length > 0 && monthlyAttendance.some(m => m.total > 0) && (() => {
+            const cur = monthlyAttendance[monthlyAttendance.length - 1]
+            const prev = monthlyAttendance.length >= 2 ? monthlyAttendance[monthlyAttendance.length - 2] : null
+            const trend = cur && prev && prev.total > 0 ? Math.round(((cur.total - prev.total) / prev.total) * 100) : 0
+            return (
+              <div className="rounded-[20px] bg-[#111111] border border-white/[0.04] p-5 shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50">Check-ins Mes</p>
+                  <Activity className="w-4 h-4 text-violet-400" />
+                </div>
+                <p className="text-3xl font-black text-violet-400">{cur?.total ?? 0}</p>
+                <p className="text-[11px] text-muted-foreground/50 mt-1 flex items-center gap-1">
+                  {cur?.uniqueAthletes ?? 0} atletas únicos
+                  {trend !== 0 && (
+                    <span className={trend > 0 ? 'text-emerald-400' : 'text-red-400'}>
+                      {trend > 0 ? '↑' : '↓'}{Math.abs(trend)}%
+                    </span>
                   )}
                 </p>
               </div>
-            </CardContent>
-          </Card>
-        </Link>
-      )}
+            )
+          })()}
 
-      {/* Upcoming competitions widget */}
-      {upcomingComps.length > 0 && (
-        <Link href="/dashboard/competitions?status=upcoming">
-          <Card className="border-violet-200 bg-violet-50 hover:bg-violet-100 transition-colors cursor-pointer">
-            <CardHeader className="pb-2 pt-4 px-6">
-              <CardTitle className="text-sm font-semibold text-violet-800 flex items-center gap-2">
-                🏆 {upcomingComps.length} competencia{upcomingComps.length !== 1 ? 's' : ''} próxima{upcomingComps.length !== 1 ? 's' : ''}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pb-4 px-6 space-y-1">
-              {upcomingComps.map((c) => (
-                <div key={c.id} className="flex items-center justify-between gap-2 text-xs text-violet-700">
-                  <span className="font-medium truncate">{c.name}</span>
-                  <span className="shrink-0 text-violet-500">
-                    {new Date(c.start_date).toLocaleDateString('es-CL', { day: 'numeric', month: 'short' })}
-                    {c.location && ` · ${c.location}`}
-                  </span>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        </Link>
-      )}
-
-      {/* Expiring subscriptions alert */}
-      {expiringSubscriptions.length > 0 && (
-        <Card className="border-orange-200 bg-orange-50">
-          <CardHeader className="pb-2 pt-4 px-6">
-            <CardTitle className="text-sm font-semibold text-orange-800 flex items-center gap-2">
-              <AlertCircle className="w-4 h-4" />
-              {expiringSubscriptions.length} suscripción{expiringSubscriptions.length > 1 ? 'es' : ''} vence{expiringSubscriptions.length > 1 ? 'n' : ''} en 7 días
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pb-4 px-6 space-y-1.5">
-            {expiringSubscriptions.map((sub) => {
-              const athlete = sub.athletes
-              const daysLeft = Math.ceil((new Date(sub.end_date).getTime() - Date.now()) / 86400000)
-              return (
-                <div key={sub.id} className="flex items-center justify-between text-sm">
-                  <div className="flex items-center gap-2">
-                    {athlete ? (
-                      <Link href={`/dashboard/athletes/${athlete.id}`} className="font-medium text-orange-900 hover:underline">
-                        {athlete.name}
-                      </Link>
-                    ) : <span className="font-medium text-orange-900">Atleta</span>}
-                    {sub.plans && <span className="text-orange-700 text-xs">— {sub.plans.name}</span>}
+          {/* Expiring Subscriptions Alert */}
+          {expiringSubscriptions.length > 0 && (
+            <Link href="/dashboard/subscriptions" className="block">
+              <div className="rounded-[20px] bg-amber-500/10 border border-amber-500/20 p-4 hover:bg-amber-500/[0.15] transition-colors">
+                <div className="flex items-center gap-3">
+                  <Clock className="w-5 h-5 text-amber-500" />
+                  <div>
+                    <p className="text-sm font-bold text-amber-500">
+                      {expiringSubscriptions.length} suscripción{expiringSubscriptions.length > 1 ? 'es' : ''} por vencer
+                    </p>
+                    <p className="text-[10px] text-amber-500/60">Próximos 7 días</p>
                   </div>
-                  <span className="text-xs font-medium text-orange-700">{daysLeft === 0 ? 'hoy' : `${daysLeft}d`}</span>
-                </div>
-              )
-            })}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Upcoming 7-day agenda */}
-      {upcomingSchedules.length > 0 && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center justify-between">
-              <span className="flex items-center gap-2">
-                <ClipboardCheck className="w-4 h-4 text-primary" />
-                Agenda — Próximos 7 días
-              </span>
-              <Link href="/dashboard/calendar" className="text-xs text-muted-foreground hover:text-primary font-normal">
-                Ver calendario →
-              </Link>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {upcomingSchedules.map((day) => (
-              <div key={day.date}>
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
-                  {day.label}
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {day.sessions.map((s) => (
-                    <Link key={s.id} href={`/dashboard/calendar/${s.id}`}>
-                      <span className="inline-flex items-center gap-1.5 text-xs bg-primary/5 border border-primary/20 text-primary px-2.5 py-1 rounded-full hover:bg-primary/10 transition-colors">
-                        <span className="font-medium">{s.start_time.slice(0, 5)}</span>
-                        {s.name}
-                      </span>
-                    </Link>
-                  ))}
                 </div>
               </div>
-            ))}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Pending payments alert */}
-      {summary.pendingAmount > 0 && (
-        <Card className="border-yellow-200 bg-yellow-50">
-          <CardContent className="py-4">
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <AlertCircle className="w-5 h-5 text-yellow-600 shrink-0" />
-                <p className="text-sm font-medium text-yellow-800">
-                  Tienes <strong>${summary.pendingAmount.toLocaleString("es-CL")}</strong> en pagos pendientes de cobrar
-                </p>
-              </div>
-              <Link href="/dashboard/payments?status=pending">
-                <Button size="sm" variant="outline" className="border-yellow-300 text-yellow-700 hover:bg-yellow-100 shrink-0">
-                  Ver pagos
-                </Button>
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+            </Link>
+          )}
+        </div>
+      </div>
     </div>
   )
 }

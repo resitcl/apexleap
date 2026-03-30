@@ -86,73 +86,85 @@ export default async function AthleteAttendancePage() {
   const DAYS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"]
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 pb-12 pt-1">
       <div>
-        <h1 className="text-3xl font-bold">Mi Asistencia</h1>
-        <p className="text-muted-foreground">Historial de check-ins y métricas de presencia</p>
+        <h1 className="text-4xl md:text-5xl font-black tracking-tighter uppercase leading-none text-foreground flex items-center gap-3">
+          <CalendarDays className="w-10 h-10 text-primary" /> Mi Asistencia
+        </h1>
+        <p className="text-sm md:text-base text-muted-foreground/80 mt-3 max-w-xl font-medium">
+          Historial de check-ins y métricas de presencia. Mantén un ritmo de entrenamiento constante.
+        </p>
       </div>
 
       {/* KPIs */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="py-4 text-center">
-            <div className="text-3xl font-bold text-blue-600">{validThisMonth}</div>
-            <p className="text-xs text-muted-foreground mt-1">Check-ins este mes</p>
+        <Card className="rounded-2xl border-white/[0.04] bg-card shadow-sm hover:border-primary/20 transition-colors">
+          <CardContent className="py-6 flex flex-col items-center justify-center text-center h-full">
+            <div className="text-4xl font-black text-primary drop-shadow-[0_0_8px_rgba(var(--primary),0.3)]">{validThisMonth}</div>
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-2">Mes actual</p>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="py-4 text-center">
-            <div className="text-3xl font-bold text-purple-600">{validPrevMonth}</div>
-            <p className="text-xs text-muted-foreground mt-1">Mes anterior</p>
+        <Card className="rounded-2xl border-white/[0.04] bg-card shadow-sm">
+          <CardContent className="py-6 flex flex-col items-center justify-center text-center h-full">
+            <div className="text-3xl font-black text-foreground">{validPrevMonth}</div>
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-2">Mes anterior</p>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="py-4 text-center">
-            <div className={`text-3xl font-bold ${streak >= 5 ? "text-orange-500" : "text-muted-foreground"}`}>
-              {streak > 0 ? `🔥 ${streak}` : "—"}
+        <Card className="rounded-2xl border-white/[0.04] bg-card shadow-sm relative overflow-hidden">
+          {streak >= 3 && <div className="absolute inset-0 bg-orange-500/5 animate-pulse" />}
+          <CardContent className="py-6 flex flex-col items-center justify-center text-center h-full relative z-10">
+            <div className={`text-4xl font-black ${streak >= 3 ? "text-orange-500 drop-shadow-[0_0_8px_rgba(249,115,22,0.3)]" : "text-muted-foreground"}`}>
+              {streak > 0 ? `${streak}` : "—"}
             </div>
-            <p className="text-xs text-muted-foreground mt-1">Racha actual (días)</p>
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-2 flex items-center gap-1">
+              Racha actual {streak >= 3 && <Flame className="w-3 h-3 text-orange-500" />}
+            </p>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="py-4 text-center">
-            <div className="text-3xl font-bold text-green-600">{totalValid}</div>
-            <p className="text-xs text-muted-foreground mt-1">Total check-ins válidos</p>
+        <Card className="rounded-2xl border-white/[0.04] bg-card shadow-sm">
+          <CardContent className="py-6 flex flex-col items-center justify-center text-center h-full">
+            <div className="text-3xl font-black text-foreground">{totalValid}</div>
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-2">Check-ins Totales</p>
           </CardContent>
         </Card>
       </div>
 
       {/* QR Scan Button */}
-      <Link href="/dashboard/attendance/qr">
-        <Card className="bg-gradient-to-r from-primary/10 to-primary/5 border-primary/20 hover:border-primary/40 transition-colors cursor-pointer">
-          <CardContent className="py-5 flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+      <Link href="/dashboard/attendance/qr" className="block">
+        <div className="relative overflow-hidden rounded-2xl border border-primary/20 hover:border-primary/40 focus-visible:ring-1 focus-visible:ring-primary/40 transition-colors bg-card cursor-pointer group">
+          <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent z-0" />
+          <div className="p-6 sm:p-8 flex items-center justify-between relative z-10">
+            <div className="flex items-center gap-5">
+              <div className="w-14 h-14 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
                 <Camera className="w-6 h-6 text-primary" />
               </div>
               <div>
-                <p className="font-semibold">Escanear QR de Asistencia</p>
-                <p className="text-sm text-muted-foreground">Abre la cámara para marcar tu asistencia</p>
+                <p className="font-black text-lg tracking-tight uppercase leading-none">Escanear QR</p>
+                <p className="text-sm text-muted-foreground/80 font-medium mt-1">Abre la cámara para marcar tu asistencia en la academia</p>
               </div>
             </div>
-            <QrCode className="w-8 h-8 text-primary/60" />
-          </CardContent>
-        </Card>
+            <div className="hidden sm:flex w-12 h-12 rounded-full border border-primary/20 bg-primary/5 items-center justify-center group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+              <QrCode className="w-5 h-5" />
+            </div>
+          </div>
+        </div>
       </Link>
 
       {/* Trend indicator */}
       {(validThisMonth > 0 || validPrevMonth > 0) && (
-        <Card className={validThisMonth >= validPrevMonth ? "bg-muted/50 border-border" : "bg-muted/50 border-border"}>
-          <CardContent className="py-4 flex items-center gap-3">
-            <TrendingUp className={`w-6 h-6 shrink-0 ${validThisMonth >= validPrevMonth ? "text-primary" : "text-muted-foreground"}`} />
+        <Card className={`rounded-2xl border-white/[0.04] shadow-sm ${validThisMonth >= validPrevMonth ? "bg-primary/[0.02]" : "bg-card"}`}>
+          <CardContent className="py-5 flex items-center gap-4">
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${validThisMonth >= validPrevMonth ? "bg-primary/10" : "bg-muted"}`}>
+              <TrendingUp className={`w-5 h-5 ${validThisMonth >= validPrevMonth ? "text-primary" : "text-muted-foreground"}`} />
+            </div>
             <div>
               {validThisMonth > validPrevMonth ? (
-                <p className="text-sm font-medium text-foreground">
-                  ¡Vas {validThisMonth - validPrevMonth} check-ins por encima del mes anterior! Sigue así 💪
+                <p className="text-sm font-semibold text-foreground">
+                  ¡Vas <span className="text-primary font-bold">{validThisMonth - validPrevMonth}</span> check-ins por encima del mes anterior!
                 </p>
               ) : validThisMonth < validPrevMonth ? (
-                <p className="text-sm font-medium text-foreground">
-                  Tienes {validPrevMonth - validThisMonth} check-ins menos que el mes anterior. ¡Puedes mejorar!
+                <p className="text-sm font-medium text-muted-foreground">
+                  Tienes <strong className="text-foreground">{validPrevMonth - validThisMonth}</strong> check-ins menos que el mes anterior.
                 </p>
               ) : (
                 <p className="text-sm font-medium text-muted-foreground">
@@ -164,90 +176,96 @@ export default async function AthleteAttendancePage() {
         </Card>
       )}
 
-      {/* History */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <CalendarDays className="w-4 h-4" /> Historial Reciente
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {recent.length === 0 ? (
-            <div className="py-10 text-center">
-              <CheckCircle className="w-10 h-10 mx-auto mb-3 text-muted-foreground/30" />
-              <p className="text-sm text-muted-foreground">Aún no tienes check-ins registrados.</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {recent.map((r) => {
-                const date = new Date(r.checked_in_at)
-                const dow = DAYS[date.getDay()]
-                const dateStr = date.toLocaleDateString("es-CL", { day: "numeric", month: "short" })
-                const timeStr = date.toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" })
-                const sessionName = (r.schedules as { name: string } | null)?.name ?? "Sesión"
+      <div className="grid md:grid-cols-3 gap-6">
+        {/* History */}
+        <Card className="rounded-2xl border border-white/[0.04] shadow-sm overflow-hidden md:col-span-2">
+          <CardHeader className="pb-4 border-b border-border/30 bg-muted/10 px-6 pt-6">
+            <CardTitle className="text-lg font-black tracking-tight uppercase flex items-center gap-2">
+              <CalendarDays className="w-5 h-5 text-primary" /> Historial Reciente
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            {recent.length === 0 ? (
+              <div className="py-16 text-center">
+                <CheckCircle className="w-10 h-10 mx-auto mb-3 text-muted-foreground/20" />
+                <p className="text-sm font-medium text-muted-foreground/60">Aún no tienes check-ins registrados.</p>
+              </div>
+            ) : (
+              <div className="flex flex-col divide-y divide-border/20">
+                {recent.map((r) => {
+                  const date = new Date(r.checked_in_at)
+                  const dow = DAYS[date.getDay()]
+                  const dateStr = date.toLocaleDateString("es-CL", { day: "numeric", month: "short" })
+                  const timeStr = date.toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" })
+                  const sessionName = (r.schedules as { name: string } | null)?.name ?? "Sesión General"
+
+                  return (
+                    <div key={r.id} className="flex items-center gap-4 px-6 py-4 hover:bg-muted/5 transition-colors">
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border ${r.is_valid ? "bg-primary/10 border-primary/20" : "bg-destructive/10 border-destructive/20"}`}>
+                        {r.is_valid
+                          ? <CheckCircle className="w-5 h-5 text-primary" />
+                          : <XCircle className="w-5 h-5 text-destructive" />
+                        }
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold truncate text-foreground">{sessionName}</p>
+                        <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mt-0.5">
+                          {dow}, {dateStr} <span className="text-muted-foreground/30 mx-1">|</span> {timeStr}
+                        </p>
+                      </div>
+                      <Badge variant="outline" className={`text-[10px] uppercase font-black tracking-widest ${r.is_valid ? "text-primary border-primary/30" : "text-destructive border-destructive/30"}`}>
+                        {r.is_valid ? "Válido" : "Inválido"}
+                      </Badge>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Monthly summary - last 3 months */}
+        <Card className="rounded-2xl border border-white/[0.04] shadow-sm overflow-hidden h-fit">
+          <CardHeader className="pb-4 border-b border-border/30 bg-muted/10 px-6 pt-6">
+            <CardTitle className="text-lg font-black tracking-tight uppercase flex items-center gap-2">
+              <Flame className="w-5 h-5 text-orange-500" /> Resumen
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-6 py-6">
+            <div className="space-y-6">
+              {[0, 1, 2].map((offset) => {
+                const d = new Date(now.getFullYear(), now.getMonth() - offset, 1)
+                const mStart = d.toISOString()
+                const mEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59).toISOString()
+                const count = allRecords.filter((r) => r.is_valid && r.checked_in_at >= mStart && r.checked_in_at <= mEnd).length
+                const label = d.toLocaleDateString("es-CL", { month: "short", year: "numeric" })
+                const maxW = Math.max(...[0, 1, 2].map((o2) => {
+                  const d2 = new Date(now.getFullYear(), now.getMonth() - o2, 1)
+                  const s = d2.toISOString()
+                  const e = new Date(d2.getFullYear(), d2.getMonth() + 1, 0, 23, 59, 59).toISOString()
+                  return allRecords.filter((r) => r.is_valid && r.checked_in_at >= s && r.checked_in_at <= e).length
+                }))
+                const pct = maxW > 0 ? Math.round((count / maxW) * 100) : 0
 
                 return (
-                  <div key={r.id} className="flex items-center gap-3 py-2.5 border-b border-border/50 last:border-0">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${r.is_valid ? "bg-green-100" : "bg-red-100"}`}>
-                      {r.is_valid
-                        ? <CheckCircle className="w-4 h-4 text-green-600" />
-                        : <XCircle className="w-4 h-4 text-red-500" />
-                      }
+                  <div key={offset} className="flex flex-col gap-2">
+                    <div className="flex justify-between items-end">
+                      <p className="text-[10px] font-black tracking-widest uppercase text-muted-foreground">{label}</p>
+                      <span className="text-lg font-black text-foreground">{count}</span>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{sessionName}</p>
-                      <p className="text-xs text-muted-foreground">{dow}, {dateStr} · {timeStr}</p>
+                    <div className="h-2 rounded-full bg-muted overflow-hidden flex shadow-inner">
+                      <div
+                        className="h-full bg-primary/80 transition-all rounded-r-full"
+                        style={{ width: `${pct}%` }}
+                      />
                     </div>
-                    <Badge variant={r.is_valid ? "default" : "destructive"} className="text-xs shrink-0">
-                      {r.is_valid ? "Válido" : "Inválido"}
-                    </Badge>
                   </div>
                 )
               })}
             </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Monthly summary - last 3 months */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Flame className="w-4 h-4 text-orange-500" /> Resumen Mensual
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            {[0, 1, 2].map((offset) => {
-              const d = new Date(now.getFullYear(), now.getMonth() - offset, 1)
-              const mStart = d.toISOString()
-              const mEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59).toISOString()
-              const count = allRecords.filter((r) => r.is_valid && r.checked_in_at >= mStart && r.checked_in_at <= mEnd).length
-              const label = d.toLocaleDateString("es-CL", { month: "long", year: "numeric" })
-              const maxW = Math.max(...[0, 1, 2].map((o2) => {
-                const d2 = new Date(now.getFullYear(), now.getMonth() - o2, 1)
-                const s = d2.toISOString()
-                const e = new Date(d2.getFullYear(), d2.getMonth() + 1, 0, 23, 59, 59).toISOString()
-                return allRecords.filter((r) => r.is_valid && r.checked_in_at >= s && r.checked_in_at <= e).length
-              }))
-              const pct = maxW > 0 ? Math.round((count / maxW) * 100) : 0
-
-              return (
-                <div key={offset} className="flex items-center gap-3">
-                  <p className="text-xs text-muted-foreground w-28 capitalize shrink-0">{label}</p>
-                  <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-primary transition-all"
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                  <span className="text-xs font-semibold w-8 text-right">{count}</span>
-                </div>
-              )
-            })}
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }

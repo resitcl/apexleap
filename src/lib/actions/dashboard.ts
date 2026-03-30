@@ -756,3 +756,257 @@ export async function getDormantAthletes(days = 30) {
     return last < cutoff
   }).length
 }
+
+/**
+ * Get athlete growth over time (monthly counts for the last N months)
+ */
+export async function getAthleteGrowth(months = 6) {
+  const clubId = await getClubId()
+  const supabase = createAdminClient()
+  const now = new Date()
+
+  const result: { month: string; label: string; total: number; new: number }[] = []
+
+  for (let i = months - 1; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    const monthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59)
+    const monthStart = d.toISOString().split('T')[0]
+    const monthEndISO = monthEnd.toISOString()
+
+    // Count athletes created up to and including this month (cumulative)
+    const { count: total } = await supabase
+      .from('athletes')
+      .select('id', { count: 'exact', head: true })
+      .eq('club_id', clubId)
+      .lte('created_at', monthEndISO)
+
+    // Count athletes created in this specific month
+    const { count: newCount } = await supabase
+      .from('athletes')
+      .select('id', { count: 'exact', head: true })
+      .eq('club_id', clubId)
+      .gte('created_at', monthStart)
+      .lte('created_at', monthEndISO)
+
+    const label = d.toLocaleDateString('es-CL', { month: 'short' })
+    result.push({ month: monthStart, label, total: total ?? 0, new: newCount ?? 0 })
+  }
+
+  return result
+}
+
+/**
+ * Get monthly attendance trends (check-ins per month for the last N months)
+ */
+export async function getMonthlyAttendance(months = 6) {
+  const clubId = await getClubId()
+  const supabase = createAdminClient()
+  const now = new Date()
+
+  const result: { month: string; label: string; total: number; valid: number; uniqueAthletes: number }[] = []
+
+  for (let i = months - 1; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    const start = d.toISOString().split('T')[0]
+    const end = new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0]
+
+    const { data } = await supabase
+      .from('attendance')
+      .select('id, is_valid, athlete_id')
+      .eq('club_id', clubId)
+      .gte('checked_in_at', start)
+      .lte('checked_in_at', end + 'T23:59:59')
+
+    const rows = data ?? []
+    const uniqueAthletes = new Set(rows.map((r) => r.athlete_id)).size
+    const label = d.toLocaleDateString('es-CL', { month: 'short' })
+    
+    result.push({
+      month: start,
+      label,
+      total: rows.length,
+      valid: rows.filter((r) => r.is_valid).length,
+      uniqueAthletes,
+    })
+  }
+
+  return result
+}
+
+/**
+ * Get upcoming matches for team sports (next 5)
+ */
+export async function getUpcomingMatches(limit = 5) {
+  const clubId = await getClubId()
+  const supabase = createAdminClient()
+  const today = new Date().toISOString().split('T')[0]
+
+  const { data } = await supabase
+    .from('matches')
+    .select('id, opponent, match_date, is_home, location, home_score, away_score, status, competition_id, competitions(name)')
+    .eq('club_id', clubId)
+    .gte('match_date', today)
+    .neq('status', 'cancelled')
+    .order('match_date', { ascending: true })
+    .limit(limit)
+
+  return (data ?? []).map((m) => ({
+    id: m.id as string,
+    opponent: m.opponent as string | null,
+    match_date: m.match_date as string,
+    is_home: m.is_home as boolean,
+    location: m.location as string | null,
+    home_score: m.home_score as number | null,
+    away_score: m.away_score as number | null,
+    status: m.status as string,
+    competition: ((m.competitions as { name: string } | null)?.name) ?? null,
+  }))
+}
+
+/**
+ * Get season record for team sports
+ */
+export async function getSeasonRecord() {
+  const clubId = await getClubId()
+  const supabase = createAdminClient()
+
+  const { data } = await supabase
+    .from('matches')
+    .select('id, is_home, home_score, away_score, status')
+    .eq('club_id', clubId)
+    .eq('status', 'finished')
+
+  const matches = data ?? []
+  let wins = 0, draws = 0, losses = 0
+
+  for (const m of matches) {
+    const ourScore = m.is_home ? m.home_score : m.away_score
+    const theirScore = m.is_home ? m.away_score : m.home_score
+    if (ourScore === null || theirScore === null) continue
+    if (ourScore > theirScore) wins++
+    else if (ourScore === theirScore) draws++
+    else losses++
+  }
+
+  return { wins, draws, losses, total: matches.length }
+}
+
+/**
+ * Get belt distribution for martial arts academies
+ */
+export async function getBeltDistribution() {
+  const clubId = await getClubId()
+  const supabase = createAdminClient()
+
+  const { data } = await supabase
+    .from('athletes')
+    .select('id, technical_meta')
+    .eq('club_id', clubId)
+    .eq('status', 'active')
+
+  const athletes = data ?? []
+  const distribution: Record<string, number> = {}
+
+  for (const a of athletes) {
+    const meta = a.technical_meta as Record<string, unknown> | null
+    const belt = (meta?.belt as string | undefined)?.toLowerCase() ?? 'unassigned'
+    distribution[belt] = (distribution[belt] ?? 0) + 1
+  }
+
+  return distribution
+}
+
+/**
+ * Get upcoming graduations/promotions for academies
+ */
+export async function getUpcomingGraduations() {
+  const clubId = await getClubId()
+  const supabase = createAdminClient()
+
+  // Athletes with 4 stripes are candidates for promotion
+  const { data } = await supabase
+    .from('athletes')
+    .select('id, name, photo_url, technical_meta')
+    .eq('club_id', clubId)
+    .eq('status', 'active')
+
+  const candidates = (data ?? []).filter((a) => {
+    const meta = a.technical_meta as Record<string, unknown> | null
+    const stripes = typeof meta?.stripes === 'number' ? meta.stripes : 0
+    return stripes >= 4
+  }).map((a) => {
+    const meta = a.technical_meta as Record<string, unknown> | null
+    return {
+      id: a.id as string,
+      name: a.name as string,
+      photo_url: a.photo_url as string | null,
+      belt: (meta?.belt as string | undefined) ?? 'white',
+      stripes: typeof meta?.stripes === 'number' ? meta.stripes : 0,
+    }
+  })
+
+  return candidates.slice(0, 5)
+}
+
+/**
+ * Get smart alerts for admin dashboard - incomplete profiles, missing data, etc.
+ */
+export async function getSmartAlerts() {
+  const clubId = await getClubId()
+  const supabase = createAdminClient()
+
+  const { data: athletes } = await supabase
+    .from('athletes')
+    .select('id, name, email, phone, birth_date, emergency_contact, emergency_phone, photo_url, document_number, status, created_at')
+    .eq('club_id', clubId)
+    .eq('status', 'active')
+
+  const all = athletes ?? []
+
+  // Athletes without emergency contact
+  const noEmergencyContact = all.filter((a) => !a.emergency_contact || !a.emergency_phone)
+
+  // Athletes without photo
+  const noPhoto = all.filter((a) => !a.photo_url)
+
+  // Athletes without birth date
+  const noBirthDate = all.filter((a) => !a.birth_date)
+
+  // Athletes without document/ID number
+  const noDocumentNumber = all.filter((a) => !a.document_number)
+
+  // Athletes without email
+  const noEmail = all.filter((a) => !a.email)
+
+  // Athletes without phone
+  const noPhone = all.filter((a) => !a.phone)
+
+  // New athletes in the last 7 days (might need attention)
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+  const newAthletes = all.filter((a) => a.created_at && a.created_at >= sevenDaysAgo)
+
+  // Incomplete profiles (missing 2+ critical fields)
+  const incompleteProfiles = all.filter((a) => {
+    let missing = 0
+    if (!a.emergency_contact || !a.emergency_phone) missing++
+    if (!a.photo_url) missing++
+    if (!a.birth_date) missing++
+    if (!a.document_number) missing++
+    return missing >= 2
+  })
+
+  return {
+    noEmergencyContact: noEmergencyContact.length,
+    noPhoto: noPhoto.length,
+    noBirthDate: noBirthDate.length,
+    noDocumentNumber: noDocumentNumber.length,
+    noEmail: noEmail.length,
+    noPhone: noPhone.length,
+    newAthletes: newAthletes.length,
+    incompleteProfiles: incompleteProfiles.length,
+    totalActive: all.length,
+    // Sample names for display
+    sampleNoEmergency: noEmergencyContact.slice(0, 3).map((a) => a.name),
+    sampleIncomplete: incompleteProfiles.slice(0, 3).map((a) => a.name),
+  }
+}

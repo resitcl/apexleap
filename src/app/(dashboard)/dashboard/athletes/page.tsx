@@ -7,9 +7,10 @@ import { getCategories } from "@/lib/actions/categories"
 import { getPendingEnrollments } from "@/lib/actions/athlete-enrollment"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { UserPlus, Search, AlertCircle, Clock } from "lucide-react"
+import { DashboardEmptyState, DashboardMetaPill, DashboardPage, DashboardPageHeader } from "@/components/ui/dashboard-kit"
+import { UserPlus, AlertCircle, Clock, Users, TrendingUp, UserCheck, Activity, Filter, CheckCircle2, ArrowRight, ChevronLeft, ChevronRight, Sparkles } from "lucide-react"
 import { AthletesSearch } from "@/components/athletes/AthletesSearch"
 import { HealthStatusBadge } from "@/components/athletes/HealthStatusBadge"
 import { ExportAthletesButton } from "@/components/athletes/ExportAthletesButton"
@@ -84,12 +85,18 @@ export default async function AthletesPage({ searchParams }: PageProps) {
     error = e instanceof Error ? e.message : "Error al cargar alumnos"
   }
 
-  const thirtyDaysAgoISO = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+  const now = new Date()
+  const nowMs = now.getTime()
+  const today = now.toISOString().split('T')[0]
+  const currentMonth = today.slice(0, 7)
+  const thirtyDaysAgoISO = new Date(nowMs - 30 * 24 * 60 * 60 * 1000).toISOString()
+  const fourteenDaysAgoISO = new Date(nowMs - 14 * 24 * 60 * 60 * 1000).toISOString()
+  const sixtyDaysAgo = new Date(nowMs - 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
 
   if (ageMin !== undefined || ageMax !== undefined) {
     athletes = athletes.filter((a) => {
       if (!a.birth_date) return false
-      const age = Math.floor((Date.now() - new Date(a.birth_date).getTime()) / (1000 * 60 * 60 * 24 * 365.25))
+      const age = Math.floor((nowMs - new Date(a.birth_date).getTime()) / (1000 * 60 * 60 * 24 * 365.25))
       if (ageMin !== undefined && age < ageMin) return false
       if (ageMax !== undefined && age > ageMax) return false
       return true
@@ -167,7 +174,7 @@ export default async function AthletesPage({ searchParams }: PageProps) {
   if (ageMin !== undefined || ageMax !== undefined) {
     athletes = athletes.filter((a) => {
       if (!a.birth_date) return ageMin === undefined
-      const age = Math.floor((Date.now() - new Date(a.birth_date + 'T12:00:00').getTime()) / (365.25 * 24 * 60 * 60 * 1000))
+      const age = Math.floor((nowMs - new Date(a.birth_date + 'T12:00:00').getTime()) / (365.25 * 24 * 60 * 60 * 1000))
       if (ageMin !== undefined && age < ageMin) return false
       if (ageMax !== undefined && age > ageMax) return false
       return true
@@ -193,10 +200,9 @@ export default async function AthletesPage({ searchParams }: PageProps) {
   }
 
   if (filterDebtOld60) {
-    const sixtyAgo = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
     athletes = athletes.filter((a) => {
       const pmts = a.payments as Array<{ status: string; due_date?: string | null }> | null ?? []
-      return pmts.some((p) => p.status === 'overdue' && p.due_date && p.due_date < sixtyAgo)
+      return pmts.some((p) => p.status === 'overdue' && p.due_date && p.due_date < sixtyDaysAgo)
     })
   }
 
@@ -210,7 +216,10 @@ export default async function AthletesPage({ searchParams }: PageProps) {
   const statusCounts = {
     active: athletes.filter((a) => a.status === "active").length,
     injured: athletes.filter((a) => a.health_status === "injured").length,
-    overdue: 0,
+    overdue: athletes.filter((a) => {
+      const pmts = a.payments as Array<{ status: string }> | null ?? []
+      return pmts.some((p) => p.status === 'overdue')
+    }).length,
   }
 
   const totalDebt = allAthletes.reduce((sum, a) => {
@@ -231,252 +240,172 @@ export default async function AthletesPage({ searchParams }: PageProps) {
     return +avg.toFixed(1)
   })()
 
-  const today = new Date().toISOString().split('T')[0]
   const expiredDocsCount = allAthletes.reduce((sum, a) => {
     const docs = a.documents as Array<{ id: string; expiry_date: string | null }> | null ?? []
     return sum + docs.filter((d) => d.expiry_date && d.expiry_date < today).length
   }, 0)
 
+  const newThisMonth = allAthletes.filter((a) => (a.created_at ?? '').startsWith(currentMonth)).length
+  const visibleStart = total === 0 ? 0 : (page - 1) * 20 + 1
+  const visibleEnd = Math.min(page * 20, total)
+  const thirtyDaysAgoDate = new Date(nowMs - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-3 flex-wrap">
-        <div>
-          <h1 className="text-3xl font-bold">Alumnos</h1>
-          <p className="text-muted-foreground">
-            {total} registrados en total
-            {totalDebt > 0 && (
-              <span className="ml-2 text-red-600 font-medium">· Deuda total: ${totalDebt.toLocaleString('es-CL')}</span>
+    <DashboardPage>
+      {/* ── GREETING ── */}
+      <DashboardPageHeader
+        title={<>Gestión de <span className="text-primary">Alumnos.</span></>}
+        subtitle={
+          <>
+            <span>{total.toLocaleString('es-CL')} registrados en total</span>
+            {newThisMonth > 0 && <span className="text-primary font-medium"> · +{newThisMonth} nuevo{newThisMonth !== 1 ? 's' : ''} este mes</span>}
+            {totalDebt > 0 && <span className="text-red-500 font-medium"> · Deuda: ${totalDebt.toLocaleString('es-CL')}</span>}
+            {avgAttendanceRate !== null && avgAttendanceRate > 0 && <span> · ~{avgAttendanceRate} check-ins/activo (30d)</span>}
+          </>
+        }
+        meta={
+          <DashboardMetaPill icon={<Sparkles className="w-4 h-4" />} tone="success">
+            Mostrando {visibleStart}-{visibleEnd} de {total.toLocaleString('es-CL')}
+          </DashboardMetaPill>
+        }
+        actions={
+          <div className="flex items-center gap-2 shrink-0">
+            {pendingEnrollmentsCount > 0 && (
+              <Link href="/dashboard/athletes/pending">
+                <Button variant="outline" className="gap-2 h-10 rounded-xl border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 font-bold text-xs uppercase tracking-widest">
+                  <Clock className="w-4 h-4" />
+                  Pendientes
+                  <Badge variant="secondary" className="ml-1 bg-amber-500/20 text-amber-400 border-amber-500/20">
+                    {pendingEnrollmentsCount}
+                  </Badge>
+                </Button>
+              </Link>
             )}
-            {expiredDocsCount > 0 && (
-              <span className="ml-2 text-orange-600 font-medium">· {expiredDocsCount} doc{expiredDocsCount !== 1 ? 's' : ''} vencido{expiredDocsCount !== 1 ? 's' : ''}</span>
-            )}
-            {(() => {
-              const curMonth = new Date().toISOString().slice(0, 7)
-              const newMonth = allAthletes.filter((a) => (a.created_at ?? '').startsWith(curMonth)).length
-              if (newMonth === 0) return null
-              return <span className="ml-2 text-green-600 font-medium">· +{newMonth} nuevo{newMonth !== 1 ? 's' : ''} este mes</span>
-            })()}
-            {(() => {
-              const withAge = allAthletes.filter((a) => a.birth_date)
-              if (withAge.length < 2) return null
-              const now = Date.now()
-              const avgAge = Math.round(withAge.reduce((sum, a) => {
-                return sum + Math.floor((now - new Date(a.birth_date! + 'T12:00:00').getTime()) / (365.25 * 24 * 60 * 60 * 1000))
-              }, 0) / withAge.length)
-              return <span className="ml-2 text-muted-foreground/70">· edad prom. {avgAge} años</span>
-            })()}
-            {(() => {
-              const withDocs = allAthletes.filter((a) => {
-                const docs = a.documents as Array<{ id: string; expiry_date?: string | null }> | null ?? []
-                return docs.length > 0 && !docs.some((d) => d.expiry_date && d.expiry_date < today)
-              }).length
-              if (withDocs === 0) return null
-              return <span className="ml-2 text-green-600/80">· {withDocs} con docs al día</span>
-            })()}
-            {(() => {
-              const totalComps = allAthletes.reduce((sum, a) => {
-                const rosters = (a as Record<string, unknown>).rosters as unknown[] | null
-                return sum + (rosters ?? []).length
-              }, 0)
-              return totalComps > 0 ? (
-                <span className="ml-2 text-violet-600 font-medium">· 🏆 {totalComps} participaciones</span>
-              ) : null
-            })()}
-            {(() => {
-              const sixtyDaysAgo = new Date(); sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60)
-              const sixtyISO = sixtyDaysAgo.toISOString()
-              const dormant = allAthletes.filter((a) => {
-                if (a.status !== 'active') return false
-                const att = a.attendance as Array<{ checked_in_at: string }> | null ?? []
-                const last = att.reduce<string | null>((max, r) => (!max || r.checked_in_at > max ? r.checked_in_at : max), null)
-                return !last || last < sixtyISO
-              }).length
-              return dormant > 0 ? (
-                <span className="ml-2 text-muted-foreground/70">· {dormant} sin asistencia en 60d</span>
-              ) : null
-            })()}
-            {(() => {
-              const noPhoto = allAthletes.filter((a) => a.status === 'active' && !a.photo_url).length
-              return noPhoto > 0 ? (
-                <span className="ml-2 text-muted-foreground/60">· {noPhoto} sin foto</span>
-              ) : null
-            })()}
-            {(() => {
-              const curMonth = new Date().toISOString().slice(0, 7)
-              const newThisMonth = allAthletes.filter((a) => (a.created_at ?? '').startsWith(curMonth)).length
-              return newThisMonth > 0 ? (
-                <span className="ml-2 text-blue-600 font-medium">· +{newThisMonth} incorporado{newThisMonth !== 1 ? 's' : ''} este mes</span>
-              ) : null
-            })()}
-            {(() => {
-              const active = allAthletes.filter((a) => a.status === 'active' && a.created_at)
-              if (active.length < 3) return null
-              const avgDays = Math.round(
-                active.reduce((sum, a) => sum + (Date.now() - new Date(a.created_at!).getTime()) / 86400000, 0) / active.length
-              )
-              const months = Math.round(avgDays / 30)
-              return months > 0 ? (
-                <span className="ml-2 text-muted-foreground/60">· prom. {months} mes{months !== 1 ? 'es' : ''} activo</span>
-              ) : null
-            })()}
-            {(() => {
-              const thirtyAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
-              const withAtt = allAthletes.filter((a) => a.status === 'active' && (a.attendance as unknown[])?.length)
-              if (withAtt.length < 3) return null
-              const avgCheckins = +(withAtt.reduce((sum, a) => {
-                const att = (a.attendance as Array<{ checked_in_at: string }> | null) ?? []
-                return sum + att.filter((r) => r.checked_in_at >= thirtyAgo).length
-              }, 0) / withAtt.length).toFixed(1)
-              return avgCheckins > 0 ? (
-                <span className="ml-2 text-muted-foreground/60">· prom. {avgCheckins} check-ins/atleta/30d</span>
-              ) : null
-            })()}
-            {totalDebt > 0 && (() => {
-              const debtors = allAthletes.filter((a) => {
-                const pmts = a.payments as Array<{ status: string; amount: number }> | null ?? []
-                return pmts.some((p) => p.status === 'overdue')
-              })
-              if (debtors.length === 0) return null
-              const avg = Math.round(totalDebt / debtors.length)
-              return (
-                <span className="ml-2 text-red-600/80">· prom. deuda ${avg.toLocaleString('es-CL')}/moroso</span>
-              )
-            })()}
-            {avgAttendanceRate !== null && avgAttendanceRate > 0 && (
-              <span className="ml-2 text-muted-foreground/70">· ~{avgAttendanceRate} check-ins/activo (30d)</span>
-            )}
-            {(() => {
-              const active = allAthletes.filter((a) => a.status === 'active')
-              if (active.length === 0) return null
-              const monthStart = new Date().toISOString().slice(0, 7)
-              const totalPaid = active.reduce((sum, a) => {
-                const pmts = a.payments as Array<{ status: string; amount: number; paid_at?: string | null }> | null ?? []
-                return sum + pmts
-                  .filter((p) => p.status === 'paid' && p.paid_at && p.paid_at.startsWith(monthStart))
-                  .reduce((s, p) => s + Number(p.amount), 0)
-              }, 0)
-              if (totalPaid === 0) return null
-              const avg = Math.round(totalPaid / active.length)
-              return <span className="ml-2 text-green-600/80">· ${avg.toLocaleString('es-CL')}/activo este mes</span>
-            })()}
-            {(() => {
-              const monthStart = new Date().toISOString().slice(0, 7) + '-01'
-              const newThisMonth = allAthletes.filter((a) => a.created_at && a.created_at >= monthStart).length
-              return newThisMonth > 0 ? (
-                <span className="ml-2 text-green-600 font-medium">· +{newThisMonth} nuevo{newThisMonth !== 1 ? 's' : ''} este mes</span>
-              ) : null
-            })()}
-          </p>
-        </div>
-        <div className="flex gap-2">
-          {pendingEnrollmentsCount > 0 && (
-            <Link href="/dashboard/athletes/pending">
-              <Button variant="outline" className="gap-2 border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-700">
-                <Clock className="w-4 h-4" />
-                Pendientes
-                <Badge variant="secondary" className="ml-1 bg-amber-200 text-amber-800">
-                  {pendingEnrollmentsCount}
-                </Badge>
+            <ExportAthletesButton athletes={allAthletes} />
+            <Link href="/dashboard/athletes/new">
+              <Button className="gap-2 h-10 px-5 rounded-xl font-black uppercase tracking-widest text-xs bg-emerald-400 text-black shadow-[0_0_15px_rgba(52,211,153,0.25)] hover:bg-emerald-500">
+                <UserPlus className="w-4 h-4" />
+                Nuevo Alumno
               </Button>
             </Link>
-          )}
-          <ExportAthletesButton athletes={allAthletes} />
-          <Link href="/dashboard/athletes/new">
-            <Button className="gap-2">
-              <UserPlus className="w-4 h-4" />
-              Nuevo Alumno
-            </Button>
-          </Link>
-        </div>
-      </div>
+          </div>
+        }
+      />
 
-      {/* KPI Cards */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Activos
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-green-500" />
-              <span className="text-2xl font-bold">{statusCounts.active}</span>
+      {/* ── KPI ROW ── */}
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-[1fr_1fr_1fr_1fr_1.6fr] gap-3">
+
+        {/* Activos */}
+        <Link href="/dashboard/athletes?status=active" className="block h-full">
+          <div className="rounded-[20px] bg-[#111111] border border-white/[0.04] p-5 hover:bg-[#1a1a1a] transition-colors h-full flex flex-col justify-between">
+            <div className="flex items-center gap-2.5 mb-5">
+              <Users className="w-5 h-5 text-muted-foreground/50" />
+              <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70">Activos</p>
             </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Lesionados
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-red-500" />
-              <span className="text-2xl font-bold">{statusCounts.injured}</span>
+            <div>
+              <p className="text-4xl font-black tracking-tight text-emerald-400 leading-none">{statusCounts.active}</p>
+              <p className="text-[13px] text-muted-foreground/50 mt-2 font-normal">alumnos activos</p>
             </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Con Deuda
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-yellow-500" />
-              <span className="text-2xl font-bold">{statusCounts.overdue}</span>
+          </div>
+        </Link>
+
+        {/* Lesionados */}
+        <Link href="/dashboard/athletes?health=injured" className="block h-full">
+          <div className="rounded-[20px] bg-[#111111] border border-white/[0.04] p-5 hover:bg-[#1a1a1a] transition-colors h-full flex flex-col justify-between">
+            <div className="flex items-center gap-2.5 mb-5">
+              <Activity className="w-5 h-5 text-muted-foreground/50" />
+              <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70">Lesionados</p>
             </div>
-          </CardContent>
-        </Card>
+            <div>
+              <p className={`text-4xl font-black tracking-tight leading-none ${statusCounts.injured > 0 ? 'text-red-500' : 'text-foreground'}`}>{statusCounts.injured}</p>
+              <p className="text-[13px] text-muted-foreground/50 mt-2 font-normal">con lesión activa</p>
+            </div>
+          </div>
+        </Link>
+
+        {/* Asistencia Promedio */}
+        {avgAttendanceRate !== null ? (
+          <div className="rounded-[20px] bg-[#111111] border border-white/[0.04] p-5 h-full flex flex-col justify-between">
+            <div className="flex items-center gap-2.5 mb-5">
+              <TrendingUp className="w-5 h-5 text-muted-foreground/50" />
+              <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70">Asistencia</p>
+            </div>
+            <div>
+              <p className="text-4xl font-black tracking-tight text-foreground leading-none">{avgAttendanceRate}</p>
+              <p className="text-[13px] text-muted-foreground/50 mt-2 font-normal">check-ins/activo (30d)</p>
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-[20px] bg-[#111111] border border-white/[0.04] p-5 h-full flex flex-col justify-between">
+            <div className="flex items-center gap-2.5 mb-5">
+              <TrendingUp className="w-5 h-5 text-muted-foreground/50" />
+              <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70">Docs Vencidos</p>
+            </div>
+            <div>
+              <p className={`text-4xl font-black tracking-tight leading-none ${expiredDocsCount > 0 ? 'text-amber-500' : 'text-foreground'}`}>{expiredDocsCount}</p>
+              <p className="text-[13px] text-muted-foreground/50 mt-2 font-normal">documentos vencidos</p>
+            </div>
+          </div>
+        )}
+
+        {/* Con Plan */}
         {(() => {
           const active = allAthletes.filter((a) => a.status === 'active')
-          if (active.length === 0) return null
+          if (active.length === 0) return (
+            <div className="rounded-[20px] bg-[#111111] border border-white/[0.04] p-5 h-full flex flex-col justify-between">
+              <div className="flex items-center gap-2.5 mb-5">
+                <UserCheck className="w-5 h-5 text-muted-foreground/50" />
+                <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70">Con Plan</p>
+              </div>
+              <div>
+                <p className="text-4xl font-black tracking-tight text-muted-foreground/30 leading-none">—</p>
+                <p className="text-[13px] text-muted-foreground/50 mt-2 font-normal">sin alumnos activos</p>
+              </div>
+            </div>
+          )
           const withSub = active.filter((a) => {
             const subs = a.subscriptions as Array<{ status: string }> | null ?? []
             return subs.some((s) => s.status === 'active')
           }).length
           const pct = Math.round((withSub / active.length) * 100)
           return (
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Con Plan</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-blue-500" />
-                  <span className={`text-2xl font-bold ${pct >= 80 ? 'text-green-600' : pct >= 60 ? 'text-yellow-600' : 'text-red-600'}`}>{pct}%</span>
+            <Link href="/dashboard/subscriptions" className="block h-full">
+              <div className="rounded-[20px] bg-[#111111] border border-white/[0.04] p-5 hover:bg-[#1a1a1a] transition-colors h-full flex flex-col justify-between">
+                <div className="flex items-center gap-2.5 mb-5">
+                  <UserCheck className="w-5 h-5 text-muted-foreground/50" />
+                  <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70">Con Plan</p>
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">{withSub}/{active.length} activos</p>
-              </CardContent>
-            </Card>
+                <div>
+                  <p className={`text-4xl font-black tracking-tight leading-none ${pct >= 80 ? 'text-emerald-400' : pct >= 60 ? 'text-amber-500' : 'text-red-500'}`}>{pct}%</p>
+                  <p className="text-[13px] text-muted-foreground/50 mt-2 font-normal">{withSub}/{active.length} activos</p>
+                </div>
+              </div>
+            </Link>
           )
         })()}
-        {(() => {
-          const highDebt = allAthletes.filter((a) => {
-            const pmts = a.payments as Array<{ status: string; amount: number }> | null ?? []
-            const total = pmts.filter((p) => p.status === 'overdue').reduce((s, p) => s + Number(p.amount), 0)
-            return total > 50000
-          })
-          if (highDebt.length === 0) return null
-          return (
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Deuda &gt;$50k</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-red-500" />
-                  <span className="text-2xl font-bold text-red-600">{highDebt.length}</span>
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">atleta{highDebt.length !== 1 ? 's' : ''} c/deuda alta</p>
-              </CardContent>
-            </Card>
-          )
-        })()}
+
+        {/* Featured: Deuda Total */}
+        <div className="rounded-[20px] bg-[#111111] border border-white/[0.04] p-5 h-full flex flex-col justify-between col-span-2 md:col-span-2 lg:col-span-1">
+          <div className="flex items-start justify-between mb-3">
+            <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70">Deuda Total</p>
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${totalDebt > 0 ? 'bg-red-500/10' : 'bg-emerald-500/10'}`}>
+              <AlertCircle className={`w-5 h-5 ${totalDebt > 0 ? 'text-red-500' : 'text-emerald-400'}`} />
+            </div>
+          </div>
+          <div>
+            <p className={`text-3xl lg:text-4xl font-black leading-none tracking-tight ${totalDebt > 0 ? 'text-red-500' : 'text-emerald-400'}`}>
+              {totalDebt > 0 ? `$${totalDebt >= 1000 ? `${Math.round(totalDebt / 1000)}k` : totalDebt.toLocaleString('es-CL')}` : 'Sin deuda'}
+            </p>
+            <p className="text-[13px] text-muted-foreground/50 mt-1.5 font-normal">
+              {totalDebt > 0 ? 'en pagos vencidos' : 'todos al día'}
+            </p>
+          </div>
+          {expiredDocsCount > 0 && (
+            <div className="mt-auto pt-3 border-t border-white/[0.04]">
+              <p className="text-[11px] text-amber-500 font-bold">{expiredDocsCount} doc{expiredDocsCount !== 1 ? 's' : ''} vencido{expiredDocsCount !== 1 ? 's' : ''}</p>
+            </div>
+          )}
+        </div>
       </div>
 
       {(() => {
@@ -489,30 +418,29 @@ export default async function AthletesPage({ searchParams }: PageProps) {
         const pct = Math.round((withOverdue / active.length) * 100)
         if (pct < 30) return null
         return (
-          <a href="/dashboard/athletes?sort=debt">
-            <Card className="border-red-200 bg-red-50 hover:bg-red-100 transition-colors cursor-pointer">
-              <CardContent className="py-3">
-                <div className="flex items-center gap-3">
-                  <AlertCircle className="w-5 h-5 text-red-600 shrink-0" />
-                  <p className="text-sm text-red-800 font-medium">
-                    {pct}% de atletas activos ({withOverdue}/{active.length}) tienen pagos vencidos
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          </a>
+          <Link href="/dashboard/athletes?sort=debt">
+            <div className="rounded-2xl border border-destructive/20 bg-gradient-to-r from-destructive/10 via-destructive/5 to-transparent p-5 flex items-center gap-4 hover:border-destructive/40 transition-colors cursor-pointer">
+              <div className="w-10 h-10 rounded-xl bg-destructive/20 flex items-center justify-center shrink-0">
+                <AlertCircle className="w-5 h-5 text-destructive" />
+              </div>
+              <p className="text-sm font-bold text-foreground">
+                {pct}% de atletas activos <span className="text-destructive">({withOverdue}/{active.length})</span> tienen pagos vencidos
+              </p>
+            </div>
+          </Link>
         )
       })()}
 
+      {/* ── ALERTS ROW ── */}
       {(() => {
-        const fourteenAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString()
-        const thirtyAgo   = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+        const fourteenAgo = fourteenDaysAgoISO
+        const thirtyAgo   = thirtyDaysAgoDate
 
         const noCheckIn = allAthletes.filter((a) => {
           if (a.status !== 'active') return false
           const att = (a.attendance as Array<{ checked_in_at: string }> | null) ?? []
           if (att.length === 0) return false
-          const last = att.map((r) => r.checked_in_at).sort().at(-1)
+          const last = att.map(r => r.checked_in_at).sort().at(-1)
           return !last || last < fourteenAgo
         })
 
@@ -533,542 +461,386 @@ export default async function AthletesPage({ searchParams }: PageProps) {
         const hasAlerts = noCheckIn.length > 0 || noSub.length > 0 || showEmerg
         if (!hasAlerts) return null
 
-        const alertCount = [noCheckIn.length > 0, noSub.length > 0, showEmerg].filter(Boolean).length
-
         return (
-          <Card>
-            <CardHeader className="pb-0 pt-4 px-5">
-              <div className="flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 text-amber-500 shrink-0" />
-                <CardTitle className="text-sm font-semibold">Alertas de alumnos</CardTitle>
-                <span className="ml-auto text-xs text-muted-foreground">{alertCount} alerta{alertCount !== 1 ? 's' : ''}</span>
+          <div className="flex flex-wrap gap-3">
+            {noSub.length > 0 && (
+              <div className="flex-1 min-w-[280px] bg-amber-500/10 border border-amber-500/20 rounded-[16px] p-3 flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0">
+                  <AlertCircle className="w-4 h-4 text-amber-400" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs font-bold text-amber-500">
+                    {noSub.length} activo{noSub.length !== 1 ? 's' : ''} sin suscripción
+                  </p>
+                  <p className="text-[10px] text-amber-500/70">hace más de 30 días</p>
+                </div>
+                <Link href="/dashboard/athletes?subStatus=&sort=" className="h-7 px-3 rounded-full bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 text-[10px] font-bold uppercase tracking-widest flex items-center transition-colors">
+                  Ver
+                </Link>
               </div>
-            </CardHeader>
-            <CardContent className="px-5 pt-1 pb-2">
-              <div className="divide-y divide-border">
-                {noSub.length > 0 && (
-                  <div className="py-3 flex items-center gap-3">
-                    <div className="w-0.5 h-10 rounded-full bg-orange-500 shrink-0" />
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">
-                        {noSub.length} atleta{noSub.length !== 1 ? 's' : ''} activo{noSub.length !== 1 ? 's' : ''} sin suscripción
-                        <span className="text-muted-foreground font-normal"> · más de 30 días</span>
-                      </p>
-                      <p className="text-xs text-muted-foreground">Sin plan activo asignado</p>
-                    </div>
-                    <Link href="/dashboard/athletes?subStatus=&sort=" className="text-xs text-primary hover:underline shrink-0">Ver →</Link>
-                  </div>
-                )}
-                {noCheckIn.length > 0 && (
-                  <div className="py-3 flex items-center gap-3">
-                    <div className="w-0.5 h-10 rounded-full bg-amber-400 shrink-0" />
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">
-                        {noCheckIn.length} atleta{noCheckIn.length !== 1 ? 's' : ''} sin check-in
-                        <span className="text-muted-foreground font-normal"> · últimos 14 días</span>
-                      </p>
-                      <p className="text-xs text-muted-foreground">Posible abandono o baja actividad</p>
-                    </div>
-                    <Link href="/dashboard/athletes?sort=last_attendance" className="text-xs text-primary hover:underline shrink-0">Ver →</Link>
-                  </div>
-                )}
-                {showEmerg && (
-                  <div className="py-3 flex items-center gap-3">
-                    <div className="w-0.5 h-10 rounded-full bg-slate-400 shrink-0" />
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">
-                        {noEmerg.length} atleta{noEmerg.length !== 1 ? 's' : ''} ({noEmergPct}%) sin teléfono de emergencia
-                      </p>
-                      <p className="text-xs text-muted-foreground">Dato obligatorio para menores y competencias</p>
-                    </div>
-                  </div>
-                )}
+            )}
+            {noCheckIn.length > 0 && (
+              <div className="flex-1 min-w-[280px] bg-amber-500/10 border border-amber-500/20 rounded-[16px] p-3 flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0">
+                  <Activity className="w-4 h-4 text-amber-400" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs font-bold text-amber-500">
+                    {noCheckIn.length} sin check-in reciente
+                  </p>
+                  <p className="text-[10px] text-amber-500/70">últimos 14 días</p>
+                </div>
+                <Link href="/dashboard/athletes?sort=last_attendance" className="h-7 px-3 rounded-full bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 text-[10px] font-bold uppercase tracking-widest flex items-center transition-colors">
+                  Ver
+                </Link>
               </div>
-            </CardContent>
-          </Card>
+            )}
+            {showEmerg && (
+              <div className="flex-1 min-w-[280px] bg-white/[0.02] border border-white/[0.04] rounded-[16px] p-3 flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-white/[0.04] flex items-center justify-center shrink-0">
+                  <AlertCircle className="w-4 h-4 text-muted-foreground/50" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs font-bold text-foreground">
+                    {noEmergPct}% sin teléfono emergencia
+                  </p>
+                  <p className="text-[10px] text-muted-foreground/50">Faltan {noEmerg.length} registros</p>
+                </div>
+              </div>
+            )}
+          </div>
         )
       })()}
 
       {/* Bulk Actions */}
       <BulkActionsWrapper athletes={athletes.map((a) => ({ id: a.id, name: a.name, photo_url: (a as { photo_url?: string | null }).photo_url ?? null, status: a.status, health_status: a.health_status }))} />
 
-      {/* Search and Filters */}
-      <div className="bg-card border border-border rounded-xl p-4 space-y-3">
-        {/* Search bar */}
-        <AthletesSearch />
-
-        <div className="h-px bg-border" />
-
-        {/* Categoría */}
-        {categories.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 items-center">
-            <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide w-20 shrink-0">Categoría</span>
-            <Link href={`/dashboard/athletes?${new URLSearchParams({ ...(params.search ? { search: params.search } : {}), ...(params.status ? { status: params.status } : {}), ...(params.health ? { health: params.health } : {}), ...(params.planId ? { planId: params.planId } : {}), ...(params.subStatus ? { subStatus: params.subStatus } : {}) }).toString()}`}>
-              <button className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${!params.categoryId ? 'bg-foreground text-background border-foreground shadow-sm' : 'border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground'}`}>Todas</button>
-            </Link>
-            {categories.map((cat) => (
-              <Link key={cat.id} href={`/dashboard/athletes?${new URLSearchParams({ ...(params.search ? { search: params.search } : {}), ...(params.status ? { status: params.status } : {}), ...(params.health ? { health: params.health } : {}), ...(params.planId ? { planId: params.planId } : {}), ...(params.subStatus ? { subStatus: params.subStatus } : {}), categoryId: cat.id }).toString()}`}>
-                <button className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${params.categoryId === cat.id ? 'bg-foreground text-background border-foreground shadow-sm' : 'border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground'}`}>
-                  {cat.color && <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: cat.color }} />}
-                  {cat.name}
-                </button>
-              </Link>
-            ))}
+      {/* ═══════════ SEARCH & FILTERS ═══════════ */}
+      <div className="flex items-center gap-4 w-full">
+        {/* Search Bar - Principal */}
+        <div className="flex-1 bg-[#111111] rounded-[20px] border border-white/[0.04] p-2 flex items-center shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
+          <div className="flex-1">
+            <AthletesSearch />
           </div>
-        )}
+          
+          <div className="h-8 w-px bg-white/[0.04] mx-2" />
+          
+          {/* Quick Selects - Inline */}
+          <div className="flex items-center gap-2 pr-2 overflow-x-auto hide-scrollbar">
+            {/* Filtro Plan */}
+            {plans.length > 0 && (
+              <div className="flex items-center gap-1.5 border-r border-white/[0.04] pr-3 mr-1">
+                <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/40">Plan:</span>
+                <Link href={`/dashboard/athletes?${new URLSearchParams({ ...(params.search ? { search: params.search } : {}), ...(params.status ? { status: params.status } : {}), ...(params.health ? { health: params.health } : {}), ...(params.subStatus ? { subStatus: params.subStatus } : {}), ...(params.categoryId ? { categoryId: params.categoryId } : {}), ...(sort ? { sort } : {}) }).toString()}`}>
+                  <button className={`h-7 px-2.5 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all ${!params.planId ? 'bg-white/[0.08] text-white' : 'text-muted-foreground/60 hover:text-foreground'}`}>Todos</button>
+                </Link>
+                {plans.map((plan) => (
+                  <Link key={plan.id} href={`/dashboard/athletes?${new URLSearchParams({ ...(params.search ? { search: params.search } : {}), ...(params.status ? { status: params.status } : {}), ...(params.health ? { health: params.health } : {}), planId: plan.id, ...(params.subStatus ? { subStatus: params.subStatus } : {}), ...(params.categoryId ? { categoryId: params.categoryId } : {}), ...(sort ? { sort } : {}) }).toString()}`}>
+                    <button className={`h-7 px-2.5 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all ${params.planId === plan.id ? 'bg-white/[0.08] text-white' : 'text-muted-foreground/60 hover:text-foreground'}`}>{plan.name}</button>
+                  </Link>
+                ))}
+              </div>
+            )}
 
-        {/* Plan */}
-        {plans.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 items-center">
-            <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide w-20 shrink-0">Plan</span>
-            <Link href={`/dashboard/athletes?${new URLSearchParams({ ...(params.search ? { search: params.search } : {}), ...(params.status ? { status: params.status } : {}), ...(params.health ? { health: params.health } : {}) }).toString()}`}>
-              <button className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${!params.planId ? 'bg-foreground text-background border-foreground shadow-sm' : 'border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground'}`}>Todos</button>
-            </Link>
-            {plans.map((plan) => (
-              <Link key={plan.id} href={`/dashboard/athletes?${new URLSearchParams({ ...(params.search ? { search: params.search } : {}), ...(params.status ? { status: params.status } : {}), ...(params.health ? { health: params.health } : {}), planId: plan.id }).toString()}`}>
-                <button className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${params.planId === plan.id ? 'bg-foreground text-background border-foreground shadow-sm' : 'border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground'}`}>{plan.name}</button>
-              </Link>
-            ))}
+            {/* Status Quick Select */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/40">Estado:</span>
+              <div className="flex gap-1">
+                <Link href={`/dashboard/athletes?${new URLSearchParams({ ...(params.search ? { search: params.search } : {}), ...(params.planId ? { planId: params.planId } : {}) }).toString()}`}>
+                  <button className={`h-7 px-2.5 rounded-full text-[10px] font-bold uppercase tracking-widest border transition-all ${!params.status ? 'bg-emerald-400 text-black border-emerald-400' : 'border-transparent text-muted-foreground/60 hover:text-foreground hover:bg-white/[0.02]'}`}>Todos</button>
+                </Link>
+                <Link href={`/dashboard/athletes?${new URLSearchParams({ ...(params.search ? { search: params.search } : {}), ...(params.planId ? { planId: params.planId } : {}), status: 'active' }).toString()}`}>
+                  <button className={`h-7 px-2.5 rounded-full text-[10px] font-bold uppercase tracking-widest border transition-all ${params.status === 'active' ? 'bg-emerald-400 text-black border-emerald-400' : 'border-transparent text-muted-foreground/60 hover:text-foreground hover:bg-white/[0.02]'}`}>Activos</button>
+                </Link>
+                <Link href={`/dashboard/athletes?${new URLSearchParams({ ...(params.search ? { search: params.search } : {}), ...(params.planId ? { planId: params.planId } : {}), status: 'inactive' }).toString()}`}>
+                  <button className={`h-7 px-2.5 rounded-full text-[10px] font-bold uppercase tracking-widest border transition-all ${params.status === 'inactive' ? 'bg-emerald-400 text-black border-emerald-400' : 'border-transparent text-muted-foreground/60 hover:text-foreground hover:bg-white/[0.02]'}`}>Inactivos</button>
+                </Link>
+              </div>
+            </div>
+            
+            {/* Clear All Inline */}
+            {(params.search || params.status || params.health || params.planId || params.subStatus || params.categoryId || sort || showInactive || filterDebtOld60 || filterExpiredDocs || params.ageMin || params.ageMax || params.debtMin || params.debtMax) && (
+              <div className="flex items-center gap-2 pl-3 ml-1 border-l border-white/[0.04]">
+                <Link href="/dashboard/athletes" className="h-7 px-2.5 rounded-full text-[10px] font-bold uppercase tracking-widest text-destructive/80 hover:text-destructive hover:bg-destructive/10 transition-colors flex items-center gap-1.5">
+                  ✕ Limpiar
+                </Link>
+              </div>
+            )}
           </div>
-        )}
-
-        {/* Suscripción */}
-        <div className="flex flex-wrap gap-1.5 items-center">
-          <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide w-20 shrink-0">Suscripción</span>
-          {([
-            { value: '',          label: 'Todas',     color: '' },
-            { value: 'active',    label: 'Activa',    color: 'bg-emerald-500/10 text-emerald-600 border-emerald-200 dark:border-emerald-800 dark:text-emerald-400' },
-            { value: 'expired',   label: 'Vencida',   color: 'bg-red-500/10 text-red-600 border-red-200 dark:border-red-800 dark:text-red-400' },
-            { value: 'paused',    label: 'Pausada',   color: 'bg-amber-500/10 text-amber-600 border-amber-200 dark:border-amber-800 dark:text-amber-400' },
-            { value: 'cancelled', label: 'Cancelada', color: 'bg-zinc-500/10 text-zinc-500 border-zinc-200 dark:border-zinc-700 dark:text-zinc-400' },
-          ]).map(({ value, label, color }) => {
-            const isActive = (value === '' && !params.subStatus) || params.subStatus === value
-            return (
-              <Link key={value} href={`/dashboard/athletes?${new URLSearchParams({ ...(params.search ? { search: params.search } : {}), ...(params.status ? { status: params.status } : {}), ...(params.health ? { health: params.health } : {}), ...(params.planId ? { planId: params.planId } : {}), ...(value ? { subStatus: value } : {}) }).toString()}`}>
-                <button className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${isActive ? (color || 'bg-foreground text-background border-foreground') + ' shadow-sm' : 'border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground'}`}>{label}</button>
-              </Link>
-            )
-          })}
         </div>
 
-        {/* Alertas rápidas */}
-        <div className="flex flex-wrap gap-1.5 items-center">
-          <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide w-20 shrink-0">Alertas</span>
-          <Link href={`/dashboard/athletes?${new URLSearchParams({ ...(params.search ? { search: params.search } : {}), ...(params.status ? { status: params.status } : {}), ...(params.health ? { health: params.health } : {}), ...(params.planId ? { planId: params.planId } : {}), ...(params.subStatus ? { subStatus: params.subStatus } : {}), ...(sort ? { sort } : {}), ...(showInactive ? {} : { inactive: '1' }) }).toString()}`}>
-            <button className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${showInactive ? 'bg-orange-500/10 text-orange-600 border-orange-200 dark:border-orange-800 dark:text-orange-400 shadow-sm' : 'border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground'}`}>Sin asistencia 30d</button>
-          </Link>
-          <Link href={`/dashboard/athletes?${new URLSearchParams({ ...(params.search ? { search: params.search } : {}), ...(params.status ? { status: params.status } : {}), ...(params.health ? { health: params.health } : {}), ...(params.planId ? { planId: params.planId } : {}), ...(params.subStatus ? { subStatus: params.subStatus } : {}), ...(sort ? { sort } : {}), ...(filterDebtOld60 ? {} : { debtOld60: '1' }) }).toString()}`}>
-            <button className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${filterDebtOld60 ? 'bg-red-500/10 text-red-600 border-red-200 dark:border-red-800 dark:text-red-400 shadow-sm' : 'border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground'}`}>Deuda +60d</button>
-          </Link>
-          <Link href={`/dashboard/athletes?${new URLSearchParams({ ...(params.search ? { search: params.search } : {}), ...(params.status ? { status: params.status } : {}), ...(params.health ? { health: params.health } : {}), ...(params.planId ? { planId: params.planId } : {}), ...(params.subStatus ? { subStatus: params.subStatus } : {}), ...(sort ? { sort } : {}), ...(filterExpiredDocs ? {} : { expiredDocs: '1' }) }).toString()}`}>
-            <button className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${filterExpiredDocs ? 'bg-amber-500/10 text-amber-600 border-amber-200 dark:border-amber-800 dark:text-amber-400 shadow-sm' : 'border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground'}`}>Docs vencidos</button>
-          </Link>
-        </div>
-
-        {/* Orden */}
-        <div className="flex flex-wrap gap-1.5 items-center">
-          <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide w-20 shrink-0">Ordenar</span>
-          {([
-            { value: '',              label: 'Nombre A-Z' },
-            { value: 'created_at',    label: 'Más recientes' },
-            { value: 'debt',          label: 'Mayor deuda' },
-            { value: 'paid',          label: 'Mayor pagado' },
-            { value: 'last_attendance', label: 'Últ. asistencia' },
-            { value: 'last_payment',  label: 'Últ. pago' },
-          ]).map(({ value, label }) => (
-            <Link key={value} href={`/dashboard/athletes?${new URLSearchParams({ ...(params.search ? { search: params.search } : {}), ...(params.status ? { status: params.status } : {}), ...(params.health ? { health: params.health } : {}), ...(params.planId ? { planId: params.planId } : {}), ...(params.subStatus ? { subStatus: params.subStatus } : {}), ...(value ? { sort: value } : {}) }).toString()}`}>
-              <button className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${(value === '' && !sort) || sort === value ? 'bg-foreground text-background border-foreground shadow-sm' : 'border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground'}`}>{label}</button>
-            </Link>
-          ))}
-        </div>
-
-        {/* Rango edad / deuda — forms compactos */}
-        <div className="flex flex-wrap gap-3 items-center pt-0.5">
-          <form method="get" action="/dashboard/athletes" className="flex items-center gap-1.5">
-            {params.search    && <input type="hidden" name="search"    value={params.search} />}
-            {params.status    && <input type="hidden" name="status"    value={params.status} />}
-            {params.health    && <input type="hidden" name="health"    value={params.health} />}
-            {params.planId    && <input type="hidden" name="planId"    value={params.planId} />}
-            {params.subStatus && <input type="hidden" name="subStatus" value={params.subStatus} />}
-            {sort             && <input type="hidden" name="sort"      value={sort} />}
-            <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Edad</span>
-            <input type="number" name="ageMin" defaultValue={params.ageMin ?? ''} min={0} max={99} placeholder="Mín"
-              className="h-7 w-14 px-2 rounded-lg border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring" />
-            <span className="text-xs text-muted-foreground">—</span>
-            <input type="number" name="ageMax" defaultValue={params.ageMax ?? ''} min={0} max={99} placeholder="Máx"
-              className="h-7 w-14 px-2 rounded-lg border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring" />
-            <button type="submit" className="h-7 px-2.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors">OK</button>
-            {(ageMin !== undefined || ageMax !== undefined) && (
-              <Link href={`/dashboard/athletes?${new URLSearchParams({ ...(params.search ? { search: params.search } : {}), ...(params.status ? { status: params.status } : {}), ...(params.health ? { health: params.health } : {}), ...(params.planId ? { planId: params.planId } : {}), ...(params.subStatus ? { subStatus: params.subStatus } : {}), ...(sort ? { sort } : {}) }).toString()}`}
-                className="text-xs text-muted-foreground hover:text-foreground">✕</Link>
-            )}
-          </form>
-          <form method="get" action="/dashboard/athletes" className="flex items-center gap-1.5">
-            {params.search    && <input type="hidden" name="search"    value={params.search} />}
-            {params.status    && <input type="hidden" name="status"    value={params.status} />}
-            {params.health    && <input type="hidden" name="health"    value={params.health} />}
-            {params.planId    && <input type="hidden" name="planId"    value={params.planId} />}
-            {params.subStatus && <input type="hidden" name="subStatus" value={params.subStatus} />}
-            {sort             && <input type="hidden" name="sort"      value={sort} />}
-            <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Deuda</span>
-            <input type="number" name="debtMin" defaultValue={params.debtMin ?? ''} min={0} placeholder="Mín"
-              className="h-7 w-16 px-2 rounded-lg border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring" />
-            <span className="text-xs text-muted-foreground">—</span>
-            <input type="number" name="debtMax" defaultValue={params.debtMax ?? ''} min={0} placeholder="∞"
-              className="h-7 w-16 px-2 rounded-lg border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring" />
-            <button type="submit" className="h-7 px-2.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors">OK</button>
-            {(params.debtMin || params.debtMax) && (
-              <Link href={`/dashboard/athletes?${new URLSearchParams({ ...(params.search ? { search: params.search } : {}), ...(params.status ? { status: params.status } : {}), ...(params.health ? { health: params.health } : {}), ...(params.planId ? { planId: params.planId } : {}), ...(params.subStatus ? { subStatus: params.subStatus } : {}), ...(sort ? { sort } : {}) }).toString()}`}
-                className="text-xs text-muted-foreground hover:text-foreground">✕</Link>
-            )}
-          </form>
-          {(params.search || params.status || params.health || params.planId || params.subStatus || params.categoryId || sort || showInactive || filterDebtOld60 || filterExpiredDocs || params.ageMin || params.ageMax || params.debtMin || params.debtMax) && (
-            <Link href="/dashboard/athletes" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground ml-auto">
-              <span>✕</span> Limpiar todo
-            </Link>
-          )}
+        {/* View Control Box */}
+        <div className="bg-[#111111] rounded-[20px] border border-white/[0.04] p-3 flex items-center justify-between gap-4 shrink-0 shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.06] bg-white/[0.02] shrink-0">
+            <Filter className="w-4 h-4 text-muted-foreground/50" />
+          </div>
+          <div className="text-right pr-2">
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground/45 mb-0.5">{visibleStart}-{visibleEnd}</p>
+            <p className="text-[11px] font-bold text-foreground">de {total.toLocaleString('es-CL')}</p>
+          </div>
         </div>
       </div>
 
-      {/* Athletes List */}
+      {/* ═══════════ ATHLETES TABLE ═══════════ */}
       {error ? (
-        <Card>
-          <CardContent className="py-12 text-center text-destructive">
-            {error}
-          </CardContent>
+        <Card className="rounded-2xl border-destructive/20">
+          <CardContent className="py-12 text-center text-destructive font-bold">{error}</CardContent>
         </Card>
       ) : athletes.length === 0 ? (
-        <Card>
-          <CardContent className="py-16 text-center">
-            <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
-              <Search className="w-8 h-8 text-muted-foreground" />
-            </div>
-            <h3 className="font-semibold text-lg mb-1">
-              {params.search ? "Sin resultados" : "No hay alumnos registrados"}
-            </h3>
-            <p className="text-muted-foreground mb-4">
-              {params.search
-                ? `No encontramos resultados para "${params.search}"`
-                : "Comienza agregando el primer alumno al sistema"}
-            </p>
-            {!params.search && (
-              <Link href="/dashboard/athletes/new">
-                <Button>Agregar Alumno</Button>
-              </Link>
-            )}
-          </CardContent>
-        </Card>
+        <DashboardEmptyState
+          icon={<Users className="w-8 h-8" />}
+          title={params.search ? "Sin resultados" : "No hay alumnos registrados"}
+          description={params.search ? `No encontramos resultados para "${params.search}".` : "Comienza agregando el primer alumno al sistema y activa el dashboard operativo."}
+          action={!params.search ? (
+            <Link href="/dashboard/athletes/new">
+              <Button className="rounded-xl font-black uppercase tracking-widest text-xs h-11 px-6">Agregar Alumno</Button>
+            </Link>
+          ) : null}
+        />
       ) : (
-        <div className="grid gap-3">
-          {athletes.map((athlete) => (
-            <Link key={athlete.id} href={`/dashboard/athletes/${athlete.id}`}>
-              <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
-                <CardContent className="py-4">
-                  <div className="flex items-center gap-4">
-                    <Avatar className="w-12 h-12">
-                      <AvatarImage src={athlete.photo_url ?? undefined} />
-                      <AvatarFallback className="text-base font-semibold">
-                        {athlete.name.slice(0, 2).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
+        <div className="rounded-[24px] border border-white/[0.04] bg-[#111111] shadow-[0_8px_30px_rgba(0,0,0,0.12)] overflow-hidden">
+          {/* Table Header */}
+          <div className="hidden lg:grid grid-cols-[minmax(260px,2.8fr)_120px_minmax(180px,1.5fr)_130px_170px_100px] gap-4 px-6 py-5 border-b border-white/[0.04]">
+            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50">Atleta</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50">Estado</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50">Plan Actual</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50">Últ. Pago</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50">Estado Pago</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 text-right pr-2">Acciones</span>
+          </div>
 
-                    {/* Semáforo dot */}
-                    <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${
-                      athlete.health_status === "injured"     ? "bg-red-500" :
-                      athlete.health_status === "observation" ? "bg-yellow-500" :
-                      "bg-green-500"
-                    }`} title={
-                      athlete.health_status === "injured"     ? "Lesionado" :
-                      athlete.health_status === "observation" ? "En observación" :
-                      "Apto"
-                    } />
+          {/* Table Rows */}
+          <div className="divide-y divide-white/[0.04]">
+            {athletes.map((athlete) => {
+              const subs = athlete.subscriptions as Array<{ status: string; plans: { name: string; price?: number; billing_cycle?: string } | null }> | null ?? []
+              const activeSub    = subs.find((s) => s.status === 'active')
+              const expiredSub   = subs.find((s) => s.status === 'expired')
+              const pausedSub    = subs.find((s) => s.status === 'paused')
+              const cancelledSub = subs.find((s) => s.status === 'cancelled')
 
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-semibold truncate">{athlete.name}</span>
-                        <HealthStatusBadge status={athlete.health_status} />
-                        {(() => {
-                          const catId = (athlete as { category_id?: string | null }).category_id
-                          const catName = (athlete as { category?: string | null }).category
-                          if (!catId && !catName) return null
-                          const cat = categories.find((c) => c.id === catId)
-                          const label = cat?.name ?? catName
-                          const color = cat?.color
-                          if (!label || label === 'General') return null
-                          return (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded border border-border" style={color ? { borderColor: color, color } : {}}>
-                              {color && <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: color }} />}
-                              {label}
-                            </span>
-                          )
-                        })()}
-                        {athlete.photo_url
-                          ? <span className="text-[10px] text-green-600 bg-green-50 px-1 py-0.5 rounded" title="Tiene foto de perfil">📷</span>
-                          : <span className="text-[10px] text-gray-400 bg-gray-50 px-1 py-0.5 rounded" title="Sin foto de perfil">Sin foto</span>
-                        }
+              const pmts = athlete.payments as Array<{ status: string; amount: number; paid_at: string | null; due_date?: string | null }> | null ?? []
+              const debt = pmts.filter((p) => p.status === 'overdue').reduce((s, p) => s + Number(p.amount), 0)
+              const overdueCount = pmts.filter((p) => p.status === 'overdue').length
+              const pendingCount = pmts.filter((p) => p.status === 'pending').length
+              const lastPaid = pmts
+                .filter((p) => p.status === 'paid' && p.paid_at)
+                .sort((a, b) => new Date(b.paid_at!).getTime() - new Date(a.paid_at!).getTime())[0]
+
+              const catId = (athlete as { category_id?: string | null }).category_id
+              const cat = categories.find((c) => c.id === catId)
+              const catColor = cat?.color
+
+              return (
+                <Link key={athlete.id} href={`/dashboard/athletes/${athlete.id}`} className="block group hover:bg-[#151515] transition-colors">
+                  <div className="grid grid-cols-1 lg:grid-cols-[minmax(260px,2.8fr)_120px_minmax(180px,1.5fr)_130px_170px_100px] gap-4 items-center px-6 py-5">
+
+                    {/* ── Athlete ── */}
+                    <div className="flex items-center gap-4 min-w-0">
+                      <div className="relative shrink-0">
+                        <Avatar className="w-12 h-12 border border-white/[0.04] shadow-sm bg-[#1a1a1a]">
+                          <AvatarImage src={athlete.photo_url ?? undefined} />
+                          <AvatarFallback className="text-xs font-black text-white/50 bg-[#222222]">
+                            {athlete.name.slice(0, 2).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-[#111111] group-hover:border-[#151515] transition-colors ${athlete.status === 'active' ? 'bg-emerald-400' : athlete.status === 'suspended' ? 'bg-destructive' : 'bg-muted-foreground/40'}`} />
                       </div>
-                      <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
-                        {athlete.email && <span className="truncate">{athlete.email}</span>}
-                        {athlete.birth_date && (() => {
-                          const dob = new Date(athlete.birth_date + 'T12:00:00')
-                          const age = Math.floor((Date.now() - dob.getTime()) / (365.25 * 24 * 60 * 60 * 1000))
-                          return <span className="shrink-0 text-xs">{age} años</span>
-                        })()}
-                        {(() => {
-                          const subs = athlete.subscriptions as Array<{ status: string; plans: { name: string } | null }> | null ?? []
-                          const active    = subs.find((s) => s.status === "active")
-                          const expired   = subs.find((s) => s.status === "expired")
-                          const paused    = subs.find((s) => s.status === "paused")
-                          const cancelled = subs.find((s) => s.status === "cancelled")
-                          if (active?.plans)
-                            return <span className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded font-medium shrink-0">{active.plans.name}</span>
-                          if (expired)
-                            return <span className="text-xs bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-medium shrink-0">Vencida</span>
-                          if (paused)
-                            return <span className="text-xs bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded font-medium shrink-0">Pausada</span>
-                          if (cancelled)
-                            return <span className="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-medium shrink-0">Cancelada</span>
-                          return <span className="text-xs bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded font-medium shrink-0">Sin plan</span>
-                        })()}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                          <span className="text-[15px] font-bold text-white truncate tracking-tight">{athlete.name}</span>
+                          <HealthStatusBadge status={athlete.health_status} />
+                          {cat && cat.name !== 'General' && (
+                            <span className="hidden xl:inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full bg-white/[0.04] border border-white/[0.06]" style={catColor ? { borderColor: catColor, color: catColor } : {}}>
+                              {catColor && <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: catColor }} />}
+                              {cat.name}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-muted-foreground/50 truncate font-medium flex items-center gap-1.5">
+                          <span>{athlete.email ?? '—'}</span>
+                          {athlete.birth_date && (() => {
+                            const age = Math.floor((nowMs - new Date(athlete.birth_date + 'T12:00:00').getTime()) / (365.25 * 24 * 60 * 60 * 1000))
+                            return <><span>·</span><span>{age} años</span></>
+                          })()}
+                        </p>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0">
-                      {(() => {
-                        const comps = (athlete as Record<string, unknown>).rosters as Array<{ id: string }> | null
-                        const total = (comps ?? []).length
-                        if (total === 0) return null
-                        return (
-                          <span className="text-xs font-medium text-violet-600 bg-violet-50 px-1.5 py-0.5 rounded" title={`${total} competencia${total !== 1 ? 's' : ''} participadas`}>
-                            🏆{total}
-                          </span>
-                        )
-                      })()}
-                      {(() => {
-                        const pmts = athlete.payments as Array<{ status: string; amount: number }> | null ?? []
-                        const debt = pmts.filter((p) => p.status === 'overdue').reduce((s, p) => s + Number(p.amount), 0)
-                        if (debt === 0) return null
-                        return (
-                          <span className="text-xs font-medium text-red-600 bg-red-50 px-1.5 py-0.5 rounded" title={`Deuda vencida: $${debt.toLocaleString('es-CL')}`}>
-                            💸${Math.round(debt / 1000)}k
-                          </span>
-                        )
-                      })()}
-                      {(() => {
-                        const att = athlete.attendance as Array<{ id: string; checked_in_at: string }> | null
-                        const total = (att ?? []).length
-                        if (total === 0) return null
-                        return (
-                          <span className="text-xs font-medium text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded" title={`${total} check-ins en total`}>
-                            ★{total}
-                          </span>
-                        )
-                      })()}
-                      {(() => {
-                        const docs = athlete.documents as Array<{ id: string; expiry_date?: string | null }> | null
-                        const docList = docs ?? []
-                        const docCount = docList.length
-                        const today = new Date().toISOString().split('T')[0]
-                        const expired = docList.filter((d) => d.expiry_date && d.expiry_date < today).length
-                        if (expired > 0) return (
-                          <span className="text-xs text-red-600 font-medium bg-red-50 px-1.5 py-0.5 rounded" title={`${expired} doc${expired !== 1 ? 's' : ''} vencido${expired !== 1 ? 's' : ''}`}>
-                            📄⚠{expired}
-                          </span>
-                        )
-                        if (docCount > 0) return (
-                          <span className="text-xs text-muted-foreground" title={`${docCount} documento${docCount !== 1 ? 's' : ''}`}>
-                            📄 {docCount}
-                          </span>
-                        )
-                        return null
-                      })()}
-                      {(() => {
-                        const att = athlete.attendance as Array<{ id: string; checked_in_at: string }> | null
-                        const sorted = (att ?? []).slice().sort((a, b) => new Date(b.checked_in_at).getTime() - new Date(a.checked_in_at).getTime())
-                        const last = sorted[0]
-                        const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
-                        const checkIns = (att ?? []).filter((a) => new Date(a.checked_in_at) >= thirtyDaysAgo).length
-                        const isInactive = athlete.status === 'active' && (!last || new Date(last.checked_in_at) < thirtyDaysAgo)
-                        if (isInactive) return (
-                          <span className="text-xs text-orange-500 font-medium" title={last ? `Sin asistencia desde ${new Date(last.checked_in_at).toLocaleDateString('es-CL')}` : 'Sin asistencias registradas'}>
-                            ⚠ Inactivo
-                          </span>
-                        )
-                        if (last) {
-                          const allAtt = att ?? []
-                          const oldest = allAtt.reduce<Date | null>((min, r) => {
-                            const d = new Date(r.checked_in_at)
-                            return !min || d < min ? d : min
-                          }, null)
-                          const monthsSpan = oldest ? Math.max(1, Math.ceil((Date.now() - oldest.getTime()) / (1000 * 60 * 60 * 24 * 30))) : 1
-                          const avgPerMonth = Math.round(allAtt.length / monthsSpan)
+                    {/* ── Status ── */}
+                    <div>
+                      <span className={`inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full border ${
+                        athlete.status === 'active'
+                          ? 'bg-emerald-400/10 text-emerald-400 border-emerald-400/20'
+                          : athlete.status === 'suspended'
+                            ? 'bg-destructive/10 text-destructive border-destructive/30'
+                            : 'bg-white/[0.03] text-muted-foreground/60 border-white/[0.06]'
+                      }`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${
+                          athlete.status === 'active' ? 'bg-emerald-400' :
+                          athlete.status === 'suspended' ? 'bg-destructive' : 'bg-muted-foreground/40'
+                        }`} />
+                        {athlete.status === 'active' ? 'Activo' : athlete.status === 'inactive' ? 'Inactivo' : 'Suspendido'}
+                      </span>
+                    </div>
 
-                          // Streak: consecutive weeks with at least 1 attendance
-                          const weekSet = new Set(allAtt.map((r) => {
-                            const d = new Date(r.checked_in_at)
-                            const jan1 = new Date(d.getFullYear(), 0, 1)
-                            return `${d.getFullYear()}-${Math.ceil(((d.getTime() - jan1.getTime()) / 86400000 + jan1.getDay() + 1) / 7)}`
-                          }))
-                          const nowWeek = (() => { const d = new Date(); const j = new Date(d.getFullYear(),0,1); return `${d.getFullYear()}-${Math.ceil(((d.getTime()-j.getTime())/86400000+j.getDay()+1)/7)}` })()
-                          let streak = 0
-                          let wNum = parseInt(nowWeek.split('-')[1])
-                          let wYear = parseInt(nowWeek.split('-')[0])
-                          while (weekSet.has(`${wYear}-${wNum}`)) {
-                            streak++
-                            wNum--
-                            if (wNum < 1) { wYear--; wNum = 52 }
-                            if (streak > 52) break
-                          }
+                    {/* ── Plan ── */}
+                    <div className="min-w-0">
+                      {activeSub?.plans ? (
+                        <>
+                          <p className="text-[13px] font-bold text-white truncate mb-0.5">{activeSub.plans.name}</p>
+                          <p className="text-[11px] text-muted-foreground/50 font-medium">
+                            {activeSub.plans.price ? `$${activeSub.plans.price.toLocaleString('es-CL')}/` : ''}{activeSub.plans.billing_cycle === 'monthly' ? 'mes' : activeSub.plans.billing_cycle === 'annual' ? 'año' : activeSub.plans.billing_cycle ?? ''}
+                          </p>
+                        </>
+                      ) : expiredSub ? (
+                        <span className="text-xs font-bold text-destructive">Vencida</span>
+                      ) : pausedSub ? (
+                        <span className="text-xs font-bold text-amber-400">Pausada</span>
+                      ) : cancelledSub ? (
+                        <span className="text-xs font-bold text-muted-foreground/40">Cancelada</span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground/40">Sin plan</span>
+                      )}
+                    </div>
 
-                          const avgPerWeek = +(allAtt.length / (monthsSpan * 4.3)).toFixed(1)
-                          return (
-                            <span className="text-xs text-muted-foreground" title={`Última: ${new Date(last.checked_in_at).toLocaleDateString('es-CL')} · ${checkIns} en 30d · ~${avgPerMonth}/mes`}>
-                              📋 {new Date(last.checked_in_at).toLocaleDateString('es-CL', { day: '2-digit', month: 'short' })}
-                              {avgPerWeek > 0 && <span className="ml-1 text-primary">~{avgPerWeek}/sem</span>}
-                              {streak >= 2 && <span className="ml-1 text-orange-500 font-medium">🔥{streak}s</span>}
-                            </span>
-                          )
-                        }
-                        return null
-                      })()}
-                      {(() => {
-                        const pmts = athlete.payments as Array<{ status: string; paid_at: string | null }> | null
-                        const overdue = pmts?.filter((p) => p.status === 'overdue').length ?? 0
-                        const pending = pmts?.filter((p) => p.status === 'pending').length ?? 0
-                        const lastPaid = pmts
-                          ?.filter((p) => p.status === 'paid' && p.paid_at)
-                          .sort((a, b) => new Date(b.paid_at!).getTime() - new Date(a.paid_at!).getTime())[0]
-                        if (overdue > 0) return (
-                          <Badge variant="destructive" className="text-xs">{overdue} vencido{overdue > 1 ? 's' : ''}</Badge>
-                        )
-                        if (pending > 0) return (
-                          <Badge variant="secondary" className="text-xs">{pending} pendiente{pending > 1 ? 's' : ''}</Badge>
-                        )
-                        if (lastPaid?.paid_at) return (
-                          <span className="text-xs text-muted-foreground">
-                            Pagó {new Date(lastPaid.paid_at).toLocaleDateString('es-CL', { day: '2-digit', month: 'short' })}
+                    {/* ── Last Payment ── */}
+                    <div>
+                      {lastPaid?.paid_at ? (
+                        <>
+                          <p className="text-[13px] text-white font-bold mb-0.5">
+                            {new Date(lastPaid.paid_at).toLocaleDateString('es-CL', { day: 'numeric', month: 'short' })}
+                          </p>
+                          <p className="text-[11px] text-muted-foreground/50 font-medium">último cobro</p>
+                        </>
+                      ) : (
+                        <span className="text-xs text-muted-foreground/30">—</span>
+                      )}
+                    </div>
+
+                    {/* ── Payment Status ── */}
+                    <div className="flex items-center gap-3">
+                      {overdueCount > 0 ? (
+                        <>
+                          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-destructive/15 text-destructive shrink-0">
+                            <AlertCircle className="w-4 h-4" />
                           </span>
-                        )
-                        return null
-                      })()}
-                      {athlete.status === 'active' && (() => {
-                        const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7)
-                        const weekISO = weekAgo.toISOString()
-                        const att = athlete.attendance as Array<{ checked_in_at: string }> | null ?? []
-                        const lastCheckIn = att.map((r) => r.checked_in_at).sort().at(-1)
-                        const hasWeekly = lastCheckIn && lastCheckIn >= weekISO
-                        if (hasWeekly) {
-                          return <Badge className="text-xs bg-green-50 text-green-600 border-green-200 hover:bg-green-50">✓ {new Date(lastCheckIn).toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit' })}</Badge>
-                        }
-                        return lastCheckIn ? (
-                          <Badge className="text-xs bg-gray-100 text-gray-500 border-gray-200 hover:bg-gray-100">Últ. {new Date(lastCheckIn).toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit' })}</Badge>
-                        ) : null
-                      })()}
-                      {(() => {
-                        const docs = athlete.documents as Array<{ expiry_date: string | null }> | null ?? []
-                        const todayStr = new Date().toISOString().split('T')[0]
-                        const expired = docs.filter((d) => d.expiry_date && d.expiry_date < todayStr).length
-                        return expired > 0 ? (
-                          <Badge className="text-xs bg-orange-100 text-orange-700 border-orange-200 hover:bg-orange-100">
-                            📄 {expired} doc{expired > 1 ? 's' : ''} vencido{expired > 1 ? 's' : ''}
-                          </Badge>
-                        ) : null
-                      })()}
-                      {!athlete.email && (
-                        <span className="text-xs text-muted-foreground/70 bg-slate-100 px-1.5 py-0.5 rounded" title="Sin email registrado">
-                          ✉ —
+                          <div className="min-w-0">
+                            <p className="text-[13px] font-bold text-destructive leading-none mb-1">
+                              {overdueCount} Vencido{overdueCount > 1 ? 's' : ''}
+                            </p>
+                            <p className="text-[11px] text-muted-foreground/50 font-medium">Cobranza</p>
+                          </div>
+                        </>
+                      ) : pendingCount > 0 ? (
+                        <>
+                          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-400/15 text-amber-400 shrink-0">
+                            <Clock className="w-4 h-4" />
+                          </span>
+                          <div className="min-w-0">
+                            <p className="text-[13px] font-bold text-amber-400 leading-none mb-1">Pendiente</p>
+                            <p className="text-[11px] text-muted-foreground/50 font-medium">Esperando</p>
+                          </div>
+                        </>
+                      ) : lastPaid ? (
+                        <>
+                          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-400/15 text-emerald-400 shrink-0">
+                            <CheckCircle2 className="w-4 h-4" />
+                          </span>
+                          <div className="min-w-0">
+                            <p className="text-[13px] font-bold text-emerald-400 leading-none mb-1">Pagado</p>
+                            <p className="text-[11px] text-muted-foreground/50 font-medium">Al día</p>
+                          </div>
+                        </>
+                      ) : (
+                        <span className="text-xs text-muted-foreground/40 font-medium">Sin registros</span>
+                      )}
+                    </div>
+
+                    {/* ── Acciones ── */}
+                    <div className="flex items-center gap-2 justify-start lg:justify-end flex-wrap pr-2">
+                      {debt > 0 && (
+                        <span className="text-[9px] font-black bg-destructive text-white px-2 py-1 rounded-full" title={`Deuda: $${debt.toLocaleString('es-CL')}`}>
+                          ${debt >= 1000 ? `${Math.round(debt / 1000)}k` : debt.toLocaleString('es-CL')}
                         </span>
                       )}
                       {(() => {
-                        const subs = athlete.subscriptions as Array<{ status: string; plans: { name: string; price?: number } | null }> | null
-                        const active = (subs ?? []).find((s) => s.status === 'active')
-                        if (!active) return null
-                        const price = active.plans?.price
-                        return (
-                          <Badge className="text-xs bg-green-100 text-green-700 border-green-200 hover:bg-green-100">
-                            ✓ {active.plans?.name ?? 'Plan activo'}{price ? ` · $${Math.round(price / 1000)}k` : ''}
-                          </Badge>
+                        const att = athlete.attendance as Array<{ checked_in_at: string }> | null ?? []
+                        const lastCheck = att.map(r => r.checked_in_at).sort().at(-1)
+                        const isInactive = athlete.status === 'active' && (!lastCheck || lastCheck < thirtyDaysAgoISO)
+                        if (isInactive) return (
+                          <span className="text-[9px] font-bold bg-amber-400 text-black px-2 py-1 rounded-full">⚠ inactivo</span>
                         )
+                        return null
                       })()}
-                      {(() => {
-                        if (!athlete.birth_date) return null
-                        const curMonth = new Date().getMonth()
-                        const birthMonth = new Date(athlete.birth_date + 'T12:00:00').getMonth()
-                        if (birthMonth !== curMonth) return null
-                        const day = new Date(athlete.birth_date + 'T12:00:00').getDate()
-                        return <span className="text-xs font-medium text-pink-600" title={`Cumpleaños: ${day}/${birthMonth + 1}`}>🎂 Cumpleaños</span>
-                      })()}
-                      {(() => {
-                        const todayISO = new Date().toISOString().split('T')[0]
-                        const rosters = athlete.rosters as Array<{ competitions: { id: string; name: string; start_date: string } | null }> | null ?? []
-                        const comps = rosters
-                          .map((r) => r.competitions)
-                          .filter((c): c is { id: string; name: string; start_date: string } => !!c && c.start_date >= todayISO)
-                          .sort((a, b) => a.start_date.localeCompare(b.start_date))
-                        if (comps.length === 0) return null
-                        const next = comps[0]
-                        return (
-                          <span className="text-xs text-purple-600 font-medium" title={next.name}>
-                            🏆 {next.name.length > 18 ? next.name.slice(0, 18) + '…' : next.name} ({new Date(next.start_date).toLocaleDateString('es-CL', { day: '2-digit', month: 'short' })})
-                          </span>
-                        )
-                      })()}
-                      <Badge variant={athlete.status === "active" ? "default" : "secondary"}>
-                        {athlete.status === "active" ? "Activo" : athlete.status === "inactive" ? "Inactivo" : "Suspendido"}
-                      </Badge>
+                      <span className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/[0.04] bg-[#1a1a1a] text-muted-foreground/60 transition-all group-hover:bg-white/[0.08] group-hover:text-white shrink-0">
+                        <ArrowRight className="w-4 h-4" />
+                      </span>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
-          ))}
-        </div>
-      )}
 
-      {/* Pagination */}
-      {total > 20 && (
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">
-            Mostrando {(page - 1) * 20 + 1}–{Math.min(page * 20, total)} de {total}
-          </p>
-          <div className="flex gap-2">
-            {page > 1 && (
-              <Link
-                href={`/dashboard/athletes?${new URLSearchParams({
-                  ...(params.search    ? { search:    params.search }    : {}),
-                  ...(params.status    ? { status:    params.status }    : {}),
-                  ...(params.health    ? { health:    params.health }    : {}),
-                  ...(params.planId    ? { planId:    params.planId }    : {}),
-                  ...(params.subStatus ? { subStatus: params.subStatus } : {}),
-                  ...(sort             ? { sort }                        : {}),
-                  page: String(page - 1),
-                }).toString()}`}
-              >
-                <button className="h-9 px-4 rounded-md border border-input bg-background text-sm hover:bg-accent transition-colors">
-                  ← Anterior
-                </button>
-              </Link>
-            )}
-            {page * 20 < total && (
-              <Link
-                href={`/dashboard/athletes?${new URLSearchParams({
-                  ...(params.search    ? { search:    params.search }    : {}),
-                  ...(params.status    ? { status:    params.status }    : {}),
-                  ...(params.health    ? { health:    params.health }    : {}),
-                  ...(params.planId    ? { planId:    params.planId }    : {}),
-                  ...(params.subStatus ? { subStatus: params.subStatus } : {}),
-                  ...(sort             ? { sort }                        : {}),
-                  page: String(page + 1),
-                }).toString()}`}
-              >
-                <button className="h-9 px-4 rounded-md border border-input bg-background text-sm hover:bg-accent transition-colors">
-                  Siguiente →
-                </button>
-              </Link>
-            )}
+                  </div>
+                </Link>
+              )
+            })}
           </div>
         </div>
       )}
-    </div>
+
+      {/* ═══════════ PAGINATION ═══════════ */}
+      {total > 20 && (() => {
+        const totalPages = Math.ceil(total / 20)
+        const makePageQs = (p: number) => {
+          const base: Record<string, string> = {}
+          if (params.search)    base.search = params.search
+          if (params.status)    base.status = params.status
+          if (params.health)    base.health = params.health
+          if (params.planId)    base.planId = params.planId
+          if (params.subStatus) base.subStatus = params.subStatus
+          if (params.categoryId) base.categoryId = params.categoryId
+          if (sort)             base.sort = sort
+          base.page = String(p)
+          return new URLSearchParams(base).toString()
+        }
+        return (
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between pt-1">
+            <p className="text-xs font-bold text-muted-foreground/60 uppercase tracking-widest">
+              Mostrando {visibleStart}-{visibleEnd} de {total.toLocaleString('es-CL')}
+            </p>
+            <div className="flex items-center gap-2 flex-wrap">
+              {page > 1 && (
+                <Link href={`/dashboard/athletes?${makePageQs(page - 1)}`}>
+                  <button className="inline-flex items-center gap-2 h-10 px-4 rounded-full border border-white/[0.06] bg-[#111111] hover:bg-[#1a1a1a] hover:border-emerald-400/30 transition-all text-muted-foreground hover:text-foreground text-xs font-black uppercase tracking-widest">
+                    <ChevronLeft className="w-4 h-4" />
+                    Anterior
+                  </button>
+                </Link>
+              )}
+              {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                const p = Math.max(1, Math.min(totalPages - 4, page - 2)) + i
+                const isCurrent = p === page
+                return (
+                  <Link key={p} href={`/dashboard/athletes?${makePageQs(p)}`}>
+                    <button className={`w-10 h-10 rounded-full text-xs font-black flex items-center justify-center transition-all ${
+                      isCurrent
+                        ? 'bg-emerald-400 text-black shadow-[0_0_15px_rgba(52,211,153,0.3)]'
+                        : 'border border-white/[0.06] bg-[#111111] text-muted-foreground hover:bg-[#1a1a1a] hover:border-emerald-400/30 hover:text-foreground'
+                    }`}>
+                      {p}
+                    </button>
+                  </Link>
+                )
+              })}
+              {page * 20 < total && (
+                <Link href={`/dashboard/athletes?${makePageQs(page + 1)}`}>
+                  <button className="inline-flex items-center gap-2 h-10 px-4 rounded-full border border-white/[0.06] bg-[#111111] hover:bg-[#1a1a1a] hover:border-emerald-400/30 transition-all text-muted-foreground hover:text-foreground text-xs font-black uppercase tracking-widest">
+                    Siguiente
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </Link>
+              )}
+            </div>
+          </div>
+        )
+      })()}
+    </DashboardPage>
   )
 }

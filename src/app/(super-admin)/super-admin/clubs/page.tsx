@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic"
 import Link from "next/link"
 import { getAllClubs } from "@/lib/actions/super-admin"
 import { Card, CardContent } from "@/components/ui/card"
-import { CheckCircle2, XCircle, Users, Building2, ChevronRight } from "lucide-react"
+import { CheckCircle2, XCircle, Users, Building2, ChevronRight, Calendar } from "lucide-react"
 import { ClubToggleButton } from "@/components/super-admin/ClubToggleButton"
 import { ClubImportExport } from "@/components/super-admin/ClubImportExport"
 import { EnterClubButton } from "@/components/super-admin/EnterClubButton"
@@ -23,22 +23,28 @@ export default async function SuperAdminClubsPage() {
   const inactive = clubs.filter((c) => !c.is_active)
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-start justify-between flex-wrap gap-3">
+    <div className="space-y-4 pb-12 pt-1">
+      {/* ── GREETING ── */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Gestión de Clubes</h1>
-          <p className="text-muted-foreground text-sm mt-0.5">
-            {clubs.length} club{clubs.length !== 1 ? "s" : ""} registrados ·{" "}
-            {active.length} activos · {inactive.length} inactivos
+          <h1 className="text-4xl sm:text-5xl font-black leading-[1.1] tracking-tighter">
+            Gestión de <span className="text-primary">Clubes.</span>
+          </h1>
+          <p className="text-[15px] text-muted-foreground/70 font-normal mt-2 leading-relaxed">
+            {clubs.length} club{clubs.length !== 1 ? "s" : ""} registrados · {active.length} activos · {inactive.length} inactivos
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2.5 shrink-0">
           <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-sm font-medium">
             <CheckCircle2 className="w-3.5 h-3.5" /> {active.length} activos
           </span>
           <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 text-sm font-medium">
             <XCircle className="w-3.5 h-3.5" /> {inactive.length} inactivos
           </span>
+          <div className="hidden sm:flex items-center gap-2.5 text-[11px] font-bold uppercase tracking-[0.15em] text-muted-foreground/80 border border-border/40 rounded-xl px-4 py-3 bg-card/40">
+            <Calendar className="w-4 h-4" />
+            <span>{new Date().toLocaleDateString("es-CL", { weekday: "short", day: "numeric", month: "short" })}</span>
+          </div>
         </div>
       </div>
 
@@ -46,7 +52,7 @@ export default async function SuperAdminClubsPage() {
       <ClubImportExport />
 
       {/* Clubs grid */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {clubs.map((club) => {
           const sub = club.saas_sub as {
             status: string

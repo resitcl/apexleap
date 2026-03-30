@@ -53,16 +53,7 @@ export default async function AthleteProfilePage() {
   const sportConfig = getSportConfig(sportType)
 
   return (
-    <div className="space-y-6 max-w-2xl">
-      <div>
-        <h1 className="text-3xl font-bold flex items-center gap-2">
-          <UserCog className="w-7 h-7" /> Mi Perfil
-        </h1>
-        <p className="text-muted-foreground flex items-center gap-2 mt-1">
-          Edita tu información personal y datos de disciplina
-          {sportType && <Badge variant="secondary">{sportType}</Badge>}
-        </p>
-      </div>
+    <div className="space-y-8 pb-12 pt-1">
 
       <AthleteProfileForm athlete={athlete} sportConfig={sportConfig} />
     </div>

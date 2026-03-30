@@ -53,34 +53,25 @@ export default async function SuperAdminClubDetailPage({ params }: Props) {
   const subMeta = SAAS_STATUS[subStatus]
 
   return (
-    <div className="space-y-6">
-      {/* Breadcrumb / Header */}
-      <div className="flex items-start justify-between gap-4 flex-wrap">
+    <div className="space-y-4 pb-12 pt-1">
+      {/* ── GREETING ── */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <Link
             href="/super-admin/clubs"
-            className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-2"
+            className="inline-flex items-center gap-1 text-[13px] text-muted-foreground/70 hover:text-foreground mb-2"
           >
             <ArrowLeft className="w-3.5 h-3.5" /> Todos los clubes
           </Link>
-          <div className="flex items-center gap-3">
-            <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-base shrink-0"
-              style={{ backgroundColor: (club as { primary_color?: string }).primary_color ?? "#6366f1" }}
-            >
-              {club.name.slice(0, 2).toUpperCase()}
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold leading-tight">{club.name}</h1>
-              <p className="text-sm text-muted-foreground">
-                {(club as { sport_type?: string }).sport_type ?? "Sin deporte"} ·{" "}
-                {(club as { city?: string }).city ?? "Sin ciudad"} ·{" "}
-                Creado {new Date(club.created_at).toLocaleDateString("es-CL")}
-              </p>
-            </div>
-          </div>
+          <h1 className="text-4xl sm:text-5xl font-black leading-[1.1] tracking-tighter">
+            Club: <span className="text-primary">{club.name.split(' ')[0]}.</span>
+          </h1>
+          <p className="text-[15px] text-muted-foreground/70 font-normal mt-2 leading-relaxed">
+            {(club as { sport_type?: string }).sport_type ?? "Sin deporte"} ·{" "}
+            {(club as { city?: string }).city ?? "Sin ciudad"} · Creado {new Date(club.created_at).toLocaleDateString("es-CL")}
+          </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           {club.is_active ? (
             <span className="inline-flex items-center gap-1 text-sm font-medium text-green-600">
               <CheckCircle2 className="w-4 h-4" /> Activo
@@ -94,30 +85,54 @@ export default async function SuperAdminClubDetailPage({ params }: Props) {
         </div>
       </div>
 
-      {/* KPI row */}
-      <div className="grid gap-4 sm:grid-cols-4">
-        {[
-          { label: "Atletas",        value: stats.total_athletes,                  sub: `${stats.active_athletes} activos`,        icon: Users,      color: "text-violet-500" },
-          { label: "Usuarios",       value: stats.total_users,                     sub: "en user_clubs",                           icon: UserCheck,  color: "text-blue-500" },
-          { label: "Ingresos Club",  value: fmt(stats.total_revenue),              sub: "pagos registrados (todos)",               icon: DollarSign, color: "text-green-500" },
-          { label: "Plan SaaS",      value: subPlan?.name ?? "Sin plan",           sub: subMeta?.label ?? "—",                     icon: Activity,   color: "text-orange-500" },
-        ].map((kpi) => (
-          <Card key={kpi.label}>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-xs font-medium text-muted-foreground">{kpi.label}</CardTitle>
-              <kpi.icon className={`w-4 h-4 ${kpi.color}`} />
-            </CardHeader>
-            <CardContent>
-              <p className="text-xl font-bold">{kpi.value}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">{kpi.sub}</p>
-            </CardContent>
-          </Card>
-        ))}
+      {/* ── KPI ROW ── */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+
+        <div className="rounded-2xl bg-card p-5 h-full">
+          <div className="flex items-center gap-2.5 mb-5">
+            <Users className="w-5 h-5 text-muted-foreground/50" />
+            <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70">Atletas</p>
+          </div>
+          <p className="text-4xl font-black tracking-tight text-primary leading-none">{stats.total_athletes}</p>
+          <p className="text-[13px] text-muted-foreground/50 mt-2 font-normal">{stats.active_athletes} activos</p>
+        </div>
+
+        <div className="rounded-2xl bg-card p-5 h-full">
+          <div className="flex items-center gap-2.5 mb-5">
+            <UserCheck className="w-5 h-5 text-muted-foreground/50" />
+            <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70">Usuarios</p>
+          </div>
+          <p className="text-4xl font-black tracking-tight text-foreground leading-none">{stats.total_users}</p>
+          <p className="text-[13px] text-muted-foreground/50 mt-2 font-normal">en user_clubs</p>
+        </div>
+
+        <div className="rounded-2xl bg-card p-5 h-full">
+          <div className="flex items-center gap-2.5 mb-5">
+            <DollarSign className="w-5 h-5 text-muted-foreground/50" />
+            <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70">Ingresos</p>
+          </div>
+          <p className="text-4xl font-black tracking-tight text-primary leading-none">{fmt(stats.total_revenue)}</p>
+          <p className="text-[13px] text-muted-foreground/50 mt-2 font-normal">pagos registrados</p>
+        </div>
+
+        <div className="rounded-2xl bg-card p-5 h-full">
+          <div className="flex items-center gap-2.5 mb-5">
+            <Activity className="w-5 h-5 text-muted-foreground/50" />
+            <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70">Plan SaaS</p>
+          </div>
+          <p className={`text-[22px] font-black tracking-tight leading-none uppercase ${
+            subStatus === 'active' ? 'text-primary' :
+            subStatus === 'past_due' || subStatus === 'cancelled' ? 'text-red-500' : 'text-amber-500'
+          }`}>
+            {subPlan?.name ?? 'Sin plan'}
+          </p>
+          <p className="text-[13px] text-muted-foreground/50 mt-2 font-normal">{subMeta?.label ?? '—'}</p>
+        </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-3 lg:grid-cols-[1fr_340px] items-start">
         {/* Left column */}
-        <div className="space-y-6">
+        <div className="space-y-3">
 
           {/* Club info */}
           <Card>
@@ -195,7 +210,7 @@ export default async function SuperAdminClubDetailPage({ params }: Props) {
         </div>
 
         {/* Right column */}
-        <div className="space-y-6">
+        <div className="space-y-3">
 
           {/* SaaS Subscription */}
           <UpdateSaasSubForm
