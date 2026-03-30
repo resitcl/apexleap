@@ -169,40 +169,40 @@ export function AthleteIdentityCard({
 
     return (
       <div
-        className="rounded-2xl p-5 overflow-hidden relative border"
+        className="sport-card p-6 border-none"
         style={{
           background: `linear-gradient(135deg, ${isLight ? '#F5F5F5' : beltColor}1A 0%, ${beltColor}08 100%)`,
-          borderColor: `${beltColor}44`,
-        }}
+          '--sport-accent': beltColor,
+        } as React.CSSProperties}
       >
-        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-4">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-5">
           Tu rango · {sportType}
         </p>
 
-        <div className="flex flex-col sm:flex-row items-center gap-5">
+        <div className="flex flex-col sm:flex-row items-center gap-6">
           {/* Belt visual */}
           <div className="w-full sm:w-auto flex justify-center">
             {belt ? (
               <BeltSVG belt={belt} stripes={stripes} />
             ) : (
-              <div className="w-full max-w-[280px] h-[78px] rounded-lg bg-muted/50 flex items-center justify-center border border-dashed border-muted-foreground/30">
-                <span className="text-xs text-muted-foreground">Cinturón no registrado aún</span>
+              <div className="w-full max-w-[280px] h-[78px] rounded-2xl bg-muted/50 flex items-center justify-center border-none">
+                <span className="text-xs font-bold text-muted-foreground/50 uppercase tracking-widest">Sin cinturón</span>
               </div>
             )}
           </div>
 
           {/* Info */}
           <div className="text-center sm:text-left flex-1 space-y-1">
-            <p className="text-2xl font-black leading-tight">{beltLabel}</p>
-            <p className="text-sm text-muted-foreground">{stripesLabel}</p>
-            <div className="flex flex-wrap gap-2 pt-2 justify-center sm:justify-start">
+            <p className="text-3xl font-black leading-none tracking-tight">{beltLabel}</p>
+            <p className="text-sm font-bold text-muted-foreground mt-1">{stripesLabel}</p>
+            <div className="flex flex-wrap gap-2 pt-3 justify-center sm:justify-start">
               {weightClass && (
-                <span className="text-xs bg-background/80 border border-border rounded-full px-2.5 py-1 font-medium">
+                <span className="text-xs bg-black/20 text-foreground dark:text-white rounded-lg px-3 py-1.5 font-bold uppercase tracking-wide">
                   ⚖️ {weightClass}
                 </span>
               )}
               {record && (
-                <span className="text-xs bg-background/80 border border-border rounded-full px-2.5 py-1 font-mono font-semibold">
+                <span className="text-xs bg-black/20 text-foreground dark:text-white rounded-lg px-3 py-1.5 font-mono font-bold tracking-wide">
                   🏆 {record}
                 </span>
               )}
@@ -221,13 +221,13 @@ export function AthleteIdentityCard({
 
     return (
       <div
-        className="rounded-2xl overflow-hidden border"
+        className="sport-card p-6 border-none"
         style={{
           background: `linear-gradient(135deg, ${primaryColor}14 0%, ${primaryColor}06 100%)`,
-          borderColor: `${primaryColor}30`,
-        }}
+          '--sport-accent': primaryColor,
+        } as React.CSSProperties}
       >
-        <div className="p-5 flex flex-col sm:flex-row items-center gap-6">
+        <div className="flex flex-col sm:flex-row items-center gap-6">
           {/* Jersey */}
           <div className="shrink-0 flex justify-center">
             <JerseySVG
@@ -239,26 +239,26 @@ export function AthleteIdentityCard({
           </div>
 
           {/* Info */}
-          <div className="text-center sm:text-left flex-1 space-y-2">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">
+          <div className="text-center sm:text-left flex-1 space-y-1">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-3">
               Tu camiseta · {sportType}
             </p>
             {jerseyNumber && (
-              <p className="text-3xl font-black leading-none" style={{ color: primaryColor }}>
+              <p className="text-5xl font-black leading-none tracking-tighter" style={{ color: primaryColor }}>
                 #{jerseyNumber}
               </p>
             )}
             {positions && (
-              <p className="text-sm font-medium text-muted-foreground">{positions}</p>
+              <p className="text-sm font-bold text-muted-foreground mt-1 uppercase tracking-wide">{positions}</p>
             )}
-            <div className="flex flex-wrap gap-2 pt-1 justify-center sm:justify-start">
+            <div className="flex flex-wrap gap-2 pt-3 justify-center sm:justify-start">
               {heightCm && (
-                <span className="text-xs bg-background/80 border border-border rounded-full px-2.5 py-1 font-medium">
+                <span className="text-xs bg-black/20 text-foreground dark:text-white rounded-lg px-3 py-1.5 font-bold uppercase tracking-wide">
                   📏 {heightCm} cm
                 </span>
               )}
               {wingspanCm && (
-                <span className="text-xs bg-background/80 border border-border rounded-full px-2.5 py-1 font-medium">
+                <span className="text-xs bg-black/20 text-foreground dark:text-white rounded-lg px-3 py-1.5 font-bold uppercase tracking-wide">
                   🦅 {wingspanCm} cm env.
                 </span>
               )}
@@ -283,27 +283,27 @@ export function AthleteIdentityCard({
     }
 
     return (
-      <div className="rounded-2xl p-5 bg-gradient-to-br from-slate-900 to-slate-800 text-white relative overflow-hidden border border-white/5">
+      <div className="sport-card p-6 bg-gradient-to-br from-slate-900 to-slate-800 text-white border-none" style={{ '--sport-accent': '#f43f5e' } as React.CSSProperties}>
         {/* Background emoji watermark */}
-        <span className="absolute top-2 right-4 text-[72px] opacity-10 select-none pointer-events-none">
+        <span className="absolute top-2 right-4 text-[96px] opacity-[0.03] select-none pointer-events-none">
           {sportEmoji[sportType] ?? '🥊'}
         </span>
 
-        <p className="text-[10px] font-bold uppercase tracking-widest text-white/40 mb-3">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-white/40 mb-5 relative z-10">
           Tu récord · {sportType}
         </p>
 
-        <div className="flex flex-wrap items-center gap-5">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-6 relative z-10">
           {record && (
             <div>
-              <p className="text-4xl font-black font-mono tracking-tight">{record}</p>
-              <p className="text-xs text-white/50 mt-0.5">Victorias · Derrotas · Empates</p>
+              <p className="text-5xl font-black font-mono tracking-tighter">{record}</p>
+              <p className="text-xs font-bold text-white/50 mt-1 uppercase tracking-wide">V · D · E</p>
             </div>
           )}
           <div className="flex flex-wrap gap-2">
-            {level      && <span className="text-xs bg-white/10 border border-white/15 rounded-full px-3 py-1.5 font-medium">{level}</span>}
-            {weightClass && <span className="text-xs bg-white/10 border border-white/15 rounded-full px-3 py-1.5">⚖️ {weightClass}</span>}
-            {stance     && <span className="text-xs bg-white/10 border border-white/15 rounded-full px-3 py-1.5">{stance}</span>}
+            {level      && <span className="text-xs bg-white/10 text-white rounded-lg px-3 py-1.5 font-bold uppercase tracking-wide">{level}</span>}
+            {weightClass && <span className="text-xs bg-white/10 text-white rounded-lg px-3 py-1.5 font-bold uppercase tracking-wide">⚖️ {weightClass}</span>}
+            {stance     && <span className="text-xs bg-white/10 text-white rounded-lg px-3 py-1.5 font-bold uppercase tracking-wide">{stance}</span>}
           </div>
         </div>
       </div>
@@ -319,15 +319,15 @@ export function AthleteIdentityCard({
   if (!level && !specialty && !pr && !ranking) return null
 
   return (
-    <div className="rounded-2xl p-5 bg-gradient-to-br from-primary/5 to-primary/10 border border-primary/20">
-      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-3">
+    <div className="sport-card p-6 bg-gradient-to-br from-primary/5 to-primary/10 border-none" style={{ '--sport-accent': 'var(--primary)' } as React.CSSProperties}>
+      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-5 relative z-10">
         Tu perfil · {sportType}
       </p>
-      <div className="flex flex-wrap gap-2">
-        {level    && <span className="text-sm bg-background border border-border rounded-full px-3 py-1.5 font-medium">{level}</span>}
-        {specialty && <span className="text-sm bg-background border border-border rounded-full px-3 py-1.5">{specialty}</span>}
-        {ranking  && <span className="text-sm bg-background border border-border rounded-full px-3 py-1.5">🏅 {ranking}</span>}
-        {pr       && <span className="text-sm bg-background border border-border rounded-full px-3 py-1.5 font-mono text-xs">PRs: {pr}</span>}
+      <div className="flex flex-wrap gap-2 relative z-10">
+        {level    && <span className="text-xs bg-black/20 text-foreground dark:text-white rounded-lg px-3 py-1.5 font-bold uppercase tracking-wide">{level}</span>}
+        {specialty && <span className="text-xs bg-black/20 text-foreground dark:text-white rounded-lg px-3 py-1.5 font-bold uppercase tracking-wide">{specialty}</span>}
+        {ranking  && <span className="text-xs bg-black/20 text-foreground dark:text-white rounded-lg px-3 py-1.5 font-bold uppercase tracking-wide">🏅 {ranking}</span>}
+        {pr       && <span className="text-xs bg-black/20 text-foreground dark:text-white rounded-lg px-3 py-1.5 font-mono font-bold tracking-wide">PRs: {pr}</span>}
       </div>
     </div>
   )

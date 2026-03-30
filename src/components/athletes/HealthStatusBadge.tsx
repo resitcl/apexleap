@@ -8,9 +8,9 @@ interface Props {
 }
 
 const config = {
-  healthy: { label: '🟢 Apto', className: 'bg-green-100 text-green-800 border-green-200' },
-  observation: { label: '🟡 Observación', className: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
-  injured: { label: '🔴 Lesionado', className: 'bg-red-100 text-red-800 border-red-200' },
+  healthy: { label: '🟢 Apto', className: 'bg-emerald-50 text-emerald-700 border-emerald-200/60 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/40' },
+  observation: { label: '🟡 Observación', className: 'bg-amber-50 text-amber-700 border-amber-200/60 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800/40' },
+  injured: { label: '🔴 Lesionado', className: 'bg-red-50 text-red-700 border-red-200/60 dark:bg-red-950/40 dark:text-red-400 dark:border-red-800/40' },
 }
 
 export function HealthStatusBadge({ status }: Props) {
