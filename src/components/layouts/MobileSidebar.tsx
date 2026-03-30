@@ -56,7 +56,7 @@ export function MobileSidebar({ groups, clubName, logoUrl, brandColor }: Props) 
     <>
       <button
         onClick={() => setOpen(true)}
-        className="p-2 rounded-lg hover:bg-accent transition-colors"
+        className="p-2 rounded-xl hover:bg-muted/60 transition-colors"
         aria-label="Abrir menú"
       >
         <Menu className="w-5 h-5" />
@@ -65,73 +65,78 @@ export function MobileSidebar({ groups, clubName, logoUrl, brandColor }: Props) 
       {/* Overlay */}
       {open && (
         <div
-          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
+          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
           onClick={() => setOpen(false)}
         />
       )}
 
       {/* Drawer */}
       <div
-        className={`fixed top-0 left-0 z-50 h-full w-72 bg-card border-r border-border flex flex-col transition-transform duration-300 ease-in-out ${
+        className={`fixed top-0 left-0 z-50 h-full w-72 bg-sidebar border-r border-sidebar-border flex flex-col transition-transform duration-300 ease-in-out ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >
         {/* Club header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
-          <Link href="/dashboard" className="flex items-center gap-2.5 min-w-0" onClick={() => setOpen(false)}>
+        <div className="h-16 flex items-center justify-between px-4 border-b border-sidebar-border shrink-0">
+          <Link href="/dashboard" className="flex items-center gap-3 min-w-0 flex-1" onClick={() => setOpen(false)}>
             {logoUrl ? (
-              <Image src={logoUrl} alt={clubName ?? 'Club'} width={32} height={32} className="rounded-lg object-cover shrink-0" />
+              <Image src={logoUrl} alt={clubName ?? 'Club'} width={34} height={34} className="rounded-xl object-cover shrink-0" />
             ) : (
               <div
-                className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 text-white font-bold text-xs"
+                className="w-[34px] h-[34px] rounded-xl flex items-center justify-center shrink-0 text-white font-black text-sm shadow-sm"
                 style={{ backgroundColor: color }}
               >
                 {(clubName ?? 'AL').slice(0, 2).toUpperCase()}
               </div>
             )}
             <div className="min-w-0">
-              <p className="font-semibold text-sm leading-tight truncate">{clubName ?? 'ApexLeap'}</p>
-              <p className="text-[11px] text-muted-foreground leading-tight">Performance Hub</p>
+              <p className="font-bold text-[13px] leading-tight truncate">{clubName ?? 'ApexLeap'}</p>
+              <p className="text-[10px] text-muted-foreground/50 leading-tight font-medium uppercase tracking-wider">Performance Hub</p>
             </div>
           </Link>
           <button
             onClick={() => setOpen(false)}
-            className="p-1.5 rounded-lg hover:bg-accent transition-colors shrink-0"
+            className="p-1.5 rounded-xl hover:bg-muted/60 transition-colors shrink-0 ml-2"
             aria-label="Cerrar menú"
           >
-            <X className="w-4 h-4" />
+            <X className="w-4 h-4 text-muted-foreground" />
           </button>
         </div>
 
         {/* Nav groups */}
-        <nav className="flex-1 overflow-y-auto py-3 px-2">
+        <nav className="flex-1 overflow-y-auto py-4 px-2">
           {groups.map((group, gi) => (
-            <div key={gi} className={gi > 0 ? "mt-4" : ""}>
+            <div key={gi} className={gi > 0 ? "mt-5" : ""}>
               {group.label && (
-                <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
-                  {group.label}
-                </p>
+                <div className="flex items-center gap-2 px-2 mb-2">
+                  <span className="text-[9px] font-black uppercase tracking-[0.18em] text-muted-foreground/35 shrink-0">{group.label}</span>
+                  <div className="h-px bg-border/40 flex-1" />
+                </div>
               )}
-              <ul className="space-y-0.5">
+              <ul className="space-y-px">
                 {group.items.map((item) => {
                   const isActive = pathname === item.href ||
                     (item.href !== "/dashboard" && pathname.startsWith(item.href))
+                  const showBadge = !!item.badge && item.badge > 0 &&
+                    !dismissed.includes(`${item.notificationId}-${item.badge}`)
                   return (
                     <li key={item.href}>
                       <Link
                         href={item.href}
                         onClick={() => { setOpen(false); dismissBadge(item.notificationId, item.badge) }}
-                        className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
+                        className={`flex items-center gap-2.5 px-3 py-[7px] rounded-xl text-[13px] transition-colors ${
                           isActive
-                            ? "bg-primary/10 text-primary font-medium"
-                            : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                            ? "bg-primary/10 dark:bg-primary/15 text-primary font-semibold"
+                            : "text-muted-foreground/70 hover:text-foreground hover:bg-muted/60 dark:hover:bg-white/[0.05]"
                         }`}
                       >
-                        {item.icon}
-                        <span className="flex-1">{item.label}</span>
-                        {item.badge && item.badge > 0 && !dismissed.includes(`${item.notificationId}-${item.badge}`) ? (
-                          <span className="bg-destructive text-destructive-foreground text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shrink-0">
-                            {item.badge > 99 ? "99+" : item.badge}
+                        <span className={`shrink-0 ${isActive ? "text-primary" : "text-muted-foreground/50"}`}>
+                          {item.icon}
+                        </span>
+                        <span className="flex-1 leading-tight">{item.label}</span>
+                        {showBadge ? (
+                          <span className="bg-destructive text-destructive-foreground text-[10px] font-black rounded-full min-w-[18px] h-[18px] px-1 flex items-center justify-center shrink-0">
+                            {item.badge! > 99 ? "99+" : item.badge}
                           </span>
                         ) : null}
                       </Link>

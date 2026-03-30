@@ -42,16 +42,18 @@ export function DesktopNavItem({ href, label, icon, badge, notificationId }: Pro
     <Link
       href={href}
       onClick={dismissBadge}
-      className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
+      className={`flex items-center gap-2.5 px-3 py-[7px] rounded-xl text-[13px] transition-all duration-150 ${
         isActive
-          ? "bg-primary/10 text-primary font-medium"
-          : "text-muted-foreground hover:text-foreground hover:bg-accent"
+          ? "bg-primary/10 dark:bg-primary/15 text-primary font-semibold"
+          : "text-muted-foreground/70 hover:text-foreground hover:bg-muted/60 dark:hover:bg-white/[0.05]"
       }`}
     >
-      {icon}
-      <span className="flex-1">{label}</span>
+      <span className={`shrink-0 transition-colors ${isActive ? "text-primary" : "text-muted-foreground/50"}`}>
+        {icon}
+      </span>
+      <span className="flex-1 leading-tight">{label}</span>
       {showBadge ? (
-        <span className="ml-auto bg-destructive text-destructive-foreground text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shrink-0">
+        <span className="ml-auto bg-destructive text-destructive-foreground text-[10px] font-black rounded-full min-w-[18px] h-[18px] px-1 flex items-center justify-center shrink-0 leading-none">
           {badge > 99 ? "99+" : badge}
         </span>
       ) : null}
