@@ -124,3 +124,5 @@ Sign up (Clerk) → /onboarding (crear club) → /dashboard
                                 ↓
               Crea club + user_clubs + 4 reglas por defecto
 ```
+
+<\!-- build: 2026-03-30 -->
