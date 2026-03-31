@@ -1,8 +1,14 @@
 'use client'
 
-import { Trophy } from 'lucide-react'
+import { Trophy, Swords, Flame, Dumbbell } from 'lucide-react'
 
-// ─── Belt colors ──────────────────────────────────────────────────────────────
+// ─── Sport groups ──────────────────────────────────────────────────────────────
+const BELT_SPORTS    = ['Jiu-Jitsu', 'Karate', 'Taekwondo', 'Judo']
+const TEAM_SPORTS    = ['Fútbol', 'Básquetbol', 'Vóley', 'Handball', 'Futsal', 'Rugby', 'Hockey', 'Waterpolo']
+const COMBAT_SPORTS  = ['Boxeo', 'Muay Thai', 'MMA', 'Kickboxing', 'Kick Boxing', 'Lucha', 'Lucha Libre', 'Wrestling', 'Sambo']
+const FITNESS_SPORTS = ['CrossFit', 'Fitness', 'Yoga', 'Pilates', 'Natación', 'Atletismo', 'Tenis', 'Golf', 'Ciclismo', 'Gimnasia', 'Paddle']
+
+// ─── Belt colors ───────────────────────────────────────────────────────────────
 const BELT_COLOR: Record<string, string> = {
   white:        '#F2F2F2',
   yellow:       '#F5C518',
@@ -29,19 +35,34 @@ function isLightBelt(belt: string): boolean {
 }
 
 const BELT_ES: Record<string, string> = {
-  white: 'Cinta Blanca', blue: 'Cinta Azul', purple: 'Cinta Violeta',
-  brown: 'Cinta Café', black: 'Cinta Negra',
-  'red/black': 'Cinta Roja/Negra', 'red/white': 'Cinta Roja/Blanca', red: 'Cinta Roja',
+  white:     'Blanca',
+  yellow:    'Amarilla',
+  white_yellow: 'Blanca/Amarilla',
+  orange:    'Naranja',
+  yellow_green: 'Amarilla/Verde',
+  green:     'Verde',
+  green_blue:'Verde/Azul',
+  blue:      'Azul',
+  blue_adv:  'Azul Avanzada',
+  blue_red:  'Azul/Roja',
+  purple:    'Violeta',
+  brown:     'Café',
+  red:       'Roja',
+  red_black: 'Roja/Negra',
+  black:     'Negra',
+  black_1:   'Negra 1°',
+  black_2:   'Negra 2°',
+  black_3:   'Negra 3°',
 }
 const NEXT_BELT_ES: Record<string, string> = {
-  white: 'Cinta Azul', blue: 'Cinta Violeta', purple: 'Cinta Café',
-  brown: 'Cinta Negra', black: 'Cinta Roja/Negra',
+  white:     'Azul',
+  blue:      'Violeta',
+  purple:    'Café',
+  brown:     'Negra',
+  black:     'Roja/Negra',
 }
 
-const BELT_SPORTS = ['Jiu-Jitsu', 'Karate', 'Taekwondo', 'Judo']
-const TEAM_SPORTS = ['Fútbol', 'Básquetbol', 'Vóley', 'Handball', 'Futsal', 'Rugby', 'Hockey', 'Waterpolo']
-
-// ─── Compact belt SVG ─────────────────────────────────────────────────────────
+// ─── Belt SVG (wide ribbon with black tip + stripes) ──────────────────────────
 function BeltSVG({ belt, stripes }: { belt: string; stripes: number }) {
   const color   = getBeltColor(belt)
   const isLight = isLightBelt(belt)
@@ -49,35 +70,40 @@ function BeltSVG({ belt, stripes }: { belt: string; stripes: number }) {
   const uid     = `cr-${belt.replace(/[^a-z0-9]/g, '')}`
 
   return (
-    <svg viewBox="0 0 320 56" className="w-full drop-shadow-lg" xmlns="http://www.w3.org/2000/svg">
+    <svg viewBox="0 0 260 72" className="w-full drop-shadow-lg" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <linearGradient id={`bg-${uid}`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%"   stopColor="rgba(255,255,255,0.18)" />
+          <stop offset="0%"   stopColor="rgba(255,255,255,0.20)" />
           <stop offset="40%"  stopColor="rgba(255,255,255,0)" />
-          <stop offset="100%" stopColor="rgba(0,0,0,0.18)" />
+          <stop offset="100%" stopColor="rgba(0,0,0,0.20)" />
         </linearGradient>
       </defs>
-      <rect x="0" y="6" width="244" height="44" rx="6" fill={color} stroke={border} strokeWidth={isLight ? 1 : 0} />
-      <rect x="0" y="6" width="244" height="44" rx="6" fill={`url(#bg-${uid})`} />
-      <line x1="0" y1="28" x2="244" y2="28"
-            stroke={isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.08)'}
+      {/* Belt body */}
+      <rect x="0" y="8" width="192" height="56" rx="8" fill={color} stroke={border} strokeWidth={isLight ? 1 : 0} />
+      <rect x="0" y="8" width="192" height="56" rx="8" fill={`url(#bg-${uid})`} />
+      {/* Center line */}
+      <line x1="0" y1="36" x2="192" y2="36"
+            stroke={isLight ? 'rgba(0,0,0,0.07)' : 'rgba(255,255,255,0.09)'}
             strokeWidth="1.5" />
-      <rect x="244" y="6" width="76" height="44" rx="0 6 6 0" fill="#111" />
+      {/* Black tip */}
+      <rect x="192" y="8" width="68" height="56" rx="0" fill="#111" />
+      <rect x="252" y="8" width="8" height="56" rx="0 8 8 0" fill="#111" />
+      {/* Stripes (white bars in black tip) */}
       {Array.from({ length: Math.min(stripes, 4) }).map((_, i) => (
-        <rect key={i} x={257 + i * 15} y="11" width="9" height="34" rx="3" fill="white" opacity="0.88" />
+        <rect key={i} x={202 + i * 14} y="16" width="9" height="40" rx="3" fill="white" opacity="0.88" />
       ))}
     </svg>
   )
 }
 
-// ─── Compact jersey SVG ───────────────────────────────────────────────────────
+// ─── Jersey SVG ───────────────────────────────────────────────────────────────
 function JerseySVG({ number, primaryColor, secondaryColor }: { number: string | null; primaryColor: string; secondaryColor: string }) {
-  const num = number ?? '?'
+  const num     = number ?? '?'
   const bigFont = num.length > 2 ? '42' : '54'
   return (
     <svg viewBox="0 0 140 120" className="w-24 drop-shadow-2xl" xmlns="http://www.w3.org/2000/svg">
-      <path d="M 22,22 L 0,36 L 6,60 L 24,48" fill={primaryColor} />
-      <path d="M 118,22 L 140,36 L 134,60 L 116,48" fill={primaryColor} />
+      <path d="M 22,22 L 0,36 L 6,60 L 24,48"                           fill={primaryColor} />
+      <path d="M 118,22 L 140,36 L 134,60 L 116,48"                      fill={primaryColor} />
       <path d="M 22,22 L 24,48 L 18,116 L 122,116 L 116,48 L 118,22 Q 100,8 70,10 Q 40,8 22,22 Z" fill={primaryColor} />
       <path d="M 42,24 Q 70,40 98,24" stroke={secondaryColor} fill="none" strokeWidth="3" strokeLinecap="round" />
       <text x="70" y="90" textAnchor="middle" fontSize={bigFont} fontWeight="900"
@@ -88,7 +114,27 @@ function JerseySVG({ number, primaryColor, secondaryColor }: { number: string | 
   )
 }
 
-// ─── Props ────────────────────────────────────────────────────────────────────
+// ─── Gloves SVG (combat sports) ───────────────────────────────────────────────
+function GlovesSVG({ color }: { color: string }) {
+  return (
+    <svg viewBox="0 0 120 80" className="w-20 drop-shadow-lg" xmlns="http://www.w3.org/2000/svg">
+      {/* Left glove */}
+      <ellipse cx="32" cy="44" rx="20" ry="26" fill={color} />
+      <rect x="12" y="54" width="40" height="14" rx="4" fill={color} />
+      <rect x="14" y="54" width="36" height="7" rx="3" fill="rgba(255,255,255,0.15)" />
+      <ellipse cx="32" cy="32" rx="12" ry="8" fill="rgba(255,255,255,0.12)" />
+      {/* Right glove (mirrored) */}
+      <ellipse cx="88" cy="44" rx="20" ry="26" fill={color} />
+      <rect x="68" y="54" width="40" height="14" rx="4" fill={color} />
+      <rect x="70" y="54" width="36" height="7" rx="3" fill="rgba(255,255,255,0.15)" />
+      <ellipse cx="88" cy="32" rx="12" ry="8" fill="rgba(255,255,255,0.12)" />
+      {/* Center spark */}
+      <circle cx="60" cy="44" r="6" fill="rgba(255,255,255,0.18)" />
+    </svg>
+  )
+}
+
+// ─── Props ─────────────────────────────────────────────────────────────────────
 interface CurrentRankCardProps {
   sportType:      string | null
   beltLevel:      string | null
@@ -99,7 +145,7 @@ interface CurrentRankCardProps {
   secondaryColor: string
 }
 
-// ─── Main export ──────────────────────────────────────────────────────────────
+// ─── Main export ───────────────────────────────────────────────────────────────
 export function CurrentRankCard({
   sportType, beltLevel, stripes, jerseyNumber, athleteName, primaryColor, secondaryColor,
 }: CurrentRankCardProps) {
@@ -110,46 +156,51 @@ export function CurrentRankCard({
   // ── Belt sports ─────────────────────────────────────────────────────────────
   if (sportType && BELT_SPORTS.includes(sportType)) {
     const beltColor = beltLevel ? getBeltColor(beltLevel) : '#888'
+    const beltName  = beltLevel ? (BELT_ES[beltKey] ?? beltLevel) : null
     return (
-      <div className="rounded-2xl bg-card p-6 border border-white/[0.02] shadow-sm flex flex-col w-full"
-        style={{ background: `linear-gradient(135deg, ${beltColor}14 0%, ${beltColor}06 100%)` }}>
-        <div className="flex items-start justify-between mb-4">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">Current Rank</p>
-          <div className="w-8 h-8 rounded-xl bg-[#8B5A2B]/40 flex items-center justify-center shrink-0">
-            <Trophy className="w-4 h-4 text-white" />
+      <div className="rounded-2xl p-5 border border-white/[0.02] shadow-sm flex flex-col w-full gap-3"
+        style={{ background: `linear-gradient(145deg, ${beltColor}18 0%, ${beltColor}08 60%, transparent 100%)` }}>
+
+        <div className="flex items-center justify-between">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">Rango</p>
+          <div className="w-7 h-7 rounded-lg bg-[#8B5A2B]/30 flex items-center justify-center shrink-0">
+            <Trophy className="w-3.5 h-3.5 text-amber-400" />
           </div>
         </div>
 
         {beltLevel ? (
-          <div className="flex-1 flex flex-col">
-            {/* Belt SVG */}
-            <div className="mb-4">
+          <>
+            {/* Belt illustration */}
+            <div className="mt-1">
               <BeltSVG belt={beltLevel} stripes={stripesNum} />
             </div>
 
-            <p className="text-2xl font-black leading-none text-foreground tracking-tight uppercase">
-              {BELT_ES[beltKey] ?? beltLevel}
-            </p>
-            <p className="text-xs text-muted-foreground/60 mt-1.5 font-medium">
-              {stripesNum > 0 ? `${stripesNum} grado${stripesNum !== 1 ? 's' : ''}` : 'Sin grados'}
-            </p>
+            {/* Belt name + stripes */}
+            <div>
+              <p className="text-xl font-black leading-none text-foreground tracking-tight uppercase">
+                Cinta {beltName}
+              </p>
+              <p className="text-xs text-muted-foreground/55 mt-1 font-medium">
+                {stripesNum > 0
+                  ? `${stripesNum} grado${stripesNum !== 1 ? 's' : ''}`
+                  : 'Sin grados'}
+              </p>
+            </div>
 
-            {stripePct !== null && (
-              <div className="mt-auto pt-5">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs font-bold">
-                    <span className="text-emerald-400">{stripePct}%</span>
-                    {NEXT_BELT_ES[beltKey] && (
-                      <span className="text-muted-foreground/60 font-medium"> hacia {NEXT_BELT_ES[beltKey]}</span>
-                    )}
-                  </p>
+            {/* Progress to next belt */}
+            {stripePct !== null && NEXT_BELT_ES[beltKey] && (
+              <div className="mt-auto">
+                <div className="flex items-center justify-between mb-1.5">
+                  <p className="text-[11px] font-bold text-emerald-400">{stripePct}%</p>
+                  <p className="text-[11px] text-muted-foreground/50 font-medium">→ {NEXT_BELT_ES[beltKey]}</p>
                 </div>
-                <div className="h-2.5 rounded-full bg-muted/40 dark:bg-white/[0.04] overflow-hidden">
-                  <div className="h-full rounded-full bg-emerald-400 transition-all duration-700" style={{ width: `${stripePct}%` }} />
+                <div className="h-2 rounded-full bg-muted/40 dark:bg-white/[0.04] overflow-hidden">
+                  <div className="h-full rounded-full bg-emerald-400 transition-all duration-700"
+                       style={{ width: `${stripePct}%` }} />
                 </div>
               </div>
             )}
-          </div>
+          </>
         ) : (
           <p className="text-sm text-muted-foreground/50 font-medium">Sin rango asignado</p>
         )}
@@ -157,49 +208,138 @@ export function CurrentRankCard({
     )
   }
 
-  // ── Team sports ──────────────────────────────────────────────────────────────
+  // ── Team sports ─────────────────────────────────────────────────────────────
   if (sportType && TEAM_SPORTS.includes(sportType)) {
     const lastName = athleteName.split(' ').filter(Boolean).pop()?.toUpperCase().slice(0, 11) ?? ''
     const numStr   = jerseyNumber !== null ? String(jerseyNumber) : null
+    const pc       = primaryColor || '#1E40AF'
+    const sc       = secondaryColor || '#FFFFFF'
     return (
-      <div className="rounded-2xl bg-card p-6 border border-white/[0.02] shadow-sm flex flex-col w-full"
-        style={{ background: `linear-gradient(135deg, ${primaryColor}14 0%, ${primaryColor}06 100%)` }}>
-        <div className="flex items-start justify-between mb-3">
+      <div className="rounded-2xl p-5 border border-white/[0.02] shadow-sm flex flex-col w-full gap-3"
+        style={{ background: `linear-gradient(145deg, ${pc}18 0%, ${pc}08 60%, transparent 100%)` }}>
+
+        <div className="flex items-center justify-between">
           <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">Camiseta</p>
-          <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: `${primaryColor}30` }}>
-            <Trophy className="w-4 h-4" style={{ color: primaryColor }} />
+          <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+               style={{ backgroundColor: `${pc}28` }}>
+            <Trophy className="w-3.5 h-3.5" style={{ color: pc }} />
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3 mt-1">
           <div className="shrink-0">
-            <JerseySVG number={numStr} primaryColor={primaryColor || '#1E40AF'} secondaryColor={secondaryColor || '#FFFFFF'} />
+            <JerseySVG number={numStr} primaryColor={pc} secondaryColor={sc} />
           </div>
           <div>
             {numStr ? (
-              <p className="text-4xl font-black leading-none tracking-tighter" style={{ color: primaryColor }}>
+              <p className="text-4xl font-black leading-none tracking-tighter" style={{ color: pc }}>
                 #{numStr}
               </p>
             ) : (
               <p className="text-sm text-muted-foreground/50 font-medium">Sin dorsal</p>
             )}
-            <p className="text-xs text-muted-foreground/60 mt-1.5 font-medium uppercase tracking-wide">{lastName}</p>
+            {lastName && (
+              <p className="text-[11px] text-muted-foreground/55 mt-1.5 font-bold uppercase tracking-wider">
+                {lastName}
+              </p>
+            )}
           </div>
         </div>
       </div>
     )
   }
 
-  // ── Fallback (other sports) ───────────────────────────────────────────────────
-  return (
-    <div className="rounded-2xl bg-card p-6 border border-white/[0.02] shadow-sm flex flex-col w-full">
-      <div className="flex items-start justify-between mb-4">
-        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">Current Rank</p>
-        <div className="w-8 h-8 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
-          <Trophy className="w-4 h-4 text-primary" />
+  // ── Combat sports ───────────────────────────────────────────────────────────
+  if (sportType && COMBAT_SPORTS.includes(sportType)) {
+    const accent = primaryColor || '#EF4444'
+    const level  = beltLevel ?? null
+    return (
+      <div className="rounded-2xl p-5 border border-white/[0.02] shadow-sm flex flex-col w-full gap-3"
+        style={{ background: `linear-gradient(145deg, ${accent}18 0%, ${accent}08 60%, transparent 100%)` }}>
+
+        <div className="flex items-center justify-between">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">Nivel</p>
+          <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+               style={{ backgroundColor: `${accent}28` }}>
+            <Swords className="w-3.5 h-3.5" style={{ color: accent }} />
+          </div>
+        </div>
+
+        <div className="flex justify-center mt-1">
+          <GlovesSVG color={accent} />
+        </div>
+
+        {level ? (
+          <div>
+            <p className="text-lg font-black leading-none text-foreground tracking-tight uppercase">{level}</p>
+            <p className="text-xs text-muted-foreground/55 mt-1 font-medium">{sportType}</p>
+          </div>
+        ) : (
+          <div>
+            <p className="text-lg font-black leading-none text-foreground tracking-tight">{sportType}</p>
+            <p className="text-xs text-muted-foreground/50 mt-1 font-medium">Sin nivel asignado</p>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // ── Fitness / individual sports ─────────────────────────────────────────────
+  if (sportType && FITNESS_SPORTS.includes(sportType)) {
+    const accent = primaryColor || '#8B5CF6'
+    const level  = beltLevel ?? null
+    return (
+      <div className="rounded-2xl p-5 border border-white/[0.02] shadow-sm flex flex-col w-full gap-3"
+        style={{ background: `linear-gradient(145deg, ${accent}18 0%, ${accent}08 60%, transparent 100%)` }}>
+
+        <div className="flex items-center justify-between">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">Nivel</p>
+          <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+               style={{ backgroundColor: `${accent}28` }}>
+            <Flame className="w-3.5 h-3.5" style={{ color: accent }} />
+          </div>
+        </div>
+
+        {/* Large level display */}
+        <div className="flex-1 flex flex-col justify-center mt-2">
+          {level ? (
+            <>
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-3"
+                   style={{ backgroundColor: `${accent}22` }}>
+                <Dumbbell className="w-7 h-7" style={{ color: accent }} />
+              </div>
+              <p className="text-xl font-black leading-none text-foreground tracking-tight">{level}</p>
+              <p className="text-xs text-muted-foreground/55 mt-1 font-medium">{sportType}</p>
+            </>
+          ) : (
+            <>
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-3"
+                   style={{ backgroundColor: `${accent}22` }}>
+                <Dumbbell className="w-7 h-7" style={{ color: accent }} />
+              </div>
+              <p className="text-lg font-black leading-none text-foreground tracking-tight">{sportType}</p>
+              <p className="text-xs text-muted-foreground/50 mt-1 font-medium">Sin nivel asignado</p>
+            </>
+          )}
         </div>
       </div>
-      <p className="text-sm text-muted-foreground/50 font-medium">Sin rango asignado</p>
+    )
+  }
+
+  // ── Fallback ────────────────────────────────────────────────────────────────
+  return (
+    <div className="rounded-2xl bg-card p-5 border border-white/[0.02] shadow-sm flex flex-col w-full gap-3">
+      <div className="flex items-center justify-between">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">Rango</p>
+        <div className="w-7 h-7 rounded-lg bg-primary/15 flex items-center justify-center shrink-0">
+          <Trophy className="w-3.5 h-3.5 text-primary" />
+        </div>
+      </div>
+      {beltLevel ? (
+        <p className="text-lg font-black text-foreground tracking-tight">{beltLevel}</p>
+      ) : (
+        <p className="text-sm text-muted-foreground/50 font-medium">Sin rango asignado</p>
+      )}
     </div>
   )
 }

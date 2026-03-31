@@ -370,124 +370,128 @@ export default async function AthletePage({ searchParams }: { searchParams?: Pro
 
       </div>
 
-      {/* ── CONTENT SECTION: Attendance (3/5) + Torneos (2/5) ── */}
+      {/* ── CONTENT ROW: Attendance/Events (3/5) + Torneos (2/5) ── */}
       <div className="grid lg:grid-cols-5 gap-4 items-start pb-8">
-        <div className="space-y-4 lg:col-span-3">
+
+        {/* LEFT COLUMN — 3 cols */}
+        <div className="lg:col-span-3 space-y-4">
+
           {/* ATTENDANCE TRENDS */}
-        <div className="rounded-2xl bg-card p-6 md:p-8 border border-white/[0.02] shadow-sm">
-          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-8">
-            <div>
-              <p className="text-2xl font-black tracking-tight">Attendance Trends</p>
-              <p className="text-sm text-muted-foreground/60 font-medium mt-1.5">
-                {attendanceRange === '6m' ? 'Activity intensity over 6 months' : 'Activity intensity over the last 8 weeks'}
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="flex rounded-lg overflow-hidden border border-border/30 bg-muted/20">
-                <Link
-                  href="?range=8w"
-                  className={`px-4 py-2.5 text-[11px] font-bold uppercase tracking-[0.1em] transition-colors ${attendanceRange === '8w' ? 'bg-[#3C3C3F] text-white shadow-sm' : 'text-muted-foreground/60 hover:text-muted-foreground hover:bg-muted/50'}`}
-                >
-                  8 WEEKS
-                </Link>
-                <Link
-                  href="?range=6m"
-                  className={`px-4 py-2.5 text-[11px] font-bold uppercase tracking-[0.1em] transition-colors ${attendanceRange === '6m' ? 'bg-[#3C3C3F] text-white shadow-sm' : 'text-muted-foreground/60 hover:text-muted-foreground hover:bg-muted/50'}`}
-                >
-                  6 MONTHS
-                </Link>
+          <div className="rounded-2xl bg-card p-6 md:p-8 border border-white/[0.02] shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-8">
+              <div>
+                <p className="text-2xl font-black tracking-tight">Attendance Trends</p>
+                <p className="text-sm text-muted-foreground/60 font-medium mt-1.5">
+                  {attendanceRange === '6m' ? 'Activity intensity over 6 months' : 'Activity intensity over the last 8 weeks'}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="flex rounded-lg overflow-hidden border border-border/30 bg-muted/20">
+                  <Link
+                    href="?range=8w"
+                    className={`px-4 py-2.5 text-[11px] font-bold uppercase tracking-[0.1em] transition-colors ${attendanceRange === '8w' ? 'bg-[#3C3C3F] text-white shadow-sm' : 'text-muted-foreground/60 hover:text-muted-foreground hover:bg-muted/50'}`}
+                  >
+                    8 WEEKS
+                  </Link>
+                  <Link
+                    href="?range=6m"
+                    className={`px-4 py-2.5 text-[11px] font-bold uppercase tracking-[0.1em] transition-colors ${attendanceRange === '6m' ? 'bg-[#3C3C3F] text-white shadow-sm' : 'text-muted-foreground/60 hover:text-muted-foreground hover:bg-muted/50'}`}
+                  >
+                    6 MONTHS
+                  </Link>
+                </div>
               </div>
             </div>
-          </div>
-
-          <div className="flex items-end gap-2 h-32">
-            {weeklyCheckIns.map((count, i) => {
-              const heightPct = weekMax > 0 ? Math.max((count / weekMax) * 100, count > 0 ? 10 : 0) : 0
-              const isCurrentWeek = i === weeklyCheckIns.length - 1
-              const label = attendanceRange === '6m' ? `M${i + 1}` : `W${i + 1}`
-              return (
-                <div key={i} className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end">
-                  {count > 0 && (
-                    <span className="text-[9px] font-bold text-muted-foreground/40 leading-none">{count}</span>
-                  )}
-                  <div className="w-full flex items-end" style={{ height: '100px' }}>
-                    <div
-                      className="w-full rounded-sm transition-all duration-500"
-                      style={{
-                        height: heightPct > 0 ? `${heightPct}%` : '3px',
-                        backgroundColor: isCurrentWeek ? '#34d399' : heightPct > 0 ? 'rgba(52,211,153,0.25)' : 'rgba(255,255,255,0.06)',
-                      }}
-                    />
-                  </div>
-                  <span className={`text-[9px] font-bold leading-none uppercase tracking-wide ${isCurrentWeek ? 'text-primary' : 'text-muted-foreground/25'}`}>
-                    {label}
-                  </span>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-
-        {/* PRÓXIMOS EVENTOS DEL CLUB */}
-        <div className="rounded-2xl bg-card p-6 border border-white/[0.02] shadow-sm flex flex-col h-full">
-          <div className="flex items-center justify-between mb-6">
-            <p className="text-xl font-black tracking-tight">Próximos Eventos</p>
-            <Calendar className="w-5 h-5 text-emerald-400" />
-          </div>
-          
-          {upcomingClubEvents.length > 0 ? (
-            <div className="space-y-4">
-              {upcomingClubEvents.map((ev) => {
-                const evDate = new Date(ev.event_date + 'T12:00:00')
+            <div className="flex items-end gap-2 h-32">
+              {weeklyCheckIns.map((count, i) => {
+                const heightPct = weekMax > 0 ? Math.max((count / weekMax) * 100, count > 0 ? 10 : 0) : 0
+                const isCurrentWeek = i === weeklyCheckIns.length - 1
+                const label = attendanceRange === '6m' ? `M${i + 1}` : `W${i + 1}`
                 return (
-                  <div key={ev.id} className="flex gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-muted/30 border border-white/[0.02] flex flex-col items-center justify-center shrink-0">
-                      <span className="text-[10px] uppercase font-bold text-muted-foreground/70 leading-none">{evDate.toLocaleDateString('es-CL', { month: 'short' })}</span>
-                      <span className="text-sm font-black text-foreground leading-tight mt-0.5">{evDate.getDate()}</span>
+                  <div key={i} className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end">
+                    {count > 0 && (
+                      <span className="text-[9px] font-bold text-muted-foreground/40 leading-none">{count}</span>
+                    )}
+                    <div className="w-full flex items-end" style={{ height: '100px' }}>
+                      <div
+                        className="w-full rounded-sm transition-all duration-500"
+                        style={{
+                          height: heightPct > 0 ? `${heightPct}%` : '3px',
+                          backgroundColor: isCurrentWeek ? '#34d399' : heightPct > 0 ? 'rgba(52,211,153,0.25)' : 'rgba(255,255,255,0.06)',
+                        }}
+                      />
                     </div>
-                    <div>
-                      <p className="text-sm font-bold leading-snug">{ev.name}</p>
-                      <p className="text-[11px] text-muted-foreground/60 font-medium mt-1 flex flex-wrap gap-2">
-                        {ev.start_time && <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{ev.start_time.slice(0, 5)} {ev.end_time ? `- ${ev.end_time.slice(0, 5)}` : ''}</span>}
-                      </p>
-                      {ev.event_type && (
-                        <span className="inline-block mt-1.5 text-[9px] uppercase tracking-widest font-bold px-2 py-0.5 rounded-md bg-emerald-400/10 text-emerald-400">
-                          {ev.event_type}
-                        </span>
-                      )}
-                    </div>
+                    <span className={`text-[9px] font-bold leading-none uppercase tracking-wide ${isCurrentWeek ? 'text-primary' : 'text-muted-foreground/25'}`}>
+                      {label}
+                    </span>
                   </div>
                 )
               })}
             </div>
-          ) : (
-            <p className="text-sm text-muted-foreground/50 font-medium py-4">No hay eventos próximos en el calendario.</p>
-          )}
-          
-          <Link href="/dashboard/calendar" className="mt-auto pt-4 text-xs text-primary font-bold inline-flex items-center gap-1 hover:gap-2 transition-all">
-            Ver calendario completo <ChevronRight className="w-3.5 h-3.5" />
-          </Link>
-        </div>
-      </div>
+          </div>
 
-        {/* TORNEOS — right column 2/5 (same width as Documents + Current Rank above) */}
-        {(upcomingComps.length > 0 || sportType === 'Jiu-Jitsu') && (
-          <div className="lg:col-span-2 rounded-2xl bg-card p-6 border border-white/[0.02] shadow-sm flex flex-col">
-            <div className="flex items-center justify-between mb-4">
-              <p className="text-xl font-black tracking-tight">
-                {sportType === 'Jiu-Jitsu' ? 'Torneos en Chile' : vocab.competitions}
-              </p>
-              <Trophy className="w-5 h-5 text-emerald-400" />
+          {/* PRÓXIMOS EVENTOS DEL CLUB */}
+          <div className="rounded-2xl bg-card p-6 border border-white/[0.02] shadow-sm flex flex-col">
+            <div className="flex items-center justify-between mb-6">
+              <p className="text-xl font-black tracking-tight">Próximos Eventos</p>
+              <Calendar className="w-5 h-5 text-emerald-400" />
             </div>
+            {upcomingClubEvents.length > 0 ? (
+              <div className="space-y-4">
+                {upcomingClubEvents.map((ev) => {
+                  const evDate = new Date(ev.event_date + 'T12:00:00')
+                  return (
+                    <div key={ev.id} className="flex gap-4">
+                      <div className="w-12 h-12 rounded-xl bg-muted/30 border border-white/[0.02] flex flex-col items-center justify-center shrink-0">
+                        <span className="text-[10px] uppercase font-bold text-muted-foreground/70 leading-none">{evDate.toLocaleDateString('es-CL', { month: 'short' })}</span>
+                        <span className="text-sm font-black text-foreground leading-tight mt-0.5">{evDate.getDate()}</span>
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold leading-snug">{ev.name}</p>
+                        <p className="text-[11px] text-muted-foreground/60 font-medium mt-1 flex flex-wrap gap-2">
+                          {ev.start_time && <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{ev.start_time.slice(0, 5)} {ev.end_time ? `- ${ev.end_time.slice(0, 5)}` : ''}</span>}
+                        </p>
+                        {ev.event_type && (
+                          <span className="inline-block mt-1.5 text-[9px] uppercase tracking-widest font-bold px-2 py-0.5 rounded-md bg-emerald-400/10 text-emerald-400">
+                            {ev.event_type}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground/50 font-medium py-4">No hay eventos próximos en el calendario.</p>
+            )}
+            <Link href="/dashboard/calendar" className="mt-auto pt-4 text-xs text-primary font-bold inline-flex items-center gap-1 hover:gap-2 transition-all">
+              Ver calendario completo <ChevronRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
 
-            <div className="flex-1 overflow-hidden">
-              {upcomingComps.length > 0 && (
-                <div className="space-y-0">
-                  {upcomingComps.slice(0, 3).map((c) => {
+        </div>{/* end LEFT col-span-3 */}
+
+        {/* RIGHT COLUMN — 2 cols: Torneos */}
+        {(upcomingComps.length > 0 || sportType === 'Jiu-Jitsu') && (
+          <div className="lg:col-span-2 rounded-2xl bg-card border border-white/[0.02] shadow-sm overflow-hidden">
+            {sportType === 'Jiu-Jitsu' ? (
+              /* For BJJ: SmoothcompEventsWidget has its own header+content */
+              <Suspense fallback={<div className="p-6"><SmoothcompEventsSkeleton /></div>}>
+                <SmoothcompEventsWidget />
+              </Suspense>
+            ) : (
+              /* For other sports: simple upcoming competitions list */
+              <div className="p-6 flex flex-col h-full">
+                <div className="flex items-center justify-between mb-4">
+                  <p className="text-xl font-black tracking-tight">{vocab.competitions}</p>
+                  <Trophy className="w-5 h-5 text-emerald-400" />
+                </div>
+                <div className="space-y-0 flex-1">
+                  {upcomingComps.slice(0, 5).map((c) => {
                     const compDate = new Date(c.start_date + 'T12:00:00')
                     const daysTo = Math.ceil((compDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
                     return (
-                      <div key={c.id} className="py-2.5 border-b border-border/20 last:border-0 flex items-center gap-3">
+                      <div key={c.id} className="py-3 border-b border-border/20 last:border-0 flex items-center gap-3">
                         <div className="w-10 h-10 rounded-lg bg-emerald-400/10 flex flex-col items-center justify-center shrink-0">
                           <span className="text-[8px] uppercase font-bold text-emerald-400/70 leading-none">
                             {compDate.toLocaleDateString('es-CL', { month: 'short' })}
@@ -497,7 +501,7 @@ export default async function AthletePage({ searchParams }: { searchParams?: Pro
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-bold leading-snug truncate">{c.name}</p>
                           {c.location && (
-                            <p className="text-[10px] text-muted-foreground/50 font-medium mt-0.5 flex items-center gap-1 truncate">
+                            <p className="text-[10px] text-muted-foreground/50 mt-0.5 flex items-center gap-1 truncate">
                               <MapPin className="w-3 h-3 shrink-0" />{c.location}
                             </p>
                           )}
@@ -507,21 +511,15 @@ export default async function AthletePage({ searchParams }: { searchParams?: Pro
                     )
                   })}
                 </div>
-              )}
-
-              {sportType === 'Jiu-Jitsu' && (
-                <Suspense fallback={<SmoothcompEventsSkeleton />}>
-                  <SmoothcompEventsWidget />
-                </Suspense>
-              )}
-            </div>
-
-            <Link href="/dashboard/competitions" className="mt-auto pt-3 text-xs text-emerald-400 font-bold inline-flex items-center gap-1 hover:gap-2 transition-all">
-              Ver todos <ChevronRight className="w-3.5 h-3.5" />
-            </Link>
+                <Link href="/dashboard/competitions" className="pt-3 text-xs text-emerald-400 font-bold inline-flex items-center gap-1 hover:gap-2 transition-all">
+                  Ver todos <ChevronRight className="w-3.5 h-3.5" />
+                </Link>
+              </div>
+            )}
           </div>
         )}
-      </div>
+
+      </div>{/* end CONTENT ROW grid */}
 
       {/* ── TEAM SPORT WIDGETS ── */}
       {isTeamSport && (
