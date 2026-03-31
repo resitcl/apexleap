@@ -158,51 +158,55 @@ export function CurrentRankCard({
     const beltColor = beltLevel ? getBeltColor(beltLevel) : '#888'
     const beltName  = beltLevel ? (BELT_ES[beltKey] ?? beltLevel) : null
     return (
-      <div className="rounded-2xl p-5 border border-white/[0.02] shadow-sm flex flex-col w-full gap-3"
+      <div className="rounded-2xl overflow-hidden border border-white/[0.02] shadow-sm flex flex-col w-full h-full"
         style={{ background: `linear-gradient(145deg, ${beltColor}18 0%, ${beltColor}08 60%, transparent 100%)` }}>
 
-        <div className="flex items-center justify-between">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">Rango</p>
-          <div className="w-7 h-7 rounded-lg bg-[#8B5A2B]/30 flex items-center justify-center shrink-0">
-            <Trophy className="w-3.5 h-3.5 text-amber-400" />
+        <div className="p-5 pb-3">
+          <div className="flex items-center justify-between">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">Rango</p>
+            <div className="w-7 h-7 rounded-lg bg-[#8B5A2B]/30 flex items-center justify-center shrink-0">
+              <Trophy className="w-3.5 h-3.5 text-amber-400" />
+            </div>
           </div>
         </div>
 
         {beltLevel ? (
           <>
-            {/* Belt illustration */}
-            <div className="mt-1">
+            {/* Belt illustration — full width */}
+            <div className="w-full flex-shrink-0 px-4 py-2">
               <BeltSVG belt={beltLevel} stripes={stripesNum} />
             </div>
 
-            {/* Belt name + stripes */}
-            <div>
-              <p className="text-xl font-black leading-none text-foreground tracking-tight uppercase">
-                Cinta {beltName}
-              </p>
-              <p className="text-xs text-muted-foreground/55 mt-1 font-medium">
-                {stripesNum > 0
-                  ? `${stripesNum} grado${stripesNum !== 1 ? 's' : ''}`
-                  : 'Sin grados'}
-              </p>
-            </div>
-
-            {/* Progress to next belt */}
-            {stripePct !== null && NEXT_BELT_ES[beltKey] && (
-              <div className="mt-auto">
-                <div className="flex items-center justify-between mb-1.5">
-                  <p className="text-[11px] font-bold text-emerald-400">{stripePct}%</p>
-                  <p className="text-[11px] text-muted-foreground/50 font-medium">→ {NEXT_BELT_ES[beltKey]}</p>
-                </div>
-                <div className="h-2 rounded-full bg-muted/40 dark:bg-white/[0.04] overflow-hidden">
-                  <div className="h-full rounded-full bg-emerald-400 transition-all duration-700"
-                       style={{ width: `${stripePct}%` }} />
-                </div>
+            {/* Belt name + stripes + progress */}
+            <div className="px-5 pb-5 flex flex-col gap-3">
+              <div>
+                <p className="text-lg font-black leading-none text-foreground tracking-tight uppercase">
+                  Cinta {beltName}
+                </p>
+                <p className="text-xs text-muted-foreground/55 mt-2 font-medium">
+                  {stripesNum > 0
+                    ? `${stripesNum} grado${stripesNum !== 1 ? 's' : ''}`
+                    : 'Sin grados'}
+                </p>
               </div>
-            )}
+
+              {/* Progress to next belt */}
+              {stripePct !== null && NEXT_BELT_ES[beltKey] && (
+                <div className="mt-auto">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <p className="text-[11px] font-bold text-emerald-400">{stripePct}%</p>
+                    <p className="text-[11px] text-muted-foreground/50 font-medium">→ {NEXT_BELT_ES[beltKey]}</p>
+                  </div>
+                  <div className="h-2 rounded-full bg-muted/40 dark:bg-white/[0.04] overflow-hidden">
+                    <div className="h-full rounded-full bg-emerald-400 transition-all duration-700"
+                         style={{ width: `${stripePct}%` }} />
+                  </div>
+                </div>
+              )}
+            </div>
           </>
         ) : (
-          <p className="text-sm text-muted-foreground/50 font-medium">Sin rango asignado</p>
+          <p className="text-sm text-muted-foreground/50 font-medium p-5">Sin rango asignado</p>
         )}
       </div>
     )
@@ -215,33 +219,37 @@ export function CurrentRankCard({
     const pc       = primaryColor || '#1E40AF'
     const sc       = secondaryColor || '#FFFFFF'
     return (
-      <div className="rounded-2xl p-5 border border-white/[0.02] shadow-sm flex flex-col w-full gap-3"
+      <div className="rounded-2xl overflow-hidden border border-white/[0.02] shadow-sm flex flex-col w-full h-full"
         style={{ background: `linear-gradient(145deg, ${pc}18 0%, ${pc}08 60%, transparent 100%)` }}>
 
-        <div className="flex items-center justify-between">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">Camiseta</p>
-          <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
-               style={{ backgroundColor: `${pc}28` }}>
-            <Trophy className="w-3.5 h-3.5" style={{ color: pc }} />
+        <div className="p-5 pb-3">
+          <div className="flex items-center justify-between">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">Camiseta</p>
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+                 style={{ backgroundColor: `${pc}28` }}>
+              <Trophy className="w-3.5 h-3.5" style={{ color: pc }} />
+            </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-3 mt-1">
+        <div className="px-5 pb-5 flex items-center justify-center gap-4">
           <div className="shrink-0">
             <JerseySVG number={numStr} primaryColor={pc} secondaryColor={sc} />
           </div>
-          <div>
+          <div className="flex-1">
             {numStr ? (
-              <p className="text-4xl font-black leading-none tracking-tighter" style={{ color: pc }}>
-                #{numStr}
-              </p>
+              <>
+                <p className="text-5xl font-black leading-none tracking-tighter" style={{ color: pc }}>
+                  #{numStr}
+                </p>
+                {lastName && (
+                  <p className="text-[11px] text-muted-foreground/55 mt-2 font-bold uppercase tracking-wider">
+                    {lastName}
+                  </p>
+                )}
+              </>
             ) : (
-              <p className="text-sm text-muted-foreground/50 font-medium">Sin dorsal</p>
-            )}
-            {lastName && (
-              <p className="text-[11px] text-muted-foreground/55 mt-1.5 font-bold uppercase tracking-wider">
-                {lastName}
-              </p>
+              <p className="text-sm text-muted-foreground/50 font-medium">Sin dorsal asignado</p>
             )}
           </div>
         </div>
@@ -254,32 +262,36 @@ export function CurrentRankCard({
     const accent = primaryColor || '#EF4444'
     const level  = beltLevel ?? null
     return (
-      <div className="rounded-2xl p-5 border border-white/[0.02] shadow-sm flex flex-col w-full gap-3"
+      <div className="rounded-2xl overflow-hidden border border-white/[0.02] shadow-sm flex flex-col w-full h-full"
         style={{ background: `linear-gradient(145deg, ${accent}18 0%, ${accent}08 60%, transparent 100%)` }}>
 
-        <div className="flex items-center justify-between">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">Nivel</p>
-          <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
-               style={{ backgroundColor: `${accent}28` }}>
-            <Swords className="w-3.5 h-3.5" style={{ color: accent }} />
+        <div className="p-5 pb-3">
+          <div className="flex items-center justify-between">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">Nivel</p>
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+                 style={{ backgroundColor: `${accent}28` }}>
+              <Swords className="w-3.5 h-3.5" style={{ color: accent }} />
+            </div>
           </div>
         </div>
 
-        <div className="flex justify-center mt-1">
-          <GlovesSVG color={accent} />
-        </div>
+        <div className="px-5 pb-5 flex flex-col items-center justify-center flex-1 gap-3">
+          <div className="py-2">
+            <GlovesSVG color={accent} />
+          </div>
 
-        {level ? (
-          <div>
-            <p className="text-lg font-black leading-none text-foreground tracking-tight uppercase">{level}</p>
-            <p className="text-xs text-muted-foreground/55 mt-1 font-medium">{sportType}</p>
-          </div>
-        ) : (
-          <div>
-            <p className="text-lg font-black leading-none text-foreground tracking-tight">{sportType}</p>
-            <p className="text-xs text-muted-foreground/50 mt-1 font-medium">Sin nivel asignado</p>
-          </div>
-        )}
+          {level ? (
+            <div className="text-center">
+              <p className="text-xl font-black leading-none text-foreground tracking-tight uppercase">{level}</p>
+              <p className="text-xs text-muted-foreground/55 mt-1.5 font-medium">{sportType}</p>
+            </div>
+          ) : (
+            <div className="text-center">
+              <p className="text-lg font-black leading-none text-foreground tracking-tight">{sportType}</p>
+              <p className="text-xs text-muted-foreground/50 mt-1.5 font-medium">Sin nivel asignado</p>
+            </div>
+          )}
+        </div>
       </div>
     )
   }
@@ -289,37 +301,35 @@ export function CurrentRankCard({
     const accent = primaryColor || '#8B5CF6'
     const level  = beltLevel ?? null
     return (
-      <div className="rounded-2xl p-5 border border-white/[0.02] shadow-sm flex flex-col w-full gap-3"
+      <div className="rounded-2xl overflow-hidden border border-white/[0.02] shadow-sm flex flex-col w-full h-full"
         style={{ background: `linear-gradient(145deg, ${accent}18 0%, ${accent}08 60%, transparent 100%)` }}>
 
-        <div className="flex items-center justify-between">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">Nivel</p>
-          <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
-               style={{ backgroundColor: `${accent}28` }}>
-            <Flame className="w-3.5 h-3.5" style={{ color: accent }} />
+        <div className="p-5 pb-3">
+          <div className="flex items-center justify-between">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">Nivel</p>
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+                 style={{ backgroundColor: `${accent}28` }}>
+              <Flame className="w-3.5 h-3.5" style={{ color: accent }} />
+            </div>
           </div>
         </div>
 
-        {/* Large level display */}
-        <div className="flex-1 flex flex-col justify-center mt-2">
+        {/* Level display */}
+        <div className="px-5 pb-5 flex-1 flex flex-col justify-center items-center gap-3">
+          <div className="w-16 h-16 rounded-2xl flex items-center justify-center"
+               style={{ backgroundColor: `${accent}18` }}>
+            <Dumbbell className="w-8 h-8" style={{ color: accent }} />
+          </div>
           {level ? (
-            <>
-              <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-3"
-                   style={{ backgroundColor: `${accent}22` }}>
-                <Dumbbell className="w-7 h-7" style={{ color: accent }} />
-              </div>
+            <div className="text-center">
               <p className="text-xl font-black leading-none text-foreground tracking-tight">{level}</p>
-              <p className="text-xs text-muted-foreground/55 mt-1 font-medium">{sportType}</p>
-            </>
+              <p className="text-xs text-muted-foreground/55 mt-1.5 font-medium">{sportType}</p>
+            </div>
           ) : (
-            <>
-              <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-3"
-                   style={{ backgroundColor: `${accent}22` }}>
-                <Dumbbell className="w-7 h-7" style={{ color: accent }} />
-              </div>
+            <div className="text-center">
               <p className="text-lg font-black leading-none text-foreground tracking-tight">{sportType}</p>
-              <p className="text-xs text-muted-foreground/50 mt-1 font-medium">Sin nivel asignado</p>
-            </>
+              <p className="text-xs text-muted-foreground/50 mt-1.5 font-medium">Sin nivel asignado</p>
+            </div>
           )}
         </div>
       </div>
@@ -328,18 +338,20 @@ export function CurrentRankCard({
 
   // ── Fallback ────────────────────────────────────────────────────────────────
   return (
-    <div className="rounded-2xl bg-card p-5 border border-white/[0.02] shadow-sm flex flex-col w-full gap-3">
-      <div className="flex items-center justify-between">
+    <div className="rounded-2xl bg-card border border-white/[0.02] shadow-sm flex flex-col w-full h-full">
+      <div className="p-5 pb-3 flex items-center justify-between">
         <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">Rango</p>
         <div className="w-7 h-7 rounded-lg bg-primary/15 flex items-center justify-center shrink-0">
           <Trophy className="w-3.5 h-3.5 text-primary" />
         </div>
       </div>
-      {beltLevel ? (
-        <p className="text-lg font-black text-foreground tracking-tight">{beltLevel}</p>
-      ) : (
-        <p className="text-sm text-muted-foreground/50 font-medium">Sin rango asignado</p>
-      )}
+      <div className="px-5 pb-5 flex-1 flex items-center justify-center">
+        {beltLevel ? (
+          <p className="text-lg font-black text-foreground tracking-tight text-center">{beltLevel}</p>
+        ) : (
+          <p className="text-sm text-muted-foreground/50 font-medium text-center">Sin rango asignado</p>
+        )}
+      </div>
     </div>
   )
 }
