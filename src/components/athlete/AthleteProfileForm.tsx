@@ -1,24 +1,26 @@
 'use client'
 
-import { useState, useTransition } from "react"
+import { useState, useTransition, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
-import { Save, User, Phone, Calendar, Contact, MapPin, X, Camera, Shield, CheckCircle2, AlertTriangle } from "lucide-react"
+import { User, Camera, Contact, Shield, CheckCircle2, AlertTriangle, Loader2 } from "lucide-react"
 import type { SportConfig, SportField } from "@/lib/sport-fields"
-import { saveAthleteProfileSelf } from "@/lib/actions/athlete-enrollment"
+import { saveAthleteProfileSelf, uploadAthletePhoto } from "@/lib/actions/athlete-enrollment"
 
 interface Props {
   athlete: {
     id: string
     name: string
+    email: string | null
     phone: string | null
     birth_date: string | null
     emergency_contact: string | null
     emergency_phone: string | null
+    photo_url: string | null
     technical_meta: Record<string, unknown> | null
   }
   sportConfig: SportConfig | null
@@ -122,6 +124,9 @@ export function AthleteProfileForm({ athlete, sportConfig }: Props) {
   const [isPending, startTransition] = useTransition()
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [photoUploading, setPhotoUploading] = useState(false)
+  const [photoPreview, setPhotoPreview] = useState<string | null>(athlete.photo_url ?? null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [name, setName] = useState(athlete.name ?? "")
   const [phone, setPhone] = useState(athlete.phone ?? "")
@@ -160,6 +165,28 @@ export function AthleteProfileForm({ athlete, sportConfig }: Props) {
     })
   }
 
+  async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!file.type.startsWith('image/')) { setError('Solo se permiten imágenes'); return }
+    if (file.size > 5 * 1024 * 1024) { setError('La imagen no puede superar 5 MB'); return }
+    setError(null)
+    setPhotoUploading(true)
+    try {
+      const preview = URL.createObjectURL(file)
+      setPhotoPreview(preview)
+      const formData = new FormData()
+      formData.append('file', file)
+      await uploadAthletePhoto(formData)
+      router.refresh()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al subir la foto')
+      setPhotoPreview(athlete.photo_url ?? null)
+    } finally {
+      setPhotoUploading(false)
+    }
+  }
+
   const handleDiscard = () => {
     // Reset to initial
     setName(athlete.name ?? "")
@@ -168,6 +195,7 @@ export function AthleteProfileForm({ athlete, sportConfig }: Props) {
     setEmergencyContact(athlete.emergency_contact ?? "")
     setEmergencyPhone(athlete.emergency_phone ?? "")
     setTechMeta(athlete.technical_meta ?? {})
+    setPhotoPreview(athlete.photo_url ?? null)
     setError(null)
     setSuccess(false)
   }
@@ -177,7 +205,7 @@ export function AthleteProfileForm({ athlete, sportConfig }: Props) {
       {/* HEADER & TOP ACTIONS */}
       <div className="flex flex-col lg:flex-row items-start lg:items-end justify-between gap-6 mb-10">
         <div>
-          <h1 className="text-5xl lg:text-[56px] font-black tracking-tighter uppercase leading-[0.9] text-primary flex items-center gap-3 drop-shadow-[0_0_15px_rgba(var(--primary),0.15)]">
+          <h1 className="text-5xl lg:text-[56px] font-black tracking-tighter uppercase leading-[0.9] text-foreground">
             Mi Perfil
           </h1>
           <p className="text-base text-muted-foreground/80 mt-3 font-medium">
@@ -222,21 +250,43 @@ export function AthleteProfileForm({ athlete, sportConfig }: Props) {
         {/* LEFT CARD: AVATAR / ATHLETE ID */}
         <div className="lg:col-span-1">
           <Card className="rounded-2xl border-white/[0.04] bg-[#111111] shadow-xl overflow-hidden h-full flex flex-col items-center justify-center p-8 relative">
-            
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handlePhotoChange}
+            />
+
             <div className="relative group mb-6">
-              <div className="w-40 h-40 rounded-3xl bg-muted/20 border-2 border-white/[0.05] overflow-hidden flex flex-col items-center justify-center transition-all group-hover:border-primary/50 relative">
-                {/* Fallback avatar visual */}
-                <User className="w-16 h-16 text-muted-foreground/30 group-hover:scale-110 transition-transform duration-500" />
-                <div className="absolute inset-x-0 bottom-0 top-1/2 bg-gradient-to-t from-black/80 to-transparent" />
-              </div>
-              <button className="absolute -bottom-3 -right-3 w-12 h-12 bg-primary rounded-xl flex items-center justify-center text-primary-foreground shadow-[0_4px_15px_rgba(var(--primary),0.4)] hover:scale-105 active:scale-95 transition-all">
-                <Camera className="w-5 h-5" />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={photoUploading}
+                className="w-40 h-40 rounded-3xl bg-muted/20 border-2 border-white/[0.05] overflow-hidden flex flex-col items-center justify-center transition-all group-hover:border-primary/50 relative disabled:opacity-70"
+              >
+                {photoPreview ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={photoPreview} alt="Foto de perfil" className="w-full h-full object-cover" />
+                ) : (
+                  <User className="w-16 h-16 text-muted-foreground/30 group-hover:scale-110 transition-transform duration-500" />
+                )}
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+                  <Camera className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
               </button>
+              {photoUploading && (
+                <div className="absolute inset-0 rounded-3xl flex items-center justify-center bg-black/50">
+                  <Loader2 className="w-8 h-8 text-primary animate-spin" />
+                </div>
+              )}
             </div>
-            
-            <div className="text-center mt-2">
-              <p className="text-[10px] uppercase font-black tracking-[0.2em] text-muted-foreground/50 mb-1">Athlete ID</p>
+
+            <div className="text-center mt-2 space-y-1">
+              <p className="text-[10px] uppercase font-black tracking-[0.2em] text-muted-foreground/50">Athlete ID</p>
               <p className="text-sm font-black text-foreground tracking-widest">{athleteIdString}</p>
+              <p className="text-[10px] text-muted-foreground/40 mt-2">Haz clic en la foto para cambiarla</p>
             </div>
           </Card>
         </div>
@@ -254,12 +304,25 @@ export function AthleteProfileForm({ athlete, sportConfig }: Props) {
                 <Label htmlFor="name" className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Nombre completo <span className="text-destructive">*</span></Label>
                 <Input id="name" value={name} onChange={(e) => setName(e.target.value)} required className="h-12 rounded-xl bg-background/50 border-white/[0.06] font-semibold text-foreground focus-visible:ring-primary/50 transition-colors" />
               </div>
-              
+
+              <div className="space-y-1.5 sm:col-span-2">
+                <Label htmlFor="email" className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Correo electrónico</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={athlete.email ?? ""}
+                  readOnly
+                  disabled
+                  className="h-12 rounded-xl bg-background/30 border-white/[0.04] font-semibold text-muted-foreground/60 cursor-not-allowed"
+                />
+                <p className="text-[10px] text-muted-foreground/40">El email es gestionado por tu cuenta. Para cambiarlo, contacta al soporte.</p>
+              </div>
+
               <div className="space-y-1.5">
                 <Label htmlFor="phone" className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Télefono Personal</Label>
                 <Input id="phone" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+56 9 1234 5678" className="h-12 rounded-xl bg-background/50 border-white/[0.06] font-semibold text-foreground focus-visible:ring-primary/50 transition-colors" />
               </div>
-              
+
               <div className="space-y-1.5">
                 <Label htmlFor="birth_date" className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Día de Nacimiento</Label>
                 <Input id="birth_date" type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} className="h-12 rounded-xl bg-background/50 border-white/[0.06] font-semibold text-muted-foreground focus-visible:ring-primary/50 transition-colors" />

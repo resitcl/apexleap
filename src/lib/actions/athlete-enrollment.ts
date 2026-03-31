@@ -775,6 +775,51 @@ export async function enrollWithPayment(planId: string, paymentMethod: string, r
 }
 
 /**
+ * Upload an athlete profile photo to Supabase Storage and save the URL.
+ */
+export async function uploadAthletePhoto(formData: FormData) {
+  const { userId } = await auth()
+  if (!userId) throw new Error('No autorizado')
+
+  const clubId = await getClubId()
+  const supabase = createAdminClient()
+
+  const file = formData.get('file') as File | null
+  if (!file) throw new Error('No se adjuntó ningún archivo')
+
+  const ext = file.name.split('.').pop() ?? 'jpg'
+  const path = `${clubId}/athletes/${userId}-${Date.now()}.${ext}`
+
+  await supabase.storage.createBucket('athlete-photos', { public: true, fileSizeLimit: 5 * 1024 * 1024 })
+
+  const { error: uploadError } = await supabase.storage
+    .from('athlete-photos')
+    .upload(path, file, { upsert: true })
+
+  if (uploadError) throw new Error('Error al subir la foto: ' + uploadError.message)
+
+  const { data: urlData } = supabase.storage.from('athlete-photos').getPublicUrl(path)
+
+  const clerk = await clerkClient()
+  const user = await clerk.users.getUser(userId)
+  const email = user.emailAddresses[0]?.emailAddress ?? null
+  if (!email) throw new Error('No se encontró email asociado a tu cuenta')
+
+  const { error: updateError } = await supabase
+    .from('athletes')
+    .update({ photo_url: urlData.publicUrl })
+    .eq('club_id', clubId)
+    .eq('email', email)
+
+  if (updateError) throw new Error('Error al guardar la foto: ' + updateError.message)
+
+  revalidatePath('/dashboard/athlete/profile')
+  revalidatePath('/dashboard/athlete')
+
+  return { url: urlData.publicUrl }
+}
+
+/**
  * Upload a transfer receipt image to Supabase Storage.
  */
 export async function uploadTransferReceipt(formData: FormData) {

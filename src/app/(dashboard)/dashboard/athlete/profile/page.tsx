@@ -8,8 +8,6 @@ import { getClubId } from "@/lib/actions/club-context"
 import { getClubSettings } from "@/lib/actions/settings"
 import { getSportConfig } from "@/lib/sport-fields"
 import { AthleteProfileForm } from "@/components/athlete/AthleteProfileForm"
-import { Badge } from "@/components/ui/badge"
-import { UserCog } from "lucide-react"
 
 export default async function AthleteProfilePage() {
   const hasClub = await checkUserHasClub().catch(() => false)
@@ -30,7 +28,7 @@ export default async function AthleteProfilePage() {
   const [athleteRes, settings] = await Promise.all([
     supabase
       .from("athletes")
-      .select("id, name, phone, birth_date, emergency_contact, emergency_phone, technical_meta")
+      .select("id, name, email, phone, birth_date, emergency_contact, emergency_phone, photo_url, technical_meta")
       .eq("club_id", clubId)
       .eq("id", subStatus.athlete.id)
       .single(),
@@ -42,10 +40,12 @@ export default async function AthleteProfilePage() {
   const athlete = athleteRes.data as {
     id: string
     name: string
+    email: string | null
     phone: string | null
     birth_date: string | null
     emergency_contact: string | null
     emergency_phone: string | null
+    photo_url: string | null
     technical_meta: Record<string, unknown> | null
   }
 

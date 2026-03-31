@@ -42,10 +42,10 @@ const PAYMENT_METHODS = [
 type Step = 'method' | 'transfer_details' | 'done' | 'waiting'
 
 export function PayNowModal({ planName, planPrice, planCycle, bankInfo, enabledMethods, cashInstructions, onClose }: PayNowModalProps) {
-  // If no enabled_methods configured, show all; otherwise filter to configured ones
+  // Only show methods that the admin has explicitly enabled; show none if nothing configured
   const visibleMethods = (enabledMethods && enabledMethods.length > 0)
     ? PAYMENT_METHODS.filter((m) => enabledMethods.includes(m.id))
-    : PAYMENT_METHODS
+    : []
   const router = useRouter()
   const [, startTransition] = useTransition()
   const [step, setStep] = useState<Step>('method')

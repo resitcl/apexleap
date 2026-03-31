@@ -18,21 +18,13 @@ import { PlatformTourWizard } from "@/components/athlete/PlatformTourWizard"
 import { EnrollmentRequestWizard, PendingApprovalScreen, RejectedScreen } from "@/components/athlete/EnrollmentRequestWizard"
 import { Button } from "@/components/ui/button"
 import {
-  Calendar, AlertTriangle, Trophy, FileText,
+  Calendar, AlertTriangle, FileText,
   CreditCard, Clock, ChevronRight, Swords,
-  BarChart3, Shirt, MapPin,
+  BarChart3, Shirt, MapPin, Trophy,
   UserCheck, Wallet, Zap, CheckCircle2,
 } from "lucide-react"
+import { CurrentRankCard } from "@/components/athlete/CurrentRankCard"
 
-const BELT_ES: Record<string, string> = {
-  white: "Cinta Blanca", blue: "Cinta Azul", purple: "Cinta Violeta",
-  brown: "Cinta Café", black: "Cinta Negra",
-  "red/black": "Cinta Roja/Negra", "red/white": "Cinta Roja/Blanca", red: "Cinta Roja",
-}
-const NEXT_BELT_ES: Record<string, string> = {
-  white: "Cinta Azul", blue: "Cinta Violeta", purple: "Cinta Café",
-  brown: "Cinta Negra", black: "Cinta Roja/Negra",
-}
 
 export default async function AthletePage({ searchParams }: { searchParams?: Promise<{ range?: string }> }) {
   const resolvedParams = await searchParams
@@ -86,11 +78,15 @@ export default async function AthletePage({ searchParams }: { searchParams?: Pro
     )
   }
 
-  let sportType:     string | null = null
+  let sportType:      string | null = null
+  let primaryColor:   string = '#1E40AF'
+  let secondaryColor: string = '#FFFFFF'
   try {
     const settings = await getClubSettings()
-    const s = settings as { sport_type?: string | null }
-    sportType = s?.sport_type ?? null
+    const s = settings as { sport_type?: string | null; primary_color?: string | null; secondary_color?: string | null }
+    sportType      = s?.sport_type ?? null
+    primaryColor   = s?.primary_color ?? '#1E40AF'
+    secondaryColor = s?.secondary_color ?? '#FFFFFF'
   } catch { /* silent */ }
   const vocab = getSportVocab(sportType)
 
@@ -195,19 +191,17 @@ export default async function AthletePage({ searchParams }: { searchParams?: Pro
   const nextMatch = typedMatches.find((m) => m.match_date >= todayStr && m.status !== "finished")
 
   // ─── Computed helpers ─────────────────────────────────────────────────────
-  const techMeta = (athlete as { technical_meta?: Record<string, unknown> | null }).technical_meta ?? {}
-  const weekMax  = Math.max(...weeklyCheckIns, 1)
-  const weekTotal  = weeklyCheckIns.reduce((a, b) => a + b, 0)
-  const weekAvg    = weekTotal > 0 ? (weekTotal / 8).toFixed(1) : '0'
-  const firstName  = athlete.name?.split(' ')[0] ?? ''
+  const techMeta     = (athlete as { technical_meta?: Record<string, unknown> | null }).technical_meta ?? {}
+  const jerseyNumber = (athlete as { jersey_number?: number | null }).jersey_number ?? null
+  const weekMax      = Math.max(...weeklyCheckIns, 1)
+  const weekTotal    = weeklyCheckIns.reduce((a, b) => a + b, 0)
+  const weekAvg      = weekTotal > 0 ? (weekTotal / 8).toFixed(1) : '0'
+  const firstName    = athlete.name?.split(' ')[0] ?? ''
   void sessions // used for potential future features
 
-  // ── Belt/rank data for progress bar ─────────────────────────────────────
+  // ── Belt/rank data ────────────────────────────────────────────────────────
   const beltLevel = (techMeta?.belt as string | undefined) ?? null
   const stripes   = typeof techMeta?.stripes === 'number' ? techMeta.stripes : null
-  const stripePct = stripes !== null ? Math.round((stripes / 4) * 100) : null
-
-  const beltKey = beltLevel?.toLowerCase() ?? ''
 
   return (
     <div className="space-y-4 pb-12 pt-1">
@@ -270,9 +264,8 @@ export default async function AthletePage({ searchParams }: { searchParams?: Pro
         </Link>
       )}
 
-      {/* ── KPI ROW: 4 cards + RANK card (estructura Stitch) ── */}
-      <div className="flex flex-col lg:flex-row gap-4 lg:items-start">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 flex-1">
+      {/* ── KPI ROW: 5-column grid (Check-ins · Subscription · Sessions · Documents · Rank) ── */}
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
 
         {/* CHECK-INS */}
         <Link href="/dashboard/athlete/attendance" className="block">
@@ -364,99 +357,22 @@ export default async function AthletePage({ searchParams }: { searchParams?: Pro
           </div>
         </Link>
 
-        </div>
+        {/* CURRENT RANK — sport-aware card */}
+        <CurrentRankCard
+          sportType={sportType}
+          beltLevel={beltLevel}
+          stripes={stripes}
+          jerseyNumber={jerseyNumber}
+          athleteName={athlete.name ?? ''}
+          primaryColor={primaryColor}
+          secondaryColor={secondaryColor}
+        />
 
-        {/* CURRENT RANK — featured card */}
-        <div className="rounded-2xl bg-card p-6 border border-white/[0.02] shadow-sm flex flex-col w-full lg:w-64 lg:shrink-0">
-          <div className="flex items-start justify-between mb-4">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">Current Rank</p>
-            <div className="w-10 h-10 rounded-xl bg-[#8B5A2B]/40 flex items-center justify-center shrink-0">
-              <Trophy className="w-5 h-5 text-white" />
-            </div>
-          </div>
-
-          {beltLevel ? (
-            <div className="flex-1 flex flex-col">
-              <p className="text-4xl font-black leading-none text-foreground tracking-tight uppercase">
-                {BELT_ES[beltKey] ?? beltLevel}
-              </p>
-              <p className="text-sm text-muted-foreground/60 mt-2 font-medium">
-                {beltLevel} Belt{stripes !== null ? ` · ${stripes} grado${stripes !== 1 ? 's' : ''}` : ''}
-              </p>
-
-              {stripePct !== null && (
-                <div className="mt-auto pt-6">
-                  <div className="flex items-center justify-between mb-2.5">
-                    <p className="text-sm font-bold">
-                      <span className="text-emerald-400">{stripePct}%</span>
-                      {NEXT_BELT_ES[beltKey] && <span className="text-muted-foreground/60 font-medium text-sm"> hacia {NEXT_BELT_ES[beltKey]}</span>}
-                    </p>
-                  </div>
-                  <div className="h-3 rounded-full bg-muted/40 dark:bg-white/[0.04] overflow-hidden">
-                    <div className="h-full rounded-full bg-emerald-400 transition-all duration-700" style={{ width: `${stripePct}%` }} />
-                  </div>
-                </div>
-              )}
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground/50 font-medium">Sin rango asignado</p>
-          )}
-        </div>
       </div>
 
-      {/* ── TORNEOS ROW ── */}
-      {(upcomingComps.length > 0 || sportType === 'Jiu-Jitsu') && (
-        <div className="rounded-2xl bg-card p-6 border border-white/[0.02] shadow-sm flex flex-col">
-            <div className="flex items-center justify-between mb-4">
-              <p className="text-xl font-black tracking-tight">
-                {sportType === 'Jiu-Jitsu' ? 'Torneos en Chile' : vocab.competitions}
-              </p>
-              <Trophy className="w-5 h-5 text-emerald-400" />
-            </div>
-
-            <div className="flex-1 overflow-hidden">
-              {upcomingComps.length > 0 && (
-                <div className="space-y-0">
-                  {upcomingComps.slice(0, 3).map((c) => {
-                    const compDate = new Date(c.start_date + 'T12:00:00')
-                    const daysTo = Math.ceil((compDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
-                    return (
-                      <div key={c.id} className="py-2.5 border-b border-border/20 last:border-0 flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-emerald-400/10 flex flex-col items-center justify-center shrink-0">
-                          <span className="text-[8px] uppercase font-bold text-emerald-400/70 leading-none">
-                            {compDate.toLocaleDateString('es-CL', { month: 'short' })}
-                          </span>
-                          <span className="text-sm font-black text-emerald-400 leading-tight">{compDate.getDate()}</span>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-bold leading-snug truncate">{c.name}</p>
-                          <p className="text-[10px] text-muted-foreground/50 font-medium mt-0.5 flex items-center gap-2">
-                            {c.location && <span className="flex items-center gap-1 truncate"><MapPin className="w-3 h-3" />{c.location}</span>}
-                          </p>
-                        </div>
-                        <span className="text-[10px] font-black text-emerald-400 shrink-0">{daysTo}D</span>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-
-              {sportType === 'Jiu-Jitsu' && (
-                <Suspense fallback={<SmoothcompEventsSkeleton />}>
-                  <SmoothcompEventsWidget />
-                </Suspense>
-              )}
-            </div>
-
-            <Link href="/dashboard/competitions" className="mt-auto pt-3 text-xs text-emerald-400 font-bold inline-flex items-center gap-1 hover:gap-2 transition-all">
-              Ver todos <ChevronRight className="w-3.5 h-3.5" />
-            </Link>
-        </div>
-      )}
-
-      {/* ── BOTTOM SECTION: Attendance (left) + Events (right) ── */}
-      <div className="grid lg:grid-cols-[1fr_360px] gap-4 items-start pb-8">
-        <div className="space-y-4">
+      {/* ── CONTENT SECTION: Attendance (3/5) + Torneos (2/5) ── */}
+      <div className="grid lg:grid-cols-5 gap-4 items-start pb-8">
+        <div className="space-y-4 lg:col-span-3">
           {/* ATTENDANCE TRENDS */}
         <div className="rounded-2xl bg-card p-6 md:p-8 border border-white/[0.02] shadow-sm">
           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-8">
@@ -553,6 +469,58 @@ export default async function AthletePage({ searchParams }: { searchParams?: Pro
           </Link>
         </div>
       </div>
+
+        {/* TORNEOS — right column 2/5 (same width as Documents + Current Rank above) */}
+        {(upcomingComps.length > 0 || sportType === 'Jiu-Jitsu') && (
+          <div className="lg:col-span-2 rounded-2xl bg-card p-6 border border-white/[0.02] shadow-sm flex flex-col">
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-xl font-black tracking-tight">
+                {sportType === 'Jiu-Jitsu' ? 'Torneos en Chile' : vocab.competitions}
+              </p>
+              <Trophy className="w-5 h-5 text-emerald-400" />
+            </div>
+
+            <div className="flex-1 overflow-hidden">
+              {upcomingComps.length > 0 && (
+                <div className="space-y-0">
+                  {upcomingComps.slice(0, 3).map((c) => {
+                    const compDate = new Date(c.start_date + 'T12:00:00')
+                    const daysTo = Math.ceil((compDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+                    return (
+                      <div key={c.id} className="py-2.5 border-b border-border/20 last:border-0 flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-emerald-400/10 flex flex-col items-center justify-center shrink-0">
+                          <span className="text-[8px] uppercase font-bold text-emerald-400/70 leading-none">
+                            {compDate.toLocaleDateString('es-CL', { month: 'short' })}
+                          </span>
+                          <span className="text-sm font-black text-emerald-400 leading-tight">{compDate.getDate()}</span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold leading-snug truncate">{c.name}</p>
+                          {c.location && (
+                            <p className="text-[10px] text-muted-foreground/50 font-medium mt-0.5 flex items-center gap-1 truncate">
+                              <MapPin className="w-3 h-3 shrink-0" />{c.location}
+                            </p>
+                          )}
+                        </div>
+                        <span className="text-[10px] font-black text-emerald-400 shrink-0">{daysTo}D</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+
+              {sportType === 'Jiu-Jitsu' && (
+                <Suspense fallback={<SmoothcompEventsSkeleton />}>
+                  <SmoothcompEventsWidget />
+                </Suspense>
+              )}
+            </div>
+
+            <Link href="/dashboard/competitions" className="mt-auto pt-3 text-xs text-emerald-400 font-bold inline-flex items-center gap-1 hover:gap-2 transition-all">
+              Ver todos <ChevronRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+        )}
       </div>
 
       {/* ── TEAM SPORT WIDGETS ── */}
