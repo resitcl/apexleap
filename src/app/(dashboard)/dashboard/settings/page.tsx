@@ -1,7 +1,9 @@
 export const dynamic = "force-dynamic"
 
 import Link from "next/link"
+import { redirect } from "next/navigation"
 import { getClubSettings } from "@/lib/actions/settings"
+import { getClubMembershipRole } from "@/lib/actions/club-context"
 import { getCategories } from "@/lib/actions/categories"
 import { ClubSettingsForm } from "@/components/settings/ClubSettingsForm"
 import { DeleteClubButton } from "@/components/settings/DeleteClubButton"
@@ -20,7 +22,22 @@ interface PageProps {
 }
 
 export default async function SettingsPage({ searchParams }: PageProps) {
-  const { tab = "general" } = await searchParams
+  let { tab = "general" } = await searchParams
+
+  let membership: string = "athlete"
+  try {
+    membership = await getClubMembershipRole()
+  } catch { /* sin club */ }
+
+  const canManagePayments = membership === "admin" || membership === "admin_athlete"
+  const canManageDanger = membership === "admin"
+
+  if (tab === "payments" && !canManagePayments) {
+    redirect("/dashboard/settings?tab=general")
+  }
+  if (tab === "danger" && !canManageDanger) {
+    redirect("/dashboard/settings?tab=general")
+  }
 
   let club = null
   let error: string | null = null
@@ -55,10 +72,14 @@ export default async function SettingsPage({ searchParams }: PageProps) {
 
   const TABS = [
     { key: "general", label: "General", icon: <Cog className="w-4 h-4" /> },
-    { key: "payments", label: "Pagos", icon: <CreditCard className="w-4 h-4" /> },
+    ...(canManagePayments
+      ? [{ key: "payments", label: "Pagos", icon: <CreditCard className="w-4 h-4" /> }]
+      : []),
     { key: "categories", label: "Categorías", icon: <Tag className="w-4 h-4" /> },
     { key: "seasons", label: "Temporadas", icon: <Calendar className="w-4 h-4" />, href: "/dashboard/settings/seasons" },
-    { key: "danger", label: "Zona de Peligro", icon: <AlertTriangle className="w-4 h-4" />, danger: true },
+    ...(canManageDanger
+      ? [{ key: "danger", label: "Zona de Peligro", icon: <AlertTriangle className="w-4 h-4" />, danger: true }]
+      : []),
   ]
 
   return (

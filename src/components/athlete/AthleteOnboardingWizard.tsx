@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useTransition } from 'react'
+import { useState, useRef, useTransition, useMemo, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { toast } from 'sonner'
@@ -14,6 +14,7 @@ import {
 import { enrollWithPayment, uploadTransferReceipt } from '@/lib/actions/athlete-enrollment'
 import type { OnboardingData } from '@/lib/actions/athlete-enrollment'
 import type { SportConfig } from '@/lib/sport-fields'
+import { getEnabledPaymentMethodIdsFromClubSettings } from '@/lib/payment-methods'
 
 // ─── Payment methods ────────────────────────────────────────────────────────
 
@@ -47,12 +48,28 @@ export function AthleteOnboardingWizard({ data, sportConfig: _sportConfig }: Pro
   const [step, setStep] = useState<Step>(data.hasPendingPayment ? 'waiting' : 'plan')
   const [loading, setLoading] = useState(false)
 
+  const enabledPaymentIds = useMemo(
+    () => getEnabledPaymentMethodIdsFromClubSettings((data.club.settings ?? {}) as Record<string, unknown>),
+    [data.club.settings]
+  )
+  const visiblePaymentMethods = useMemo(() => {
+    if (enabledPaymentIds === null) return PAYMENT_METHODS
+    return PAYMENT_METHODS.filter((pm) => enabledPaymentIds.includes(pm.id))
+  }, [enabledPaymentIds])
+
   // Plan state
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null)
   const selectedPlan = data.plans.find((p) => p.id === selectedPlanId) ?? null
 
   // Payment state
   const [paymentMethod, setPaymentMethod] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (step !== 'checkout' || !paymentMethod) return
+    if (!visiblePaymentMethods.some((m) => m.id === paymentMethod)) {
+      setPaymentMethod(null)
+    }
+  }, [step, paymentMethod, visiblePaymentMethods])
 
   // Transfer receipt
   const [receiptFile, setReceiptFile] = useState<File | null>(null)
@@ -330,26 +347,32 @@ export function AthleteOnboardingWizard({ data, sportConfig: _sportConfig }: Pro
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            {PAYMENT_METHODS.map((pm) => {
-              const selected = paymentMethod === pm.id
-              return (
-                <div
-                  key={pm.id}
-                  className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
-                    selected ? 'ring-2 bg-accent' : 'hover:bg-accent/50'
-                  }`}
-                  style={selected ? { borderColor: primaryColor } : undefined}
-                  onClick={() => setPaymentMethod(pm.id)}
-                >
-                  <span className="text-xl">{pm.icon}</span>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">{pm.label}</p>
-                    <p className="text-xs text-muted-foreground">{pm.description}</p>
+            {visiblePaymentMethods.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">
+                El club no tiene medios de pago habilitados. Contacta al administrador.
+              </p>
+            ) : (
+              visiblePaymentMethods.map((pm) => {
+                const selected = paymentMethod === pm.id
+                return (
+                  <div
+                    key={pm.id}
+                    className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
+                      selected ? 'ring-2 bg-accent' : 'hover:bg-accent/50'
+                    }`}
+                    style={selected ? { borderColor: primaryColor } : undefined}
+                    onClick={() => setPaymentMethod(pm.id)}
+                  >
+                    <span className="text-xl">{pm.icon}</span>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">{pm.label}</p>
+                      <p className="text-xs text-muted-foreground">{pm.description}</p>
+                    </div>
+                    {selected && <CheckCircle className="w-5 h-5 shrink-0" style={{ color: primaryColor }} />}
                   </div>
-                  {selected && <CheckCircle className="w-5 h-5 shrink-0" style={{ color: primaryColor }} />}
-                </div>
-              )
-            })}
+                )
+              })
+            )}
           </CardContent>
         </Card>
 
@@ -469,7 +492,12 @@ export function AthleteOnboardingWizard({ data, sportConfig: _sportConfig }: Pro
             className="flex-1 text-white"
             style={{ backgroundColor: primaryColor }}
             onClick={handleEnroll}
-            disabled={loading || !paymentMethod || (isTransfer && !receiptFile)}
+            disabled={
+              loading ||
+              visiblePaymentMethods.length === 0 ||
+              !paymentMethod ||
+              (isTransfer && !receiptFile)
+            }
           >
             {loading ? (
               <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Procesando...</>

@@ -4,8 +4,8 @@ import { useState, useRef, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { 
   X, CreditCard, Upload, ImageIcon, CheckCircle2, 
-  Clock, AlertTriangle, Loader2, ChevronRight,
-  Banknote, Building2, Smartphone, Wallet
+  Clock, Loader2, ChevronRight,
+  Banknote, Building2, Smartphone, Wallet, Landmark,
 } from 'lucide-react'
 import { submitSelfPayment, uploadTransferReceipt } from '@/lib/actions/athlete-enrollment'
 import { toast } from 'sonner'
@@ -22,7 +22,8 @@ interface PayNowModalProps {
     rut?: string
     email?: string
   } | null
-  enabledMethods?: string[]
+  /** null/undefined = club sin `payment_settings` guardado (mostrar todos). [] = ninguno. */
+  enabledMethods?: string[] | null
   cashInstructions?: string
   onClose: () => void
 }
@@ -37,15 +38,16 @@ const PAYMENT_METHODS = [
   { id: 'webpay',       label: 'Webpay',                 icon: CreditCard,  description: 'Transbank — tarjeta de crédito/débito' },
   { id: 'mercadopago',  label: 'MercadoPago',            icon: Wallet,      description: 'Tarjeta o saldo MercadoPago' },
   { id: 'flow',         label: 'Flow',                   icon: Smartphone,  description: 'Pago online con Flow.cl' },
+  { id: 'khipu',        label: 'Khipu',                  icon: Landmark,      description: 'Transferencia bancaria instantánea' },
 ]
 
 type Step = 'method' | 'transfer_details' | 'done' | 'waiting'
 
 export function PayNowModal({ planName, planPrice, planCycle, bankInfo, enabledMethods, cashInstructions, onClose }: PayNowModalProps) {
-  // If no enabled_methods configured, show all; otherwise filter to configured ones
-  const visibleMethods = (enabledMethods && enabledMethods.length > 0)
-    ? PAYMENT_METHODS.filter((m) => enabledMethods.includes(m.id))
-    : PAYMENT_METHODS
+  const visibleMethods =
+    enabledMethods === undefined || enabledMethods === null
+      ? PAYMENT_METHODS
+      : PAYMENT_METHODS.filter((m) => enabledMethods.includes(m.id))
   const router = useRouter()
   const [, startTransition] = useTransition()
   const [step, setStep] = useState<Step>('method')

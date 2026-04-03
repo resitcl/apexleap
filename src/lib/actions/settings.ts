@@ -4,7 +4,7 @@ import { auth } from '@clerk/nextjs/server'
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { z } from 'zod'
-import { getClubId } from '@/lib/actions/club-context'
+import { getClubId, getClubMembershipRole } from '@/lib/actions/club-context'
 
 const clubSchema = z.object({
   name: z.string().min(2),
@@ -70,6 +70,11 @@ export async function updatePaymentSettings(paymentSettings: {
   khipu: { enabled: boolean; sandbox: boolean; api_key: string; secret_key: string; commerce_code: string }
   cash_instructions: string
 }) {
+  const membership = await getClubMembershipRole()
+  if (membership !== 'admin' && membership !== 'admin_athlete') {
+    throw new Error('Solo un administrador del club puede configurar medios de pago y credenciales.')
+  }
+
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
@@ -98,6 +103,11 @@ export async function updatePaymentSettings(paymentSettings: {
 }
 
 export async function deleteClub(confirmName: string) {
+  const membership = await getClubMembershipRole()
+  if (membership !== 'admin') {
+    throw new Error('Solo el administrador principal puede eliminar el club.')
+  }
+
   const clubId = await getClubId()
   const supabase = createAdminClient()
 

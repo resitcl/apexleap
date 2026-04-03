@@ -14,6 +14,7 @@ import { getAthletePaymentStatus } from "@/lib/actions/billing"
 import { formatPeriod } from "@/lib/billing-utils"
 import { PayNowButton } from "@/components/athlete/PayNowButton"
 import { getClubSettings } from "@/lib/actions/settings"
+import { getEnabledPaymentMethodIdsFromClubSettings } from "@/lib/payment-methods"
 
 const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   paid:      { label: "Pagado",    variant: "default" },
@@ -49,17 +50,17 @@ export default async function AthletePaymentsPage() {
 
   // Get club settings for bank info and enabled payment methods (used in PayNow modal)
   const clubSettings = await getClubSettings().catch(() => null)
-  const settingsAny = clubSettings as {
+  const rawSettings = (clubSettings?.settings ?? {}) as Record<string, unknown>
+  const paymentSettingsBlock = rawSettings.payment_settings as {
     bank_info?: Record<string, string> | null
-    payment_settings?: {
-      enabled_methods?: string[]
-      cash_instructions?: string
-      bank_info?: Record<string, string> | null
-    } | null
-  } | null
-  const bankInfo = settingsAny?.payment_settings?.bank_info ?? settingsAny?.bank_info ?? null
-  const enabledMethods = settingsAny?.payment_settings?.enabled_methods ?? []
-  const cashInstructions = settingsAny?.payment_settings?.cash_instructions ?? undefined
+    cash_instructions?: string
+  } | null | undefined
+  const bankInfo =
+    paymentSettingsBlock?.bank_info ??
+    (rawSettings.bank_info as Record<string, string> | undefined) ??
+    null
+  const enabledMethods = getEnabledPaymentMethodIdsFromClubSettings(rawSettings)
+  const cashInstructions = paymentSettingsBlock?.cash_instructions ?? undefined
 
   const { data: payments } = await supabase
     .from('payments')

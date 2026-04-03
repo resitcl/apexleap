@@ -11,6 +11,11 @@ import {
   calculatePeriodStartForPayment,
   type BillingCycle,
 } from '@/lib/billing-utils'
+import {
+  getEnabledPaymentMethodIdsFromClubSettings,
+  assertPaymentMethodEnabled,
+  subscriptionRequiresPaymentConfirmation,
+} from '@/lib/payment-methods'
 
 /**
  * Get visible plans for the current club (public-facing, for athlete selection).
@@ -301,11 +306,20 @@ export async function getOnboardingData() {
     isApproved,
     isTeamSport,
     // Original onboarding states (only applicable after approval for team sports)
-    needsOnboarding: !hasActiveSubscription && isApproved,
+    // Sin suscripción activa pero con pending_payment = ya eligió plan/medio; no repetir wizard
+    needsOnboarding: !hasActiveSubscription && !hasPendingPayment && isApproved,
     needsProfileOnboarding: hasActiveSubscription && !profileComplete,
     needsPlatformTour: hasActiveSubscription && profileComplete && !tourCompleted,
     hasPendingPayment,
-    club: club ?? { id: clubId, name: 'Club', slug: '', sport_type: null, logo_url: null, primary_color: null, settings: {} },
+    club: club ?? {
+      id: clubId,
+      name: 'Club',
+      slug: '',
+      sport_type: null,
+      logo_url: null,
+      primary_color: null,
+      settings: {} as Record<string, unknown>,
+    },
     bankInfo,
     user: { fullName, email, photoUrl },
     athlete,
@@ -671,6 +685,16 @@ export async function enrollWithPayment(planId: string, paymentMethod: string, r
 
   if (planErr || !plan) throw new Error('Plan no encontrado o no disponible')
 
+  const { data: clubRow } = await supabase
+    .from('clubs')
+    .select('settings')
+    .eq('id', clubId)
+    .single()
+  const enabledIds = getEnabledPaymentMethodIdsFromClubSettings(
+    (clubRow?.settings ?? {}) as Record<string, unknown>
+  )
+  assertPaymentMethodEnabled(enabledIds, paymentMethod)
+
   // Find or create athlete record (auto-link on enrollment)
   let { data: athlete } = await supabase
     .from('athletes')
@@ -721,9 +745,10 @@ export async function enrollWithPayment(planId: string, paymentMethod: string, r
     endStr = endDate.toISOString().split('T')[0]
   }
 
-  // For transfer payments: subscription starts as pending_payment until admin confirms
+  // Hasta integrar cobro online end-to-end, todos los medios requieren confirmación del admin
   const isTransfer = paymentMethod === 'transfer'
-  const subStatus = isTransfer ? 'pending_payment' as const : 'active' as const
+  const pending = subscriptionRequiresPaymentConfirmation(paymentMethod)
+  const subStatus = pending ? ('pending_payment' as const) : ('active' as const)
 
   // Create subscription
   const { error: subErr } = await supabase
@@ -736,7 +761,7 @@ export async function enrollWithPayment(planId: string, paymentMethod: string, r
       start_date: startStr,
       end_date: endStr,
       payment_method: paymentMethod,
-      auto_renew: !isTransfer,
+      auto_renew: subStatus === 'active',
     })
 
   if (subErr) throw new Error('Error al crear la suscripción: ' + subErr.message)
@@ -1098,6 +1123,16 @@ export async function submitSelfPayment(params: {
     .maybeSingle()
 
   if (!athlete) throw new Error('No se encontró tu perfil de atleta')
+
+  const { data: clubRow } = await supabase
+    .from('clubs')
+    .select('settings')
+    .eq('id', clubId)
+    .single()
+  const enabledIds = getEnabledPaymentMethodIdsFromClubSettings(
+    (clubRow?.settings ?? {}) as Record<string, unknown>
+  )
+  assertPaymentMethodEnabled(enabledIds, params.paymentMethod)
 
   // Get active subscription + plan (including billing anchor day for period calc)
   const { data: subscription } = await supabase

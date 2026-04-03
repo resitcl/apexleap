@@ -1,5 +1,4 @@
 import { notFound, redirect } from "next/navigation"
-import { auth } from "@clerk/nextjs/server"
 import { getClubBySlug } from "@/lib/actions/onboarding"
 
 interface PageProps {
@@ -12,13 +11,6 @@ export default async function TenantRootPage({ params }: PageProps) {
   const club = await getClubBySlug(slug)
   if (!club) notFound()
 
-  const { userId } = await auth()
-
-  if (userId) {
-    // Already authenticated → send to join flow which lands on portal
-    redirect(`/api/join/${club.slug}`)
-  } else {
-    // Not authenticated → send to signin
-    redirect(`/${club.slug}/signin`)
-  }
+  // Siempre entrada por la vista de inicio de sesión del club (si ya hay sesión, esa página redirige al join)
+  redirect(`/${club.slug}/signin`)
 }

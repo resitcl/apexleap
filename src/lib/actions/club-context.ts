@@ -42,6 +42,25 @@ export async function getClubId(): Promise<string> {
 
 export type UserRole = 'admin' | 'coach' | 'athlete'
 
+/** Rol tal como está en `user_clubs.role` (incluye admin_athlete). */
+export async function getClubMembershipRole(): Promise<string> {
+  const { userId } = await auth()
+  if (!userId) throw new Error('No autorizado')
+
+  const supabase = createAdminClient()
+  const clubId = await getClubId()
+
+  const { data } = await supabase
+    .from('user_clubs')
+    .select('role')
+    .eq('user_id', userId)
+    .eq('club_id', clubId)
+    .eq('is_active', true)
+    .single()
+
+  return (data?.role as string) ?? 'athlete'
+}
+
 export async function getUserRole(): Promise<UserRole> {
   const { userId } = await auth()
   if (!userId) throw new Error('No autorizado')

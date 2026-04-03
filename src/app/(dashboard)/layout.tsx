@@ -309,13 +309,14 @@ export default async function DashboardLayout({
         {/* Top Header */}
         <header className="h-16 border-b border-border flex items-center px-4 bg-sidebar gap-3 shrink-0">
           {/* Mobile hamburger */}
-          <div className="md:hidden">
+          <div className="md:hidden shrink-0">
             <MobileSidebar
-            groups={sidebarGroupsWithBadges}
-            clubName={alerts.clubName}
-            logoUrl={alerts.logoUrl}
-            brandColor={brandColor}
-          />
+              groups={sidebarGroupsWithBadges}
+              clubName={alerts.clubName}
+              logoUrl={alerts.logoUrl}
+              brandColor={brandColor}
+              showSuperAdminLink={superAdmin}
+            />
           </div>
 
           {/* Mobile logo */}

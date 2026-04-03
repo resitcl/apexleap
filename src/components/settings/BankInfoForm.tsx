@@ -147,7 +147,10 @@ export function BankInfoForm({ defaultValues }: Props) {
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Medios de Pago Habilitados</CardTitle>
-          <CardDescription>Activa o desactiva los medios de pago disponibles para tus atletas.</CardDescription>
+          <CardDescription>
+            Activa métodos y completa credenciales aquí; los atletas solo verán opciones con datos válidos.
+            Las pasarelas online registran solicitudes pendientes hasta que confirmes el pago en el club (integración de cobro automático en roadmap).
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid sm:grid-cols-2 gap-3">

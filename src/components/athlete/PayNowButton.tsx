@@ -18,7 +18,7 @@ interface PayNowButtonProps {
     rut?: string
     email?: string
   } | null
-  enabledMethods?: string[]
+  enabledMethods?: string[] | null
   cashInstructions?: string
 }
 

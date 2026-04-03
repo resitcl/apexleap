@@ -6,11 +6,32 @@ import { ThemeToggle } from "@/components/layouts/ThemeToggle"
 import { UserNavClient } from "@/components/layouts/UserNavClient"
 import { SuperAdminChatWidget } from "@/components/super-admin/SuperAdminChatWidget"
 import { SuperAdminNav } from "@/components/super-admin/SuperAdminNav"
-import { ShieldAlert, LayoutDashboard, Building2, CreditCard } from "lucide-react"
+import { MobileSidebar } from "@/components/layouts/MobileSidebar"
+import { ShieldAlert, LayoutDashboard, Building2, CreditCard, ChevronLeft } from "lucide-react"
+
+const MOBILE_NAV_GROUPS = [
+  {
+    label: null as string | null,
+    items: [
+      { href: "/super-admin", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/super-admin/clubs", label: "Clubes", icon: Building2 },
+      { href: "/super-admin/billing", label: "Facturación SaaS", icon: CreditCard },
+    ],
+  },
+]
 
 export default async function SuperAdminLayout({ children }: { children: React.ReactNode }) {
   const ok = await isSuperAdmin()
   if (!ok) redirect("/dashboard")
+
+  const mobileGroups = MOBILE_NAV_GROUPS.map((group) => ({
+    label: group.label,
+    items: group.items.map((item) => ({
+      href: item.href,
+      label: item.label,
+      icon: <item.icon className="w-4 h-4 shrink-0" />,
+    })),
+  }))
 
   return (
     <div className="h-screen flex overflow-hidden">
@@ -39,29 +60,31 @@ export default async function SuperAdminLayout({ children }: { children: React.R
 
       {/* Main */}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0 bg-background">
-        <header className="h-16 border-b border-border flex items-center px-4 bg-zinc-950 gap-3 shrink-0">
-          {/* Mobile: icon + horizontal tabs */}
-          <div className="flex items-center gap-2 md:hidden">
-            <div className="w-7 h-7 rounded-xl bg-red-600/90 flex items-center justify-center shrink-0">
-              <ShieldAlert className="w-4 h-4 text-white" />
+        <header className="h-16 border-b border-border flex items-center px-3 sm:px-4 bg-zinc-950 gap-2 shrink-0">
+          <div className="md:hidden flex items-center gap-2 min-w-0 flex-1">
+            <MobileSidebar
+              variant="dark"
+              groups={mobileGroups}
+              clubName="Super Admin"
+              subtitle="ApexLeap HQ"
+              brandColor="#dc2626"
+              showSuperAdminLink={false}
+              footerExtra={
+                <Link
+                  href="/dashboard"
+                  className="flex items-center gap-2 px-3 py-[7px] rounded-xl text-[12px] text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/60 transition-colors w-full"
+                >
+                  <ChevronLeft className="w-3.5 h-3.5 shrink-0" />
+                  Volver al Dashboard
+                </Link>
+              }
+            />
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-8 h-8 rounded-xl bg-red-600/90 flex items-center justify-center shrink-0">
+                <ShieldAlert className="w-4 h-4 text-white" />
+              </div>
+              <span className="font-bold text-sm text-zinc-100 truncate">Super Admin</span>
             </div>
-            <span className="font-bold text-sm text-zinc-100">Super Admin</span>
-          </div>
-          <div className="flex gap-1 overflow-x-auto md:hidden flex-1 ml-2">
-            {[
-              { href: "/super-admin",         label: "Dashboard",   icon: LayoutDashboard },
-              { href: "/super-admin/clubs",   label: "Clubes",      icon: Building2 },
-              { href: "/super-admin/billing", label: "Facturación", icon: CreditCard },
-            ].map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 whitespace-nowrap transition-colors"
-              >
-                <item.icon className="w-3.5 h-3.5" />
-                {item.label}
-              </Link>
-            ))}
           </div>
           <div className="flex-1 hidden md:block" />
           <UserNavClient />

@@ -10,6 +10,7 @@ import {
   getBillingAnchorDay,
   type BillingCycle,
 } from '@/lib/billing-utils'
+import { ONLINE_GATEWAY_IDS } from '@/lib/payment-methods'
 
 const paymentSchema = z.object({
   athlete_id: z.string().uuid('Alumno inválido'),
@@ -59,8 +60,9 @@ async function _activateSubscription(
   const nextStart = calculateNextPeriodStart(paidAtDate, cycle)
   const nextBillingStr = nextStart ? nextStart.toISOString().split('T')[0] : null
 
-  // Manual/transfer methods should NOT auto-renew (require explicit payment each cycle)
-  const autoRenew = paymentMethod !== 'transfer' && paymentMethod !== 'cash' && paymentMethod !== 'manual'
+  // Sin pasarela con cargo recurrente real, transfer/efectivo/manual y gateways quedan sin auto-renovación
+  const noAutoRenew = new Set<string>(['transfer', 'cash', 'manual', ...ONLINE_GATEWAY_IDS])
+  const autoRenew = paymentMethod ? !noAutoRenew.has(paymentMethod) : false
 
   // Cancel any pending_payment subscriptions for this athlete
   await supabase
