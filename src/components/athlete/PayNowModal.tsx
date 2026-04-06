@@ -1,14 +1,16 @@
 'use client'
 
-import { useState, useRef, useTransition } from 'react'
+import { useState, useRef, useTransition, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { 
   X, CreditCard, Upload, ImageIcon, CheckCircle2, 
   Clock, Loader2, ChevronRight,
-  Banknote, Building2, Smartphone, Wallet, Landmark,
+  Banknote, Building2, Smartphone, Wallet, Landmark, MessageCircle,
 } from 'lucide-react'
 import { submitSelfPayment, uploadTransferReceipt } from '@/lib/actions/athlete-enrollment'
 import { toast } from 'sonner'
+import { buildWhatsAppTransferLink } from '@/lib/whatsapp-transfer'
+import { TRANSFER_RECEIPT_MAX_BYTES } from '@/lib/constants'
 
 interface PayNowModalProps {
   planName: string
@@ -21,6 +23,7 @@ interface PayNowModalProps {
     account_holder?: string
     rut?: string
     email?: string
+    whatsapp_phone?: string
   } | null
   /** null/undefined = club sin `payment_settings` guardado (mostrar todos). [] = ninguno. */
   enabledMethods?: string[] | null
@@ -53,15 +56,29 @@ export function PayNowModal({ planName, planPrice, planCycle, bankInfo, enabledM
   const [step, setStep] = useState<Step>('method')
   const [selectedMethod, setSelectedMethod] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [transferDelivery, setTransferDelivery] = useState<'upload' | 'whatsapp'>('upload')
   const [receiptFile, setReceiptFile] = useState<File | null>(null)
   const [receiptPreview, setReceiptPreview] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (selectedMethod !== 'transfer') {
+      setTransferDelivery('upload')
+      setReceiptFile(null)
+      setReceiptPreview(null)
+    }
+  }, [selectedMethod])
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
     if (!file.type.startsWith('image/')) { toast.error('Solo se permiten imágenes'); return }
-    if (file.size > 5 * 1024 * 1024) { toast.error('La imagen no puede superar 5 MB'); return }
+    if (file.size > TRANSFER_RECEIPT_MAX_BYTES) {
+      toast.error(
+        `La imagen no puede superar ${TRANSFER_RECEIPT_MAX_BYTES / (1024 * 1024)} MB (límite al subir comprobantes)`
+      )
+      return
+    }
     setReceiptFile(file)
     setReceiptPreview(URL.createObjectURL(file))
   }
@@ -69,19 +86,31 @@ export function PayNowModal({ planName, planPrice, planCycle, bankInfo, enabledM
   async function handleConfirm() {
     if (!selectedMethod) return
     const isTransfer = selectedMethod === 'transfer'
-    if (isTransfer && !receiptFile) { toast.error('Adjunta el comprobante de transferencia'); return }
+    const viaWhatsapp = isTransfer && transferDelivery === 'whatsapp'
+    if (isTransfer && !viaWhatsapp && !receiptFile) {
+      toast.error('Adjunta el comprobante o usa WhatsApp')
+      return
+    }
 
     setLoading(true)
     try {
       let receiptUrl: string | undefined
-      if (isTransfer && receiptFile) {
+      let transferReceiptSource: 'upload' | 'whatsapp' | undefined
+      if (isTransfer && viaWhatsapp) {
+        transferReceiptSource = 'whatsapp'
+      } else if (isTransfer && receiptFile) {
         const formData = new FormData()
         formData.append('file', receiptFile)
         const uploaded = await uploadTransferReceipt(formData)
         receiptUrl = uploaded.url
+        transferReceiptSource = 'upload'
       }
 
-      const result = await submitSelfPayment({ paymentMethod: selectedMethod, receiptUrl })
+      const result = await submitSelfPayment({
+        paymentMethod: selectedMethod,
+        receiptUrl,
+        transferReceiptSource,
+      })
       setStep(result.isTransfer ? 'waiting' : 'done')
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Error al procesar el pago')
@@ -99,6 +128,15 @@ export function PayNowModal({ planName, planPrice, planCycle, bankInfo, enabledM
   function onBackdropClick(e: React.MouseEvent<HTMLDivElement>) {
     if (e.target === e.currentTarget) onClose()
   }
+
+  const waPhone = bankInfo?.whatsapp_phone?.trim()
+  const waLink =
+    selectedMethod === 'transfer' && waPhone
+      ? buildWhatsAppTransferLink(
+          waPhone,
+          `Hola, envío comprobante de transferencia.\n\nPlan: ${planName}\nMonto: $${planPrice.toLocaleString('es-CL')} / ${BILLING_LABEL[planCycle] ?? planCycle}`
+        )
+      : null
 
   return (
     <div
@@ -224,46 +262,98 @@ export function PayNowModal({ planName, planPrice, planCycle, bankInfo, enabledM
                     <p className="text-sm text-muted-foreground">Los datos bancarios no están configurados. Contacta al administrador.</p>
                   )}
 
-                  <div className="border-t border-white/[0.05] pt-4">
-                    <p className="text-xs font-bold text-foreground/80 mb-3 flex items-center gap-2">
-                      <Upload className="w-3.5 h-3.5" /> Adjuntar Comprobante
-                    </p>
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={handleFileChange}
-                    />
-                    {receiptPreview ? (
-                      <div className="space-y-2">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={receiptPreview} alt="Comprobante" className="w-full max-h-40 object-contain rounded-xl border border-white/[0.06]" />
-                        <div className="flex items-center justify-between text-xs text-muted-foreground">
-                          <span className="flex items-center gap-1 truncate">
-                            <ImageIcon className="w-3 h-3 shrink-0" />
-                            {receiptFile?.name}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => fileInputRef.current?.click()}
-                            className="text-primary hover:underline font-bold shrink-0 ml-2"
-                          >
-                            Cambiar
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
+                  {waLink && (
+                    <div className="flex rounded-xl border border-white/[0.08] bg-white/[0.02] p-1 gap-1">
                       <button
                         type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        className="w-full h-20 rounded-xl border-2 border-dashed border-white/[0.08] hover:border-primary/40 flex flex-col items-center justify-center gap-2 text-muted-foreground hover:text-foreground transition-all"
+                        onClick={() => setTransferDelivery('upload')}
+                        className={`flex-1 flex items-center justify-center gap-2 rounded-lg py-2 text-xs font-bold uppercase tracking-wide transition-colors ${
+                          transferDelivery === 'upload'
+                            ? 'bg-white/10 text-foreground'
+                            : 'text-muted-foreground hover:text-foreground'
+                        }`}
                       >
-                        <Upload className="w-5 h-5" />
-                        <span className="text-xs font-medium">Haz clic para adjuntar imagen</span>
+                        <Upload className="w-3.5 h-3.5" />
+                        Subir
                       </button>
-                    )}
-                  </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTransferDelivery('whatsapp')
+                          setReceiptFile(null)
+                          setReceiptPreview(null)
+                        }}
+                        className={`flex-1 flex items-center justify-center gap-2 rounded-lg py-2 text-xs font-bold uppercase tracking-wide transition-colors ${
+                          transferDelivery === 'whatsapp'
+                            ? 'bg-white/10 text-foreground'
+                            : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        <MessageCircle className="w-3.5 h-3.5" />
+                        WhatsApp
+                      </button>
+                    </div>
+                  )}
+
+                  {transferDelivery === 'upload' && (
+                    <div className="border-t border-white/[0.05] pt-4">
+                      <p className="text-xs font-bold text-foreground/80 mb-3 flex items-center gap-2">
+                        <Upload className="w-3.5 h-3.5" /> Adjuntar comprobante
+                      </p>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleFileChange}
+                      />
+                      {receiptPreview ? (
+                        <div className="space-y-2">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={receiptPreview} alt="Comprobante" className="w-full max-h-40 object-contain rounded-xl border border-white/[0.06]" />
+                          <div className="flex items-center justify-between text-xs text-muted-foreground">
+                            <span className="flex items-center gap-1 truncate">
+                              <ImageIcon className="w-3 h-3 shrink-0" />
+                              {receiptFile?.name}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => fileInputRef.current?.click()}
+                              className="text-primary hover:underline font-bold shrink-0 ml-2"
+                            >
+                              Cambiar
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          className="w-full h-20 rounded-xl border-2 border-dashed border-white/[0.08] hover:border-primary/40 flex flex-col items-center justify-center gap-2 text-muted-foreground hover:text-foreground transition-all"
+                        >
+                          <Upload className="w-5 h-5" />
+                          <span className="text-xs font-medium">Haz clic para adjuntar imagen</span>
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  {transferDelivery === 'whatsapp' && waLink && (
+                    <div className="border-t border-white/[0.05] pt-4 space-y-3">
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        Abre WhatsApp con el mensaje preparado, envía el comprobante y luego confirma abajo para registrar el pago en el club.
+                      </p>
+                      <a
+                        href={waLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex w-full items-center justify-center gap-2 h-11 rounded-xl bg-green-600/20 border border-green-500/30 text-green-400 font-bold text-xs uppercase tracking-widest hover:bg-green-600/30 transition-colors"
+                      >
+                        <MessageCircle className="w-4 h-4" />
+                        Abrir WhatsApp
+                      </a>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -295,7 +385,15 @@ export function PayNowModal({ planName, planPrice, planCycle, bankInfo, enabledM
               <button
                 type="button"
                 onClick={handleConfirm}
-                disabled={!selectedMethod || loading || (selectedMethod === 'transfer' && !receiptFile) || visibleMethods.length === 0}
+                disabled={
+                  !selectedMethod ||
+                  loading ||
+                  visibleMethods.length === 0 ||
+                  (selectedMethod === 'transfer' &&
+                    transferDelivery === 'upload' &&
+                    !receiptFile) ||
+                  (selectedMethod === 'transfer' && transferDelivery === 'whatsapp' && !waLink)
+                }
                 className="w-full h-12 rounded-xl bg-primary text-primary-foreground font-black uppercase tracking-widest text-xs flex items-center justify-center gap-2 hover:bg-primary/90 hover:scale-[1.01] transition-all shadow-[0_0_20px_rgba(var(--primary),0.25)] disabled:opacity-40 disabled:hover:scale-100 disabled:shadow-none"
               >
                 {loading ? (

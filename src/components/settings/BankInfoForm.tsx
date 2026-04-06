@@ -21,6 +21,7 @@ const ACCOUNT_TYPES = ['Cuenta Corriente', 'Cuenta Vista', 'Cuenta de Ahorro', '
 interface BankInfo {
   bank_name: string; account_type: string; account_number: string
   account_holder: string; rut: string; email: string
+  whatsapp_phone: string
 }
 
 interface GatewayConfig {
@@ -66,7 +67,15 @@ const GATEWAYS: {
 
 /* ── Defaults ───────────────────────────────────────────────────────────── */
 
-const EMPTY_BANK: BankInfo = { bank_name: '', account_type: '', account_number: '', account_holder: '', rut: '', email: '' }
+const EMPTY_BANK: BankInfo = {
+  bank_name: '',
+  account_type: '',
+  account_number: '',
+  account_holder: '',
+  rut: '',
+  email: '',
+  whatsapp_phone: '',
+}
 const EMPTY_GW: GatewayConfig = { enabled: false, sandbox: true, api_key: '', secret_key: '', commerce_code: '' }
 
 function toState(v?: Partial<PaymentSettings> | null): PaymentSettings {
@@ -230,6 +239,21 @@ export function BankInfoForm({ defaultValues }: Props) {
               <Input id="bank_email" type="email" value={form.bank_info.email} onChange={e => setBank('email', e.target.value)} placeholder="pagos@miclub.cl" />
               <p className="text-xs text-muted-foreground">Donde los atletas envían el comprobante (opcional)</p>
             </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="whatsapp_phone">WhatsApp para comprobantes</Label>
+              <Input
+                id="whatsapp_phone"
+                type="tel"
+                inputMode="tel"
+                value={form.bank_info.whatsapp_phone}
+                onChange={(e) => setBank('whatsapp_phone', e.target.value)}
+                placeholder="+56 9 1234 5678"
+                className="font-mono"
+              />
+              <p className="text-xs text-muted-foreground">
+                Si lo completas, el atleta podrá abrir WhatsApp con un mensaje listo o seguir subiendo la imagen aquí en la app.
+              </p>
+            </div>
 
             {/* preview */}
             {(form.bank_info.bank_name || form.bank_info.account_number) && (
@@ -242,6 +266,9 @@ export function BankInfoForm({ defaultValues }: Props) {
                   {form.bank_info.account_holder && <Row label="Titular" value={form.bank_info.account_holder} />}
                   {form.bank_info.rut && <Row label="RUT" value={form.bank_info.rut} mono />}
                   {form.bank_info.email && <Row label="Email" value={form.bank_info.email} />}
+                  {form.bank_info.whatsapp_phone?.trim() && (
+                    <Row label="WhatsApp comprobantes" value={form.bank_info.whatsapp_phone} mono />
+                  )}
                 </div>
               </div>
             )}

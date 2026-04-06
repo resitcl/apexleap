@@ -51,7 +51,7 @@ export default async function AthleteStatsPage() {
         <Card className="rounded-2xl border-dashed border-white/[0.05] bg-muted/5">
           <CardContent className="py-16 text-center">
             <BarChart3 className="w-12 h-12 mx-auto mb-3 text-muted-foreground/30" />
-            <h3 className="font-semibold text-lg mb-1">Sin estadísticas registradas</h3>
+            <h3 className="text-xl font-black tracking-tight text-foreground mb-2 uppercase">Sin estadísticas registradas</h3>
             <p className="text-muted-foreground text-sm font-medium">
               Cuando el cuerpo técnico registre estadísticas en los partidos, aparecerán aquí.
             </p>

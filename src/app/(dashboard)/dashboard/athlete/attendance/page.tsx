@@ -140,7 +140,7 @@ export default async function AthleteAttendancePage() {
               </div>
               <div>
                 <p className="font-black text-lg tracking-tight uppercase leading-none">Escanear QR</p>
-                <p className="text-sm text-muted-foreground/80 font-medium mt-1">Abre la cámara para marcar tu asistencia en la academia</p>
+                <p className="text-sm text-muted-foreground/80 font-medium mt-1">Abre la cámara para marcar tu asistencia en el club</p>
               </div>
             </div>
             <div className="hidden sm:flex w-12 h-12 rounded-full border border-primary/20 bg-primary/5 items-center justify-center group-hover:bg-primary group-hover:text-primary-foreground transition-colors">

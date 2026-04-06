@@ -1,5 +1,6 @@
 export const dynamic = "force-dynamic"
 
+import type { ReactNode } from "react"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import { getMyRosterById } from "@/lib/actions/athlete-enrollment"
@@ -15,7 +16,8 @@ import {
   Shield, 
   CheckCircle2, 
   XCircle,
-  Clock
+  Clock,
+  ClipboardList,
 } from "lucide-react"
 
 const TYPE_LABELS: Record<string, string> = {
@@ -25,21 +27,21 @@ const TYPE_LABELS: Record<string, string> = {
   championship: "Campeonato",
 }
 
-const STATUS_META: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
-  confirmed: { 
-    label: "Confirmado", 
-    color: "bg-green-100 text-green-700 border-green-200",
-    icon: <CheckCircle2 className="w-4 h-4" />
+const STATUS_META: Record<string, { label: string; color: string; icon: ReactNode }> = {
+  confirmed: {
+    label: "Confirmado",
+    color: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+    icon: <CheckCircle2 className="w-4 h-4" />,
   },
-  pending: { 
-    label: "Pendiente",  
-    color: "bg-yellow-100 text-yellow-700 border-yellow-200",
-    icon: <Clock className="w-4 h-4" />
+  pending: {
+    label: "Pendiente",
+    color: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20",
+    icon: <Clock className="w-4 h-4" />,
   },
-  declined: { 
-    label: "No disponible", 
-    color: "bg-red-100 text-red-700 border-red-200",
-    icon: <XCircle className="w-4 h-4" />
+  declined: {
+    label: "No disponible",
+    color: "bg-destructive/10 text-destructive border-destructive/20",
+    icon: <XCircle className="w-4 h-4" />,
   },
 }
 
@@ -90,23 +92,27 @@ export default async function AthleteRosterDetailPage({ params }: PageProps) {
   })()
 
   return (
-    <div className="space-y-6 max-w-3xl mx-auto">
+    <div className="space-y-8 pb-12 pt-1 max-w-3xl mx-auto">
       {/* Header */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-start gap-4">
         <Link href="/dashboard/athlete/rosters">
-          <Button variant="ghost" size="icon" className="shrink-0">
+          <Button variant="ghost" size="icon" className="shrink-0 mt-1">
             <ArrowLeft className="w-5 h-5" />
           </Button>
         </Link>
         <div>
-          <h1 className="text-2xl font-bold">Mi Citación</h1>
-          <p className="text-muted-foreground text-sm">Detalles de tu convocatoria</p>
+          <h1 className="text-4xl md:text-5xl font-black tracking-tighter uppercase leading-none text-foreground flex items-center gap-3 flex-wrap">
+            <ClipboardList className="w-10 h-10 text-primary" /> Mi citación
+          </h1>
+          <p className="text-sm md:text-base text-muted-foreground/80 mt-3 max-w-xl font-medium">
+            Detalles de tu convocatoria y asignación para el encuentro.
+          </p>
         </div>
       </div>
 
       {/* Match Info Card */}
-      <Card className={`${isToday ? "ring-2 ring-primary/50" : ""}`}>
-        {isToday && <div className="h-1 bg-gradient-to-r from-primary to-blue-500" />}
+      <Card className={`rounded-2xl border border-white/[0.04] bg-card shadow-sm overflow-hidden ${isToday ? "ring-2 ring-primary/40" : ""}`}>
+        {isToday && <div className="h-1 bg-gradient-to-r from-primary to-primary/60" />}
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between">
             <CardTitle className="text-xl">{roster.name}</CardTitle>
@@ -140,8 +146,8 @@ export default async function AthleteRosterDetailPage({ params }: PageProps) {
 
             {roster.opponent && (
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
-                  <Shield className="w-5 h-5 text-blue-600" />
+                <div className="w-10 h-10 rounded-lg bg-muted/40 border border-white/[0.04] flex items-center justify-center shrink-0">
+                  <Shield className="w-5 h-5 text-primary" />
                 </div>
                 <div>
                   <p className="font-medium">vs. {roster.opponent}</p>
@@ -152,8 +158,8 @@ export default async function AthleteRosterDetailPage({ params }: PageProps) {
 
             {roster.venue && (
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-orange-50 flex items-center justify-center shrink-0">
-                  <MapPin className="w-5 h-5 text-orange-600" />
+                <div className="w-10 h-10 rounded-lg bg-primary/10 border border-primary/15 flex items-center justify-center shrink-0">
+                  <MapPin className="w-5 h-5 text-primary" />
                 </div>
                 <div>
                   <p className="font-medium">{roster.venue}</p>
@@ -184,7 +190,7 @@ export default async function AthleteRosterDetailPage({ params }: PageProps) {
       </Card>
 
       {/* My Assignment Card */}
-      <Card>
+      <Card className="rounded-2xl border border-white/[0.04] bg-card shadow-sm">
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
             <Shirt className="w-5 h-5" /> Tu Asignación
@@ -206,7 +212,7 @@ export default async function AthleteRosterDetailPage({ params }: PageProps) {
                 <p className="text-sm text-muted-foreground">Posición: <span className="font-medium text-foreground">{rosterData.position}</span></p>
               )}
               {rosterData.is_captain && (
-                <Badge className="bg-yellow-100 text-yellow-700 border-yellow-200">
+                <Badge className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20 font-bold">
                   © Capitán
                 </Badge>
               )}
@@ -216,7 +222,7 @@ export default async function AthleteRosterDetailPage({ params }: PageProps) {
           {/* Status */}
           <div className="pt-4 border-t">
             <p className="text-sm text-muted-foreground mb-2">Estado de tu citación</p>
-            <Badge className={`text-sm px-3 py-1 ${statusM.color} flex items-center gap-2 w-fit`}>
+            <Badge variant="outline" className={`text-sm px-3 py-1.5 ${statusM.color} flex items-center gap-2 w-fit border font-semibold`}>
               {statusM.icon}
               {statusM.label}
             </Badge>
@@ -225,8 +231,8 @@ export default async function AthleteRosterDetailPage({ params }: PageProps) {
       </Card>
 
       {/* Instructions */}
-      <Card className="bg-muted/50">
-        <CardContent className="py-4">
+      <Card className="rounded-2xl border border-white/[0.04] bg-muted/20 shadow-sm">
+        <CardContent className="py-5">
           <p className="text-sm text-muted-foreground text-center">
             Presentate 30 minutos antes del partido. Trae tu equipamiento completo.
           </p>

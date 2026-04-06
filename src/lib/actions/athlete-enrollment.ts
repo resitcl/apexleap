@@ -16,6 +16,7 @@ import {
   assertPaymentMethodEnabled,
   subscriptionRequiresPaymentConfirmation,
 } from '@/lib/payment-methods'
+import { TRANSFER_RECEIPT_MAX_BYTES } from '@/lib/constants'
 
 /**
  * Get visible plans for the current club (public-facing, for athlete selection).
@@ -287,16 +288,21 @@ export async function getOnboardingData() {
   // Check if platform tour has been completed (stored in technical_meta)
   const tourCompleted = !!athlete?.technical_meta?.onboarding_tour_completed
 
-  // Extract bank_info from club settings
+  // Extract bank_info (priorizar payment_settings del formulario de pagos)
   const settings = (club?.settings ?? {}) as Record<string, unknown>
-  const bankInfo = (settings.bank_info as {
+  const psBank = (settings.payment_settings as { bank_info?: Record<string, unknown> } | undefined)?.bank_info
+  const topBank = settings.bank_info as Record<string, unknown> | undefined
+  const merged = { ...topBank, ...psBank } as {
     bank_name?: string
     account_type?: string
     account_number?: string
     account_holder?: string
     rut?: string
     email?: string
-  } | null) ?? null
+    whatsapp_phone?: string
+  }
+  const bankInfo =
+    merged && (merged.bank_name || merged.account_number || merged.whatsapp_phone) ? merged : null
 
   return {
     // For team sports: must be approved before payment
@@ -661,7 +667,12 @@ async function sendEnrollmentDecisionEmail(params: {
 /**
  * Enroll athlete in plan with chosen payment method.
  */
-export async function enrollWithPayment(planId: string, paymentMethod: string, receiptUrl?: string) {
+export async function enrollWithPayment(
+  planId: string,
+  paymentMethod: string,
+  receiptUrl?: string,
+  transferReceiptSource?: 'upload' | 'whatsapp'
+) {
   const { userId } = await auth()
   if (!userId) throw new Error('No autorizado')
 
@@ -747,6 +758,12 @@ export async function enrollWithPayment(planId: string, paymentMethod: string, r
 
   // Hasta integrar cobro online end-to-end, todos los medios requieren confirmación del admin
   const isTransfer = paymentMethod === 'transfer'
+  if (isTransfer) {
+    const viaWhatsapp = transferReceiptSource === 'whatsapp'
+    if (!receiptUrl && !viaWhatsapp) {
+      throw new Error('Adjunta el comprobante o indica que lo enviarás por WhatsApp.')
+    }
+  }
   const pending = subscriptionRequiresPaymentConfirmation(paymentMethod)
   const subStatus = pending ? ('pending_payment' as const) : ('active' as const)
 
@@ -773,8 +790,12 @@ export async function enrollWithPayment(planId: string, paymentMethod: string, r
       ? `Inscripción + Matrícula – ${plan.name}`
       : `Inscripción – ${plan.name}`
 
-    const notes = isTransfer && receiptUrl
-      ? `Comprobante: ${receiptUrl}`
+    const notes = isTransfer
+      ? receiptUrl
+        ? `Comprobante: ${receiptUrl}`
+        : transferReceiptSource === 'whatsapp'
+          ? 'Comprobante enviado por WhatsApp (pendiente de revisión).'
+          : null
       : null
 
     await supabase
@@ -811,12 +832,20 @@ export async function uploadTransferReceipt(formData: FormData) {
 
   const file = formData.get('file') as File | null
   if (!file) throw new Error('No se adjuntó ningún archivo')
+  if (file.size > TRANSFER_RECEIPT_MAX_BYTES) {
+    throw new Error(
+      `La imagen supera el máximo permitido (${Math.round(TRANSFER_RECEIPT_MAX_BYTES / (1024 * 1024))} MB). Reduce el tamaño o comprueba la foto.`
+    )
+  }
 
   const ext = file.name.split('.').pop() ?? 'jpg'
   const path = `${clubId}/receipts/${userId}-${Date.now()}.${ext}`
 
   // Ensure bucket exists (idempotent)
-  await supabase.storage.createBucket('payment-receipts', { public: true, fileSizeLimit: 5 * 1024 * 1024 })
+  await supabase.storage.createBucket('payment-receipts', {
+    public: true,
+    fileSizeLimit: TRANSFER_RECEIPT_MAX_BYTES,
+  })
 
   const { error } = await supabase.storage
     .from('payment-receipts')
@@ -1102,6 +1131,8 @@ export async function submitSelfPayment(params: {
   paymentMethod: string
   receiptUrl?: string
   concept?: string
+  /** Si transferencia sin archivo: el atleta enviará el comprobante por WhatsApp */
+  transferReceiptSource?: 'upload' | 'whatsapp'
 }) {
   const { userId } = await auth()
   if (!userId) throw new Error('No autorizado')
@@ -1165,7 +1196,19 @@ export async function submitSelfPayment(params: {
   const month = periodStart.toLocaleDateString('es-CL', { month: 'long', year: 'numeric' })
   const concept = params.concept || `${plan.name} – ${month}`
 
-  const notes = params.receiptUrl ? `Comprobante: ${params.receiptUrl}` : null
+  if (params.paymentMethod === 'transfer') {
+    if (!params.receiptUrl && params.transferReceiptSource !== 'whatsapp') {
+      throw new Error('Adjunta el comprobante o envíalo por WhatsApp y luego confirma aquí.')
+    }
+  }
+
+  let notes: string | null = null
+  if (params.paymentMethod === 'transfer') {
+    if (params.receiptUrl) notes = `Comprobante: ${params.receiptUrl}`
+    else if (params.transferReceiptSource === 'whatsapp') {
+      notes = 'Comprobante enviado por WhatsApp (pendiente de revisión).'
+    }
+  }
 
   const { error } = await supabase
     .from('payments')

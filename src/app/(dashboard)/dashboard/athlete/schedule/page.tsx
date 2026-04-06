@@ -126,7 +126,7 @@ export default async function AthleteSchedulePage() {
                     {dayColumn.sessions.length === 0 ? (
                       <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
                         <span className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/20 italic rotate-[-15deg]">
-                          Recovery Day
+                          Día libre
                         </span>
                       </div>
                     ) : (

@@ -9,12 +9,14 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
   CheckCircle, Loader2, Zap, ArrowRight, ArrowLeft, CreditCard,
-  PartyPopper, ChevronRight, Upload, Clock, ImageIcon,
+  PartyPopper, ChevronRight, Upload, Clock, ImageIcon, MessageCircle,
 } from 'lucide-react'
 import { enrollWithPayment, uploadTransferReceipt } from '@/lib/actions/athlete-enrollment'
 import type { OnboardingData } from '@/lib/actions/athlete-enrollment'
 import type { SportConfig } from '@/lib/sport-fields'
 import { getEnabledPaymentMethodIdsFromClubSettings } from '@/lib/payment-methods'
+import { buildWhatsAppTransferLink } from '@/lib/whatsapp-transfer'
+import { TRANSFER_RECEIPT_MAX_BYTES } from '@/lib/constants'
 
 // ─── Payment methods ────────────────────────────────────────────────────────
 
@@ -71,7 +73,16 @@ export function AthleteOnboardingWizard({ data, sportConfig: _sportConfig }: Pro
     }
   }, [step, paymentMethod, visiblePaymentMethods])
 
-  // Transfer receipt
+  useEffect(() => {
+    if (paymentMethod !== 'transfer') {
+      setTransferDelivery('upload')
+      setReceiptFile(null)
+      setReceiptPreview(null)
+    }
+  }, [paymentMethod])
+
+  // Transfer receipt: subir imagen o enviar por WhatsApp (si el club configuró número)
+  const [transferDelivery, setTransferDelivery] = useState<'upload' | 'whatsapp'>('upload')
   const [receiptFile, setReceiptFile] = useState<File | null>(null)
   const [receiptPreview, setReceiptPreview] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -88,8 +99,10 @@ export function AthleteOnboardingWizard({ data, sportConfig: _sportConfig }: Pro
       toast.error('Solo se permiten imágenes (JPG, PNG, etc.)')
       return
     }
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('La imagen no puede superar 5 MB')
+    if (file.size > TRANSFER_RECEIPT_MAX_BYTES) {
+      toast.error(
+        `La imagen no puede superar ${TRANSFER_RECEIPT_MAX_BYTES / (1024 * 1024)} MB (límite de la plataforma al subir comprobantes)`
+      )
       return
     }
     setReceiptFile(file)
@@ -99,23 +112,33 @@ export function AthleteOnboardingWizard({ data, sportConfig: _sportConfig }: Pro
   async function handleEnroll() {
     if (!selectedPlanId || !paymentMethod) return
     const isTransfer = paymentMethod === 'transfer'
-    if (isTransfer && !receiptFile) {
-      toast.error('Adjunta el comprobante de transferencia')
+    const viaWhatsapp = isTransfer && transferDelivery === 'whatsapp'
+    if (isTransfer && !viaWhatsapp && !receiptFile) {
+      toast.error('Adjunta el comprobante de transferencia o usa WhatsApp')
       return
     }
 
     setLoading(true)
     try {
       let receiptUrl: string | undefined
+      let transferSource: 'upload' | 'whatsapp' | undefined
 
-      if (isTransfer && receiptFile) {
+      if (isTransfer && viaWhatsapp) {
+        transferSource = 'whatsapp'
+      } else if (isTransfer && receiptFile) {
         const formData = new FormData()
         formData.append('file', receiptFile)
         const uploadResult = await uploadTransferReceipt(formData)
         receiptUrl = uploadResult.url
+        transferSource = 'upload'
       }
 
-      const result = await enrollWithPayment(selectedPlanId, paymentMethod, receiptUrl)
+      const result = await enrollWithPayment(
+        selectedPlanId,
+        paymentMethod,
+        receiptUrl,
+        transferSource
+      )
       setStep(result.isTransfer ? 'waiting' : 'done')
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Error al procesar inscripción')
@@ -304,6 +327,14 @@ export function AthleteOnboardingWizard({ data, sportConfig: _sportConfig }: Pro
     if (!selectedPlan) return null
     const total = (selectedPlan.price ?? 0) + (selectedPlan.enrollment_fee ?? 0)
     const isTransfer = paymentMethod === 'transfer'
+    const waPhone = data.bankInfo?.whatsapp_phone?.trim()
+    const waLink =
+      waPhone && isTransfer
+        ? buildWhatsAppTransferLink(
+            waPhone,
+            `Hola, envío comprobante de transferencia.\n\nClub: ${clubName}\nPlan: ${selectedPlan.name}\nTotal: $${total.toLocaleString('es-CL')}\nAtleta: ${data.user.fullName || '—'}`
+          )
+        : null
 
     return (
       <div className="max-w-lg mx-auto space-y-6">
@@ -432,53 +463,112 @@ export function AthleteOnboardingWizard({ data, sportConfig: _sportConfig }: Pro
                 </div>
               )}
 
-              <div className="border-t pt-4">
-                <p className="text-sm font-medium flex items-center gap-2 mb-2">
-                  <Upload className="w-4 h-4" /> Adjuntar Comprobante
-                </p>
-                <p className="text-xs text-muted-foreground mb-3">
-                  Una vez realizada la transferencia, adjunta una imagen del comprobante. El administrador la revisará y activará tu cuenta.
-                </p>
-              </div>
+              {waLink && (
+                <div className="flex rounded-xl border bg-background/80 p-1 gap-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTransferDelivery('upload')
+                    }}
+                    className={`flex-1 flex items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-medium transition-colors ${
+                      transferDelivery === 'upload'
+                        ? 'bg-background shadow-sm text-foreground'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    <Upload className="w-4 h-4 shrink-0" />
+                    Subir imagen
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTransferDelivery('whatsapp')
+                      setReceiptFile(null)
+                      setReceiptPreview(null)
+                    }}
+                    className={`flex-1 flex items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-medium transition-colors ${
+                      transferDelivery === 'whatsapp'
+                        ? 'bg-background shadow-sm text-foreground'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    <MessageCircle className="w-4 h-4 shrink-0" />
+                    WhatsApp
+                  </button>
+                </div>
+              )}
 
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleFileChange}
-              />
-
-              {receiptPreview ? (
-                <div className="space-y-2">
-                  <div className="relative rounded-lg overflow-hidden border bg-background">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={receiptPreview} alt="Comprobante" className="w-full max-h-48 object-contain" />
+              {transferDelivery === 'upload' && (
+                <>
+                  <div className="border-t pt-4">
+                    <p className="text-sm font-medium flex items-center gap-2 mb-2">
+                      <Upload className="w-4 h-4" /> Adjuntar comprobante
+                    </p>
+                    <p className="text-xs text-muted-foreground mb-3">
+                      Una vez realizada la transferencia, adjunta una imagen del comprobante (máx.{' '}
+                      {TRANSFER_RECEIPT_MAX_BYTES / (1024 * 1024)} MB). El administrador la revisará y activará tu cuenta.
+                    </p>
                   </div>
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1 truncate">
-                      <ImageIcon className="w-3 h-3 shrink-0" />
-                      {receiptFile?.name}
-                    </span>
+
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleFileChange}
+                  />
+
+                  {receiptPreview ? (
+                    <div className="space-y-2">
+                      <div className="relative rounded-lg overflow-hidden border bg-background">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={receiptPreview} alt="Comprobante" className="w-full max-h-48 object-contain" />
+                      </div>
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1 truncate">
+                          <ImageIcon className="w-3 h-3 shrink-0" />
+                          {receiptFile?.name}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-xs h-7 shrink-0"
+                          onClick={() => fileInputRef.current?.click()}
+                        >
+                          Cambiar
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
                     <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-xs h-7 shrink-0"
+                      variant="outline"
+                      className="w-full h-24 border-dashed flex flex-col gap-2"
                       onClick={() => fileInputRef.current?.click()}
                     >
-                      Cambiar
+                      <Upload className="w-6 h-6 text-muted-foreground" />
+                      <span className="text-sm text-muted-foreground">Haz clic para adjuntar comprobante</span>
                     </Button>
-                  </div>
+                  )}
+                </>
+              )}
+
+              {transferDelivery === 'whatsapp' && waLink && (
+                <div className="border-t pt-4 space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    Se abrirá WhatsApp con un mensaje con los datos del pago. Envía el comprobante por ahí y luego pulsa <strong className="text-foreground">Confirmar</strong> abajo para registrar la solicitud en ApexLeap.
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full gap-2 border-green-600/40 text-green-700 dark:text-green-400 hover:bg-green-500/10"
+                    asChild
+                  >
+                    <a href={waLink} target="_blank" rel="noopener noreferrer">
+                      <MessageCircle className="w-5 h-5" />
+                      Abrir WhatsApp
+                    </a>
+                  </Button>
                 </div>
-              ) : (
-                <Button
-                  variant="outline"
-                  className="w-full h-24 border-dashed flex flex-col gap-2"
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  <Upload className="w-6 h-6 text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">Haz clic para adjuntar comprobante</span>
-                </Button>
               )}
             </CardContent>
           </Card>
@@ -496,7 +586,10 @@ export function AthleteOnboardingWizard({ data, sportConfig: _sportConfig }: Pro
               loading ||
               visiblePaymentMethods.length === 0 ||
               !paymentMethod ||
-              (isTransfer && !receiptFile)
+              (isTransfer &&
+                transferDelivery === 'upload' &&
+                !receiptFile) ||
+              (isTransfer && transferDelivery === 'whatsapp' && !waLink)
             }
           >
             {loading ? (

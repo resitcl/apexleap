@@ -199,6 +199,13 @@ export default async function AthletePage({ searchParams }: { searchParams?: Pro
   const weekMax  = Math.max(...weeklyCheckIns, 1)
   const weekTotal  = weeklyCheckIns.reduce((a, b) => a + b, 0)
   const weekAvg    = weekTotal > 0 ? (weekTotal / 8).toFixed(1) : '0'
+  const sessionsPluralEs: Record<string, string> = {
+    Clase: "clases",
+    Entrenamiento: "entrenamientos",
+    Sesión: "sesiones",
+    WOD: "WOD",
+  }
+  const sessionKpiSubtitle = `${sessionsPluralEs[vocab.session] ?? `${vocab.session.toLowerCase()}s`} por semana`
   const firstName  = athlete.name?.split(' ')[0] ?? ''
   void sessions // used for potential future features
 
@@ -279,11 +286,11 @@ export default async function AthletePage({ searchParams }: { searchParams?: Pro
           <div className="rounded-2xl bg-card p-6 border border-white/[0.02] hover:bg-white/[0.04] transition-colors h-full flex flex-col justify-between group shadow-sm">
             <div className="flex items-center gap-3 mb-6">
               <UserCheck className="w-4 h-4 text-muted-foreground/60 group-hover:text-emerald-400 transition-colors" />
-              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">Check-ins</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">Asistencias</p>
             </div>
             <div>
               <p className="text-5xl font-black tracking-tighter text-emerald-400 leading-none">{monthCheckIns}</p>
-              <p className="text-[13px] text-muted-foreground/60 mt-2.5 font-medium">This month</p>
+              <p className="text-[13px] text-muted-foreground/60 mt-2.5 font-medium">Este mes</p>
             </div>
           </div>
         </Link>
@@ -334,11 +341,11 @@ export default async function AthletePage({ searchParams }: { searchParams?: Pro
           <div className="rounded-2xl bg-card p-6 border border-white/[0.02] hover:bg-white/[0.04] transition-colors h-full flex flex-col justify-between shadow-sm">
             <div className="flex items-center gap-3 mb-6">
               <Zap className="w-4 h-4 text-muted-foreground/60" />
-              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">Sessions</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">Promedio</p>
             </div>
             <div>
               <p className="text-5xl font-black tracking-tighter text-foreground leading-none">{weekAvg}</p>
-              <p className="text-[13px] text-muted-foreground/60 mt-2.5 font-medium">Per week avg</p>
+              <p className="text-[13px] text-muted-foreground/60 mt-2.5 font-medium">{sessionKpiSubtitle}</p>
             </div>
           </div>
         </Link>
@@ -348,16 +355,16 @@ export default async function AthletePage({ searchParams }: { searchParams?: Pro
           <div className="rounded-2xl bg-card p-6 border border-white/[0.02] hover:bg-white/[0.04] transition-colors h-full flex flex-col justify-between shadow-sm">
             <div className="flex items-center gap-3 mb-6">
               <FileText className="w-4 h-4 text-muted-foreground/60" />
-              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">Documents</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">Documentos</p>
             </div>
             <div>
               <p className={`text-[28px] font-black tracking-tight leading-none uppercase ${expiredDocs.length > 0 ? 'text-amber-500' : 'text-foreground'}`}>
-                {expiredDocs.length > 0 ? expiredDocs.length : 'Updated'}
+                {expiredDocs.length > 0 ? expiredDocs.length : 'Al día'}
               </p>
               <p className="text-[13px] mt-2.5 font-medium flex items-center gap-1.5">
                 {expiredDocs.length > 0
                   ? <span className="text-muted-foreground/60">{expiredDocs.length} por renovar</span>
-                  : <><CheckCircle2 className="w-4 h-4 text-emerald-400" /><span className="text-emerald-400">Verified</span></>
+                  : <><CheckCircle2 className="w-4 h-4 text-emerald-400" /><span className="text-emerald-400">Verificados</span></>
                 }
               </p>
             </div>
@@ -369,7 +376,7 @@ export default async function AthletePage({ searchParams }: { searchParams?: Pro
         {/* CURRENT RANK — featured card */}
         <div className="rounded-2xl bg-card p-6 border border-white/[0.02] shadow-sm flex flex-col w-full lg:w-64 lg:shrink-0">
           <div className="flex items-start justify-between mb-4">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">Current Rank</p>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">Rango actual</p>
             <div className="w-10 h-10 rounded-xl bg-[#8B5A2B]/40 flex items-center justify-center shrink-0">
               <Trophy className="w-5 h-5 text-white" />
             </div>
@@ -381,7 +388,8 @@ export default async function AthletePage({ searchParams }: { searchParams?: Pro
                 {BELT_ES[beltKey] ?? beltLevel}
               </p>
               <p className="text-sm text-muted-foreground/60 mt-2 font-medium">
-                {beltLevel} Belt{stripes !== null ? ` · ${stripes} grado${stripes !== 1 ? 's' : ''}` : ''}
+                {beltLevel}
+                {stripes !== null ? ` · ${stripes} grado${stripes !== 1 ? 's' : ''}` : ''}
               </p>
 
               {stripePct !== null && (
@@ -461,24 +469,26 @@ export default async function AthletePage({ searchParams }: { searchParams?: Pro
         <div className="rounded-2xl bg-card p-6 md:p-8 border border-white/[0.02] shadow-sm">
           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-8">
             <div>
-              <p className="text-2xl font-black tracking-tight">Attendance Trends</p>
+              <p className="text-2xl font-black tracking-tight">Tendencia de asistencia</p>
               <p className="text-sm text-muted-foreground/60 font-medium mt-1.5">
-                {attendanceRange === '6m' ? 'Activity intensity over 6 months' : 'Activity intensity over the last 8 weeks'}
+                {attendanceRange === '6m'
+                  ? 'Intensidad de asistencia en los últimos 6 meses'
+                  : 'Intensidad de asistencia en las últimas 8 semanas'}
               </p>
             </div>
             <div className="flex items-center gap-2">
               <div className="flex rounded-lg overflow-hidden border border-border/30 bg-muted/20">
                 <Link
                   href="?range=8w"
-                  className={`px-4 py-2.5 text-[11px] font-bold uppercase tracking-[0.1em] transition-colors ${attendanceRange === '8w' ? 'bg-[#3C3C3F] text-white shadow-sm' : 'text-muted-foreground/60 hover:text-muted-foreground hover:bg-muted/50'}`}
+                  className={`px-4 py-2.5 text-[11px] font-bold uppercase tracking-[0.1em] transition-colors ${attendanceRange === '8w' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground/60 hover:text-muted-foreground hover:bg-muted/50'}`}
                 >
-                  8 WEEKS
+                  8 semanas
                 </Link>
                 <Link
                   href="?range=6m"
-                  className={`px-4 py-2.5 text-[11px] font-bold uppercase tracking-[0.1em] transition-colors ${attendanceRange === '6m' ? 'bg-[#3C3C3F] text-white shadow-sm' : 'text-muted-foreground/60 hover:text-muted-foreground hover:bg-muted/50'}`}
+                  className={`px-4 py-2.5 text-[11px] font-bold uppercase tracking-[0.1em] transition-colors ${attendanceRange === '6m' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground/60 hover:text-muted-foreground hover:bg-muted/50'}`}
                 >
-                  6 MONTHS
+                  6 meses
                 </Link>
               </div>
             </div>
@@ -488,7 +498,7 @@ export default async function AthletePage({ searchParams }: { searchParams?: Pro
             {weeklyCheckIns.map((count, i) => {
               const heightPct = weekMax > 0 ? Math.max((count / weekMax) * 100, count > 0 ? 10 : 0) : 0
               const isCurrentWeek = i === weeklyCheckIns.length - 1
-              const label = attendanceRange === '6m' ? `M${i + 1}` : `W${i + 1}`
+              const label = attendanceRange === '6m' ? `M${i + 1}` : `S${i + 1}`
               return (
                 <div key={i} className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end">
                   {count > 0 && (
@@ -558,7 +568,7 @@ export default async function AthletePage({ searchParams }: { searchParams?: Pro
       {/* ── TEAM SPORT WIDGETS ── */}
       {isTeamSport && (
         <div className="grid gap-3 sm:grid-cols-2">
-          <div className="rounded-2xl bg-card p-5">
+          <div className="rounded-2xl bg-card p-5 border border-white/[0.02] shadow-sm">
             <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70 flex items-center gap-2 mb-4">
               <Swords className="w-3.5 h-3.5" /> Próximo Partido
             </p>
@@ -580,7 +590,7 @@ export default async function AthletePage({ searchParams }: { searchParams?: Pro
               <p className="text-sm text-muted-foreground/50 font-medium">No hay partidos programados.</p>
             )}
           </div>
-          <div className="rounded-2xl bg-card p-5">
+          <div className="rounded-2xl bg-card p-5 border border-white/[0.02] shadow-sm">
             <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70 flex items-center gap-2 mb-4">
               <BarChart3 className="w-3.5 h-3.5" /> Mi Récord
             </p>
@@ -625,7 +635,7 @@ export default async function AthletePage({ searchParams }: { searchParams?: Pro
 
       {/* ── PENDING PAYMENTS ── */}
       {pendingPayments.length > 0 && (
-        <div className="rounded-2xl bg-card p-5">
+        <div className="rounded-2xl bg-card p-5 border border-white/[0.02] shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <p className="text-sm font-bold flex items-center gap-2">
               <CreditCard className="w-4 h-4 text-red-500" /> Pagos Pendientes

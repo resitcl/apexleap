@@ -51,7 +51,7 @@ export default async function AthleteMatchesPage() {
 
       {/* Record summary */}
       {finished.length > 0 && (
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <Card className="rounded-2xl border-white/[0.04] bg-card shadow-sm hover:border-primary/20 transition-colors">
             <CardContent className="py-6 flex flex-col items-center justify-center text-center h-full">
               <div className="text-4xl font-black text-primary drop-shadow-[0_0_8px_rgba(var(--primary),0.3)]">{finished.length}</div>
@@ -85,7 +85,7 @@ export default async function AthleteMatchesPage() {
           <div className="flex items-center justify-between mb-4">
             <p className="text-base font-black tracking-tight uppercase text-foreground">Rendimiento Global</p>
             <Badge variant="secondary" className="bg-primary/10 text-primary border border-primary/20 text-xs font-black">
-              {Math.round((wins / finished.length) * 100)}% Win Rate
+              {Math.round((wins / finished.length) * 100)}% victorias
             </Badge>
           </div>
           <div className="w-full h-2 rounded-full bg-muted overflow-hidden flex shadow-inner">
@@ -107,7 +107,7 @@ export default async function AthleteMatchesPage() {
             <Swords className="w-16 h-16 mx-auto mb-4 text-muted-foreground/30" />
             <h3 className="text-xl font-black tracking-tight text-foreground mb-2 uppercase">Sin partidos registrados</h3>
             <p className="text-muted-foreground text-sm font-medium">
-              Cuando participes en encuentros oficiales de tu academia, los marcadores aparecerán aquí.
+              Cuando participes en encuentros oficiales de tu club o equipo, los marcadores aparecerán aquí.
             </p>
           </CardContent>
         </Card>

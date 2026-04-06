@@ -23,7 +23,7 @@ export default async function SelectPlanPage() {
           Elige tu Plan
         </h1>
         <p className="text-sm md:text-base text-muted-foreground/80 max-w-xl mx-auto font-medium">
-          Selecciona un plan para acceder a los entrenamientos, horarios y más funcionalidades de la academia.
+          Selecciona un plan para acceder a los entrenamientos, horarios y más funcionalidades del club.
         </p>
       </div>
 

@@ -63,6 +63,8 @@ export async function updatePaymentSettings(paymentSettings: {
   bank_info: {
     bank_name: string; account_type: string; account_number: string
     account_holder: string; rut: string; email: string
+    /** Ej. +56912345678 — para que el atleta envíe el comprobante por WhatsApp */
+    whatsapp_phone?: string
   }
   flow: { enabled: boolean; sandbox: boolean; api_key: string; secret_key: string; commerce_code: string }
   webpay: { enabled: boolean; sandbox: boolean; api_key: string; secret_key: string; commerce_code: string }

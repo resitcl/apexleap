@@ -55,10 +55,11 @@ export default async function AthletePaymentsPage() {
     bank_info?: Record<string, string> | null
     cash_instructions?: string
   } | null | undefined
-  const bankInfo =
-    paymentSettingsBlock?.bank_info ??
-    (rawSettings.bank_info as Record<string, string> | undefined) ??
-    null
+  const mergedBank = {
+    ...((rawSettings.bank_info as Record<string, string> | undefined) ?? {}),
+    ...((paymentSettingsBlock?.bank_info as Record<string, string> | undefined) ?? {}),
+  }
+  const bankInfo = Object.keys(mergedBank).length > 0 ? mergedBank : null
   const enabledMethods = getEnabledPaymentMethodIdsFromClubSettings(rawSettings)
   const cashInstructions = paymentSettingsBlock?.cash_instructions ?? undefined
 

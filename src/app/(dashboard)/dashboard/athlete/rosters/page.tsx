@@ -44,7 +44,7 @@ export default async function AthleteRostersPage() {
       </div>
 
       {rosters.length > 0 && (
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <Card className="rounded-2xl border-white/[0.04] bg-card shadow-sm hover:border-primary/20 transition-colors">
             <CardContent className="py-6 flex flex-col items-center justify-center text-center h-full">
               <div className="text-4xl font-black text-primary drop-shadow-[0_0_8px_rgba(var(--primary),0.3)]">{rosters.length}</div>
