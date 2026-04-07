@@ -17,13 +17,17 @@ export async function getPostAuthRedirectPath() {
 
   const { data: userClub } = await supabase
     .from('user_clubs')
-    .select('club_id')
+    .select('club_id, role')
     .eq('user_id', userId)
     .eq('is_active', true)
+    .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle()
 
-  if (userClub) return '/dashboard'
+  if (userClub) {
+    const role = (userClub.role as string) ?? 'athlete'
+    return role === 'athlete' ? '/dashboard/athlete' : '/dashboard'
+  }
 
   return '/onboarding'
 }

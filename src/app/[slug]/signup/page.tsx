@@ -43,6 +43,8 @@ export default async function TenantSignUpPage({ params }: PageProps) {
             routing="hash"
             forceRedirectUrl={`/api/join/${club.slug}`}
             fallbackRedirectUrl={`/api/join/${club.slug}`}
+            signInForceRedirectUrl={`/api/join/${club.slug}`}
+            signInFallbackRedirectUrl={`/api/join/${club.slug}`}
           />
         </div>
 
