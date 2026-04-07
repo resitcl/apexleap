@@ -24,7 +24,9 @@ export async function GET(
     .single()
 
   if (!club || !club.is_active) {
-    return NextResponse.redirect(new URL('/onboarding', request.url))
+    const u = new URL('/sign-in', request.url)
+    u.searchParams.set('club', 'invalido')
+    return NextResponse.redirect(u)
   }
 
   // Check if user is already linked to this club

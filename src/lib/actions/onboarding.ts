@@ -2,10 +2,8 @@
 
 import { auth } from '@clerk/nextjs/server'
 import { redirect } from 'next/navigation'
-import { cookies } from 'next/headers'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { z } from 'zod'
-import { CLUB_COOKIE } from '@/lib/constants'
 
 const createClubSchema = z.object({
   name: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
@@ -137,49 +135,4 @@ export async function getClubBySlug(slug: string) {
   if (error || !data) return null
   if (!data.is_active) return null
   return data
-}
-
-export async function joinClubBySlug(slug: string, role: 'admin' | 'coach' | 'athlete' = 'admin') {
-  const { userId } = await auth()
-  if (!userId) throw new Error('No autorizado')
-
-  const supabase = createAdminClient()
-
-  // Find club by slug
-  const { data: club, error: clubErr } = await supabase
-    .from('clubs')
-    .select('id, name, is_active')
-    .eq('slug', slug.trim().toLowerCase())
-    .single()
-
-  if (clubErr || !club) throw new Error('No se encontró un club con ese identificador. Verifica el slug.')
-  if (!club.is_active) throw new Error('Este club está desactivado. Contacta al administrador.')
-
-  // Check not already linked
-  const { data: existing } = await supabase
-    .from('user_clubs')
-    .select('id, is_active')
-    .eq('user_id', userId)
-    .eq('club_id', club.id)
-    .single()
-
-  if (existing) {
-    // Already has access (active or inactive) — set cookie and redirect
-    if (!existing.is_active) {
-      await supabase.from('user_clubs').update({ is_active: true, role }).eq('id', existing.id)
-    }
-    const cookieStore = await cookies()
-    cookieStore.set(CLUB_COOKIE, club.id, { path: '/', maxAge: 60 * 60 * 24 * 30, sameSite: 'lax' })
-    redirect('/dashboard')
-  }
-
-  const { error: linkErr } = await supabase
-    .from('user_clubs')
-    .insert({ user_id: userId, club_id: club.id, role, is_active: true })
-
-  if (linkErr) throw new Error(linkErr.message)
-
-  const cookieStore2 = await cookies()
-  cookieStore2.set(CLUB_COOKIE, club.id, { path: '/', maxAge: 60 * 60 * 24 * 30, sameSite: 'lax' })
-  redirect('/dashboard')
 }
