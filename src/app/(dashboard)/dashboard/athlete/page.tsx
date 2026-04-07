@@ -16,6 +16,7 @@ import { AthleteOnboardingWizard } from "@/components/athlete/AthleteOnboardingW
 import { AthleteProfileOnboardingWrapper } from "@/components/athlete/AthleteProfileOnboardingWrapper"
 import { PlatformTourWizard } from "@/components/athlete/PlatformTourWizard"
 import { EnrollmentRequestWizard, PendingApprovalScreen, RejectedScreen } from "@/components/athlete/EnrollmentRequestWizard"
+import { PendingAdminPaymentScreen } from "@/components/athlete/PendingAdminPaymentScreen"
 import { Button } from "@/components/ui/button"
 import {
   Calendar, AlertTriangle, Trophy, FileText,
@@ -74,6 +75,19 @@ export default async function AthletePage({ searchParams }: { searchParams?: Pro
   // 0c. For team sports: Show rejected screen
   if (showRejected && onboardingData) {
     return <RejectedScreen data={onboardingData} />
+  }
+
+  // Primer pago (transferencia/efectivo): sin acceso al portal hasta que el admin confirme
+  const showAwaitingAdminPayment = role === "athlete" && onboardingData?.hasPendingPayment === true
+  if (showAwaitingAdminPayment && onboardingData) {
+    return (
+      <PendingAdminPaymentScreen
+        clubName={onboardingData.club.name}
+        primaryColor={onboardingData.club.primary_color}
+        logoUrl={onboardingData.club.logo_url}
+        planName={onboardingData.pendingPaymentPlanName}
+      />
+    )
   }
 
   // 1. Payment/Plan selection onboarding (approved or non-team sport, no subscription yet)

@@ -20,6 +20,12 @@ const KNOWN_ROOTS = new Set([
 export default clerkMiddleware(async (auth, request) => {
   const { pathname } = request.nextUrl
 
+  const nextWithPathname = () => {
+    const requestHeaders = new Headers(request.headers)
+    requestHeaders.set('x-pathname', pathname)
+    return NextResponse.next({ request: { headers: requestHeaders } })
+  }
+
   // /[slug] → /[slug]/signin  (club entry point, antes de auth check)
   const segments = pathname.split('/').filter(Boolean)
   if (segments.length === 1 && !KNOWN_ROOTS.has(segments[0])) {
@@ -31,6 +37,8 @@ export default clerkMiddleware(async (auth, request) => {
   if (!isPublicRoute(request)) {
     await auth.protect()
   }
+
+  return nextWithPathname()
 })
 
 export const config = {

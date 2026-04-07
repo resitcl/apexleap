@@ -3,7 +3,7 @@
 import { auth, clerkClient } from '@clerk/nextjs/server'
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { getClubId } from '@/lib/actions/club-context'
+import { getClubId, getUserRole } from '@/lib/actions/club-context'
 import {
   calculatePeriodEnd,
   calculateNextPeriodStart,
@@ -249,6 +249,7 @@ export async function getOnboardingData() {
   // Active or pending_payment subscription
   let hasActiveSubscription = false
   let hasPendingPayment = false
+  let pendingPaymentPlanName: string | null = null
   if (athlete) {
     const { data: activeSub } = await supabase
       .from('subscriptions')
@@ -262,12 +263,14 @@ export async function getOnboardingData() {
     if (!hasActiveSubscription) {
       const { data: pendingSub } = await supabase
         .from('subscriptions')
-        .select('id')
+        .select('id, plans(name)')
         .eq('club_id', clubId)
         .eq('athlete_id', athlete.id)
         .eq('status', 'pending_payment')
         .maybeSingle()
       hasPendingPayment = !!pendingSub
+      const planRow = pendingSub?.plans as { name?: string } | null | undefined
+      pendingPaymentPlanName = planRow?.name ?? null
     }
   }
 
@@ -317,6 +320,7 @@ export async function getOnboardingData() {
     needsProfileOnboarding: hasActiveSubscription && !profileComplete,
     needsPlatformTour: hasActiveSubscription && profileComplete && !tourCompleted,
     hasPendingPayment,
+    pendingPaymentPlanName,
     club: club ?? {
       id: clubId,
       name: 'Club',
@@ -337,6 +341,128 @@ export async function getOnboardingData() {
 }
 
 export type OnboardingData = Awaited<ReturnType<typeof getOnboardingData>>
+
+/** Días con cuota impaga antes de bloquear el portal (solo pagos / suscripción / cambio de plan). */
+export const ATHLETE_OVERDUE_HARD_BLOCK_DAYS = 3
+
+function calendarDaysOverdue(dueDateYmd: string, todayYmd: string): number {
+  const due = new Date(dueDateYmd + 'T12:00:00').getTime()
+  const today = new Date(todayYmd + 'T12:00:00').getTime()
+  return Math.floor((today - due) / (24 * 60 * 60 * 1000))
+}
+
+export type AthleteFinancialAccessState = {
+  /** Primer pago (transferencia / efectivo) sin confirmar por el admin */
+  awaitingAdminPaymentConfirmation: boolean
+  delinquency: {
+    isLate: boolean
+    daysPastDue: number
+    hardBlocked: boolean
+    message: string | null
+  }
+}
+
+/**
+ * Reglas de acceso del portal atleta: pago inicial pendiente de admin y mora en cuotas.
+ */
+export async function getAthleteFinancialAccessState(): Promise<AthleteFinancialAccessState> {
+  const empty: AthleteFinancialAccessState = {
+    awaitingAdminPaymentConfirmation: false,
+    delinquency: { isLate: false, daysPastDue: 0, hardBlocked: false, message: null },
+  }
+
+  const { userId } = await auth()
+  if (!userId) return empty
+
+  let role: string
+  try {
+    role = await getUserRole()
+  } catch {
+    return empty
+  }
+  if (role !== 'athlete') return empty
+
+  const clubId = await getClubId()
+  const supabase = createAdminClient()
+
+  const clerk = await clerkClient()
+  const user = await clerk.users.getUser(userId)
+  const email = user.emailAddresses[0]?.emailAddress ?? null
+  if (!email) return empty
+
+  const { data: athlete } = await supabase
+    .from('athletes')
+    .select('id')
+    .eq('club_id', clubId)
+    .eq('email', email)
+    .maybeSingle()
+
+  if (!athlete) return empty
+
+  const { data: pendingSub } = await supabase
+    .from('subscriptions')
+    .select('id')
+    .eq('club_id', clubId)
+    .eq('athlete_id', athlete.id)
+    .eq('status', 'pending_payment')
+    .maybeSingle()
+
+  const awaitingAdminPaymentConfirmation = !!pendingSub
+
+  const delinquency = {
+    isLate: false,
+    daysPastDue: 0,
+    hardBlocked: false,
+    message: null as string | null,
+  }
+
+  if (!awaitingAdminPaymentConfirmation) {
+    const { data: activeSub } = await supabase
+      .from('subscriptions')
+      .select('id')
+      .eq('club_id', clubId)
+      .eq('athlete_id', athlete.id)
+      .eq('status', 'active')
+      .maybeSingle()
+
+    if (activeSub) {
+      const todayStr = new Date().toISOString().split('T')[0]
+      const { data: paymentRows } = await supabase
+        .from('payments')
+        .select('due_date, status')
+        .eq('club_id', clubId)
+        .eq('athlete_id', athlete.id)
+        .in('status', ['pending', 'overdue'])
+
+      const late = (paymentRows ?? []).filter((p) => {
+        if (!p.due_date) return p.status === 'overdue'
+        if (p.status === 'overdue') return true
+        if (p.status === 'pending' && p.due_date < todayStr) return true
+        return false
+      })
+
+      if (late.length > 0) {
+        const daysList = late.map((p) => {
+          const due = p.due_date ?? todayStr
+          const raw = calendarDaysOverdue(due, todayStr)
+          return p.status === 'overdue' ? Math.max(1, raw) : raw
+        })
+        const daysPastDue = Math.max(...daysList)
+        delinquency.isLate = daysPastDue >= 1
+        delinquency.daysPastDue = daysPastDue
+        delinquency.hardBlocked = daysPastDue >= ATHLETE_OVERDUE_HARD_BLOCK_DAYS
+        delinquency.message = delinquency.hardBlocked
+          ? 'Para poder seguir inscrito debes regularizar tu suscripción.'
+          : `Tienes un pago atrasado (${daysPastDue} ${daysPastDue === 1 ? 'día' : 'días'}). Regularízalo para evitar restricciones en tu acceso.`
+      }
+    }
+  }
+
+  return {
+    awaitingAdminPaymentConfirmation,
+    delinquency,
+  }
+}
 
 /**
  * Save athlete profile with sport-specific technical_meta.

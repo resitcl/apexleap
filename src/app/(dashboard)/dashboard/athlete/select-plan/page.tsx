@@ -1,15 +1,22 @@
 export const dynamic = "force-dynamic"
 
 import { redirect } from "next/navigation"
-import { getVisiblePlans, getMySubscriptionStatus } from "@/lib/actions/athlete-enrollment"
+import {
+  getVisiblePlans,
+  getMySubscriptionStatus,
+  getAthleteFinancialAccessState,
+} from "@/lib/actions/athlete-enrollment"
 import { PlanSelectionClient } from "@/components/athlete/PlanSelectionClient"
 
 export default async function SelectPlanPage() {
-  // If already subscribed, go to portal
+  // Si ya tiene suscripción activa y no está en bloqueo por mora, volver al portal
   try {
     const status = await getMySubscriptionStatus()
-    if (status.hasActiveSubscription) redirect("/dashboard/athlete")
-  } catch { /* continue — new user without athlete profile yet */ }
+    const financial = await getAthleteFinancialAccessState()
+    if (status.hasActiveSubscription && !financial.delinquency.hardBlocked) {
+      redirect("/dashboard/athlete")
+    }
+  } catch { /* continue — nuevo usuario sin perfil atleta */ }
 
   let plans: Awaited<ReturnType<typeof getVisiblePlans>> = []
   try {
