@@ -7,7 +7,7 @@ import {
   Clock, Loader2, ChevronRight,
   Banknote, Building2, Smartphone, Wallet, Landmark, MessageCircle,
 } from 'lucide-react'
-import { submitSelfPayment, uploadTransferReceipt } from '@/lib/actions/athlete-enrollment'
+import { createFlowCheckoutForSelfPayment, submitSelfPayment, uploadTransferReceipt } from '@/lib/actions/athlete-enrollment'
 import { toast } from 'sonner'
 import { buildWhatsAppTransferLink } from '@/lib/whatsapp-transfer'
 import { TRANSFER_RECEIPT_MAX_BYTES } from '@/lib/constants'
@@ -61,6 +61,14 @@ export function PayNowModal({ planName, planPrice, planCycle, bankInfo, enabledM
   const [receiptFile, setReceiptFile] = useState<File | null>(null)
   const [receiptPreview, setReceiptPreview] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const mountedRef = useRef(false)
+
+  useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+    }
+  }, [])
 
   useEffect(() => {
     if (selectedMethod !== 'transfer') {
@@ -93,17 +101,22 @@ export function PayNowModal({ planName, planPrice, planCycle, bankInfo, enabledM
       return
     }
 
-    setLoading(true)
+    if (mountedRef.current) setLoading(true)
     try {
       if (selectedMethod === 'flow') {
-        if (!flowCheckoutUrl) {
-          throw new Error('Flow está habilitado, pero falta configurar la URL de checkout en Ajustes de Pagos.')
+        try {
+          const flow = await createFlowCheckoutForSelfPayment()
+          if (!flow?.checkoutUrl) {
+            throw new Error('No se pudo generar el checkout de Flow.')
+          }
+          window.location.href = flow.checkoutUrl
+          return
+        } catch (flowErr) {
+          // Fallback legacy: link manual configurado en ajustes.
+          if (!flowCheckoutUrl) throw flowErr
+          await submitSelfPayment({ paymentMethod: selectedMethod })
+          window.location.href = flowCheckoutUrl
         }
-        // Dejamos registro pendiente en ApexLeap y luego redirigimos al checkout externo.
-        await submitSelfPayment({
-          paymentMethod: selectedMethod,
-        })
-        window.location.href = flowCheckoutUrl
         return
       }
 
@@ -128,7 +141,7 @@ export function PayNowModal({ planName, planPrice, planCycle, bankInfo, enabledM
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Error al procesar el pago')
     } finally {
-      setLoading(false)
+      if (mountedRef.current) setLoading(false)
     }
   }
 

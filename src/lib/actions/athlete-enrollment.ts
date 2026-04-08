@@ -16,6 +16,7 @@ import {
   assertPaymentMethodEnabled,
   subscriptionRequiresPaymentConfirmation,
 } from '@/lib/payment-methods'
+import { createFlowPayment, resolveFlowConfigFromSettings } from '@/lib/flow'
 import { TRANSFER_RECEIPT_MAX_BYTES } from '@/lib/constants'
 import {
   ATHLETE_OVERDUE_HARD_BLOCK_DAYS,
@@ -1343,4 +1344,114 @@ export async function submitSelfPayment(params: {
   revalidatePath('/dashboard/payments')
 
   return { success: true, isTransfer: params.paymentMethod === 'transfer' }
+}
+
+export async function createFlowCheckoutForSelfPayment() {
+  const { userId } = await auth()
+  if (!userId) throw new Error('No autorizado')
+
+  const clubId = await getClubId()
+  const supabase = createAdminClient()
+
+  const clerk = await clerkClient()
+  const user = await clerk.users.getUser(userId)
+  const email = user.emailAddresses[0]?.emailAddress ?? null
+  if (!email) throw new Error('No se encontró un email asociado a tu cuenta')
+
+  const { data: athlete } = await supabase
+    .from('athletes')
+    .select('id')
+    .eq('club_id', clubId)
+    .eq('email', email)
+    .maybeSingle()
+  if (!athlete) throw new Error('No se encontró tu perfil de atleta')
+
+  const { data: clubRow } = await supabase
+    .from('clubs')
+    .select('settings')
+    .eq('id', clubId)
+    .single()
+  const settings = (clubRow?.settings ?? {}) as Record<string, unknown>
+  const enabledIds = getEnabledPaymentMethodIdsFromClubSettings(settings)
+  assertPaymentMethodEnabled(enabledIds, 'flow')
+
+  const flowConfig = resolveFlowConfigFromSettings(settings)
+  if (!flowConfig) {
+    throw new Error('Flow no está configurado con credenciales API. Configura API Key + Secret Key.')
+  }
+
+  const { data: subscription } = await supabase
+    .from('subscriptions')
+    .select('id, plan_id, billing_anchor_day, plans(id, name, price, billing_cycle)')
+    .eq('club_id', clubId)
+    .eq('athlete_id', athlete.id)
+    .eq('status', 'active')
+    .maybeSingle()
+  if (!subscription) throw new Error('No se encontró una suscripción activa. Contacta al club.')
+
+  const plansData = subscription.plans as unknown
+  const plan = Array.isArray(plansData)
+    ? plansData[0]
+    : (plansData as { id: string; name: string; price: number; billing_cycle: string } | null)
+  if (!plan) throw new Error('No se encontró el plan asociado a tu suscripción')
+
+  const now = new Date()
+  const todayStr = now.toISOString().split('T')[0]
+  const cycle = plan.billing_cycle as BillingCycle
+  const anchorDay = subscription.billing_anchor_day ?? getBillingAnchorDay(now)
+  const { periodStart, periodEnd } = calculatePeriodStartForPayment(anchorDay, now, cycle)
+  const periodStartStr = periodStart.toISOString().split('T')[0]
+  const periodEndStr = periodEnd ? periodEnd.toISOString().split('T')[0] : null
+  const month = periodStart.toLocaleDateString('es-CL', { month: 'long', year: 'numeric' })
+  const concept = `${plan.name} – ${month}`
+
+  const { data: payment, error: paymentErr } = await supabase
+    .from('payments')
+    .insert({
+      club_id: clubId,
+      athlete_id: athlete.id,
+      plan_id: plan.id,
+      subscription_id: subscription.id,
+      concept,
+      amount: plan.price,
+      status: 'pending',
+      due_date: todayStr,
+      payment_method: 'flow',
+      period_start: periodStartStr,
+      period_end: periodEndStr,
+    })
+    .select('id')
+    .single()
+  if (paymentErr || !payment) throw new Error('No se pudo crear el pago pendiente para Flow')
+
+  const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || 'http://localhost:3000').replace(/\/$/, '')
+  const commerceOrder = `pay_${payment.id}`
+  try {
+    const created = await createFlowPayment(flowConfig, {
+      commerceOrder,
+      subject: concept.slice(0, 90),
+      currency: 'CLP',
+      amount: Number(plan.price),
+      email,
+      urlConfirmation: `${baseUrl}/api/webhooks/flow`,
+      urlReturn: `${baseUrl}/api/payments/flow/return`,
+    })
+
+    await supabase
+      .from('payments')
+      .update({
+        transaction_id: created.token,
+        notes: `Flow order: ${commerceOrder}`,
+      })
+      .eq('id', payment.id)
+      .eq('club_id', clubId)
+
+    revalidatePath('/dashboard/athlete/payments')
+    revalidatePath('/dashboard/payments')
+
+    return { checkoutUrl: created.checkoutUrl }
+  } catch (e) {
+    await supabase.from('payments').delete().eq('id', payment.id).eq('club_id', clubId)
+    throw e
+  }
 }

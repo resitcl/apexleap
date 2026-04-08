@@ -22,13 +22,19 @@ type GatewayCfg = {
   api_key?: string
   secret_key?: string
   commerce_code?: string
+  checkout_url?: string
+  checkoutUrl?: string
 }
 
 function gatewayConfigured(id: OnlineGatewayId, g?: GatewayCfg): boolean {
   if (!g?.enabled) return false
   switch (id) {
     case 'flow':
-      return nonEmpty(g.api_key) && nonEmpty(g.secret_key)
+      return (
+        (nonEmpty(g.api_key) && nonEmpty(g.secret_key)) ||
+        nonEmpty(g.checkout_url) ||
+        nonEmpty(g.checkoutUrl)
+      )
     case 'webpay':
       return nonEmpty(g.commerce_code) && nonEmpty(g.api_key) && nonEmpty(g.secret_key)
     case 'mercadopago':
