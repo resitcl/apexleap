@@ -16,6 +16,7 @@ import { PayNowButton } from "@/components/athlete/PayNowButton"
 import { getClubSettings } from "@/lib/actions/settings"
 import { getEnabledPaymentMethodIdsFromClubSettings } from "@/lib/payment-methods"
 import { AthleteSectionHeader } from "@/components/athlete/AthleteSectionHeader"
+import { FlowPaymentBanner } from "@/components/athlete/FlowPaymentBanner"
 
 const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   paid:      { label: "Pagado",    variant: "default" },
@@ -109,6 +110,8 @@ export default async function AthletePaymentsPage() {
         title="Mis pagos"
         description="Estado de tu plan, historial de transacciones y cuotas mensuales pendientes."
       />
+
+      <FlowPaymentBanner />
 
       {/* Subscription status banner */}
       {sub && plan ? (

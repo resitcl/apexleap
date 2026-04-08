@@ -8,9 +8,23 @@ function appBaseUrl(req: Request) {
   return `${u.protocol}//${u.host}`
 }
 
-export async function GET(req: Request) {
+async function handleReturn(req: Request) {
   const url = new URL(req.url)
-  const token = url.searchParams.get('token') ?? ''
+  let token = url.searchParams.get('token') ?? ''
+
+  if (!token) {
+    try {
+      const contentType = req.headers.get('content-type') || ''
+      if (contentType.includes('application/x-www-form-urlencoded') || contentType.includes('multipart/form-data')) {
+        const form = await req.formData()
+        token = String(form.get('token') ?? '')
+      } else {
+        const body = (await req.json().catch(() => ({}))) as Record<string, unknown>
+        token = typeof body.token === 'string' ? body.token : ''
+      }
+    } catch { /* use empty token */ }
+  }
+
   let paid = false
   try {
     const result = await reconcileFlowPaymentByToken(token)
@@ -20,7 +34,15 @@ export async function GET(req: Request) {
   }
 
   const target = new URL('/dashboard/athlete/payments', appBaseUrl(req))
-  target.searchParams.set('flow', paid ? 'paid' : 'pending')
-  return NextResponse.redirect(target)
+  target.searchParams.set('flow', paid ? 'paid' : 'failed')
+  if (token) target.searchParams.set('token', token)
+  return NextResponse.redirect(target, { status: 303 })
 }
 
+export async function GET(req: Request) {
+  return handleReturn(req)
+}
+
+export async function POST(req: Request) {
+  return handleReturn(req)
+}
