@@ -1,5 +1,12 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
+import type { NextRequest, NextFetchEvent } from 'next/server'
+
+/* ── Rutas que Clerk NO debe tocar en absoluto ── */
+const BYPASS_CLERK_PREFIXES = [
+  '/api/payments/flow',
+  '/api/webhooks/flow',
+]
 
 const isPublicRoute = createRouteMatcher([
   '/',
@@ -18,7 +25,7 @@ const KNOWN_ROOTS = new Set([
   'super-admin', 'api', 'check-in', '_next', 'favicon.ico',
 ])
 
-export default clerkMiddleware(async (auth, request) => {
+const clerkMw = clerkMiddleware(async (auth, request) => {
   const { pathname } = request.nextUrl
 
   const nextWithPathname = () => {
@@ -27,7 +34,6 @@ export default clerkMiddleware(async (auth, request) => {
     return NextResponse.next({ request: { headers: requestHeaders } })
   }
 
-  // /[slug] → /[slug]/signin  (club entry point, antes de auth check)
   const segments = pathname.split('/').filter(Boolean)
   if (segments.length === 1 && !KNOWN_ROOTS.has(segments[0])) {
     const url = request.nextUrl.clone()
@@ -41,6 +47,16 @@ export default clerkMiddleware(async (auth, request) => {
 
   return nextWithPathname()
 })
+
+export default function middleware(request: NextRequest, event: NextFetchEvent) {
+  const { pathname } = request.nextUrl
+
+  if (BYPASS_CLERK_PREFIXES.some((p) => pathname.startsWith(p))) {
+    return NextResponse.next()
+  }
+
+  return clerkMw(request, event)
+}
 
 export const config = {
   matcher: [
