@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { MediaUploadButton } from "@/components/media/MediaUploadModal"
 import { DeleteMediaButton } from "@/components/media/DeleteMediaButton"
 import { LandingFeaturedButton } from "@/components/media/LandingFeaturedButton"
+import { MediaPlayerDialog } from "@/components/media/MediaPlayerDialog"
 import {
   Film, Image, ExternalLink, FileText, PlayCircle, Video as VideoIcon,
   Calendar, Star, Eye, ChevronLeft, ChevronRight, Search, Filter, Sparkles,
@@ -51,42 +52,44 @@ function MediaHubCard({ item }: { item: MediaItemRow }) {
 
   return (
     <div className="group rounded-2xl bg-[#111111] border border-white/[0.04] overflow-hidden hover:border-primary/30 transition-all">
-      <div className="relative aspect-video bg-black/50 overflow-hidden">
-        {thumb ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={thumb}
-            alt={item.title as string}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-white/[0.02] to-white/[0.05]">
-            <TypeIcon className="w-12 h-12 text-muted-foreground/20" />
-          </div>
-        )}
-        {item.type === 'video' && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/40 transition-colors">
-            <PlayCircle className="w-14 h-14 text-white/80 drop-shadow-lg group-hover:scale-110 transition-transform" />
-          </div>
-        )}
-        <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
-          <Badge className="text-[9px] uppercase font-black tracking-wider bg-black/70 text-white border-0 backdrop-blur-md px-2 py-1">
-            {catMeta.emoji} {catMeta.label}
-          </Badge>
-          {isFeatured && (
-            <Badge className="text-[9px] uppercase font-black tracking-wider bg-amber-500/90 text-black border-0 px-2 py-1">
-              <Star className="w-3 h-3 mr-1" /> Destacado
-            </Badge>
+      <MediaPlayerDialog title={item.title as string} url={item.url as string}>
+        <button type="button" className="relative aspect-video bg-black/50 overflow-hidden w-full text-left cursor-pointer">
+          {thumb ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={thumb}
+              alt={item.title as string}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-white/[0.02] to-white/[0.05]">
+              <TypeIcon className="w-12 h-12 text-muted-foreground/20" />
+            </div>
           )}
-        </div>
-        {mediaDate && (
-          <div className="absolute bottom-3 right-3">
-            <span className="text-[10px] font-bold bg-black/70 text-white/80 backdrop-blur-md px-2 py-1 rounded">
-              {new Date(mediaDate + 'T12:00:00').toLocaleDateString('es-CL', { day: 'numeric', month: 'short' })}
-            </span>
+          {item.type === 'video' && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/40 transition-colors">
+              <PlayCircle className="w-14 h-14 text-white/80 drop-shadow-lg group-hover:scale-110 transition-transform" />
+            </div>
+          )}
+          <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
+            <Badge className="text-[9px] uppercase font-black tracking-wider bg-black/70 text-white border-0 backdrop-blur-md px-2 py-1">
+              {catMeta.emoji} {catMeta.label}
+            </Badge>
+            {isFeatured && (
+              <Badge className="text-[9px] uppercase font-black tracking-wider bg-amber-500/90 text-black border-0 px-2 py-1">
+                <Star className="w-3 h-3 mr-1" /> Destacado
+              </Badge>
+            )}
           </div>
-        )}
-      </div>
+          {mediaDate && (
+            <div className="absolute bottom-3 right-3">
+              <span className="text-[10px] font-bold bg-black/70 text-white/80 backdrop-blur-md px-2 py-1 rounded">
+                {new Date(mediaDate + 'T12:00:00').toLocaleDateString('es-CL', { day: 'numeric', month: 'short' })}
+              </span>
+            </div>
+          )}
+        </button>
+      </MediaPlayerDialog>
       <div className="p-4">
         <div className="flex items-start justify-between gap-2 mb-2">
           <div className="flex-1 min-w-0">
