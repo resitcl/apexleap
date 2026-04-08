@@ -1,13 +1,18 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
+import Image from 'next/image'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
-import { updateClubSettings } from '@/lib/actions/settings'
+import { updateClubSettings, uploadClubLogo } from '@/lib/actions/settings'
+import { useBrandPrimaryFromClubSettings } from '@/lib/club-branding'
+import { CLUB_LOGO_MAX_BYTES } from '@/lib/constants'
+import { Upload } from 'lucide-react'
 
 const SPORT_TYPES = [
   'Jiu-Jitsu', 'Muay Thai', 'Boxeo', 'MMA', 'Karate', 'Taekwondo',
@@ -28,6 +33,8 @@ interface Props {
     sport_type?: string
     logo_url?: string
     primary_color?: string
+    /** Preferencia de marca en UI: se lee de `settings` si existe */
+    settings?: unknown
     country?: string
     city?: string
     address?: string
@@ -39,6 +46,8 @@ interface Props {
 }
 
 export function ClubSettingsForm({ defaultValues }: Props) {
+  const logoInputRef = useRef<HTMLInputElement>(null)
+  const [logoUploading, setLogoUploading] = useState(false)
   const [loading, setLoading] = useState(false)
   const [form, setForm] = useState({
     name:          defaultValues?.name          ?? '',
@@ -46,7 +55,8 @@ export function ClubSettingsForm({ defaultValues }: Props) {
     description:   defaultValues?.description   ?? '',
     sport_type:    defaultValues?.sport_type    ?? '',
     logo_url:      defaultValues?.logo_url      ?? '',
-    primary_color: defaultValues?.primary_color ?? '#6366f1',
+    primary_color: defaultValues?.primary_color ?? '#34d399',
+    use_brand_primary_for_ui: useBrandPrimaryFromClubSettings(defaultValues?.settings),
     country:       defaultValues?.country       ?? 'Chile',
     city:          defaultValues?.city          ?? '',
     address:       defaultValues?.address       ?? '',
@@ -58,6 +68,31 @@ export function ClubSettingsForm({ defaultValues }: Props) {
 
   function set(key: string, value: string) {
     setForm((p) => ({ ...p, [key]: value }))
+  }
+
+  async function handleLogoFile(file: File | undefined) {
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      toast.error('Selecciona un archivo de imagen')
+      return
+    }
+    if (file.size > CLUB_LOGO_MAX_BYTES) {
+      toast.error(`La imagen no puede superar ${CLUB_LOGO_MAX_BYTES / (1024 * 1024)} MB`)
+      return
+    }
+    setLogoUploading(true)
+    try {
+      const fd = new FormData()
+      fd.set('file', file)
+      const url = await uploadClubLogo(fd)
+      setForm((p) => ({ ...p, logo_url: url }))
+      toast.success('Logo subido correctamente')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error al subir el logo')
+    } finally {
+      setLogoUploading(false)
+      if (logoInputRef.current) logoInputRef.current.value = ''
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -72,6 +107,7 @@ export function ClubSettingsForm({ defaultValues }: Props) {
         sport_type: form.sport_type || undefined,
         logo_url: form.logo_url || undefined,
         primary_color: form.primary_color || undefined,
+        use_brand_primary_for_ui: form.use_brand_primary_for_ui,
         country: form.country || undefined,
         city: form.city || undefined,
         address: form.address || undefined,
@@ -95,7 +131,100 @@ export function ClubSettingsForm({ defaultValues }: Props) {
         <CardHeader>
           <CardTitle className="text-base">Identidad del Club</CardTitle>
         </CardHeader>
-        <CardContent className="grid gap-4">
+        <CardContent className="grid gap-6">
+          <div className="rounded-xl border border-border bg-muted/30 px-4 py-4 space-y-4">
+            <div>
+              <p className="text-sm font-semibold">Marca del club</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Logo y color en el panel, portal del atleta, acceso <span className="font-mono">/[slug]/signin</span> y landing. El interruptor solo afecta botones destacados, anillos de foco y el estilo activo del menú (verde ApexLeap vs tu color).
+              </p>
+            </div>
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div className="sm:col-span-2 space-y-3">
+                <Label>Logo</Label>
+                <div className="flex flex-wrap items-center gap-4">
+                  <div className="w-16 h-16 rounded-xl border border-border bg-card overflow-hidden flex items-center justify-center shrink-0">
+                    {form.logo_url ? (
+                      <Image
+                        src={form.logo_url}
+                        alt="Logo del club"
+                        width={64}
+                        height={64}
+                        className="w-full h-full object-cover"
+                        unoptimized
+                      />
+                    ) : (
+                      <span className="text-[10px] text-muted-foreground text-center px-1">Sin logo</span>
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-2 min-w-[200px]">
+                    <input
+                      ref={logoInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/gif"
+                      className="hidden"
+                      onChange={(e) => handleLogoFile(e.target.files?.[0])}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="w-fit gap-2"
+                      disabled={logoUploading}
+                      onClick={() => logoInputRef.current?.click()}
+                    >
+                      <Upload className="w-4 h-4" />
+                      {logoUploading ? 'Subiendo…' : 'Subir imagen'}
+                    </Button>
+                    <p className="text-xs text-muted-foreground">
+                      PNG, JPEG o WebP · máx. {CLUB_LOGO_MAX_BYTES / (1024 * 1024)} MB · cuadrada recomendada.
+                    </p>
+                  </div>
+                </div>
+                <div className="space-y-1.5 pt-1">
+                  <Label htmlFor="logo_url">URL del logo (opcional)</Label>
+                  <Input
+                    id="logo_url"
+                    type="url"
+                    value={form.logo_url}
+                    onChange={(e) => set('logo_url', e.target.value)}
+                    placeholder="https://… si ya está alojado fuera de ApexLeap"
+                  />
+                </div>
+              </div>
+              <div className="sm:col-span-2 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-end gap-4">
+                  <div className="space-y-1.5 flex-1">
+                    <Label htmlFor="primary_color">Color primario</Label>
+                    <div className="flex gap-2 items-center">
+                      <input
+                        type="color"
+                        id="primary_color"
+                        value={form.primary_color}
+                        onChange={(e) => set('primary_color', e.target.value)}
+                        className="w-10 h-10 rounded-md border border-input cursor-pointer p-1 shrink-0"
+                      />
+                      <Input value={form.primary_color} onChange={(e) => set('primary_color', e.target.value)} className="flex-1 font-mono" />
+                    </div>
+                  </div>
+                  <div className="rounded-xl border border-border bg-background/80 px-3 py-3 flex flex-row items-center justify-between gap-4 sm:min-w-[280px]">
+                    <div className="space-y-0.5 min-w-0">
+                      <p className="text-sm font-semibold leading-tight">Color en la interfaz</p>
+                      <p className="text-[11px] text-muted-foreground leading-snug">
+                        Actívalo para usar este color (y su degradado en el menú) en lugar del verde estándar.
+                      </p>
+                    </div>
+                    <Switch
+                      checked={form.use_brand_primary_for_ui}
+                      onCheckedChange={(v) => setForm((p) => ({ ...p, use_brand_primary_for_ui: v }))}
+                      aria-label="Usar color de marca en botones y menú"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div className="grid sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label htmlFor="name">Nombre *</Label>
@@ -120,32 +249,17 @@ export function ClubSettingsForm({ defaultValues }: Props) {
             />
           </div>
 
-          <div className="grid sm:grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="sport_type">Deporte / Disciplina</Label>
-              <select
-                id="sport_type"
-                value={form.sport_type}
-                onChange={(e) => set('sport_type', e.target.value)}
-                className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-              >
-                <option value="">Seleccionar...</option>
-                {SPORT_TYPES.map((s) => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="primary_color">Color primario</Label>
-              <div className="flex gap-2 items-center">
-                <input
-                  type="color"
-                  id="primary_color"
-                  value={form.primary_color}
-                  onChange={(e) => set('primary_color', e.target.value)}
-                  className="w-10 h-10 rounded-md border border-input cursor-pointer p-1"
-                />
-                <Input value={form.primary_color} onChange={(e) => set('primary_color', e.target.value)} className="flex-1 font-mono" />
-              </div>
-            </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="sport_type">Deporte / Disciplina</Label>
+            <select
+              id="sport_type"
+              value={form.sport_type}
+              onChange={(e) => set('sport_type', e.target.value)}
+              className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            >
+              <option value="">Seleccionar...</option>
+              {SPORT_TYPES.map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
           </div>
         </CardContent>
       </Card>

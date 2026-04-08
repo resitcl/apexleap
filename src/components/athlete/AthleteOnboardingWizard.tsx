@@ -12,7 +12,7 @@ import {
   PartyPopper, ChevronRight, Upload, Clock, ImageIcon, MessageCircle,
 } from 'lucide-react'
 import { enrollWithPayment, uploadTransferReceipt } from '@/lib/actions/athlete-enrollment'
-import type { OnboardingData } from '@/lib/actions/athlete-enrollment'
+import type { OnboardingData } from '@/lib/athlete-enrollment-shared'
 import type { SportConfig } from '@/lib/sport-fields'
 import { getEnabledPaymentMethodIdsFromClubSettings } from '@/lib/payment-methods'
 import { buildWhatsAppTransferLink } from '@/lib/whatsapp-transfer'

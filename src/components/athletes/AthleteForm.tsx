@@ -13,7 +13,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { createAthlete, updateAthlete } from '@/lib/actions/athletes'
 import type { AthleteInput } from '@/lib/actions/athletes'
-import { getSportConfig } from '@/lib/sport-fields'
+import {
+  cleanTournamentHistoryEntries,
+  getSportConfig,
+  isMartialArtsAcademySport,
+  parseTournamentHistory,
+  type TournamentHistoryEntry,
+} from '@/lib/sport-fields'
+import { MartialArtsTournamentHistory } from '@/components/athletes/MartialArtsTournamentHistory'
 import { SportSpecificFields } from '@/components/athletes/SportSpecificFields'
 
 type CategoryOption = { id: string; name: string; color?: string | null }
@@ -50,7 +57,15 @@ export function AthleteForm({ athleteId, defaultValues, categories = [], sportTy
   const [loading, setLoading] = useState(false)
   const isEditing = !!athleteId
   const sportConfig = getSportConfig(sportType)
-  const [technicalMeta, setTechnicalMeta] = useState<TechnicalMeta>(defaultTechnicalMeta ?? {})
+  const showMartialArtsTournaments = isMartialArtsAcademySport(sportType ?? undefined)
+  const [technicalMeta, setTechnicalMeta] = useState<TechnicalMeta>(() => {
+    const m = { ...(defaultTechnicalMeta ?? {}) }
+    if (showMartialArtsTournaments) delete m.tournament_history
+    return m
+  })
+  const [tournamentEntries, setTournamentEntries] = useState<TournamentHistoryEntry[]>(() =>
+    showMartialArtsTournaments ? parseTournamentHistory(defaultTechnicalMeta ?? {}) : []
+  )
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -77,7 +92,15 @@ export function AthleteForm({ athleteId, defaultValues, categories = [], sportTy
     try {
       const cleanMeta: TechnicalMeta = {}
       for (const [k, v] of Object.entries(technicalMeta)) {
+        if (k === 'tournament_history') continue
         if (v !== null && v !== undefined && v !== '') cleanMeta[k] = v
+      }
+
+      if (showMartialArtsTournaments) {
+        const tournamentsClean = cleanTournamentHistoryEntries(tournamentEntries)
+        if (tournamentsClean) cleanMeta.tournament_history = tournamentsClean
+        delete cleanMeta.competition_record
+        delete cleanMeta.fights
       }
 
       const input: AthleteInput = {
@@ -106,7 +129,7 @@ export function AthleteForm({ athleteId, defaultValues, categories = [], sportTy
   }
 
   return (
-    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+    <form id="athlete-edit-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
       {/* Datos Personales */}
       <Card>
         <CardHeader>
@@ -215,6 +238,33 @@ export function AthleteForm({ athleteId, defaultValues, categories = [], sportTy
           )}
         </CardContent>
       </Card>
+
+      {showMartialArtsTournaments && sportType && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Torneos y logros competitivos</CardTitle>
+            <p className="text-sm text-muted-foreground font-normal">
+              Historial por federación o circuito. Aplicable a academias de artes marciales (no clubes de equipo).
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-0">
+            <MartialArtsTournamentHistory
+              sportType={sportType}
+              entries={tournamentEntries}
+              onChange={setTournamentEntries}
+            />
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-6 mt-6 border-t border-border/70">
+              <p className="text-xs text-muted-foreground max-w-xl">
+                Guarda los torneos y resultados en el servidor. Este botón envía <strong className="text-foreground/90">todo el formulario</strong>{' '}
+                (datos personales, disciplina y torneos).
+              </p>
+              <Button type="submit" disabled={loading} className="shrink-0">
+                {loading ? 'Guardando...' : isEditing ? 'Guardar torneos y alumno' : 'Guardar y crear alumno'}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Contacto de Emergencia */}
       <Card>

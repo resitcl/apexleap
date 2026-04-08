@@ -19,6 +19,7 @@ import {
   Clock,
   ClipboardList,
 } from "lucide-react"
+import { AthleteSectionHeader } from "@/components/athlete/AthleteSectionHeader"
 
 const TYPE_LABELS: Record<string, string> = {
   tournament: "Torneo", 
@@ -93,20 +94,18 @@ export default async function AthleteRosterDetailPage({ params }: PageProps) {
 
   return (
     <div className="space-y-8 pb-12 pt-1 max-w-3xl mx-auto">
-      {/* Header */}
-      <div className="flex items-start gap-4">
+      <div className="flex items-start gap-2">
         <Link href="/dashboard/athlete/rosters">
-          <Button variant="ghost" size="icon" className="shrink-0 mt-1">
+          <Button variant="ghost" size="icon" className="shrink-0 mt-2">
             <ArrowLeft className="w-5 h-5" />
           </Button>
         </Link>
-        <div>
-          <h1 className="text-4xl md:text-5xl font-black tracking-tighter uppercase leading-none text-foreground flex items-center gap-3 flex-wrap">
-            <ClipboardList className="w-10 h-10 text-primary" /> Mi citación
-          </h1>
-          <p className="text-sm md:text-base text-muted-foreground/80 mt-3 max-w-xl font-medium">
-            Detalles de tu convocatoria y asignación para el encuentro.
-          </p>
+        <div className="flex-1 min-w-0">
+          <AthleteSectionHeader
+            icon={ClipboardList}
+            title="Mi citación"
+            description="Detalles de tu convocatoria y asignación para el encuentro."
+          />
         </div>
       </div>
 

@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { AthleteProfileOnboarding } from './AthleteProfileOnboarding'
-import type { OnboardingData } from '@/lib/actions/athlete-enrollment'
+import type { OnboardingData } from '@/lib/athlete-enrollment-shared'
 import type { SportConfig } from '@/lib/sport-fields'
 
 interface Props {

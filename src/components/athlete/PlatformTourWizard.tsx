@@ -11,7 +11,7 @@ import {
   Loader2, Home, Swords, Trophy,
 } from 'lucide-react'
 import { markTourCompleted } from '@/lib/actions/athlete-enrollment'
-import type { OnboardingData } from '@/lib/actions/athlete-enrollment'
+import type { OnboardingData } from '@/lib/athlete-enrollment-shared'
 
 interface Props {
   data: OnboardingData

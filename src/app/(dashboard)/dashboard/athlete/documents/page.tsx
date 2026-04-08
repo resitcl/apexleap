@@ -6,6 +6,7 @@ import { getMySubscriptionStatus } from "@/lib/actions/athlete-enrollment"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { FileText, CheckCircle, AlertTriangle, Clock, DownloadCloud } from "lucide-react"
+import { AthleteSectionHeader } from "@/components/athlete/AthleteSectionHeader"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { getClubId } from "@/lib/actions/club-context"
 
@@ -43,15 +44,11 @@ export default async function AthleteDocumentsPage() {
 
   return (
     <div className="space-y-8 pb-12 pt-1">
-      {/* Header */}
-      <div>
-        <h1 className="text-4xl md:text-5xl font-black tracking-tighter uppercase leading-none text-foreground flex items-center gap-3">
-          <FileText className="w-10 h-10 text-primary" /> Mis Documentos
-        </h1>
-        <p className="text-sm md:text-base text-muted-foreground/80 mt-3 max-w-xl font-medium">
-          Archivos, fichas médicas y contratos asociados a tu cuenta deportiva en el club.
-        </p>
-      </div>
+      <AthleteSectionHeader
+        icon={FileText}
+        title="Mis documentos"
+        description="Archivos, fichas médicas y contratos asociados a tu cuenta deportiva en el club."
+      />
 
       {docsList.length === 0 ? (
         <Card className="rounded-2xl border-dashed border-white/[0.05] bg-muted/5">

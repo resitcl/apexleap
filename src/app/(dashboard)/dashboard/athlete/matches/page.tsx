@@ -6,6 +6,7 @@ import { getMyMatches } from "@/lib/actions/athlete-enrollment"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Swords, Calendar, MapPin, Trophy, TrendingUp, TrendingDown, Minus } from "lucide-react"
+import { AthleteSectionHeader } from "@/components/athlete/AthleteSectionHeader"
 
 export default async function AthleteMatchesPage() {
   const hasClub = await checkUserHasClub().catch(() => false)
@@ -39,15 +40,11 @@ export default async function AthleteMatchesPage() {
 
   return (
     <div className="space-y-8 pb-12 pt-1">
-      {/* Header */}
-      <div>
-        <h1 className="text-4xl md:text-5xl font-black tracking-tighter uppercase leading-none text-foreground flex items-center gap-3">
-          <Swords className="w-10 h-10 text-primary" /> Mis Partidos
-        </h1>
-        <p className="text-sm md:text-base text-muted-foreground/80 mt-3 max-w-xl font-medium">
-          Historial oficial de encuentros, torneos y resultados en los que has participado.
-        </p>
-      </div>
+      <AthleteSectionHeader
+        icon={Swords}
+        title="Mis partidos"
+        description="Historial oficial de encuentros, torneos y resultados en los que has participado."
+      />
 
       {/* Record summary */}
       {finished.length > 0 && (

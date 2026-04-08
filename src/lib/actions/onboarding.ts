@@ -2,6 +2,7 @@
 
 import { auth } from '@clerk/nextjs/server'
 import { redirect } from 'next/navigation'
+import { useBrandPrimaryFromClubSettings } from '@/lib/club-branding'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { z } from 'zod'
 
@@ -128,11 +129,22 @@ export async function getClubBySlug(slug: string) {
   const supabase = createAdminClient()
   const { data, error } = await supabase
     .from('clubs')
-    .select('id, name, slug, sport_type, city, country, is_active')
+    .select('id, name, slug, sport_type, city, country, is_active, logo_url, primary_color, settings')
     .eq('slug', slug.trim().toLowerCase())
     .single()
 
   if (error || !data) return null
   if (!data.is_active) return null
-  return data
+  return {
+    id: data.id,
+    name: data.name,
+    slug: data.slug,
+    sport_type: data.sport_type,
+    city: data.city,
+    country: data.country,
+    is_active: data.is_active,
+    logo_url: data.logo_url,
+    primary_color: data.primary_color,
+    use_brand_primary_for_ui: useBrandPrimaryFromClubSettings(data.settings),
+  }
 }

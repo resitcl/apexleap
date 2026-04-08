@@ -283,7 +283,7 @@ export default async function AthletesPage({ searchParams }: PageProps) {
             )}
             <ExportAthletesButton athletes={allAthletes} />
             <Link href="/dashboard/athletes/new">
-              <Button className="gap-2 h-10 px-5 rounded-xl font-black uppercase tracking-widest text-xs bg-emerald-400 text-black shadow-[0_0_15px_rgba(52,211,153,0.25)] hover:bg-emerald-500">
+              <Button className="gap-2 h-10 px-5 rounded-xl font-black uppercase tracking-widest text-xs bg-primary text-primary-foreground shadow-lg shadow-primary/25 hover:bg-primary/90">
                 <UserPlus className="w-4 h-4" />
                 Nuevo Alumno
               </Button>
@@ -303,7 +303,7 @@ export default async function AthletesPage({ searchParams }: PageProps) {
               <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70">Activos</p>
             </div>
             <div>
-              <p className="text-4xl font-black tracking-tight text-emerald-400 leading-none">{statusCounts.active}</p>
+              <p className="text-4xl font-black tracking-tight text-primary leading-none">{statusCounts.active}</p>
               <p className="text-[13px] text-muted-foreground/50 mt-2 font-normal">alumnos activos</p>
             </div>
           </div>
@@ -376,7 +376,7 @@ export default async function AthletesPage({ searchParams }: PageProps) {
                   <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70">Con Plan</p>
                 </div>
                 <div>
-                  <p className={`text-4xl font-black tracking-tight leading-none ${pct >= 80 ? 'text-emerald-400' : pct >= 60 ? 'text-amber-500' : 'text-red-500'}`}>{pct}%</p>
+                  <p className={`text-4xl font-black tracking-tight leading-none ${pct >= 80 ? 'text-primary' : pct >= 60 ? 'text-amber-500' : 'text-red-500'}`}>{pct}%</p>
                   <p className="text-[13px] text-muted-foreground/50 mt-2 font-normal">{withSub}/{active.length} activos</p>
                 </div>
               </div>
@@ -388,12 +388,12 @@ export default async function AthletesPage({ searchParams }: PageProps) {
         <div className="rounded-[20px] bg-[#111111] border border-white/[0.04] p-5 h-full flex flex-col justify-between col-span-2 md:col-span-2 lg:col-span-1">
           <div className="flex items-start justify-between mb-3">
             <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70">Deuda Total</p>
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${totalDebt > 0 ? 'bg-red-500/10' : 'bg-emerald-500/10'}`}>
-              <AlertCircle className={`w-5 h-5 ${totalDebt > 0 ? 'text-red-500' : 'text-emerald-400'}`} />
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${totalDebt > 0 ? 'bg-red-500/10' : 'bg-primary/10'}`}>
+              <AlertCircle className={`w-5 h-5 ${totalDebt > 0 ? 'text-red-500' : 'text-primary'}`} />
             </div>
           </div>
           <div>
-            <p className={`text-3xl lg:text-4xl font-black leading-none tracking-tight ${totalDebt > 0 ? 'text-red-500' : 'text-emerald-400'}`}>
+            <p className={`text-3xl lg:text-4xl font-black leading-none tracking-tight ${totalDebt > 0 ? 'text-red-500' : 'text-primary'}`}>
               {totalDebt > 0 ? `$${totalDebt >= 1000 ? `${Math.round(totalDebt / 1000)}k` : totalDebt.toLocaleString('es-CL')}` : 'Sin deuda'}
             </p>
             <p className="text-[13px] text-muted-foreground/50 mt-1.5 font-normal">
@@ -547,13 +547,13 @@ export default async function AthletesPage({ searchParams }: PageProps) {
               <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/40">Estado:</span>
               <div className="flex gap-1">
                 <Link href={`/dashboard/athletes?${new URLSearchParams({ ...(params.search ? { search: params.search } : {}), ...(params.planId ? { planId: params.planId } : {}) }).toString()}`}>
-                  <button className={`h-7 px-2.5 rounded-full text-[10px] font-bold uppercase tracking-widest border transition-all ${!params.status ? 'bg-emerald-400 text-black border-emerald-400' : 'border-transparent text-muted-foreground/60 hover:text-foreground hover:bg-white/[0.02]'}`}>Todos</button>
+                  <button className={`h-7 px-2.5 rounded-full text-[10px] font-bold uppercase tracking-widest border transition-all ${!params.status ? 'bg-primary text-primary-foreground border-primary' : 'border-transparent text-muted-foreground/60 hover:text-foreground hover:bg-white/[0.02]'}`}>Todos</button>
                 </Link>
                 <Link href={`/dashboard/athletes?${new URLSearchParams({ ...(params.search ? { search: params.search } : {}), ...(params.planId ? { planId: params.planId } : {}), status: 'active' }).toString()}`}>
-                  <button className={`h-7 px-2.5 rounded-full text-[10px] font-bold uppercase tracking-widest border transition-all ${params.status === 'active' ? 'bg-emerald-400 text-black border-emerald-400' : 'border-transparent text-muted-foreground/60 hover:text-foreground hover:bg-white/[0.02]'}`}>Activos</button>
+                  <button className={`h-7 px-2.5 rounded-full text-[10px] font-bold uppercase tracking-widest border transition-all ${params.status === 'active' ? 'bg-primary text-primary-foreground border-primary' : 'border-transparent text-muted-foreground/60 hover:text-foreground hover:bg-white/[0.02]'}`}>Activos</button>
                 </Link>
                 <Link href={`/dashboard/athletes?${new URLSearchParams({ ...(params.search ? { search: params.search } : {}), ...(params.planId ? { planId: params.planId } : {}), status: 'inactive' }).toString()}`}>
-                  <button className={`h-7 px-2.5 rounded-full text-[10px] font-bold uppercase tracking-widest border transition-all ${params.status === 'inactive' ? 'bg-emerald-400 text-black border-emerald-400' : 'border-transparent text-muted-foreground/60 hover:text-foreground hover:bg-white/[0.02]'}`}>Inactivos</button>
+                  <button className={`h-7 px-2.5 rounded-full text-[10px] font-bold uppercase tracking-widest border transition-all ${params.status === 'inactive' ? 'bg-primary text-primary-foreground border-primary' : 'border-transparent text-muted-foreground/60 hover:text-foreground hover:bg-white/[0.02]'}`}>Inactivos</button>
                 </Link>
               </div>
             </div>
@@ -643,7 +643,7 @@ export default async function AthletesPage({ searchParams }: PageProps) {
                             {athlete.name.slice(0, 2).toUpperCase()}
                           </AvatarFallback>
                         </Avatar>
-                        <span className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-[#111111] group-hover:border-[#151515] transition-colors ${athlete.status === 'active' ? 'bg-emerald-400' : athlete.status === 'suspended' ? 'bg-destructive' : 'bg-muted-foreground/40'}`} />
+                        <span className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-[#111111] group-hover:border-[#151515] transition-colors ${athlete.status === 'active' ? 'bg-primary' : athlete.status === 'suspended' ? 'bg-destructive' : 'bg-muted-foreground/40'}`} />
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap mb-0.5">
@@ -670,13 +670,13 @@ export default async function AthletesPage({ searchParams }: PageProps) {
                     <div>
                       <span className={`inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full border ${
                         athlete.status === 'active'
-                          ? 'bg-emerald-400/10 text-emerald-400 border-emerald-400/20'
+                          ? 'bg-primary/10 text-primary border-primary/20'
                           : athlete.status === 'suspended'
                             ? 'bg-destructive/10 text-destructive border-destructive/30'
                             : 'bg-white/[0.03] text-muted-foreground/60 border-white/[0.06]'
                       }`}>
                         <span className={`w-1.5 h-1.5 rounded-full ${
-                          athlete.status === 'active' ? 'bg-emerald-400' :
+                          athlete.status === 'active' ? 'bg-primary' :
                           athlete.status === 'suspended' ? 'bg-destructive' : 'bg-muted-foreground/40'
                         }`} />
                         {athlete.status === 'active' ? 'Activo' : athlete.status === 'inactive' ? 'Inactivo' : 'Suspendido'}
@@ -743,11 +743,11 @@ export default async function AthletesPage({ searchParams }: PageProps) {
                         </>
                       ) : lastPaid ? (
                         <>
-                          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-400/15 text-emerald-400 shrink-0">
+                          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/15 text-primary shrink-0">
                             <CheckCircle2 className="w-4 h-4" />
                           </span>
                           <div className="min-w-0">
-                            <p className="text-[13px] font-bold text-emerald-400 leading-none mb-1">Pagado</p>
+                            <p className="text-[13px] font-bold text-primary leading-none mb-1">Pagado</p>
                             <p className="text-[11px] text-muted-foreground/50 font-medium">Al día</p>
                           </div>
                         </>
@@ -808,7 +808,7 @@ export default async function AthletesPage({ searchParams }: PageProps) {
             <div className="flex items-center gap-2 flex-wrap">
               {page > 1 && (
                 <Link href={`/dashboard/athletes?${makePageQs(page - 1)}`}>
-                  <button className="inline-flex items-center gap-2 h-10 px-4 rounded-full border border-white/[0.06] bg-[#111111] hover:bg-[#1a1a1a] hover:border-emerald-400/30 transition-all text-muted-foreground hover:text-foreground text-xs font-black uppercase tracking-widest">
+                  <button className="inline-flex items-center gap-2 h-10 px-4 rounded-full border border-white/[0.06] bg-[#111111] hover:bg-[#1a1a1a] hover:border-primary/30 transition-all text-muted-foreground hover:text-foreground text-xs font-black uppercase tracking-widest">
                     <ChevronLeft className="w-4 h-4" />
                     Anterior
                   </button>
@@ -821,8 +821,8 @@ export default async function AthletesPage({ searchParams }: PageProps) {
                   <Link key={p} href={`/dashboard/athletes?${makePageQs(p)}`}>
                     <button className={`w-10 h-10 rounded-full text-xs font-black flex items-center justify-center transition-all ${
                       isCurrent
-                        ? 'bg-emerald-400 text-black shadow-[0_0_15px_rgba(52,211,153,0.3)]'
-                        : 'border border-white/[0.06] bg-[#111111] text-muted-foreground hover:bg-[#1a1a1a] hover:border-emerald-400/30 hover:text-foreground'
+                        ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/30'
+                        : 'border border-white/[0.06] bg-[#111111] text-muted-foreground hover:bg-[#1a1a1a] hover:border-primary/30 hover:text-foreground'
                     }`}>
                       {p}
                     </button>
@@ -831,7 +831,7 @@ export default async function AthletesPage({ searchParams }: PageProps) {
               })}
               {page * 20 < total && (
                 <Link href={`/dashboard/athletes?${makePageQs(page + 1)}`}>
-                  <button className="inline-flex items-center gap-2 h-10 px-4 rounded-full border border-white/[0.06] bg-[#111111] hover:bg-[#1a1a1a] hover:border-emerald-400/30 transition-all text-muted-foreground hover:text-foreground text-xs font-black uppercase tracking-widest">
+                  <button className="inline-flex items-center gap-2 h-10 px-4 rounded-full border border-white/[0.06] bg-[#111111] hover:bg-[#1a1a1a] hover:border-primary/30 transition-all text-muted-foreground hover:text-foreground text-xs font-black uppercase tracking-widest">
                     Siguiente
                     <ChevronRight className="w-4 h-4" />
                   </button>

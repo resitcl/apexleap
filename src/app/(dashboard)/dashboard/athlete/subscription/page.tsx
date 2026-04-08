@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Repeat2, Calendar, CreditCard } from "lucide-react"
+import { AthleteSectionHeader } from "@/components/athlete/AthleteSectionHeader"
 
 const BILLING_LABEL: Record<string, string> = {
   monthly: "Mensual",
@@ -41,14 +42,11 @@ export default async function AthleteSubscriptionPage() {
   if (!subStatus.hasActiveSubscription || !subStatus.subscription) {
     return (
       <div className="space-y-8 pb-12 pt-1">
-        <div>
-          <h1 className="text-4xl md:text-5xl font-black tracking-tighter uppercase leading-none text-foreground flex items-center gap-3">
-            <Repeat2 className="w-10 h-10 text-primary" /> Mi Suscripción
-          </h1>
-          <p className="text-sm md:text-base text-muted-foreground/80 mt-3 max-w-xl font-medium">
-            Gestiona tu plan activo y detalles de facturación en la plataforma.
-          </p>
-        </div>
+        <AthleteSectionHeader
+          icon={Repeat2}
+          title="Mi suscripción"
+          description="Gestiona tu plan activo y detalles de facturación en la plataforma."
+        />
         <Card className="rounded-2xl border-dashed border-white/[0.05] bg-muted/5">
           <CardContent className="flex flex-col items-center justify-center py-20 text-center gap-5">
             <div className="w-16 h-16 rounded-2xl bg-muted/50 flex items-center justify-center mb-2">
@@ -70,15 +68,11 @@ export default async function AthleteSubscriptionPage() {
 
   return (
     <div className="space-y-8 pb-12 pt-1">
-      {/* Header */}
-      <div>
-        <h1 className="text-4xl md:text-5xl font-black tracking-tighter uppercase leading-none text-foreground flex items-center gap-3">
-          <Repeat2 className="w-10 h-10 text-primary" /> Mi Suscripción
-        </h1>
-        <p className="text-sm md:text-base text-muted-foreground/80 mt-3 max-w-xl font-medium">
-          Gestiona tu plan y suscripción principal del club.
-        </p>
-      </div>
+      <AthleteSectionHeader
+        icon={Repeat2}
+        title="Mi suscripción"
+        description="Gestiona tu plan y suscripción principal del club."
+      />
 
       <Card className="rounded-2xl border border-white/[0.04] bg-card shadow-sm overflow-hidden relative">
         <div className="absolute top-0 w-full h-1.5 bg-gradient-to-r from-primary/80 to-primary/20" />

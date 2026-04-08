@@ -17,6 +17,12 @@ import {
   subscriptionRequiresPaymentConfirmation,
 } from '@/lib/payment-methods'
 import { TRANSFER_RECEIPT_MAX_BYTES } from '@/lib/constants'
+import {
+  ATHLETE_OVERDUE_HARD_BLOCK_DAYS,
+  type AthleteFinancialAccessState,
+  type OnboardingAthlete,
+  type OnboardingData,
+} from '@/lib/athlete-enrollment-shared'
 
 /**
  * Get visible plans for the current club (public-facing, for athlete selection).
@@ -197,7 +203,7 @@ export async function enrollInPlan(planId: string) {
 /**
  * Gather all data needed for the onboarding wizard.
  */
-export async function getOnboardingData() {
+export async function getOnboardingData(): Promise<OnboardingData> {
   const { userId } = await auth()
   if (!userId) throw new Error('No autorizado')
 
@@ -223,12 +229,6 @@ export async function getOnboardingData() {
   const isTeamSport = TEAM_SPORTS.includes(club?.sport_type ?? '')
 
   // Current athlete record (if exists)
-  type OnboardingAthlete = { 
-    id: string; name: string; phone: string | null; birth_date: string | null; 
-    emergency_contact: string | null; emergency_phone: string | null; 
-    technical_meta: Record<string, unknown> | null;
-    enrollment_status: string | null;
-  }
   let athlete: OnboardingAthlete | null = null
   if (email) {
     const { data } = await supabase
@@ -336,30 +336,14 @@ export async function getOnboardingData() {
     profileComplete,
     tourCompleted,
     hasActiveSubscription,
-    plans: plans ?? [],
+    plans: (plans ?? []) as OnboardingData['plans'],
   }
 }
-
-export type OnboardingData = Awaited<ReturnType<typeof getOnboardingData>>
-
-/** Días con cuota impaga antes de bloquear el portal (solo pagos / suscripción / cambio de plan). */
-export const ATHLETE_OVERDUE_HARD_BLOCK_DAYS = 3
 
 function calendarDaysOverdue(dueDateYmd: string, todayYmd: string): number {
   const due = new Date(dueDateYmd + 'T12:00:00').getTime()
   const today = new Date(todayYmd + 'T12:00:00').getTime()
   return Math.floor((today - due) / (24 * 60 * 60 * 1000))
-}
-
-export type AthleteFinancialAccessState = {
-  /** Primer pago (transferencia / efectivo) sin confirmar por el admin */
-  awaitingAdminPaymentConfirmation: boolean
-  delinquency: {
-    isLate: boolean
-    daysPastDue: number
-    hardBlocked: boolean
-    message: string | null
-  }
 }
 
 /**

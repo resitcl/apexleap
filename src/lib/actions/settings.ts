@@ -1,9 +1,9 @@
 'use server'
 
-import { auth } from '@clerk/nextjs/server'
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { z } from 'zod'
+import { CLUB_LOGO_MAX_BYTES } from '@/lib/constants'
 import { getClubId, getClubMembershipRole } from '@/lib/actions/club-context'
 
 const clubSchema = z.object({
@@ -20,6 +20,7 @@ const clubSchema = z.object({
   email: z.string().email().optional().or(z.literal('')),
   website: z.string().url().optional().or(z.literal('')),
   timezone: z.string().default('America/Santiago'),
+  use_brand_primary_for_ui: z.boolean().optional(),
 })
 
 export type ClubInput = z.infer<typeof clubSchema>
@@ -37,24 +38,101 @@ export async function getClubSettings() {
   return data
 }
 
+/**
+ * Sube un logo del club a Storage y actualiza `logo_url`.
+ */
+export async function uploadClubLogo(formData: FormData) {
+  const membership = await getClubMembershipRole()
+  if (membership !== 'admin' && membership !== 'admin_athlete') {
+    throw new Error('Solo un administrador del club puede cambiar el logo.')
+  }
+
+  const clubId = await getClubId()
+  const supabase = createAdminClient()
+
+  const file = formData.get('file') as File | null
+  if (!file || file.size === 0) throw new Error('Selecciona un archivo de imagen')
+
+  if (!file.type.startsWith('image/')) {
+    throw new Error('El archivo debe ser una imagen (PNG, JPEG, WebP, etc.)')
+  }
+  if (file.size > CLUB_LOGO_MAX_BYTES) {
+    throw new Error(`La imagen no puede superar ${Math.round(CLUB_LOGO_MAX_BYTES / (1024 * 1024))} MB`)
+  }
+
+  const extFromType: Record<string, string> = {
+    'image/jpeg': 'jpg',
+    'image/png': 'png',
+    'image/webp': 'webp',
+    'image/gif': 'gif',
+  }
+  const ext = extFromType[file.type] ?? (file.name.split('.').pop() || 'png').toLowerCase().slice(0, 4)
+  const path = `${clubId}/logo-${Date.now()}.${ext}`
+
+  const bucket = 'club-assets'
+  await supabase.storage.createBucket(bucket, {
+    public: true,
+    fileSizeLimit: CLUB_LOGO_MAX_BYTES,
+  })
+
+  const { error: upErr } = await supabase.storage.from(bucket).upload(path, file, { upsert: true, contentType: file.type })
+  if (upErr) throw new Error('Error al subir el logo: ' + upErr.message)
+
+  const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(path)
+  const publicUrl = urlData.publicUrl
+
+  const { error: dbErr } = await supabase
+    .from('clubs')
+    .update({ logo_url: publicUrl, updated_at: new Date().toISOString() })
+    .eq('id', clubId)
+
+  if (dbErr) throw new Error(dbErr.message)
+
+  revalidatePath('/dashboard/settings')
+  revalidatePath('/dashboard', 'layout')
+  const { data: clubRow } = await supabase.from('clubs').select('slug').eq('id', clubId).single()
+  const slug = (clubRow as { slug?: string } | null)?.slug
+  if (slug) {
+    revalidatePath(`/${slug}/signin`)
+    revalidatePath(`/${slug}/signup`)
+  }
+
+  return publicUrl
+}
+
 export async function updateClubSettings(input: Partial<ClubInput>) {
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
-  const safeUpdate = Object.fromEntries(
-    Object.entries({ ...input, updated_at: new Date().toISOString() })
-      .filter(([, v]) => v !== undefined)
+  const { use_brand_primary_for_ui: brandUiFlag, ...rest } = input
+
+  const columnUpdate: Record<string, unknown> = Object.fromEntries(
+    Object.entries(rest).filter(([, v]) => v !== undefined)
   )
+  columnUpdate.updated_at = new Date().toISOString()
+
+  // Persistido en JSON para no requerir migración SQL en `clubs`.
+  if (brandUiFlag !== undefined) {
+    const { data: club } = await supabase.from('clubs').select('settings').eq('id', clubId).single()
+    const currentSettings = (club?.settings ?? {}) as Record<string, unknown>
+    columnUpdate.settings = { ...currentSettings, use_brand_primary_for_ui: brandUiFlag }
+  }
 
   const { data, error } = await supabase
     .from('clubs')
-    .update(safeUpdate)
+    .update(columnUpdate)
     .eq('id', clubId)
     .select()
     .single()
 
   if (error) throw new Error(error.message)
   revalidatePath('/dashboard/settings')
+  revalidatePath('/dashboard', 'layout')
+  const slug = (data as { slug?: string })?.slug
+  if (slug) {
+    revalidatePath(`/${slug}/signin`)
+    revalidatePath(`/${slug}/signup`)
+  }
   return data
 }
 

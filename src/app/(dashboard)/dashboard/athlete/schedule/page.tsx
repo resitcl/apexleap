@@ -8,6 +8,7 @@ import { getEvents } from "@/lib/actions/events"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Calendar, Clock, MapPin, Trophy, Users, CalendarDays, Star, Info } from "lucide-react"
+import { AthleteSectionHeader } from "@/components/athlete/AthleteSectionHeader"
 
 const DOW_SHORT = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"]
 
@@ -86,22 +87,16 @@ export default async function AthleteSchedulePage() {
 
   return (
     <div className="space-y-12 pb-12 pt-1">
-      {/* HEADER */}
-      <div className="flex flex-col md:flex-row items-start md:items-end justify-between gap-6">
-        <div>
-          <h1 className="text-4xl md:text-5xl font-black tracking-tighter uppercase leading-none text-foreground flex items-center gap-3">
-            <CalendarDays className="w-10 h-10 text-primary" /> Agenda y Eventos
-          </h1>
-          <p className="text-sm md:text-base text-muted-foreground/80 mt-3 max-w-xl font-medium">
-            Optimiza tu ritmo de entrenamiento. Administra tus rutinas semanales recurrentes y tus compromisos de alto nivel, adaptables al entorno del club.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
+      <AthleteSectionHeader
+        icon={CalendarDays}
+        title="Agenda y eventos"
+        description="Tu ritmo semanal en el club: horarios recurrentes, competencias próximas y eventos de la academia."
+        endSlot={
           <Badge variant="secondary" className="px-4 py-2 font-black tracking-widest text-[11px] uppercase bg-muted/20 border border-white/[0.04]">
             <Calendar className="w-3.5 h-3.5 mr-2 text-primary" /> Hoy, {today.getDate()} de {today.toLocaleDateString("es-CL", { month: "short" })}
           </Badge>
-        </div>
-      </div>
+        }
+      />
 
       {/* HORARIO VERTICAL COLUMNAS (THE GRID) */}
       <div className="rounded-2xl border border-white/[0.04] bg-card overflow-hidden shadow-sm">

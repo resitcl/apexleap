@@ -4,6 +4,7 @@ import { redirect } from "next/navigation"
 import { SignUp } from "@clerk/nextjs"
 import { getClubBySlug } from "@/lib/actions/onboarding"
 import Link from "next/link"
+import { TenantAuthLogoBlock, TenantAuthShell } from "@/components/tenant/TenantAuthBranding"
 
 interface PageProps {
   params: Promise<{ slug: string }>
@@ -15,29 +16,20 @@ export default async function TenantSignUpPage({ params }: PageProps) {
   const club = await getClubBySlug(slug)
   if (!club) notFound()
 
-  // If already authenticated, redirect to join flow
   const { userId } = await auth()
   if (userId) redirect(`/api/join/${club.slug}`)
 
-  return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="w-full max-w-md space-y-8">
-        {/* Club branding */}
-        <div className="text-center space-y-3">
-          <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center mx-auto">
-            <span className="text-primary-foreground font-bold text-2xl">
-              {club.name.slice(0, 2).toUpperCase()}
-            </span>
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold">Inscríbete en {club.name}</h1>
-            <p className="text-muted-foreground text-sm">
-              {[club.sport_type, club.city].filter(Boolean).join(" · ") || "Club deportivo"}
-            </p>
-          </div>
-        </div>
+  const subtitle = [club.sport_type, club.city].filter(Boolean).join(" · ") || "Club deportivo"
 
-        {/* Clerk Sign Up */}
+  return (
+    <TenantAuthShell club={club}>
+      <div className="w-full max-w-md space-y-8">
+        <TenantAuthLogoBlock
+          club={club}
+          title={`Inscríbete en ${club.name}`}
+          subtitle={subtitle}
+        />
+
         <div className="flex justify-center">
           <SignUp
             routing="hash"
@@ -48,7 +40,6 @@ export default async function TenantSignUpPage({ params }: PageProps) {
           />
         </div>
 
-        {/* Links */}
         <div className="text-center space-y-2 text-sm text-muted-foreground">
           <p>
             ¿Ya tienes cuenta?{" "}
@@ -63,6 +54,6 @@ export default async function TenantSignUpPage({ params }: PageProps) {
           </p>
         </div>
       </div>
-    </div>
+    </TenantAuthShell>
   )
 }

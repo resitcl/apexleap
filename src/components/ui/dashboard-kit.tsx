@@ -11,9 +11,9 @@ const toneStyles: Record<DashboardTone, { value: string; icon: string; chip: str
     chip: "bg-primary/10 border-primary/20 text-primary",
   },
   success: {
-    value: "text-emerald-400",
-    icon: "text-emerald-400",
-    chip: "bg-emerald-500/10 border-emerald-500/20 text-emerald-300",
+    value: "text-primary",
+    icon: "text-primary",
+    chip: "bg-primary/10 border-primary/20 text-primary",
   },
   warning: {
     value: "text-amber-400",

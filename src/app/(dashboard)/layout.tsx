@@ -21,6 +21,7 @@ import {
   BarChart3,
   PieChart,
   Film,
+  Library,
   Dumbbell,
   User,
   ClipboardList,
@@ -35,17 +36,23 @@ import { getSidebarAlerts } from "@/lib/actions/alerts"
 import { NotificationBell } from "@/components/layouts/NotificationBell"
 import type { NotificationItem } from "@/components/layouts/NotificationBell"
 import { getClubSettings } from "@/lib/actions/settings"
+import { clubThemeBrandingVars, normalizeClubPrimary } from "@/lib/club-branding"
+import { isMartialArtsAcademySport } from "@/lib/sport-fields"
 import { getSportVocab } from "@/lib/sport-vocab"
 import { isSuperAdmin } from "@/lib/actions/super-admin"
 import { AgreementGateWrapper } from "@/components/agreements/AgreementGateWrapper"
+import { ClubBrandingRoot } from "@/components/layouts/ClubBrandingRoot"
 import { getUserRole } from "@/lib/actions/club-context"
 import type { UserRole } from "@/lib/actions/club-context"
 
-function buildAthleteNavGroups(v: ReturnType<typeof getSportVocab>) {
+function buildAthleteNavGroups(v: ReturnType<typeof getSportVocab>, sportType: string | null) {
   const actividadItems = [
     { href: "/dashboard/athlete/schedule",    label: "Horarios",    icon: Calendar },
+    ...(isMartialArtsAcademySport(sportType)
+      ? [{ href: "/dashboard/athlete/logros" as const, label: "Torneos y logros", icon: Trophy }]
+      : []),
     { href: "/dashboard/athlete/attendance",  label: "Asistencia",  icon: ClipboardCheck },
-    { href: "/dashboard/athlete/content",     label: "Contenido",   icon: Film },
+    { href: "/dashboard/athlete/content",     label: "Contenido",   icon: Library },
   ]
 
   // Team-sport-only modules for athletes
@@ -153,10 +160,12 @@ export default async function DashboardLayout({
 }) {
   let alerts = {
     overduePayments: 0, expiringSoonDocs: 0, expiringSubscriptions: 0,
+    pendingEnrollments: 0, paidToday: 0,
     clubName: null as string | null,
     primaryColor: null as string | null,
     secondaryColor: null as string | null,
     logoUrl: null as string | null,
+    useBrandPrimaryForUi: true,
   }
   try { alerts = await getSidebarAlerts() } catch { /* silent */ }
 
@@ -173,25 +182,44 @@ export default async function DashboardLayout({
   const isAthlete = role === 'athlete'
 
   const vocab = getSportVocab(sportType)
-  const NAV_GROUPS = isAthlete ? buildAthleteNavGroups(vocab) : buildNavGroups(vocab)
+  const NAV_GROUPS = isAthlete ? buildAthleteNavGroups(vocab, sportType) : buildNavGroups(vocab)
 
-  const brandColor = alerts.primaryColor ?? '#000000'
+  const brandColor = normalizeClubPrimary(alerts.primaryColor)
+  const brandCss = clubThemeBrandingVars(alerts.primaryColor, alerts.useBrandPrimaryForUi)
 
   const badgeMap: Record<string, number> = {
     "/dashboard/payments":      alerts.overduePayments,
     "/dashboard/documents":     alerts.expiringSoonDocs,
     "/dashboard/subscriptions": alerts.expiringSubscriptions,
+    "/dashboard/athletes":      alerts.pendingEnrollments,
   }
 
   const notificationIdMap: Record<string, string> = {
     "/dashboard/payments":      'overdue-payments',
     "/dashboard/documents":     'expiring-docs',
     "/dashboard/subscriptions": 'expiring-subs',
+    "/dashboard/athletes":      'pending-enrollments',
   }
 
   const totalAlerts = alerts.overduePayments + alerts.expiringSoonDocs + alerts.expiringSubscriptions
 
   const notificationItems: NotificationItem[] = [
+    ...(alerts.pendingEnrollments > 0 ? [{
+      id: 'pending-enrollments',
+      type: 'enrollment' as const,
+      title: `${alerts.pendingEnrollments} ${alerts.pendingEnrollments === 1 ? 'inscripción pendiente' : 'inscripciones pendientes'}`,
+      description: 'Nuevos atletas esperando aprobación del club.',
+      href: '/dashboard/athletes/pending',
+      count: alerts.pendingEnrollments,
+    }] : []),
+    ...(alerts.paidToday > 0 ? [{
+      id: 'paid-today',
+      type: 'payment_success' as const,
+      title: `${alerts.paidToday} ${alerts.paidToday === 1 ? 'pago registrado hoy' : 'pagos registrados hoy'}`,
+      description: 'Pagos confirmados durante el día.',
+      href: '/dashboard/payments?status=paid',
+      count: alerts.paidToday,
+    }] : []),
     ...(alerts.overduePayments > 0 ? [{
       id: 'overdue-payments',
       type: 'payment' as const,
@@ -229,12 +257,15 @@ export default async function DashboardLayout({
     })),
   }))
 
+  const brandingStyle = {
+    '--brand': brandColor,
+    '--brand-light': `${brandColor}33`,
+    ...brandCss,
+  } as React.CSSProperties
+
   return (
-    <div
-      className="h-screen flex overflow-hidden"
-      style={{ '--brand': brandColor, '--brand-light': `${brandColor}20` } as React.CSSProperties}
-      suppressHydrationWarning
-    >
+    <div className="h-screen flex overflow-hidden" style={brandingStyle} suppressHydrationWarning>
+      <ClubBrandingRoot varsJson={JSON.stringify(brandCss)} />
       {/* ── Desktop Sidebar ── */}
       <aside className="w-60 bg-sidebar border-r border-sidebar-border hidden md:flex flex-col shrink-0 h-full">
         {/* Club logo / name */}

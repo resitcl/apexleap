@@ -2,6 +2,10 @@
 // Each club's sport_type maps to a set of dynamic fields stored in technical_meta JSONB.
 // Following the project rule: NO sport-specific DB tables, use JSONB meta fields.
 
+import type { TournamentPlacing } from '@/lib/martial-arts-tournament-results'
+
+export type { TournamentPlacing } from '@/lib/martial-arts-tournament-results'
+
 export type FieldType = 'select' | 'number' | 'text' | 'multiselect'
 
 export interface SportField {
@@ -243,6 +247,172 @@ const TENNIS_PLAY_STYLE = [
   { value: 'all_court', label: 'Completo' },
 ]
 
+// ─── Academias de artes marciales (torneos / federaciones, no récord V-D tipo boxeo) ─
+/** Deportes de academia de AM: excluye clubes de equipo y Boxeo (récord de peleas). */
+export const MARTIAL_ARTS_ACADEMY_SPORTS = [
+  'Jiu-Jitsu',
+  'Karate',
+  'Taekwondo',
+  'Judo',
+  'Muay Thai',
+  'MMA',
+  'Kickboxing',
+  'Lucha',
+] as const
+
+export type MartialArtsAcademySport = (typeof MARTIAL_ARTS_ACADEMY_SPORTS)[number]
+
+export function isMartialArtsAcademySport(sportType: string | null | undefined): boolean {
+  if (!sportType) return false
+  return (MARTIAL_ARTS_ACADEMY_SPORTS as readonly string[]).includes(sportType)
+}
+
+/** Entrada en technical_meta.tournament_history */
+export type TournamentHistoryEntry = {
+  id: string
+  federation: string
+  event_name: string
+  date?: string
+  /** Resultados estructurados (medalla, categoría, cinturón, etc.) */
+  results?: TournamentPlacing[]
+  /** Texto libre legacy (antes de selectores) */
+  achievements?: string
+  notes?: string
+}
+
+/** Valor de select cuando el usuario escribe una federación a mano */
+export const MARTIAL_ARTS_FEDERATION_OTHER = '__other__'
+
+const FEDERATIONS_BY_SPORT: Record<string, { value: string; label: string }[]> = {
+  'Jiu-Jitsu': [
+    { value: 'IBJJF', label: 'IBJJF' },
+    { value: 'AJP', label: 'AJP (Abu Dhabi Jiu-Jitsu Pro)' },
+    { value: 'ADCC', label: 'ADCC' },
+    { value: 'UAEJJF', label: 'UAEJJF' },
+    { value: 'JiuJitsu_FEST', label: 'Jiu-Jitsu FEST' },
+    { value: 'Open_Chile', label: 'Open Chile' },
+    { value: 'Torneo_Kimura', label: 'Torneo Kimura' },
+    { value: 'Copa_Local', label: 'Copa / torneo local' },
+  ],
+  Karate: [
+    { value: 'WKF', label: 'WKF' },
+    { value: 'WKF_Chile', label: 'WKF Chile' },
+    { value: 'JKA', label: 'JKA' },
+    { value: 'SKIF', label: 'SKIF' },
+    { value: 'Kyokushin', label: 'Kyokushin / knockdown' },
+  ],
+  Taekwondo: [
+    { value: 'WT', label: 'WT (World Taekwondo)' },
+    { value: 'Panam', label: 'Panamericano / regional' },
+    { value: 'Chile_TKD', label: 'Federación Chile Taekwondo' },
+    { value: 'Open', label: 'Open nacional' },
+  ],
+  Judo: [
+    { value: 'IJF', label: 'IJF' },
+    { value: 'Panam_Judo', label: 'Panamericano / regional' },
+    { value: 'FECHJU', label: 'Federación Chilena de Judo' },
+    { value: 'Copa_Judo', label: 'Copa / selectivo' },
+  ],
+  'Muay Thai': [
+    { value: 'WMC', label: 'WMC' },
+    { value: 'IFMA', label: 'IFMA' },
+    { value: 'Nacional_MT', label: 'Torneo nacional' },
+    { value: 'Interclub', label: 'Interclub / regional' },
+  ],
+  MMA: [
+    { value: 'UFC', label: 'UFC (referencia)' },
+    { value: 'Bellator', label: 'Bellator' },
+    { value: 'Regional_AM', label: 'Promoción regional / amateur' },
+    { value: 'LFA', label: 'LFA / similar' },
+  ],
+  Kickboxing: [
+    { value: 'WAKO', label: 'WAKO' },
+    { value: 'ISKA', label: 'ISKA' },
+    { value: 'WKC', label: 'WKC' },
+    { value: 'Nacional_KB', label: 'Torneo nacional' },
+  ],
+  Lucha: [
+    { value: 'UWW', label: 'UWW / estilo libre' },
+    { value: 'Panam_Lucha', label: 'Panamericano / regional' },
+    { value: 'Fechlde', label: 'Federación Chile lucha' },
+    { value: 'Universitario', label: 'Universitario / escolar' },
+  ],
+}
+
+/** Opciones de federación/circuito para el selector (incluye “Otra”). */
+export function getMartialArtsFederationOptions(sportType: string): { value: string; label: string }[] {
+  const list = FEDERATIONS_BY_SPORT[sportType] ?? FEDERATIONS_BY_SPORT['Jiu-Jitsu']
+  return [...list, { value: MARTIAL_ARTS_FEDERATION_OTHER, label: 'Otra federación / circuito' }]
+}
+
+function parseResultsArray(raw: unknown): TournamentPlacing[] | undefined {
+  if (!Array.isArray(raw) || raw.length === 0) return undefined
+  const out: TournamentPlacing[] = []
+  for (const row of raw) {
+    if (!row || typeof row !== 'object') continue
+    const r = row as Record<string, unknown>
+    const id = typeof r.id === 'string' && r.id ? r.id : undefined
+    if (!id) continue
+    const variant = r.variant === 'generic' ? 'generic' : 'bjj'
+    out.push({
+      id,
+      variant,
+      medal: (r.medal as TournamentPlacing['medal']) ?? 'gold',
+      divisionFormat: r.divisionFormat as TournamentPlacing['divisionFormat'],
+      weightClass: r.weightClass != null ? String(r.weightClass) : undefined,
+      ageDivision: r.ageDivision != null ? String(r.ageDivision) : undefined,
+      belt: r.belt != null ? String(r.belt) : undefined,
+      categoryKey: r.categoryKey != null ? String(r.categoryKey) : undefined,
+    })
+  }
+  return out.length > 0 ? out : undefined
+}
+
+export function parseTournamentHistory(meta: Record<string, unknown> | null | undefined): TournamentHistoryEntry[] {
+  const raw = meta?.tournament_history
+  if (!Array.isArray(raw)) return []
+  const out: TournamentHistoryEntry[] = []
+  raw.forEach((item, i) => {
+    if (!item || typeof item !== 'object') return
+    const o = item as Record<string, unknown>
+    const achievements =
+      o.achievements != null && String(o.achievements) !== '' ? String(o.achievements) : undefined
+    out.push({
+      id: typeof o.id === 'string' && o.id ? o.id : `th-${i}-${Math.random().toString(36).slice(2, 9)}`,
+      federation: String(o.federation ?? ''),
+      event_name: String(o.event_name ?? ''),
+      date: o.date != null && String(o.date) !== '' ? String(o.date) : undefined,
+      results: parseResultsArray(o.results),
+      achievements,
+      notes: o.notes != null && String(o.notes) !== '' ? String(o.notes) : undefined,
+    })
+  })
+  return out
+}
+
+export function cleanTournamentHistoryEntries(entries: TournamentHistoryEntry[]): TournamentHistoryEntry[] | null {
+  const cleaned = entries.filter((e) => {
+    const legacy = (e.achievements?.trim() ?? '').length > 0
+    const hasResults = (e.results?.length ?? 0) > 0
+    const has =
+      e.federation.trim() ||
+      e.event_name.trim() ||
+      legacy ||
+      hasResults ||
+      (e.date && e.date.trim()) ||
+      (e.notes && e.notes.trim())
+    return has
+  })
+  return cleaned.length > 0 ? cleaned : null
+}
+
+/** Texto breve para tarjetas / identidad (ej. “3 torneos”). */
+export function getTournamentHistorySummaryLine(meta: Record<string, unknown> | null | undefined): string | null {
+  const entries = parseTournamentHistory(meta ?? undefined)
+  if (entries.length === 0) return null
+  return `${entries.length} torneo${entries.length !== 1 ? 's' : ''}`
+}
+
 // ─── Sport configurations ────────────────────────────────────────────────────
 
 export const SPORT_CONFIGS: Record<string, SportConfig> = {
@@ -254,7 +424,6 @@ export const SPORT_CONFIGS: Record<string, SportConfig> = {
       { key: 'belt', label: 'Cinturón', type: 'select', options: BJJ_BELTS, required: true },
       { key: 'stripes', label: 'Grados (Stripes)', type: 'select', options: BJJ_STRIPES, helpText: 'Cantidad de franjas en el cinturón' },
       { key: 'weight_class', label: 'Categoría de Peso (IBJJF)', type: 'select', options: BJJ_WEIGHT_CLASSES },
-      { key: 'competition_record', label: 'Récord Competitivo (V-D)', type: 'text', placeholder: 'Ej: 5-2' },
     ],
   },
 
@@ -266,7 +435,6 @@ export const SPORT_CONFIGS: Record<string, SportConfig> = {
       { key: 'level', label: 'Nivel', type: 'select', options: COMBAT_LEVEL },
       { key: 'weight_class', label: 'Categoría de Peso', type: 'select', options: COMBAT_WEIGHT_CLASSES },
       { key: 'stance', label: 'Guardia', type: 'select', options: STANCE_OPTIONS },
-      { key: 'fights', label: 'Peleas (V-D-E)', type: 'text', placeholder: 'Ej: 8-2-0', helpText: 'Victorias - Derrotas - Empates' },
     ],
   },
 
@@ -291,7 +459,6 @@ export const SPORT_CONFIGS: Record<string, SportConfig> = {
       { key: 'weight_class', label: 'Categoría de Peso', type: 'select', options: COMBAT_WEIGHT_CLASSES },
       { key: 'stance', label: 'Guardia', type: 'select', options: STANCE_OPTIONS },
       { key: 'base_art', label: 'Arte Marcial Base', type: 'text', placeholder: 'Ej: BJJ, Wrestling, Muay Thai' },
-      { key: 'fights', label: 'Récord (V-D-E)', type: 'text', placeholder: 'Ej: 5-1-0' },
     ],
   },
 
@@ -337,7 +504,17 @@ export const SPORT_CONFIGS: Record<string, SportConfig> = {
       { key: 'level', label: 'Nivel', type: 'select', options: COMBAT_LEVEL },
       { key: 'weight_class', label: 'Categoría de Peso', type: 'select', options: COMBAT_WEIGHT_CLASSES },
       { key: 'stance', label: 'Guardia', type: 'select', options: STANCE_OPTIONS },
-      { key: 'fights', label: 'Récord (V-D-E)', type: 'text', placeholder: 'Ej: 6-2-0' },
+    ],
+  },
+
+  'Lucha': {
+    label: 'Lucha',
+    sectionTitle: 'Artes Marciales – Lucha',
+    hideJerseyNumber: true,
+    fields: [
+      { key: 'level', label: 'Nivel', type: 'select', options: COMBAT_LEVEL },
+      { key: 'weight_class', label: 'Categoría de Peso', type: 'select', options: COMBAT_WEIGHT_CLASSES },
+      { key: 'stance', label: 'Guardia', type: 'select', options: STANCE_OPTIONS },
     ],
   },
 

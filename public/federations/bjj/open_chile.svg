@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 48" role="img" aria-label="Open Chile">
+  <rect width="128" height="48" rx="8" fill="#0039a6"/>
+  <rect x="0" y="24" width="128" height="24" fill="#d52b1e"/>
+  <text x="64" y="30" text-anchor="middle" fill="#fff" font-family="system-ui,Segoe UI,sans-serif" font-size="9" font-weight="800">OPEN</text>
+  <text x="64" y="40" text-anchor="middle" fill="#fff" font-family="system-ui,Segoe UI,sans-serif" font-size="8" font-weight="700">CHILE</text>
+</svg>

@@ -7,6 +7,7 @@ import { getMyRosters } from "@/lib/actions/athlete-enrollment"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ClipboardList, Calendar, MapPin, Trophy, Shirt, ExternalLink } from "lucide-react"
+import { AthleteSectionHeader } from "@/components/athlete/AthleteSectionHeader"
 
 const TYPE_LABELS: Record<string, string> = {
   tournament: "Torneo", league: "Liga", friendly: "Amistoso", championship: "Campeonato",
@@ -33,15 +34,11 @@ export default async function AthleteRostersPage() {
 
   return (
     <div className="space-y-8 pb-12 pt-1">
-      {/* Header */}
-      <div>
-        <h1 className="text-4xl md:text-5xl font-black tracking-tighter uppercase leading-none text-foreground flex items-center gap-3">
-          <ClipboardList className="w-10 h-10 text-primary" /> Mis Citaciones
-        </h1>
-        <p className="text-sm md:text-base text-muted-foreground/80 mt-3 max-w-xl font-medium">
-          Convocatorias oficiales, torneos y partidos en los que el cuerpo técnico te ha incluido.
-        </p>
-      </div>
+      <AthleteSectionHeader
+        icon={ClipboardList}
+        title="Mis citaciones"
+        description="Convocatorias oficiales, torneos y partidos en los que el cuerpo técnico te ha incluido."
+      />
 
       {rosters.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

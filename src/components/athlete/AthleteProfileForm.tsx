@@ -7,8 +7,14 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
-import { Save, User, Phone, Calendar, Contact, MapPin, X, Camera, Shield, CheckCircle2, AlertTriangle } from "lucide-react"
-import type { SportConfig, SportField } from "@/lib/sport-fields"
+import { Save, User, Phone, Calendar, Contact, MapPin, X, Camera, Shield, CheckCircle2, AlertTriangle, PenLine } from "lucide-react"
+import type { SportConfig, SportField, TournamentHistoryEntry } from "@/lib/sport-fields"
+import {
+  cleanTournamentHistoryEntries,
+  isMartialArtsAcademySport,
+  parseTournamentHistory,
+} from "@/lib/sport-fields"
+import { MartialArtsTournamentHistory } from "@/components/athletes/MartialArtsTournamentHistory"
 import { saveAthleteProfileSelf } from "@/lib/actions/athlete-enrollment"
 
 interface Props {
@@ -22,6 +28,7 @@ interface Props {
     technical_meta: Record<string, unknown> | null
   }
   sportConfig: SportConfig | null
+  sportType: string | null
 }
 
 function SportFieldInput({ field, value, onChange }: {
@@ -40,7 +47,7 @@ function SportFieldInput({ field, value, onChange }: {
           id={field.key}
           value={String(value ?? "")}
           onChange={(e) => onChange(e.target.value || null)}
-          className="w-full h-12 rounded-xl border border-white/[0.06] bg-muted/20 px-4 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground transition-colors hover:bg-muted/40"
+          className="w-full h-12 rounded-xl border border-input bg-background px-4 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground transition-colors hover:bg-muted/50"
         >
           <option value="">Seleccionar...</option>
           {field.options?.map((o) => (
@@ -70,7 +77,7 @@ function SportFieldInput({ field, value, onChange }: {
               className={`px-4 py-2 rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all border ${
                 selected.includes(o.value)
                   ? "bg-primary text-primary-foreground border-primary shadow-[0_0_15px_rgba(var(--primary),0.3)]"
-                  : "bg-muted/20 border-white/[0.06] text-muted-foreground hover:border-primary/50 hover:bg-muted/40"
+                  : "bg-muted/30 border-input text-muted-foreground hover:border-primary/50 hover:bg-muted/50"
               }`}
             >
               {o.label}
@@ -94,8 +101,8 @@ function SportFieldInput({ field, value, onChange }: {
           max={field.max}
           value={value != null ? String(value) : ""}
           onChange={(e) => onChange(e.target.value ? Number(e.target.value) : null)}
-          className={`h-12 rounded-xl border-white/[0.06] font-black focus-visible:ring-primary/50 transition-colors ${
-            isStripes ? 'bg-primary text-primary-foreground placeholder:text-primary-foreground/50 text-center text-xl shadow-[0_4px_20px_rgba(var(--primary),0.2)]' : 'bg-muted/20 text-base hover:bg-muted/40'
+          className={`h-12 rounded-xl border-input font-black focus-visible:ring-primary/50 transition-colors ${
+            isStripes ? 'bg-primary text-primary-foreground placeholder:text-primary-foreground/50 text-center text-xl shadow-[0_4px_20px_rgba(var(--primary),0.2)]' : 'bg-background text-base hover:bg-muted/50'
           }`}
         />
       </div>
@@ -111,13 +118,14 @@ function SportFieldInput({ field, value, onChange }: {
         placeholder={field.placeholder}
         value={String(value ?? "")}
         onChange={(e) => onChange(e.target.value || null)}
-        className="h-12 rounded-xl bg-muted/20 border-white/[0.06] font-semibold focus-visible:ring-primary/50 hover:bg-muted/40 transition-colors"
+        className="h-12 rounded-xl bg-background border-input font-semibold focus-visible:ring-primary/50 hover:bg-muted/50 transition-colors"
       />
     </div>
   )
 }
 
-export function AthleteProfileForm({ athlete, sportConfig }: Props) {
+export function AthleteProfileForm({ athlete, sportConfig, sportType }: Props) {
+  const showMartialArtsTournaments = isMartialArtsAcademySport(sportType ?? undefined)
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [success, setSuccess] = useState(false)
@@ -128,7 +136,14 @@ export function AthleteProfileForm({ athlete, sportConfig }: Props) {
   const [birthDate, setBirthDate] = useState(athlete.birth_date ?? "")
   const [emergencyContact, setEmergencyContact] = useState(athlete.emergency_contact ?? "")
   const [emergencyPhone, setEmergencyPhone] = useState(athlete.emergency_phone ?? "")
-  const [techMeta, setTechMeta] = useState<Record<string, unknown>>(athlete.technical_meta ?? {})
+  const [techMeta, setTechMeta] = useState<Record<string, unknown>>(() => {
+    const m = { ...(athlete.technical_meta ?? {}) }
+    if (showMartialArtsTournaments) delete m.tournament_history
+    return m
+  })
+  const [tournamentEntries, setTournamentEntries] = useState<TournamentHistoryEntry[]>(() =>
+    showMartialArtsTournaments ? parseTournamentHistory(athlete.technical_meta ?? {}) : []
+  )
 
   const updateField = (key: string, val: unknown) => {
     setTechMeta((prev) => ({ ...prev, [key]: val }))
@@ -142,13 +157,22 @@ export function AthleteProfileForm({ athlete, sportConfig }: Props) {
     setSuccess(false)
     startTransition(async () => {
       try {
+        const technical_meta: Record<string, unknown> = { ...techMeta }
+        if (showMartialArtsTournaments) {
+          const th = cleanTournamentHistoryEntries(tournamentEntries)
+          if (th) technical_meta.tournament_history = th
+          else delete technical_meta.tournament_history
+          delete technical_meta.competition_record
+          delete technical_meta.fights
+        }
+
         await saveAthleteProfileSelf({
           name,
           phone: phone || undefined,
           birth_date: birthDate || undefined,
           emergency_contact: emergencyContact || undefined,
           emergency_phone: emergencyPhone || undefined,
-          technical_meta: techMeta,
+          technical_meta,
         })
         setSuccess(true)
         window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -167,7 +191,12 @@ export function AthleteProfileForm({ athlete, sportConfig }: Props) {
     setBirthDate(athlete.birth_date ?? "")
     setEmergencyContact(athlete.emergency_contact ?? "")
     setEmergencyPhone(athlete.emergency_phone ?? "")
-    setTechMeta(athlete.technical_meta ?? {})
+    setTechMeta(() => {
+      const m = { ...(athlete.technical_meta ?? {}) }
+      if (showMartialArtsTournaments) delete m.tournament_history
+      return m
+    })
+    setTournamentEntries(showMartialArtsTournaments ? parseTournamentHistory(athlete.technical_meta ?? {}) : [])
     setError(null)
     setSuccess(false)
   }
@@ -176,13 +205,18 @@ export function AthleteProfileForm({ athlete, sportConfig }: Props) {
     <div className="w-full">
       {/* HEADER & TOP ACTIONS */}
       <div className="flex flex-col lg:flex-row items-start lg:items-end justify-between gap-6 mb-10">
-        <div>
-          <h1 className="text-5xl lg:text-[56px] font-black tracking-tighter uppercase leading-[0.9] text-primary flex items-center gap-3 drop-shadow-[0_0_15px_rgba(var(--primary),0.15)]">
-            Mi Perfil
-          </h1>
-          <p className="text-base text-muted-foreground/80 mt-3 font-medium">
-            Actualiza tus credenciales atléticas y métricas personales de contacto.
-          </p>
+        <div className="flex gap-4 min-w-0">
+          <div className="shrink-0 w-12 h-12 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+            <PenLine className="w-6 h-6 text-primary" aria-hidden />
+          </div>
+          <div className="min-w-0">
+            <h1 className="text-4xl md:text-5xl font-black tracking-tighter leading-[1.05] text-foreground">
+              Mi perfil
+            </h1>
+            <p className="text-sm md:text-base text-muted-foreground/80 mt-3 max-w-2xl font-medium">
+              Actualiza tus credenciales atléticas y métricas personales de contacto.
+            </p>
+          </div>
         </div>
         
         <div className="flex items-center gap-4 w-full lg:w-auto mt-4 lg:mt-0">
@@ -221,13 +255,13 @@ export function AthleteProfileForm({ athlete, sportConfig }: Props) {
         
         {/* LEFT CARD: AVATAR / ATHLETE ID */}
         <div className="lg:col-span-1">
-          <Card className="rounded-2xl border-white/[0.04] bg-[#111111] shadow-xl overflow-hidden h-full flex flex-col items-center justify-center p-8 relative">
+          <Card className="rounded-2xl border-border bg-card shadow-sm overflow-hidden h-full flex flex-col items-center justify-center p-8 relative">
             
             <div className="relative group mb-6">
-              <div className="w-40 h-40 rounded-3xl bg-muted/20 border-2 border-white/[0.05] overflow-hidden flex flex-col items-center justify-center transition-all group-hover:border-primary/50 relative">
+              <div className="w-40 h-40 rounded-3xl bg-muted/40 border-2 border-border overflow-hidden flex flex-col items-center justify-center transition-all group-hover:border-primary/50 relative">
                 {/* Fallback avatar visual */}
                 <User className="w-16 h-16 text-muted-foreground/30 group-hover:scale-110 transition-transform duration-500" />
-                <div className="absolute inset-x-0 bottom-0 top-1/2 bg-gradient-to-t from-black/80 to-transparent" />
+                <div className="absolute inset-x-0 bottom-0 top-1/2 bg-gradient-to-t from-background/90 to-transparent dark:from-black/80" />
               </div>
               <button className="absolute -bottom-3 -right-3 w-12 h-12 bg-primary rounded-xl flex items-center justify-center text-primary-foreground shadow-[0_4px_15px_rgba(var(--primary),0.4)] hover:scale-105 active:scale-95 transition-all">
                 <Camera className="w-5 h-5" />
@@ -243,7 +277,7 @@ export function AthleteProfileForm({ athlete, sportConfig }: Props) {
 
         {/* RIGHT CARD: PERSONAL INFORMATION */}
         <div className="lg:col-span-2 space-y-6">
-          <Card className="rounded-2xl border-white/[0.04] bg-[#1a1a1c] shadow-md p-6 sm:p-8">
+          <Card className="rounded-2xl border-border bg-card shadow-sm p-6 sm:p-8">
             <div className="flex items-center gap-3 mb-8">
               <Contact className="w-5 h-5 text-primary" />
               <h2 className="text-lg font-black uppercase tracking-widest text-foreground">Información Personal</h2>
@@ -252,21 +286,21 @@ export function AthleteProfileForm({ athlete, sportConfig }: Props) {
             <div className="grid sm:grid-cols-2 gap-x-6 gap-y-6">
               <div className="space-y-1.5 sm:col-span-2">
                 <Label htmlFor="name" className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Nombre completo <span className="text-destructive">*</span></Label>
-                <Input id="name" value={name} onChange={(e) => setName(e.target.value)} required className="h-12 rounded-xl bg-background/50 border-white/[0.06] font-semibold text-foreground focus-visible:ring-primary/50 transition-colors" />
+                <Input id="name" value={name} onChange={(e) => setName(e.target.value)} required className="h-12 rounded-xl bg-background border-input font-semibold text-foreground focus-visible:ring-primary/50 transition-colors" />
               </div>
               
               <div className="space-y-1.5">
                 <Label htmlFor="phone" className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Télefono Personal</Label>
-                <Input id="phone" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+56 9 1234 5678" className="h-12 rounded-xl bg-background/50 border-white/[0.06] font-semibold text-foreground focus-visible:ring-primary/50 transition-colors" />
+                <Input id="phone" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+56 9 1234 5678" className="h-12 rounded-xl bg-background border-input font-semibold text-foreground focus-visible:ring-primary/50 transition-colors" />
               </div>
               
               <div className="space-y-1.5">
                 <Label htmlFor="birth_date" className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Día de Nacimiento</Label>
-                <Input id="birth_date" type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} className="h-12 rounded-xl bg-background/50 border-white/[0.06] font-semibold text-muted-foreground focus-visible:ring-primary/50 transition-colors" />
+                <Input id="birth_date" type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} className="h-12 rounded-xl bg-background border-input font-semibold text-muted-foreground focus-visible:ring-primary/50 transition-colors" />
               </div>
             </div>
             
-            <div className="mt-10 mb-8 border-t border-white/[0.04]" />
+            <div className="mt-10 mb-8 border-t border-border" />
             
             <div className="flex items-center gap-3 mb-8">
               <Shield className="w-5 h-5 text-amber-500" />
@@ -276,12 +310,12 @@ export function AthleteProfileForm({ athlete, sportConfig }: Props) {
             <div className="grid sm:grid-cols-2 gap-x-6 gap-y-6">
               <div className="space-y-1.5">
                 <Label htmlFor="ec_name" className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Nombre del contacto</Label>
-                <Input id="ec_name" value={emergencyContact} onChange={(e) => setEmergencyContact(e.target.value)} placeholder="Ej: María Pérez" className="h-12 rounded-xl bg-background/50 border-white/[0.06] font-semibold text-foreground focus-visible:ring-primary/50 transition-colors" />
+                <Input id="ec_name" value={emergencyContact} onChange={(e) => setEmergencyContact(e.target.value)} placeholder="Ej: María Pérez" className="h-12 rounded-xl bg-background border-input font-semibold text-foreground focus-visible:ring-primary/50 transition-colors" />
               </div>
               
               <div className="space-y-1.5">
                 <Label htmlFor="ec_phone" className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Télefono de emergencia</Label>
-                <Input id="ec_phone" value={emergencyPhone} onChange={(e) => setEmergencyPhone(e.target.value)} placeholder="+56 9 8765 4321" className="h-12 rounded-xl bg-background/50 border-white/[0.06] font-semibold text-foreground focus-visible:ring-primary/50 transition-colors" />
+                <Input id="ec_phone" value={emergencyPhone} onChange={(e) => setEmergencyPhone(e.target.value)} placeholder="+56 9 8765 4321" className="h-12 rounded-xl bg-background border-input font-semibold text-foreground focus-visible:ring-primary/50 transition-colors" />
               </div>
             </div>
           </Card>
@@ -290,11 +324,11 @@ export function AthleteProfileForm({ athlete, sportConfig }: Props) {
         {/* BOTTOM CARD: MARTIAL ARTS DETAILS */}
         {sportConfig && sportConfig.fields.length > 0 && (
           <div className="lg:col-span-3">
-            <Card className="rounded-2xl border-white/[0.04] bg-[#1a1a1c] shadow-md p-6 sm:p-10">
+            <Card className="rounded-2xl border-border bg-card shadow-sm p-6 sm:p-10">
               <div className="flex items-center gap-3 mb-10">
                 <span className="text-xl leading-none">🥋</span>
                 <h2 className="text-lg font-black uppercase tracking-widest text-foreground">{sportConfig.sectionTitle}</h2>
-                <Badge className="ml-2 text-[9px] uppercase tracking-widest bg-white/5 text-muted-foreground hover:bg-white/10 pointer-events-none border-white/10">Sports Data</Badge>
+                <Badge className="ml-2 text-[9px] uppercase tracking-widest bg-muted text-muted-foreground pointer-events-none border-border">Sports Data</Badge>
               </div>
               
               <div className="grid sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-8 items-end">
@@ -307,6 +341,39 @@ export function AthleteProfileForm({ athlete, sportConfig }: Props) {
                     />
                   </div>
                 ))}
+              </div>
+            </Card>
+          </div>
+        )}
+
+        {showMartialArtsTournaments && sportType && (
+          <div className="lg:col-span-3">
+            <Card className="rounded-2xl border-border bg-card shadow-sm p-6 sm:p-10">
+              <div className="flex items-center gap-3 mb-8">
+                <span className="text-xl leading-none">🏅</span>
+                <h2 className="text-lg font-black uppercase tracking-widest text-foreground">Torneos y logros</h2>
+                <Badge className="ml-2 text-[9px] uppercase tracking-widest bg-muted text-muted-foreground border-border pointer-events-none">
+                  Competencia
+                </Badge>
+              </div>
+              <MartialArtsTournamentHistory
+                sportType={sportType}
+                entries={tournamentEntries}
+                onChange={setTournamentEntries}
+              />
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-8 mt-8 border-t border-border">
+                <p className="text-xs text-muted-foreground max-w-xl">
+                  Guarda los torneos en tu perfil. Este botón guarda <span className="text-foreground/90 font-semibold">toda la ficha</span>{' '}
+                  (datos personales, disciplina y torneos).
+                </p>
+                <Button
+                  type="button"
+                  onClick={handleSubmit}
+                  disabled={isPending || !name.trim()}
+                  className="shrink-0 h-auto px-8 py-3.5 rounded-xl bg-primary text-primary-foreground font-black uppercase tracking-widest text-xs"
+                >
+                  {isPending ? 'Guardando...' : 'Guardar torneos y perfil'}
+                </Button>
               </div>
             </Card>
           </div>

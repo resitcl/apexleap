@@ -10,6 +10,7 @@ import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { z } from 'zod'
 import { getClubId } from '@/lib/actions/club-context'
+import { weekOfMonthFromDate, weekOfMonthRange } from '@/lib/media-archive'
 
 const mediaSchema = z.object({
   title:         z.string().min(2),
@@ -41,16 +42,21 @@ export async function getMediaItems(params?: {
   page?: number
   limit?: number
   month?: string // YYYY-MM format for calendar filtering
+  /** 1–5: segmento del mes (ej. semana 1 = días 1–7) */
+  weekOfMonth?: number
   year?: number
   featured?: boolean
   visibility?: string
+  /** Varias visibilidades (p. ej. público + miembros para alumnos) */
+  visibilityIn?: string[]
   seasonId?: string
   matchId?: string
 }) {
   const clubId = await getClubId()
   const supabase = createAdminClient()
   const page = params?.page ?? 1
-  const limit = params?.limit ?? 24
+  const defaultLimit = params?.limit ?? 24
+  const limit = defaultLimit
   const from = (page - 1) * limit
   const to = from + limit - 1
 
@@ -64,18 +70,33 @@ export async function getMediaItems(params?: {
 
   if (params?.type)     query = query.eq('type', params.type)
   if (params?.category) query = query.eq('category', params.category)
-  if (params?.search)   query = query.ilike('title', `%${params.search}%`)
+  if (params?.search) {
+    const raw = params.search.trim().slice(0, 200).replace(/[%_]/g, ' ')
+    if (raw.length > 0) {
+      const pattern = `%${raw}%`
+      query = query.or(`title.ilike.${pattern},description.ilike.${pattern}`)
+    }
+  }
   if (params?.featured) query = query.eq('is_featured', true)
-  if (params?.visibility) query = query.eq('visibility', params.visibility)
+  if (params?.visibilityIn?.length) {
+    query = query.in('visibility', params.visibilityIn)
+  } else if (params?.visibility) {
+    query = query.eq('visibility', params.visibility)
+  }
   if (params?.seasonId) query = query.eq('season_id', params.seasonId)
   if (params?.matchId)  query = query.eq('match_id', params.matchId)
-  
-  // Calendar filtering by month
-  if (params?.month) {
-    const [year, month] = params.month.split('-').map(Number)
-    const startDate = `${year}-${String(month).padStart(2, '0')}-01`
-    const endDate = `${year}-${String(month + 1 > 12 ? 1 : month + 1).padStart(2, '0')}-01`
-    query = query.gte('media_date', startDate).lt('media_date', endDate)
+
+  if (params?.month && params?.weekOfMonth && params.weekOfMonth >= 1 && params.weekOfMonth <= 5) {
+    const r = weekOfMonthRange(params.month, params.weekOfMonth)
+    if (r) {
+      query = query.gte('media_date', r.start).lte('media_date', r.end)
+    }
+  } else if (params?.month) {
+    const [y, mo] = params.month.split('-').map(Number)
+    const startDate = `${y}-${String(mo).padStart(2, '0')}-01`
+    const endExclusive = new Date(y, mo, 1)
+    const endStr = endExclusive.toISOString().slice(0, 10)
+    query = query.gte('media_date', startDate).lt('media_date', endStr)
   } else if (params?.year) {
     query = query.gte('media_date', `${params.year}-01-01`).lt('media_date', `${params.year + 1}-01-01`)
   }
@@ -91,18 +112,22 @@ export async function getMediaItems(params?: {
 /**
  * Get media items grouped by month for calendar view
  */
-export async function getMediaByMonth(year?: number) {
+export async function getMediaByMonth(year?: number, options?: { visibilityIn?: string[] }) {
   const clubId = await getClubId()
   const supabase = createAdminClient()
   const targetYear = year ?? new Date().getFullYear()
 
-  const { data, error } = await supabase
+  let q = supabase
     .from('media_items')
     .select('id, media_date, type, category')
     .eq('club_id', clubId)
     .gte('media_date', `${targetYear}-01-01`)
     .lt('media_date', `${targetYear + 1}-01-01`)
     .not('media_date', 'is', null)
+  if (options?.visibilityIn?.length) {
+    q = q.in('visibility', options.visibilityIn)
+  }
+  const { data, error } = await q
 
   if (error) return {}
 
@@ -116,6 +141,62 @@ export async function getMediaByMonth(year?: number) {
     if (item.type === 'photo') grouped[month].photos++
   }
   return grouped
+}
+
+/** Años con al menos un ítem con fecha; incluye el año actual si hace falta */
+export async function getMediaYears(): Promise<number[]> {
+  const clubId = await getClubId()
+  const supabase = createAdminClient()
+  const { data, error } = await supabase
+    .from('media_items')
+    .select('media_date')
+    .eq('club_id', clubId)
+    .not('media_date', 'is', null)
+
+  const current = new Date().getFullYear()
+  if (error || !data?.length) return [current]
+
+  const years = new Set<number>()
+  for (const row of data) {
+    const md = row.media_date as string | null
+    if (md && md.length >= 4) years.add(parseInt(md.slice(0, 4), 10))
+  }
+  years.add(current)
+  return [...years].sort((a, b) => b - a)
+}
+
+/** Conteos por semana del mes (1–5) para la barra de archivo */
+export async function getMediaWeekBuckets(
+  monthKey: string,
+  options?: { visibilityIn?: string[] }
+): Promise<number[]> {
+  const clubId = await getClubId()
+  const supabase = createAdminClient()
+  const [y, m] = monthKey.split('-').map(Number)
+  if (!y || !m || m < 1 || m > 12) return [0, 0, 0, 0, 0]
+  const start = `${y}-${String(m).padStart(2, '0')}-01`
+  const endExclusive = new Date(y, m, 1).toISOString().slice(0, 10)
+  let q = supabase
+    .from('media_items')
+    .select('media_date')
+    .eq('club_id', clubId)
+    .gte('media_date', start)
+    .lt('media_date', endExclusive)
+    .not('media_date', 'is', null)
+  if (options?.visibilityIn?.length) {
+    q = q.in('visibility', options.visibilityIn)
+  }
+  const { data, error } = await q
+
+  if (error) return [0, 0, 0, 0, 0]
+  const counts = [0, 0, 0, 0, 0]
+  for (const row of data ?? []) {
+    const md = row.media_date as string | null
+    if (!md) continue
+    const w = weekOfMonthFromDate(md) - 1
+    if (w >= 0 && w < 5) counts[w]++
+  }
+  return counts
 }
 
 /**
@@ -292,32 +373,4 @@ export async function incrementMediaView(id: string) {
   } catch {
     // Silent fail for view tracking
   }
-}
-
-/**
- * Get available years with content (for year selector)
- */
-export async function getMediaYears(): Promise<number[]> {
-  const clubId = await getClubId()
-  const supabase = createAdminClient()
-  
-  const { data, error } = await supabase
-    .from('media_items')
-    .select('media_date')
-    .eq('club_id', clubId)
-    .not('media_date', 'is', null)
-  
-  if (error || !data) return [new Date().getFullYear()]
-  
-  const years = new Set<number>()
-  for (const item of data) {
-    if (item.media_date) {
-      years.add(new Date(item.media_date as string).getFullYear())
-    }
-  }
-  
-  // Always include current year
-  years.add(new Date().getFullYear())
-  
-  return Array.from(years).sort((a, b) => b - a)
 }

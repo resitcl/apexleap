@@ -36,16 +36,16 @@ export default async function SuperAdminLayout({ children }: { children: React.R
   return (
     <div className="h-screen flex overflow-hidden">
       {/* Sidebar */}
-      <aside className="w-60 bg-zinc-950 text-zinc-100 hidden md:flex flex-col shrink-0 h-full border-r border-zinc-800/80">
+      <aside className="w-60 bg-sidebar text-sidebar-foreground hidden md:flex flex-col shrink-0 h-full border-r border-sidebar-border">
 
         {/* Header */}
-        <div className="h-16 flex items-center gap-3 px-4 border-b border-zinc-800/80 shrink-0">
+        <div className="h-16 flex items-center gap-3 px-4 border-b border-sidebar-border shrink-0">
           <div className="w-[34px] h-[34px] rounded-xl bg-red-600/90 flex items-center justify-center shrink-0 shadow-sm">
             <ShieldAlert className="w-4 h-4 text-white" />
           </div>
           <div>
-            <p className="text-[13px] font-bold leading-tight text-zinc-100">Super Admin</p>
-            <p className="text-[10px] text-zinc-500 leading-tight font-medium uppercase tracking-wider">ApexLeap HQ</p>
+            <p className="text-[13px] font-bold leading-tight text-sidebar-foreground">Super Admin</p>
+            <p className="text-[10px] text-muted-foreground leading-tight font-medium uppercase tracking-wider">ApexLeap HQ</p>
           </div>
         </div>
 
@@ -53,17 +53,17 @@ export default async function SuperAdminLayout({ children }: { children: React.R
         <SuperAdminNav />
 
         {/* Bottom */}
-        <div className="shrink-0 border-t border-zinc-800/80 p-3">
+        <div className="shrink-0 border-t border-sidebar-border p-3">
           <ThemeToggle />
         </div>
       </aside>
 
       {/* Main */}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0 bg-background">
-        <header className="h-16 border-b border-border flex items-center px-3 sm:px-4 bg-zinc-950 gap-2 shrink-0">
+        <header className="h-16 border-b border-border flex items-center px-3 sm:px-4 bg-sidebar gap-2 shrink-0">
           <div className="md:hidden flex items-center gap-2 min-w-0 flex-1">
             <MobileSidebar
-              variant="dark"
+              destructiveNav
               groups={mobileGroups}
               clubName="Super Admin"
               subtitle="ApexLeap HQ"
@@ -72,7 +72,7 @@ export default async function SuperAdminLayout({ children }: { children: React.R
               footerExtra={
                 <Link
                   href="/dashboard"
-                  className="flex items-center gap-2 px-3 py-[7px] rounded-xl text-[12px] text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/60 transition-colors w-full"
+                  className="flex items-center gap-2 px-3 py-[7px] rounded-xl text-[12px] text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors w-full"
                 >
                   <ChevronLeft className="w-3.5 h-3.5 shrink-0" />
                   Volver al Dashboard
@@ -83,7 +83,7 @@ export default async function SuperAdminLayout({ children }: { children: React.R
               <div className="w-8 h-8 rounded-xl bg-red-600/90 flex items-center justify-center shrink-0">
                 <ShieldAlert className="w-4 h-4 text-white" />
               </div>
-              <span className="font-bold text-sm text-zinc-100 truncate">Super Admin</span>
+              <span className="font-bold text-sm text-sidebar-foreground truncate">Super Admin</span>
             </div>
           </div>
           <div className="flex-1 hidden md:block" />

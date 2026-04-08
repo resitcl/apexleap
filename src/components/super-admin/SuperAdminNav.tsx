@@ -25,11 +25,11 @@ export function SuperAdminNav() {
                 href={item.href}
                 className={`flex items-center gap-2.5 px-3 py-[7px] rounded-xl text-[13px] transition-all duration-150 ${
                   isActive
-                    ? "bg-red-500/15 text-red-400 font-semibold"
-                    : "text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/80"
+                    ? "bg-destructive/15 text-destructive font-semibold"
+                    : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent"
                 }`}
               >
-                <item.icon className={`w-4 h-4 shrink-0 ${isActive ? "text-red-400" : "text-zinc-500"}`} />
+                <item.icon className={`w-4 h-4 shrink-0 ${isActive ? "text-destructive" : "text-muted-foreground"}`} />
                 {item.label}
               </Link>
             </li>
@@ -37,10 +37,10 @@ export function SuperAdminNav() {
         })}
       </ul>
 
-      <div className="mt-6 pt-4 border-t border-zinc-800/80">
+      <div className="mt-6 pt-4 border-t border-sidebar-border">
         <Link
           href="/dashboard"
-          className="flex items-center gap-2 px-3 py-[7px] rounded-xl text-[12px] text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/60 transition-colors"
+          className="flex items-center gap-2 px-3 py-[7px] rounded-xl text-[12px] text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
         >
           <ChevronLeft className="w-3.5 h-3.5 shrink-0" />
           Volver al Dashboard

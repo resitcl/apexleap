@@ -1,12 +1,12 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Bell, X, CreditCard, FileText, Repeat2, CheckCheck } from 'lucide-react'
+import { Bell, X, CreditCard, FileText, Repeat2, CheckCheck, UserPlus } from 'lucide-react'
 import Link from 'next/link'
 
 export interface NotificationItem {
   id: string
-  type: 'payment' | 'document' | 'subscription'
+  type: 'payment' | 'document' | 'subscription' | 'enrollment' | 'payment_success'
   title: string
   description: string
   href: string
@@ -19,8 +19,10 @@ interface Props {
 
 const TYPE_CONFIG = {
   payment:      { icon: CreditCard, bg: 'bg-red-100 dark:bg-red-900/30',    text: 'text-red-600 dark:text-red-400' },
+  payment_success: { icon: CreditCard, bg: 'bg-primary/12', text: 'text-primary' },
   document:     { icon: FileText,   bg: 'bg-amber-100 dark:bg-amber-900/30', text: 'text-amber-600 dark:text-amber-400' },
   subscription: { icon: Repeat2,    bg: 'bg-blue-100 dark:bg-blue-900/30',   text: 'text-blue-600 dark:text-blue-400' },
+  enrollment:   { icon: UserPlus,   bg: 'bg-primary/12', text: 'text-primary' },
 }
 
 const STORAGE_KEY = 'apexleap-dismissed-notifications'

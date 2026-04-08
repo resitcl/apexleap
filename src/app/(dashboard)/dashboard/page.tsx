@@ -230,13 +230,13 @@ export default async function DashboardPage() {
         </div>
         <div className="flex items-center gap-3 shrink-0">
           <Link href="/dashboard/athletes/new">
-            <button className="h-11 px-5 rounded-full bg-emerald-400 text-black font-bold text-sm flex items-center gap-2 hover:bg-emerald-300 transition-colors shadow-lg shadow-emerald-400/20">
+            <button className="h-11 px-5 rounded-full bg-primary text-primary-foreground font-bold text-sm flex items-center gap-2 hover:bg-primary/90 transition-colors shadow-lg shadow-primary/25">
               <UserPlus className="w-4 h-4" />
               Nuevo {vocab.athlete}
             </button>
           </Link>
           <div className="hidden sm:flex items-center gap-2.5 text-[11px] font-bold uppercase tracking-[0.15em] text-muted-foreground/80 border border-white/[0.06] rounded-2xl px-4 py-3 bg-card/40">
-            <Calendar className="w-4 h-4 text-emerald-400" />
+            <Calendar className="w-4 h-4 text-primary" />
             <span>{todayDate}</span>
           </div>
         </div>
@@ -249,14 +249,14 @@ export default async function DashboardPage() {
         <Link href="/dashboard/athletes" className="block group">
           <div className="rounded-[20px] bg-[#111111] border border-white/[0.04] p-5 hover:bg-[#1a1a1a] transition-colors h-full flex flex-col justify-between shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
             <div className="flex items-center gap-2.5 mb-5">
-              <Users className="w-4 h-4 text-muted-foreground/50 group-hover:text-emerald-400 transition-colors" />
+              <Users className="w-4 h-4 text-muted-foreground/50 group-hover:text-primary transition-colors" />
               <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">{vocab.athletes}</p>
             </div>
             <div>
-              <p className="text-4xl font-black tracking-tight text-emerald-400 leading-none">{summary.totalAthletes}</p>
+              <p className="text-4xl font-black tracking-tight text-primary leading-none">{summary.totalAthletes}</p>
               <p className="text-[12px] text-muted-foreground/50 mt-2 font-medium flex items-center gap-1.5">
                 {summary.newThisMonth > 0 ? (
-                  <><TrendingUp className="w-3 h-3 text-emerald-400" /> +{summary.newThisMonth} este mes</>
+                  <><TrendingUp className="w-3 h-3 text-primary" /> +{summary.newThisMonth} este mes</>
                 ) : (
                   'activos'
                 )}
@@ -269,16 +269,16 @@ export default async function DashboardPage() {
         <Link href={`/dashboard/finances?tab=overview&month=${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`} className="block group">
           <div className="rounded-[20px] bg-[#111111] border border-white/[0.04] p-5 hover:bg-[#1a1a1a] transition-colors h-full flex flex-col justify-between shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
             <div className="flex items-center gap-2.5 mb-5">
-              <Wallet className="w-4 h-4 text-muted-foreground/50 group-hover:text-emerald-400 transition-colors" />
+              <Wallet className="w-4 h-4 text-muted-foreground/50 group-hover:text-primary transition-colors" />
               <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Ingresos</p>
             </div>
             <div>
-              <p className="text-4xl font-black tracking-tight text-emerald-400 leading-none">
+              <p className="text-4xl font-black tracking-tight text-primary leading-none">
                 ${summary.monthlyIncome >= 1000000 ? `${(summary.monthlyIncome / 1000000).toFixed(1)}M` : summary.monthlyIncome >= 1000 ? `${Math.round(summary.monthlyIncome / 1000)}k` : summary.monthlyIncome.toLocaleString('es-CL')}
               </p>
               <p className="text-[12px] text-muted-foreground/50 mt-2 font-medium flex items-center gap-1.5">
                 {revTrend !== 0 ? (
-                  <>{revTrend > 0 ? <TrendingUp className="w-3 h-3 text-emerald-400" /> : <TrendingDown className="w-3 h-3 text-red-400" />} {revTrend > 0 ? '+' : ''}{revTrend}% vs mes ant.</>
+                  <>{revTrend > 0 ? <TrendingUp className="w-3 h-3 text-primary" /> : <TrendingDown className="w-3 h-3 text-red-400" />} {revTrend > 0 ? '+' : ''}{revTrend}% vs mes ant.</>
                 ) : (
                   'este mes'
                 )}
@@ -291,7 +291,7 @@ export default async function DashboardPage() {
         <Link href="/dashboard/attendance" className="block group">
           <div className="rounded-[20px] bg-[#111111] border border-white/[0.04] p-5 hover:bg-[#1a1a1a] transition-colors h-full flex flex-col justify-between shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
             <div className="flex items-center gap-2.5 mb-5">
-              <QrCode className="w-4 h-4 text-muted-foreground/50 group-hover:text-emerald-400 transition-colors" />
+              <QrCode className="w-4 h-4 text-muted-foreground/50 group-hover:text-primary transition-colors" />
               <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Check-ins</p>
             </div>
             <div>
@@ -311,7 +311,7 @@ export default async function DashboardPage() {
               <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Por Cobrar</p>
             </div>
             <div>
-              <p className={`text-4xl font-black tracking-tight leading-none ${summary.overdueAmount > 0 ? 'text-red-500' : 'text-emerald-400'}`}>
+              <p className={`text-4xl font-black tracking-tight leading-none ${summary.overdueAmount > 0 ? 'text-red-500' : 'text-primary'}`}>
                 {summary.overdueAmount > 0
                   ? `$${summary.overdueAmount >= 1000000 ? `${(summary.overdueAmount / 1000000).toFixed(1)}M` : summary.overdueAmount >= 1000 ? `${Math.round(summary.overdueAmount / 1000)}k` : summary.overdueAmount.toLocaleString('es-CL')}`
                   : 'Al día'}
@@ -329,8 +329,8 @@ export default async function DashboardPage() {
             <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">
               Estado {vocab.team}
             </p>
-            <div className="w-10 h-10 rounded-xl bg-emerald-400/10 flex items-center justify-center shrink-0">
-              <UserCheck className="w-5 h-5 text-emerald-400" />
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+              <UserCheck className="w-5 h-5 text-primary" />
             </div>
           </div>
           {total > 0 ? (
@@ -341,12 +341,12 @@ export default async function DashboardPage() {
               <p className="text-[12px] text-muted-foreground/50 mt-1.5 font-medium">aptos para entrenar</p>
               <div className="mt-auto pt-4">
                 <div className="flex rounded-full overflow-hidden h-2.5 mb-3 bg-white/[0.04]">
-                  {greenPct > 0 && <div className="bg-emerald-400 transition-all" style={{ width: `${greenPct}%` }} />}
+                  {greenPct > 0 && <div className="bg-primary transition-all" style={{ width: `${greenPct}%` }} />}
                   {yellowPct > 0 && <div className="bg-amber-400 transition-all" style={{ width: `${yellowPct}%` }} />}
                   {redPct > 0 && <div className="bg-red-500 transition-all" style={{ width: `${redPct}%` }} />}
                 </div>
                 <div className="flex gap-4">
-                  <span className="text-[11px] text-emerald-400 font-bold">{summary.semaforoCount.green} 🟢</span>
+                  <span className="text-[11px] text-primary font-bold">{summary.semaforoCount.green} 🟢</span>
                   <span className="text-[11px] text-amber-400 font-bold">{summary.semaforoCount.yellow} 🟡</span>
                   <span className="text-[11px] text-red-400 font-bold">{summary.semaforoCount.red} 🔴</span>
                 </div>
@@ -490,7 +490,7 @@ export default async function DashboardPage() {
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <DollarSign className="w-5 h-5 text-emerald-400" />
+                    <DollarSign className="w-5 h-5 text-primary" />
                     {revTrend !== 0 && (
                       <Badge variant={revTrend > 0 ? 'default' : 'destructive'} className="text-[10px] font-bold">
                         {revTrend > 0 ? '+' : ''}{revTrend}%
@@ -508,10 +508,10 @@ export default async function DashboardPage() {
                           {m.amount > 0 ? `$${Math.round(m.amount / 1000)}k` : ''}
                         </span>
                         <div
-                          className={`w-full rounded-md transition-all ${isCurrentMonth ? 'bg-emerald-400' : 'bg-emerald-400/25'}`}
+                          className={`w-full rounded-md transition-all ${isCurrentMonth ? 'bg-primary' : 'bg-primary/25'}`}
                           style={{ height: `${pct}%` }}
                         />
-                        <span className={`text-[10px] font-bold uppercase ${isCurrentMonth ? 'text-emerald-400' : 'text-muted-foreground/30'}`}>
+                        <span className={`text-[10px] font-bold uppercase ${isCurrentMonth ? 'text-primary' : 'text-muted-foreground/30'}`}>
                           {m.label}
                         </span>
                       </div>
@@ -625,7 +625,7 @@ export default async function DashboardPage() {
               <div className="divide-y divide-white/[0.04]">
                 {activity.slice(0, 6).map((item) => {
                   const Icon = item.type === 'payment' ? CreditCard : item.type === 'checkin' ? QrCode : UserCheck
-                  const iconColor = item.type === 'payment' ? 'text-emerald-400 bg-emerald-400/10' :
+                  const iconColor = item.type === 'payment' ? 'text-primary bg-primary/10' :
                     item.type === 'checkin' ? 'text-violet-400 bg-violet-400/10' : 'text-cyan-400 bg-cyan-400/10'
                   const timeAgo = (() => {
                     const diff = Date.now() - new Date(item.time).getTime()
@@ -662,7 +662,7 @@ export default async function DashboardPage() {
             <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 mb-4">Acciones Rápidas</p>
             <div className="grid grid-cols-2 gap-2">
               {[
-                { href: "/dashboard/athletes/new", label: `Nuevo ${vocab.athlete}`, icon: UserPlus, color: "bg-emerald-400/10 text-emerald-400 hover:bg-emerald-400/20" },
+                { href: "/dashboard/athletes/new", label: `Nuevo ${vocab.athlete}`, icon: UserPlus, color: "bg-primary/10 text-primary hover:bg-primary/20" },
                 { href: "/dashboard/payments/new", label: "Registrar Pago", icon: CreditCard, color: "bg-cyan-400/10 text-cyan-400 hover:bg-cyan-400/20" },
                 { href: "/dashboard/attendance?tab=today", label: "Check-in", icon: QrCode, color: "bg-violet-400/10 text-violet-400 hover:bg-violet-400/20" },
                 { href: "/dashboard/documents/new", label: "Documento", icon: FileText, color: "bg-amber-400/10 text-amber-400 hover:bg-amber-400/20" },
@@ -684,7 +684,7 @@ export default async function DashboardPage() {
             <div className="rounded-[20px] bg-[#111111] border border-white/[0.04] p-5 shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
               <div className="flex items-center justify-between mb-4">
                 <p className="text-lg font-black tracking-tight">Próximos Partidos</p>
-                <Swords className="w-5 h-5 text-emerald-400" />
+                <Swords className="w-5 h-5 text-primary" />
               </div>
               <div className="space-y-3">
                 {upcomingMatches.map((m) => {
@@ -700,7 +700,7 @@ export default async function DashboardPage() {
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-bold leading-snug truncate">vs. {m.opponent ?? 'Por definir'}</p>
                         <p className="text-[10px] text-muted-foreground/50 font-medium mt-1 flex items-center gap-2">
-                          <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${m.is_home ? 'bg-emerald-400/10 text-emerald-400' : 'bg-white/[0.04] text-muted-foreground/60'}`}>
+                          <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${m.is_home ? 'bg-primary/10 text-primary' : 'bg-white/[0.04] text-muted-foreground/60'}`}>
                             {m.is_home ? 'LOCAL' : 'VISITA'}
                           </span>
                           {m.location && <span className="flex items-center gap-1 truncate"><MapPin className="w-3 h-3" />{m.location}</span>}
@@ -710,7 +710,7 @@ export default async function DashboardPage() {
                   )
                 })}
               </div>
-              <Link href="/dashboard/competitions" className="mt-4 text-xs text-emerald-400 font-bold inline-flex items-center gap-1 hover:gap-2 transition-all">
+              <Link href="/dashboard/competitions" className="mt-4 text-xs text-primary font-bold inline-flex items-center gap-1 hover:gap-2 transition-all">
                 Ver todos <ChevronRight className="w-3.5 h-3.5" />
               </Link>
             </div>
@@ -724,12 +724,12 @@ export default async function DashboardPage() {
                 <BarChart3 className="w-5 h-5 text-cyan-400" />
               </div>
               <div className="flex items-center gap-5 mb-4">
-                <div><p className="text-2xl font-black text-emerald-400">{seasonRecord.wins}</p><p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground/40 mt-0.5">Victorias</p></div>
+                <div><p className="text-2xl font-black text-primary">{seasonRecord.wins}</p><p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground/40 mt-0.5">Victorias</p></div>
                 <div><p className="text-2xl font-black text-amber-400">{seasonRecord.draws}</p><p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground/40 mt-0.5">Empates</p></div>
                 <div><p className="text-2xl font-black text-red-400">{seasonRecord.losses}</p><p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground/40 mt-0.5">Derrotas</p></div>
               </div>
               <div className="h-2 rounded-full bg-white/[0.04] overflow-hidden flex">
-                {seasonRecord.wins > 0 && <div className="bg-emerald-400 h-full" style={{ width: `${(seasonRecord.wins / seasonRecord.total) * 100}%` }} />}
+                {seasonRecord.wins > 0 && <div className="bg-primary h-full" style={{ width: `${(seasonRecord.wins / seasonRecord.total) * 100}%` }} />}
                 {seasonRecord.draws > 0 && <div className="bg-amber-400 h-full" style={{ width: `${(seasonRecord.draws / seasonRecord.total) * 100}%` }} />}
                 {seasonRecord.losses > 0 && <div className="bg-red-400 h-full" style={{ width: `${(seasonRecord.losses / seasonRecord.total) * 100}%` }} />}
               </div>
@@ -785,12 +785,12 @@ export default async function DashboardPage() {
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold truncate group-hover:text-emerald-400 transition-colors">{a.name}</p>
+                      <p className="text-sm font-bold truncate group-hover:text-primary transition-colors">{a.name}</p>
                       <p className="text-[10px] text-muted-foreground/50 font-medium capitalize">
                         {a.belt} · {a.stripes} grados
                       </p>
                     </div>
-                    <ChevronRight className="w-4 h-4 text-muted-foreground/20 group-hover:text-emerald-400 transition-colors" />
+                    <ChevronRight className="w-4 h-4 text-muted-foreground/20 group-hover:text-primary transition-colors" />
                   </Link>
                 ))}
               </div>
@@ -872,7 +872,7 @@ export default async function DashboardPage() {
                 <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50">Retención</p>
                 <TrendingUp className="w-4 h-4 text-teal-400" />
               </div>
-              <p className={`text-3xl font-black ${retention.rate >= 80 ? 'text-emerald-400' : retention.rate >= 60 ? 'text-amber-400' : 'text-red-400'}`}>
+              <p className={`text-3xl font-black ${retention.rate >= 80 ? 'text-primary' : retention.rate >= 60 ? 'text-amber-400' : 'text-red-400'}`}>
                 {retention.rate}%
               </p>
               <p className="text-[11px] text-muted-foreground/50 mt-1">
@@ -913,7 +913,7 @@ export default async function DashboardPage() {
                 <p className="text-[11px] text-muted-foreground/50 mt-1 flex items-center gap-1">
                   {cur?.uniqueAthletes ?? 0} atletas únicos
                   {trend !== 0 && (
-                    <span className={trend > 0 ? 'text-emerald-400' : 'text-red-400'}>
+                    <span className={trend > 0 ? 'text-primary' : 'text-red-400'}>
                       {trend > 0 ? '↑' : '↓'}{Math.abs(trend)}%
                     </span>
                   )}

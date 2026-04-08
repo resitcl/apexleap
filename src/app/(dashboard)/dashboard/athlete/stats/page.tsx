@@ -5,6 +5,7 @@ import { checkUserHasClub } from "@/lib/actions/onboarding"
 import { getMyStats } from "@/lib/actions/athlete-enrollment"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Activity, Trophy, CalendarDays, TrendingUp, BarChart3, Target } from "lucide-react"
+import { AthleteSectionHeader } from "@/components/athlete/AthleteSectionHeader"
 
 const STAT_ICONS: Record<string, string> = {
   goles: "⚽", goals: "⚽", puntos: "🏀", points: "🏀",
@@ -37,15 +38,11 @@ export default async function AthleteStatsPage() {
 
   return (
     <div className="space-y-8 pb-12 pt-1">
-      {/* Header */}
-      <div>
-        <h1 className="text-4xl md:text-5xl font-black tracking-tighter uppercase leading-none text-foreground flex items-center gap-3">
-          <Activity className="w-10 h-10 text-primary" /> Rendimiento
-        </h1>
-        <p className="text-sm md:text-base text-muted-foreground/80 mt-3 max-w-xl font-medium">
-          Métricas de desempeño técnico y físico asignadas por el cuerpo técnico.
-        </p>
-      </div>
+      <AthleteSectionHeader
+        icon={Activity}
+        title="Rendimiento"
+        description="Métricas de desempeño técnico y físico asignadas por el cuerpo técnico."
+      />
 
       {matchCount === 0 || statKeys.length === 0 ? (
         <Card className="rounded-2xl border-dashed border-white/[0.05] bg-muted/5">

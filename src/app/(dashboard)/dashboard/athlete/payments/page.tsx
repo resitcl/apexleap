@@ -15,6 +15,7 @@ import { formatPeriod } from "@/lib/billing-utils"
 import { PayNowButton } from "@/components/athlete/PayNowButton"
 import { getClubSettings } from "@/lib/actions/settings"
 import { getEnabledPaymentMethodIdsFromClubSettings } from "@/lib/payment-methods"
+import { AthleteSectionHeader } from "@/components/athlete/AthleteSectionHeader"
 
 const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   paid:      { label: "Pagado",    variant: "default" },
@@ -98,14 +99,11 @@ export default async function AthletePaymentsPage() {
 
   return (
     <div className="space-y-8 pb-12 pt-1">
-      <div>
-        <h1 className="text-4xl md:text-5xl font-black tracking-tighter uppercase leading-none text-foreground flex items-center gap-3">
-          <CreditCard className="w-10 h-10 text-primary" /> Mis Pagos
-        </h1>
-        <p className="text-sm md:text-base text-muted-foreground/80 mt-3 max-w-xl font-medium">
-          Estado de tu plan, historial de transacciones y cuotas mensuales pendientes.
-        </p>
-      </div>
+      <AthleteSectionHeader
+        icon={CreditCard}
+        title="Mis pagos"
+        description="Estado de tu plan, historial de transacciones y cuotas mensuales pendientes."
+      />
 
       {/* Subscription status banner */}
       {sub && plan ? (

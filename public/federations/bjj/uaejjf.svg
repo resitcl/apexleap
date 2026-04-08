@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 48" role="img" aria-label="UAEJJF">
+  <rect width="128" height="48" rx="8" fill="#00732f"/>
+  <rect x="0" y="0" width="42" height="48" fill="#000" rx="8" ry="0"/>
+  <rect x="86" y="0" width="42" height="48" fill="#ff0000" rx="8" ry="0"/>
+  <rect x="42" y="0" width="44" height="48" fill="#00732f"/>
+  <text x="64" y="31" text-anchor="middle" fill="#fff" font-family="system-ui,Segoe UI,sans-serif" font-size="10" font-weight="800">UAEJJF</text>
+</svg>

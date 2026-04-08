@@ -55,7 +55,7 @@ export default async function AthleteProfilePage() {
   return (
     <div className="space-y-8 pb-12 pt-1">
 
-      <AthleteProfileForm athlete={athlete} sportConfig={sportConfig} />
+      <AthleteProfileForm athlete={athlete} sportConfig={sportConfig} sportType={sportType} />
     </div>
   )
 }

@@ -44,7 +44,7 @@ export function DesktopNavItem({ href, label, icon, badge, notificationId }: Pro
       onClick={dismissBadge}
       className={`flex items-center gap-2.5 px-3 py-[7px] rounded-xl text-[13px] transition-all duration-150 ${
         isActive
-          ? "bg-primary/10 dark:bg-primary/15 text-primary font-semibold"
+          ? "bg-gradient-to-br from-primary/[0.22] via-primary/[0.10] to-primary/[0.04] dark:from-primary/[0.28] dark:via-primary/[0.14] dark:to-primary/[0.06] text-primary font-semibold shadow-[inset_0_1px_0_0_rgba(255,255,255,0.07)] dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)] ring-1 ring-inset ring-primary/15"
           : "text-muted-foreground/70 hover:text-foreground hover:bg-muted/60 dark:hover:bg-white/[0.05]"
       }`}
     >

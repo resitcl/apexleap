@@ -8,8 +8,9 @@ import { getClubId } from "@/lib/actions/club-context"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { CheckCircle, XCircle, CalendarDays, TrendingUp, Flame, QrCode, Camera } from "lucide-react"
+import { CheckCircle, XCircle, CalendarDays, TrendingUp, Flame, QrCode, Camera, ClipboardCheck } from "lucide-react"
 import Link from "next/link"
+import { AthleteSectionHeader } from "@/components/athlete/AthleteSectionHeader"
 
 export default async function AthleteAttendancePage() {
   const hasClub = await checkUserHasClub().catch(() => false)
@@ -87,14 +88,11 @@ export default async function AthleteAttendancePage() {
 
   return (
     <div className="space-y-8 pb-12 pt-1">
-      <div>
-        <h1 className="text-4xl md:text-5xl font-black tracking-tighter uppercase leading-none text-foreground flex items-center gap-3">
-          <CalendarDays className="w-10 h-10 text-primary" /> Mi Asistencia
-        </h1>
-        <p className="text-sm md:text-base text-muted-foreground/80 mt-3 max-w-xl font-medium">
-          Historial de check-ins y métricas de presencia. Mantén un ritmo de entrenamiento constante.
-        </p>
-      </div>
+      <AthleteSectionHeader
+        icon={ClipboardCheck}
+        title="Mi asistencia"
+        description="Historial de check-ins y métricas de presencia. Mantén un ritmo de entrenamiento constante."
+      />
 
       {/* KPIs */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">

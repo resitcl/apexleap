@@ -1,7 +1,7 @@
 'use client'
 
 import { usePathname } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 
 interface Props {
@@ -17,50 +17,30 @@ const BYPASS_PATHS = [
 export function AgreementGateWrapper({ children }: Props) {
   const pathname = usePathname()
   const router = useRouter()
-  const [checked, setChecked] = useState(false)
-  const [hasAccess, setHasAccess] = useState(true)
-
-  // Check if current path should bypass agreement check
-  const shouldBypass = BYPASS_PATHS.some(path => pathname?.startsWith(path))
+  const shouldBypass = BYPASS_PATHS.some((path) => pathname?.startsWith(path))
 
   useEffect(() => {
-    if (shouldBypass) {
-      setChecked(true)
-      setHasAccess(true)
-      return
-    }
+    if (shouldBypass) return
 
+    let cancelled = false
     async function checkAgreements() {
       try {
         const res = await fetch('/api/agreements/check-pending')
         const data = await res.json()
-
-        if (data.hasPending) {
-          router.push('/dashboard/agreements')
-          setHasAccess(false)
-        } else {
-          setHasAccess(true)
+        if (!cancelled && data.hasPending) {
+          router.replace('/dashboard/agreements')
         }
       } catch {
-        // On error, allow access
-        setHasAccess(true)
-      } finally {
-        setChecked(true)
+        /* permitir acceso si el check falla */
       }
     }
 
-    checkAgreements()
+    void checkAgreements()
+    return () => {
+      cancelled = true
+    }
   }, [pathname, shouldBypass, router])
 
-  // Show nothing while checking (prevents flash)
-  if (!checked && !shouldBypass) {
-    return null
-  }
-
-  // If no access, don't render children (redirect is happening)
-  if (!hasAccess && !shouldBypass) {
-    return null
-  }
-
+  // Siempre renderizar hijos (misma salida SSR / hidratación). El redirect ocurre en segundo plano.
   return <>{children}</>
 }

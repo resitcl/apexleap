@@ -32,8 +32,10 @@ interface Props {
   subtitle?: string | null
   /** Enlace Super Admin (solo si el usuario es super admin) */
   showSuperAdminLink?: boolean
-  /** Estilo del cajón (Super Admin usa tema oscuro) */
+  /** Estilo del cajón forzado oscuro (legacy; preferir tema + destructiveNav) */
   variant?: "default" | "dark"
+  /** Ítems activos en rojo / destructive (p. ej. Super Admin HQ) */
+  destructiveNav?: boolean
   /** Pie opcional (ej. enlace “Volver” en vista HQ) */
   footerExtra?: ReactNode
   /** Mostrar interruptor de tema al pie del menú móvil */
@@ -48,6 +50,7 @@ export function MobileSidebar({
   subtitle = "Performance Hub",
   showSuperAdminLink = false,
   variant = "default",
+  destructiveNav = false,
   footerExtra,
   showThemeToggle = true,
 }: Props) {
@@ -56,6 +59,7 @@ export function MobileSidebar({
   const pathname = usePathname()
   const color = brandColor ?? "#000000"
   const isDark = variant === "dark"
+  const redActive = isDark || destructiveNav
   const drawerSurface = isDark
     ? "bg-zinc-950 border-zinc-800/80 text-zinc-100"
     : "bg-sidebar border-sidebar-border text-foreground"
@@ -194,9 +198,9 @@ export function MobileSidebar({
                         }}
                         className={`flex items-center gap-2.5 px-3 py-[7px] rounded-xl text-[13px] transition-colors ${
                           isActive
-                            ? isDark
-                              ? "bg-red-500/15 text-red-400 font-semibold"
-                              : "bg-primary/10 dark:bg-primary/15 text-primary font-semibold"
+                            ? redActive
+                              ? "bg-gradient-to-br from-destructive/25 via-destructive/12 to-destructive/6 text-destructive font-semibold ring-1 ring-inset ring-destructive/20"
+                              : "bg-gradient-to-br from-primary/[0.22] via-primary/[0.10] to-primary/[0.04] dark:from-primary/[0.28] dark:via-primary/[0.14] dark:to-primary/[0.06] text-primary font-semibold ring-1 ring-inset ring-primary/15"
                             : isDark
                               ? "text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/80"
                               : "text-muted-foreground/70 hover:text-foreground hover:bg-muted/60 dark:hover:bg-white/[0.05]"
@@ -205,8 +209,8 @@ export function MobileSidebar({
                         <span
                           className={`shrink-0 ${
                             isActive
-                              ? isDark
-                                ? "text-red-400"
+                              ? redActive
+                                ? "text-destructive"
                                 : "text-primary"
                               : isDark
                                 ? "text-zinc-500"

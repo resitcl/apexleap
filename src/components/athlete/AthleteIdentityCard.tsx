@@ -1,86 +1,15 @@
 'use client'
 
-import { getSportFieldDisplayValue } from '@/lib/sport-fields'
+import { useId } from 'react'
+import { BeltSVG, getBeltColor, isLightBelt } from '@/components/athlete/belt-visual'
+import { getSportFieldDisplayValue, getTournamentHistorySummaryLine } from '@/lib/sport-fields'
 
 type TechMeta = Record<string, unknown>
-
-// ─── Belt color mapping ───────────────────────────────────────────────────────
-const BELT_COLOR: Record<string, string> = {
-  white:        '#F2F2F2',
-  yellow:       '#F5C518',
-  white_yellow: '#F0D070',
-  orange:       '#F97316',
-  yellow_green: '#84C92B',
-  green:        '#22C55E',
-  green_blue:   '#2D9E9E',
-  blue:         '#3B82F6',
-  blue_adv:     '#1D4ED8',
-  blue_red:     '#7E3AF2',
-  purple:       '#9333EA',
-  brown:        '#78340F',
-  red:          '#EF4444',
-  red_black:    '#B91C1C',
-}
-const BLACK_BELT = '#1A1A1A'
-
-function getBeltColor(belt: string): string {
-  if (belt?.startsWith('black')) return BLACK_BELT
-  return BELT_COLOR[belt] ?? '#888'
-}
-
-function isLightBelt(belt: string): boolean {
-  return ['white', 'yellow', 'white_yellow', 'orange', 'yellow_green'].includes(belt)
-}
 
 // ─── Sport groups ─────────────────────────────────────────────────────────────
 const BELT_SPORTS  = ['Jiu-Jitsu', 'Karate', 'Taekwondo', 'Judo']
 const COMBAT_SPORTS = ['Boxeo', 'Muay Thai', 'MMA', 'Kickboxing', 'Lucha']
 const TEAM_SPORTS  = ['Fútbol', 'Básquetbol', 'Vóley', 'Handball', 'Futsal', 'Rugby', 'Hockey', 'Waterpolo']
-
-// ─── Belt SVG (flat display — no knot) ───────────────────────────────────────
-function BeltSVG({ belt, stripes }: { belt: string; stripes: number }) {
-  const color   = getBeltColor(belt)
-  const isLight = isLightBelt(belt)
-  const border  = isLight ? '#C0C0C0' : 'transparent'
-  const uid     = belt.replace(/[^a-z0-9]/g, '')
-
-  return (
-    <svg viewBox="0 0 320 56" className="w-full max-w-[300px] drop-shadow-lg" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <linearGradient id={`bg-${uid}`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%"   stopColor="rgba(255,255,255,0.18)" />
-          <stop offset="40%"  stopColor="rgba(255,255,255,0)" />
-          <stop offset="100%" stopColor="rgba(0,0,0,0.18)" />
-        </linearGradient>
-      </defs>
-
-      {/* Belt body */}
-      <rect x="0" y="6" width="244" height="44" rx="6"
-            fill={color} stroke={border} strokeWidth={isLight ? 1 : 0} />
-      {/* Depth overlay */}
-      <rect x="0" y="6" width="244" height="44" rx="6"
-            fill={`url(#bg-${uid})`} />
-      {/* Center seam */}
-      <line x1="0" y1="28" x2="244" y2="28"
-            stroke={isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.08)'}
-            strokeWidth="1.5" />
-
-      {/* Black tip */}
-      <rect x="244" y="6" width="76" height="44" rx="0 6 6 0" fill="#111" />
-      {/* Tip depth */}
-      <rect x="244" y="6" width="76" height="44" rx="0 6 6 0"
-            fill="url(#bg-black)" />
-
-      {/* Stripes (white vertical bars in tip) */}
-      {Array.from({ length: Math.min(stripes, 4) }).map((_, i) => (
-        <rect key={i}
-              x={257 + i * 15} y="11"
-              width="9" height="34" rx="3"
-              fill="white" opacity="0.88" />
-      ))}
-    </svg>
-  )
-}
 
 // ─── Jersey SVG ───────────────────────────────────────────────────────────────
 function JerseySVG({
@@ -154,6 +83,7 @@ export function AthleteIdentityCard({
   sportType, technicalMeta, athleteName, primaryColor, secondaryColor, jerseyNumber,
 }: Props) {
   const meta = technicalMeta ?? {}
+  const beltSvgId = useId().replace(/:/g, '')
   if (!sportType) return null
 
   // ── Belt sports (BJJ, Karate, Taekwondo, Judo) ───────────────────────────
@@ -163,7 +93,7 @@ export function AthleteIdentityCard({
     const beltLabel   = getSportFieldDisplayValue(sportType, 'belt', belt) || 'Sin registrar'
     const stripesLabel = stripes > 0 ? `${stripes} grado${stripes !== 1 ? 's' : ''}` : 'Sin grados'
     const weightClass  = getSportFieldDisplayValue(sportType, 'weight_class', meta.weight_class) || null
-    const record       = (meta.competition_record as string | null) ?? (meta.fights as string | null) ?? null
+    const tournamentLine = getTournamentHistorySummaryLine(meta)
     const beltColor    = belt ? getBeltColor(belt) : '#888'
     const isLight      = belt ? isLightBelt(belt) : false
 
@@ -183,7 +113,7 @@ export function AthleteIdentityCard({
           {/* Belt visual */}
           <div className="w-full sm:w-auto flex justify-center">
             {belt ? (
-              <BeltSVG belt={belt} stripes={stripes} />
+              <BeltSVG belt={belt} stripes={stripes} instanceId={beltSvgId} />
             ) : (
               <div className="w-full max-w-[280px] h-[78px] rounded-2xl bg-muted/50 flex items-center justify-center border-none">
                 <span className="text-xs font-bold text-muted-foreground/50 uppercase tracking-widest">Sin cinturón</span>
@@ -201,9 +131,9 @@ export function AthleteIdentityCard({
                   ⚖️ {weightClass}
                 </span>
               )}
-              {record && (
-                <span className="text-xs bg-black/20 text-foreground dark:text-white rounded-lg px-3 py-1.5 font-mono font-bold tracking-wide">
-                  🏆 {record}
+              {tournamentLine && (
+                <span className="text-xs bg-black/20 text-foreground dark:text-white rounded-lg px-3 py-1.5 font-bold tracking-wide">
+                  🏅 {tournamentLine}
                 </span>
               )}
             </div>
@@ -271,12 +201,14 @@ export function AthleteIdentityCard({
 
   // ── Combat sports without belt (Boxeo, Muay Thai, MMA, Kickboxing, Lucha) ─
   if (COMBAT_SPORTS.includes(sportType)) {
-    const record      = (meta.fights as string | null) ?? null
+    const isBoxing = sportType === 'Boxeo'
+    const record = isBoxing ? ((meta.fights as string | null) ?? null) : null
+    const tournamentLine = !isBoxing ? getTournamentHistorySummaryLine(meta) : null
     const level       = getSportFieldDisplayValue(sportType, 'level', meta.level) || null
     const weightClass = getSportFieldDisplayValue(sportType, 'weight_class', meta.weight_class) || null
     const stance      = getSportFieldDisplayValue(sportType, 'stance', meta.stance) || null
 
-    if (!record && !level && !weightClass) return null
+    if (!record && !tournamentLine && !level && !weightClass && !stance) return null
 
     const sportEmoji: Record<string, string> = {
       Boxeo: '🥊', 'Muay Thai': '🥊', MMA: '🥋', Kickboxing: '🦵', Lucha: '🤼',
@@ -290,14 +222,20 @@ export function AthleteIdentityCard({
         </span>
 
         <p className="text-[10px] font-bold uppercase tracking-widest text-white/40 mb-5 relative z-10">
-          Tu récord · {sportType}
+          {isBoxing ? `Tu récord · ${sportType}` : `Competencia · ${sportType}`}
         </p>
 
         <div className="flex flex-col sm:flex-row sm:items-center gap-6 relative z-10">
-          {record && (
+          {isBoxing && record && (
             <div>
               <p className="text-5xl font-black font-mono tracking-tighter">{record}</p>
               <p className="text-xs font-bold text-white/50 mt-1 uppercase tracking-wide">V · D · E</p>
+            </div>
+          )}
+          {!isBoxing && tournamentLine && (
+            <div className="rounded-2xl bg-white/10 px-4 py-3 border border-white/10">
+              <p className="text-2xl font-black tracking-tight">🏅 {tournamentLine}</p>
+              <p className="text-[10px] font-bold text-white/50 mt-1 uppercase tracking-wide">Torneos</p>
             </div>
           )}
           <div className="flex flex-wrap gap-2">

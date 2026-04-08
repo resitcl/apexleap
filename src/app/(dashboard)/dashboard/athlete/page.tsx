@@ -5,6 +5,7 @@ import Link from "next/link"
 import { redirect } from "next/navigation"
 import { checkUserHasClub } from "@/lib/actions/onboarding"
 import { getAthletePortal } from "@/lib/actions/dashboard"
+import type { OnboardingData } from "@/lib/athlete-enrollment-shared"
 import { getOnboardingData, getMyRosters, getMyMatches } from "@/lib/actions/athlete-enrollment"
 import { getUserRole } from "@/lib/actions/club-context"
 import { getClubSettings } from "@/lib/actions/settings"
@@ -17,6 +18,7 @@ import { AthleteProfileOnboardingWrapper } from "@/components/athlete/AthletePro
 import { PlatformTourWizard } from "@/components/athlete/PlatformTourWizard"
 import { EnrollmentRequestWizard, PendingApprovalScreen, RejectedScreen } from "@/components/athlete/EnrollmentRequestWizard"
 import { PendingAdminPaymentScreen } from "@/components/athlete/PendingAdminPaymentScreen"
+import { AthleteDashboardRankCard } from "@/components/athlete/AthleteDashboardRankCard"
 import { Button } from "@/components/ui/button"
 import {
   Calendar, AlertTriangle, Trophy, FileText,
@@ -25,16 +27,6 @@ import {
   UserCheck, Wallet, Zap, CheckCircle2,
 } from "lucide-react"
 
-const BELT_ES: Record<string, string> = {
-  white: "Cinta Blanca", blue: "Cinta Azul", purple: "Cinta Violeta",
-  brown: "Cinta Café", black: "Cinta Negra",
-  "red/black": "Cinta Roja/Negra", "red/white": "Cinta Roja/Blanca", red: "Cinta Roja",
-}
-const NEXT_BELT_ES: Record<string, string> = {
-  white: "Cinta Azul", blue: "Cinta Violeta", purple: "Cinta Café",
-  brown: "Cinta Negra", black: "Cinta Roja/Negra",
-}
-
 export default async function AthletePage({ searchParams }: { searchParams?: Promise<{ range?: string }> }) {
   const resolvedParams = await searchParams
   const attendanceRange = resolvedParams?.range === '6m' ? '6m' : '8w'
@@ -42,7 +34,7 @@ export default async function AthletePage({ searchParams }: { searchParams?: Pro
   if (!hasClub) redirect("/onboarding")
 
   const role = await getUserRole().catch(() => 'athlete' as const)
-  let onboardingData: Awaited<ReturnType<typeof getOnboardingData>> | null = null
+  let onboardingData: OnboardingData | null = null
   if (role === 'athlete') {
     onboardingData = await getOnboardingData().catch(() => null)
   }
@@ -164,8 +156,8 @@ export default async function AthletePage({ searchParams }: { searchParams?: Pro
       <div className="flex flex-col items-center justify-center h-64 gap-4">
         <p className="text-muted-foreground">No se encontró tu perfil de atleta.</p>
         <p className="text-xs text-muted-foreground">Esto puede ocurrir si el pago aún está siendo procesado.</p>
-        <Button onClick={() => window.location.reload()} variant="outline" size="sm">
-          Reintentar
+        <Button asChild variant="outline" size="sm">
+          <Link href="/dashboard/athlete">Reintentar</Link>
         </Button>
       </div>
     )
@@ -223,12 +215,7 @@ export default async function AthletePage({ searchParams }: { searchParams?: Pro
   const firstName  = athlete.name?.split(' ')[0] ?? ''
   void sessions // used for potential future features
 
-  // ── Belt/rank data for progress bar ─────────────────────────────────────
   const beltLevel = (techMeta?.belt as string | undefined) ?? null
-  const stripes   = typeof techMeta?.stripes === 'number' ? techMeta.stripes : null
-  const stripePct = stripes !== null ? Math.round((stripes / 4) * 100) : null
-
-  const beltKey = beltLevel?.toLowerCase() ?? ''
 
   return (
     <div className="space-y-4 pb-12 pt-1">
@@ -249,8 +236,8 @@ export default async function AthletePage({ searchParams }: { searchParams?: Pro
               : 'Tus métricas de rendimiento están activas.'}
           </p>
         </div>
-        <div className="flex items-center gap-2.5 text-[11px] font-bold uppercase tracking-[0.15em] text-muted-foreground/80 shrink-0 border border-border/40 rounded-xl px-4 py-3 bg-card/40 backdrop-blur-sm shadow-sm transition-all hover:bg-white/[0.04]">
-          <Calendar className="w-4 h-4 text-emerald-400" />
+        <div className="flex items-center gap-2.5 text-[11px] font-bold uppercase tracking-[0.15em] text-muted-foreground/80 shrink-0 border border-border/40 rounded-xl px-4 py-3 bg-card/40 backdrop-blur-sm shadow-sm transition-all hover:bg-muted/50">
+          <Calendar className="w-4 h-4 text-primary" />
           <span>{todayDate}</span>
         </div>
       </div>
@@ -297,13 +284,13 @@ export default async function AthletePage({ searchParams }: { searchParams?: Pro
 
         {/* CHECK-INS */}
         <Link href="/dashboard/athlete/attendance" className="block">
-          <div className="rounded-2xl bg-card p-6 border border-white/[0.02] hover:bg-white/[0.04] transition-colors h-full flex flex-col justify-between group shadow-sm">
+          <div className="rounded-2xl bg-card p-6 border border-border hover:bg-muted/40 transition-colors h-full flex flex-col justify-between group shadow-sm">
             <div className="flex items-center gap-3 mb-6">
-              <UserCheck className="w-4 h-4 text-muted-foreground/60 group-hover:text-emerald-400 transition-colors" />
+              <UserCheck className="w-4 h-4 text-muted-foreground/60 group-hover:text-primary transition-colors" />
               <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">Asistencias</p>
             </div>
             <div>
-              <p className="text-5xl font-black tracking-tighter text-emerald-400 leading-none">{monthCheckIns}</p>
+              <p className="text-5xl font-black tracking-tighter text-primary leading-none">{monthCheckIns}</p>
               <p className="text-[13px] text-muted-foreground/60 mt-2.5 font-medium">Este mes</p>
             </div>
           </div>
@@ -311,7 +298,7 @@ export default async function AthletePage({ searchParams }: { searchParams?: Pro
 
         {/* PAYMENTS / SUBSCRIPTION */}
         <Link href="/dashboard/athlete/payments" className="block">
-          <div className="rounded-2xl bg-card p-6 border border-white/[0.02] hover:bg-white/[0.04] transition-colors h-full flex flex-col justify-between shadow-sm">
+          <div className="rounded-2xl bg-card p-6 border border-border hover:bg-muted/40 transition-colors h-full flex flex-col justify-between shadow-sm">
             <div className="flex items-center gap-3 mb-6">
               <Wallet className="w-4 h-4 text-muted-foreground/60" />
               <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">Suscripción</p>
@@ -321,7 +308,7 @@ export default async function AthletePage({ searchParams }: { searchParams?: Pro
                 <>
                   <p className={`text-[28px] font-black tracking-tight leading-none uppercase ${
                     daysUntilExpiry !== null && daysUntilExpiry <= 7 ? 'text-amber-500' : 
-                    daysUntilExpiry !== null && daysUntilExpiry <= 0 ? 'text-red-500' : 'text-emerald-400'
+                    daysUntilExpiry !== null && daysUntilExpiry <= 0 ? 'text-red-500' : 'text-primary'
                   }`}>
                     {daysUntilExpiry !== null ? (
                       daysUntilExpiry <= 0 ? 'Vencida' : `${daysUntilExpiry}d`
@@ -352,7 +339,7 @@ export default async function AthletePage({ searchParams }: { searchParams?: Pro
 
         {/* SESSIONS */}
         <Link href="/dashboard/athlete/schedule" className="block">
-          <div className="rounded-2xl bg-card p-6 border border-white/[0.02] hover:bg-white/[0.04] transition-colors h-full flex flex-col justify-between shadow-sm">
+          <div className="rounded-2xl bg-card p-6 border border-border hover:bg-muted/40 transition-colors h-full flex flex-col justify-between shadow-sm">
             <div className="flex items-center gap-3 mb-6">
               <Zap className="w-4 h-4 text-muted-foreground/60" />
               <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">Promedio</p>
@@ -366,7 +353,7 @@ export default async function AthletePage({ searchParams }: { searchParams?: Pro
 
         {/* DOCUMENTS */}
         <Link href="/dashboard/athlete/documents" className="block">
-          <div className="rounded-2xl bg-card p-6 border border-white/[0.02] hover:bg-white/[0.04] transition-colors h-full flex flex-col justify-between shadow-sm">
+          <div className="rounded-2xl bg-card p-6 border border-border hover:bg-muted/40 transition-colors h-full flex flex-col justify-between shadow-sm">
             <div className="flex items-center gap-3 mb-6">
               <FileText className="w-4 h-4 text-muted-foreground/60" />
               <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">Documentos</p>
@@ -378,7 +365,7 @@ export default async function AthletePage({ searchParams }: { searchParams?: Pro
               <p className="text-[13px] mt-2.5 font-medium flex items-center gap-1.5">
                 {expiredDocs.length > 0
                   ? <span className="text-muted-foreground/60">{expiredDocs.length} por renovar</span>
-                  : <><CheckCircle2 className="w-4 h-4 text-emerald-400" /><span className="text-emerald-400">Verificados</span></>
+                  : <><CheckCircle2 className="w-4 h-4 text-primary" /><span className="text-primary">Verificados</span></>
                 }
               </p>
             </div>
@@ -387,53 +374,17 @@ export default async function AthletePage({ searchParams }: { searchParams?: Pro
 
         </div>
 
-        {/* CURRENT RANK — featured card */}
-        <div className="rounded-2xl bg-card p-6 border border-white/[0.02] shadow-sm flex flex-col w-full lg:w-64 lg:shrink-0">
-          <div className="flex items-start justify-between mb-4">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">Rango actual</p>
-            <div className="w-10 h-10 rounded-xl bg-[#8B5A2B]/40 flex items-center justify-center shrink-0">
-              <Trophy className="w-5 h-5 text-white" />
-            </div>
-          </div>
-
-          {beltLevel ? (
-            <div className="flex-1 flex flex-col">
-              <p className="text-4xl font-black leading-none text-foreground tracking-tight uppercase">
-                {BELT_ES[beltKey] ?? beltLevel}
-              </p>
-              <p className="text-sm text-muted-foreground/60 mt-2 font-medium">
-                {beltLevel}
-                {stripes !== null ? ` · ${stripes} grado${stripes !== 1 ? 's' : ''}` : ''}
-              </p>
-
-              {stripePct !== null && (
-                <div className="mt-auto pt-6">
-                  <div className="flex items-center justify-between mb-2.5">
-                    <p className="text-sm font-bold">
-                      <span className="text-emerald-400">{stripePct}%</span>
-                      {NEXT_BELT_ES[beltKey] && <span className="text-muted-foreground/60 font-medium text-sm"> hacia {NEXT_BELT_ES[beltKey]}</span>}
-                    </p>
-                  </div>
-                  <div className="h-3 rounded-full bg-muted/40 dark:bg-white/[0.04] overflow-hidden">
-                    <div className="h-full rounded-full bg-emerald-400 transition-all duration-700" style={{ width: `${stripePct}%` }} />
-                  </div>
-                </div>
-              )}
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground/50 font-medium">Sin rango asignado</p>
-          )}
-        </div>
+        <AthleteDashboardRankCard sportType={sportType} beltLevel={beltLevel} stripesRaw={techMeta?.stripes} />
       </div>
 
       {/* ── TORNEOS ROW ── */}
       {(upcomingComps.length > 0 || sportType === 'Jiu-Jitsu') && (
-        <div className="rounded-2xl bg-card p-6 border border-white/[0.02] shadow-sm flex flex-col">
+        <div className="rounded-2xl bg-card p-6 border border-border shadow-sm flex flex-col">
             <div className="flex items-center justify-between mb-4">
               <p className="text-xl font-black tracking-tight">
                 {sportType === 'Jiu-Jitsu' ? 'Torneos en Chile' : vocab.competitions}
               </p>
-              <Trophy className="w-5 h-5 text-emerald-400" />
+              <Trophy className="w-5 h-5 text-primary" />
             </div>
 
             <div className="flex-1 overflow-hidden">
@@ -444,11 +395,11 @@ export default async function AthletePage({ searchParams }: { searchParams?: Pro
                     const daysTo = Math.ceil((compDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
                     return (
                       <div key={c.id} className="py-2.5 border-b border-border/20 last:border-0 flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-emerald-400/10 flex flex-col items-center justify-center shrink-0">
-                          <span className="text-[8px] uppercase font-bold text-emerald-400/70 leading-none">
+                        <div className="w-10 h-10 rounded-lg bg-primary/10 flex flex-col items-center justify-center shrink-0">
+                          <span className="text-[8px] uppercase font-bold text-primary/70 leading-none">
                             {compDate.toLocaleDateString('es-CL', { month: 'short' })}
                           </span>
-                          <span className="text-sm font-black text-emerald-400 leading-tight">{compDate.getDate()}</span>
+                          <span className="text-sm font-black text-primary leading-tight">{compDate.getDate()}</span>
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-bold leading-snug truncate">{c.name}</p>
@@ -456,7 +407,7 @@ export default async function AthletePage({ searchParams }: { searchParams?: Pro
                             {c.location && <span className="flex items-center gap-1 truncate"><MapPin className="w-3 h-3" />{c.location}</span>}
                           </p>
                         </div>
-                        <span className="text-[10px] font-black text-emerald-400 shrink-0">{daysTo}D</span>
+                        <span className="text-[10px] font-black text-primary shrink-0">{daysTo}D</span>
                       </div>
                     )
                   })}
@@ -470,7 +421,7 @@ export default async function AthletePage({ searchParams }: { searchParams?: Pro
               )}
             </div>
 
-            <Link href="/dashboard/competitions" className="mt-auto pt-3 text-xs text-emerald-400 font-bold inline-flex items-center gap-1 hover:gap-2 transition-all">
+            <Link href="/dashboard/competitions" className="mt-auto pt-3 text-xs text-primary font-bold inline-flex items-center gap-1 hover:gap-2 transition-all">
               Ver todos <ChevronRight className="w-3.5 h-3.5" />
             </Link>
         </div>
@@ -480,7 +431,7 @@ export default async function AthletePage({ searchParams }: { searchParams?: Pro
       <div className="grid lg:grid-cols-[1fr_360px] gap-4 items-start pb-8">
         <div className="space-y-4">
           {/* ATTENDANCE TRENDS */}
-        <div className="rounded-2xl bg-card p-6 md:p-8 border border-white/[0.02] shadow-sm">
+        <div className="rounded-2xl bg-card p-6 md:p-8 border border-border shadow-sm">
           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-8">
             <div>
               <p className="text-2xl font-black tracking-tight">Tendencia de asistencia</p>
@@ -537,10 +488,10 @@ export default async function AthletePage({ searchParams }: { searchParams?: Pro
         </div>
 
         {/* PRÓXIMOS EVENTOS DEL CLUB */}
-        <div className="rounded-2xl bg-card p-6 border border-white/[0.02] shadow-sm flex flex-col h-full">
+        <div className="rounded-2xl bg-card p-6 border border-border shadow-sm flex flex-col h-full">
           <div className="flex items-center justify-between mb-6">
             <p className="text-xl font-black tracking-tight">Próximos Eventos</p>
-            <Calendar className="w-5 h-5 text-emerald-400" />
+            <Calendar className="w-5 h-5 text-primary" />
           </div>
           
           {upcomingClubEvents.length > 0 ? (
@@ -549,7 +500,7 @@ export default async function AthletePage({ searchParams }: { searchParams?: Pro
                 const evDate = new Date(ev.event_date + 'T12:00:00')
                 return (
                   <div key={ev.id} className="flex gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-muted/30 border border-white/[0.02] flex flex-col items-center justify-center shrink-0">
+                    <div className="w-12 h-12 rounded-xl bg-muted/30 border border-border flex flex-col items-center justify-center shrink-0">
                       <span className="text-[10px] uppercase font-bold text-muted-foreground/70 leading-none">{evDate.toLocaleDateString('es-CL', { month: 'short' })}</span>
                       <span className="text-sm font-black text-foreground leading-tight mt-0.5">{evDate.getDate()}</span>
                     </div>
@@ -559,7 +510,7 @@ export default async function AthletePage({ searchParams }: { searchParams?: Pro
                         {ev.start_time && <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{ev.start_time.slice(0, 5)} {ev.end_time ? `- ${ev.end_time.slice(0, 5)}` : ''}</span>}
                       </p>
                       {ev.event_type && (
-                        <span className="inline-block mt-1.5 text-[9px] uppercase tracking-widest font-bold px-2 py-0.5 rounded-md bg-emerald-400/10 text-emerald-400">
+                        <span className="inline-block mt-1.5 text-[9px] uppercase tracking-widest font-bold px-2 py-0.5 rounded-md bg-primary/10 text-primary">
                           {ev.event_type}
                         </span>
                       )}
@@ -582,7 +533,7 @@ export default async function AthletePage({ searchParams }: { searchParams?: Pro
       {/* ── TEAM SPORT WIDGETS ── */}
       {isTeamSport && (
         <div className="grid gap-3 sm:grid-cols-2">
-          <div className="rounded-2xl bg-card p-5 border border-white/[0.02] shadow-sm">
+          <div className="rounded-2xl bg-card p-5 border border-border shadow-sm">
             <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70 flex items-center gap-2 mb-4">
               <Swords className="w-3.5 h-3.5" /> Próximo Partido
             </p>
@@ -604,7 +555,7 @@ export default async function AthletePage({ searchParams }: { searchParams?: Pro
               <p className="text-sm text-muted-foreground/50 font-medium">No hay partidos programados.</p>
             )}
           </div>
-          <div className="rounded-2xl bg-card p-5 border border-white/[0.02] shadow-sm">
+          <div className="rounded-2xl bg-card p-5 border border-border shadow-sm">
             <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70 flex items-center gap-2 mb-4">
               <BarChart3 className="w-3.5 h-3.5" /> Mi Récord
             </p>
@@ -649,7 +600,7 @@ export default async function AthletePage({ searchParams }: { searchParams?: Pro
 
       {/* ── PENDING PAYMENTS ── */}
       {pendingPayments.length > 0 && (
-        <div className="rounded-2xl bg-card p-5 border border-white/[0.02] shadow-sm">
+        <div className="rounded-2xl bg-card p-5 border border-border shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <p className="text-sm font-bold flex items-center gap-2">
               <CreditCard className="w-4 h-4 text-red-500" /> Pagos Pendientes

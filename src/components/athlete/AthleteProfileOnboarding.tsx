@@ -14,7 +14,7 @@ import {
   CheckCircle, Loader2, Sparkles,
 } from 'lucide-react'
 import { saveAthleteProfileSelf } from '@/lib/actions/athlete-enrollment'
-import type { OnboardingData } from '@/lib/actions/athlete-enrollment'
+import type { OnboardingData } from '@/lib/athlete-enrollment-shared'
 import type { SportConfig, SportField } from '@/lib/sport-fields'
 
 interface Props {
