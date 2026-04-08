@@ -9,16 +9,57 @@ export function FlowPaymentBanner() {
   const router = useRouter()
   const flow = searchParams.get('flow')
   const flowReason = searchParams.get('flow_reason')
+  const token = searchParams.get('token')
   const [visible, setVisible] = useState(!!flow)
 
   useEffect(() => {
     if (!flow) return
     const t = setTimeout(() => {
       dismiss()
-    }, 12_000)
+    }, flow === 'pending' ? 60_000 : 12_000)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [flow])
+
+  useEffect(() => {
+    if (flow !== 'pending' || !token) return
+    let cancelled = false
+    let tries = 0
+    const maxTries = 12 // ~36s (12 x 3s)
+
+    const check = async () => {
+      tries += 1
+      try {
+        const res = await fetch(`/api/payments/flow/reconcile?token=${encodeURIComponent(token)}`, {
+          method: 'GET',
+          cache: 'no-store',
+        })
+        const data = (await res.json().catch(() => null)) as { state?: string; reason?: string } | null
+        if (cancelled || !data?.state) return
+
+        if (data.state === 'paid' || data.state === 'failed') {
+          const nextUrl = new URL(window.location.href)
+          nextUrl.searchParams.set('flow', data.state)
+          if (data.reason) nextUrl.searchParams.set('flow_reason', data.reason)
+          router.replace(nextUrl.pathname + nextUrl.search, { scroll: false })
+          router.refresh()
+          return
+        }
+      } catch {
+        // retry silently
+      }
+
+      if (!cancelled && tries < maxTries) {
+        setTimeout(check, 3000)
+      }
+    }
+
+    const start = setTimeout(check, 2000)
+    return () => {
+      cancelled = true
+      clearTimeout(start)
+    }
+  }, [flow, token, router])
 
   if (!flow || !visible) return null
 
