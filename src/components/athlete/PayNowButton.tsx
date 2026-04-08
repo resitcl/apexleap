@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { PayNowModal } from './PayNowModal'
 import { CreditCard, AlertTriangle, Clock, RefreshCw } from 'lucide-react'
 
@@ -25,6 +26,14 @@ interface PayNowButtonProps {
 
 export function PayNowButton({ planName, planPrice, planCycle, hasOverdue, hasPending, bankInfo, enabledMethods, cashInstructions, flowCheckoutUrl }: PayNowButtonProps) {
   const [open, setOpen] = useState(false)
+  const mountedRef = useRef(false)
+
+  useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+    }
+  }, [])
 
   return (
     <>
@@ -85,7 +94,9 @@ export function PayNowButton({ planName, planPrice, planCycle, hasOverdue, hasPe
           enabledMethods={enabledMethods}
           cashInstructions={cashInstructions}
           flowCheckoutUrl={flowCheckoutUrl}
-          onClose={() => setOpen(false)}
+          onClose={() => {
+            if (mountedRef.current) setOpen(false)
+          }}
         />
       )}
     </>

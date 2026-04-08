@@ -137,7 +137,9 @@ export function PayNowModal({ planName, planPrice, planCycle, bankInfo, enabledM
         receiptUrl,
         transferReceiptSource,
       })
-      setStep(result.isTransfer ? 'waiting' : 'done')
+      if (mountedRef.current) {
+        setStep(result.isTransfer ? 'waiting' : 'done')
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Error al procesar el pago')
     } finally {
@@ -188,6 +190,7 @@ export function PayNowModal({ planName, planPrice, planCycle, bankInfo, enabledM
           </div>
           <button
             onClick={onClose}
+            disabled={loading}
             className="w-9 h-9 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
           >
             <X className="w-4 h-4" />
