@@ -157,7 +157,7 @@ export default async function MediaPage({ searchParams }: PageProps) {
   const weekNum =
     weekRaw && /^[1-5]$/.test(weekRaw) ? parseInt(weekRaw, 10) : undefined
 
-  const suggestedUploadDate = defaultContentDateForUpload(selectedYear, month || undefined)
+  const suggestedUploadDate = defaultContentDateForUpload(selectedYear, month || undefined, weekNum)
 
   const archiveMonthNoWeek = Boolean(month) && weekNum === undefined
   const listLimit = archiveMonthNoWeek ? 500 : 24
@@ -234,7 +234,7 @@ export default async function MediaPage({ searchParams }: PageProps) {
         icon={Film}
         title="Media Hub"
         description="Archivo del año: el coach documenta qué se trabaja por mes y semana; los alumnos buscan o repasan clase a clase."
-        endSlot={<MediaUploadButton suggestedMediaDate={suggestedUploadDate} />}
+        endSlot={<MediaUploadButton suggestedMediaDate={suggestedUploadDate} defaultType={(type || undefined) as 'video' | 'photo' | 'document' | undefined} defaultCategory={(category || undefined) as 'match' | 'highlight' | 'training' | 'technique' | 'analysis' | 'event' | 'promo' | 'photo' | 'other' | undefined} />}
       />
 
       {!tableExists ? (
@@ -445,7 +445,7 @@ export default async function MediaPage({ searchParams }: PageProps) {
               <Sparkles className="w-16 h-16 mx-auto mb-4 text-muted-foreground/20" />
               <h3 className="text-xl font-black tracking-tight mb-2">Sin contenido</h3>
               <p className="text-muted-foreground text-sm mb-6">Agrega videos, fotos e highlights del club</p>
-              <MediaUploadButton suggestedMediaDate={suggestedUploadDate} />
+              <MediaUploadButton suggestedMediaDate={suggestedUploadDate} defaultType={(type || undefined) as 'video' | 'photo' | 'document' | undefined} defaultCategory={(category || undefined) as 'match' | 'highlight' | 'training' | 'technique' | 'analysis' | 'event' | 'promo' | 'photo' | 'other' | undefined} />
             </div>
           ) : (
             <>

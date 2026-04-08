@@ -14,45 +14,46 @@ import { createMediaItem, type MediaInput } from "@/lib/actions/media"
 type CategoryType = 'match' | 'highlight' | 'training' | 'technique' | 'analysis' | 'event' | 'promo' | 'photo' | 'other'
 
 const CATEGORIES: { value: CategoryType; label: string; emoji: string; desc: string }[] = [
-  { value: 'match',     label: 'Partido',       emoji: '⚽', desc: 'Videos de partidos completos' },
-  { value: 'highlight', label: 'Highlight',     emoji: '✨', desc: 'Mejores momentos' },
-  { value: 'training',  label: 'Entrenamiento', emoji: '🏋️', desc: 'Sesiones de práctica' },
-  { value: 'technique', label: 'Técnica',       emoji: '🥋', desc: 'Movimientos y drills' },
-  { value: 'analysis',  label: 'Análisis',      emoji: '📊', desc: 'Revisión táctica' },
-  { value: 'event',     label: 'Evento',        emoji: '🎉', desc: 'Actividades especiales' },
-  { value: 'promo',     label: 'Promocional',   emoji: '📣', desc: 'Marketing y RRSS' },
-  { value: 'photo',     label: 'Fotografía',    emoji: '📸', desc: 'Galería de imágenes' },
-  { value: 'other',     label: 'Otro',          emoji: '📁', desc: 'Contenido general' },
+  { value: 'match',     label: 'Partido',       emoji: '\u26BD', desc: 'Videos de partidos completos' },
+  { value: 'highlight', label: 'Highlight',     emoji: '\u2728', desc: 'Mejores momentos' },
+  { value: 'training',  label: 'Entrenamiento', emoji: '\uD83C\uDFCB\uFE0F', desc: 'Sesiones de pr\u00E1ctica' },
+  { value: 'technique', label: 'T\u00E9cnica',       emoji: '\uD83E\uDD4B', desc: 'Movimientos y drills' },
+  { value: 'analysis',  label: 'An\u00E1lisis',      emoji: '\uD83D\uDCCA', desc: 'Revisi\u00F3n t\u00E1ctica' },
+  { value: 'event',     label: 'Evento',        emoji: '\uD83C\uDF89', desc: 'Actividades especiales' },
+  { value: 'promo',     label: 'Promocional',   emoji: '\uD83D\uDCE3', desc: 'Marketing y RRSS' },
+  { value: 'photo',     label: 'Fotograf\u00EDa',    emoji: '\uD83D\uDCF8', desc: 'Galer\u00EDa de im\u00E1genes' },
+  { value: 'other',     label: 'Otro',          emoji: '\uD83D\uDCC1', desc: 'Contenido general' },
 ]
 
 const VISIBILITY_OPTIONS = [
-  { value: 'public',  label: 'Público',    desc: 'Visible para todos' },
+  { value: 'public',  label: 'P\u00FAblico',    desc: 'Visible para todos' },
   { value: 'members', label: 'Miembros',   desc: 'Solo atletas del club' },
-  { value: 'coaches', label: 'Cuerpo Técnico', desc: 'Solo coaches y admin' },
+  { value: 'coaches', label: 'Cuerpo T\u00E9cnico', desc: 'Solo coaches y admin' },
   { value: 'private', label: 'Privado',    desc: 'Solo administradores' },
 ]
 
 interface MediaUploadModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  /** Alinea la fecha del ítem con el mes/año del archivo (evita “éxito” pero lista vacía). */
   suggestedMediaDate?: string
+  defaultType?: 'video' | 'photo' | 'document'
+  defaultCategory?: CategoryType
 }
 
-export function MediaUploadModal({ open, onOpenChange, suggestedMediaDate }: MediaUploadModalProps) {
+export function MediaUploadModal({ open, onOpenChange, suggestedMediaDate, defaultType, defaultCategory }: MediaUploadModalProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [sourceTab, setSourceTab] = useState<'youtube' | 'url'>('youtube')
   const [form, setForm] = useState({
     title: '',
-    type: 'video' as 'video' | 'photo' | 'document',
-    category: 'other' as CategoryType,
+    type: (defaultType ?? 'video') as 'video' | 'photo' | 'document',
+    category: (defaultCategory ?? 'other') as CategoryType,
     url: '',
     thumbnail_url: '',
     description: '',
     is_public: true,
     source_type: 'youtube' as 'youtube' | 'vimeo' | 'upload' | 'external',
-    media_date: new Date().toISOString().split('T')[0],
+    media_date: suggestedMediaDate ?? new Date().toISOString().split('T')[0],
     tags: [] as string[],
     is_featured: false,
     visibility: 'public' as 'public' | 'members' | 'coaches' | 'private',
@@ -60,9 +61,14 @@ export function MediaUploadModal({ open, onOpenChange, suggestedMediaDate }: Med
   const [tagInput, setTagInput] = useState('')
 
   useEffect(() => {
-    if (!open || !suggestedMediaDate) return
-    setForm((p) => ({ ...p, media_date: suggestedMediaDate }))
-  }, [open, suggestedMediaDate])
+    if (!open) return
+    setForm((p) => ({
+      ...p,
+      ...(suggestedMediaDate ? { media_date: suggestedMediaDate } : {}),
+      ...(defaultType ? { type: defaultType } : {}),
+      ...(defaultCategory ? { category: defaultCategory } : {}),
+    }))
+  }, [open, suggestedMediaDate, defaultType, defaultCategory])
 
   function set<K extends keyof typeof form>(k: K, v: typeof form[K]) {
     setForm((p) => ({ ...p, [k]: v }))
@@ -87,7 +93,7 @@ export function MediaUploadModal({ open, onOpenChange, suggestedMediaDate }: Med
 
   async function handleSave() {
     if (!form.title || !form.url) {
-      toast.error('Título y URL son requeridos')
+      toast.error('T\u00EDtulo y URL son requeridos')
       return
     }
     setLoading(true)
@@ -116,7 +122,7 @@ export function MediaUploadModal({ open, onOpenChange, suggestedMediaDate }: Med
       router.refresh()
       onOpenChange(false)
       setForm({
-        title: '', type: 'video', category: 'other', url: '', thumbnail_url: '',
+        title: '', type: defaultType ?? 'video', category: defaultCategory ?? 'other', url: '', thumbnail_url: '',
         description: '', is_public: true, source_type: 'youtube',
         media_date: suggestedMediaDate ?? new Date().toISOString().split('T')[0], tags: [],
         is_featured: false, visibility: 'public',
@@ -173,7 +179,7 @@ export function MediaUploadModal({ open, onOpenChange, suggestedMediaDate }: Med
                 onChange={(e) => set('url', e.target.value)}
                 className="bg-white/[0.02] border-white/[0.08] h-11"
               />
-              <p className="text-[10px] text-muted-foreground/60">Pega el enlace de YouTube o Vimeo. El thumbnail se generará automáticamente.</p>
+              <p className="text-[10px] text-muted-foreground/60">Pega el enlace de YouTube o Vimeo. El thumbnail se generar\u00E1 autom\u00E1ticamente.</p>
             </div>
           )}
 
@@ -188,9 +194,9 @@ export function MediaUploadModal({ open, onOpenChange, suggestedMediaDate }: Med
                     onChange={(e) => set('type', e.target.value as 'video' | 'photo' | 'document')}
                     className="w-full h-11 rounded-lg border border-white/[0.08] bg-white/[0.02] px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
                   >
-                    <option value="video">🎬 Video</option>
-                    <option value="photo">📷 Imagen</option>
-                    <option value="document">📄 Documento</option>
+                    <option value="video">{'\uD83C\uDFAC'} Video</option>
+                    <option value="photo">{'\uD83D\uDCF7'} Imagen</option>
+                    <option value="document">{'\uD83D\uDCC4'} Documento</option>
                   </select>
                 </div>
                 <div className="space-y-2">
@@ -217,7 +223,7 @@ export function MediaUploadModal({ open, onOpenChange, suggestedMediaDate }: Med
 
           {/* Title */}
           <div className="space-y-2">
-            <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Título *</Label>
+            <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">T\u00EDtulo *</Label>
             <Input
               placeholder="Ej: Partido vs Club Rival - Semifinal 2024"
               value={form.title}
@@ -228,7 +234,7 @@ export function MediaUploadModal({ open, onOpenChange, suggestedMediaDate }: Med
 
           {/* Category Grid */}
           <div className="space-y-2">
-            <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Categoría</Label>
+            <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Categor\u00EDa</Label>
             <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
               {CATEGORIES.map((cat) => (
                 <button
@@ -271,7 +277,7 @@ export function MediaUploadModal({ open, onOpenChange, suggestedMediaDate }: Med
                 className="w-full h-11 rounded-lg border border-white/[0.08] bg-white/[0.02] px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
               >
                 {VISIBILITY_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>{opt.label} — {opt.desc}</option>
+                  <option key={opt.value} value={opt.value}>{opt.label} {'\u2014'} {opt.desc}</option>
                 ))}
               </select>
             </div>
@@ -279,7 +285,7 @@ export function MediaUploadModal({ open, onOpenChange, suggestedMediaDate }: Med
 
           {/* Description */}
           <div className="space-y-2">
-            <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Descripción (opcional)</Label>
+            <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Descripci\u00F3n (opcional)</Label>
             <Textarea
               placeholder="Describe el contenido brevemente..."
               value={form.description}
@@ -313,7 +319,7 @@ export function MediaUploadModal({ open, onOpenChange, suggestedMediaDate }: Med
                     className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium"
                   >
                     {tag}
-                    <button type="button" onClick={() => removeTag(tag)} className="hover:text-red-400 transition-colors">×</button>
+                    <button type="button" onClick={() => removeTag(tag)} className="hover:text-red-400 transition-colors">{'\u00D7'}</button>
                   </span>
                 ))}
               </div>
@@ -332,7 +338,7 @@ export function MediaUploadModal({ open, onOpenChange, suggestedMediaDate }: Med
               <p className="text-sm font-bold flex items-center gap-2">
                 <Star className="w-4 h-4 text-amber-400" /> Marcar como Destacado
               </p>
-              <p className="text-[11px] text-muted-foreground/60 mt-0.5">Aparecerá en la sección destacados del Media Hub</p>
+              <p className="text-[11px] text-muted-foreground/60 mt-0.5">Aparecer\u00E1 en la secci\u00F3n destacados del Media Hub</p>
             </div>
           </label>
         </div>
@@ -350,7 +356,7 @@ export function MediaUploadModal({ open, onOpenChange, suggestedMediaDate }: Med
   )
 }
 
-export function MediaUploadButton({ suggestedMediaDate }: { suggestedMediaDate?: string }) {
+export function MediaUploadButton({ suggestedMediaDate, defaultType, defaultCategory }: { suggestedMediaDate?: string; defaultType?: 'video' | 'photo' | 'document'; defaultCategory?: CategoryType }) {
   const [open, setOpen] = useState(false)
 
   return (
@@ -358,7 +364,7 @@ export function MediaUploadButton({ suggestedMediaDate }: { suggestedMediaDate?:
       <Button size="sm" className="gap-2 h-10 px-5" onClick={() => setOpen(true)}>
         <Plus className="w-4 h-4" /> Agregar Contenido
       </Button>
-      <MediaUploadModal open={open} onOpenChange={setOpen} suggestedMediaDate={suggestedMediaDate} />
+      <MediaUploadModal open={open} onOpenChange={setOpen} suggestedMediaDate={suggestedMediaDate} defaultType={defaultType} defaultCategory={defaultCategory} />
     </>
   )
 }

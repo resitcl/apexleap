@@ -67,10 +67,15 @@ export function effectiveMediaDay(item: WithDate): string | null {
 }
 
 /**
- * Fecha por defecto al publicar desde el archivo (coherente con mes/año de la URL).
- * Si estás viendo marzo, el alta no debe usar "hoy" en abril (quedaría invisible al filtro).
+ * Fecha por defecto al publicar desde el archivo (coherente con mes/año/semana de la URL).
+ * Si estás viendo "Semana 2 de Marzo", la fecha sugerida es el inicio de esa semana (8 Mar),
+ * no el 1 de marzo ni "hoy" en abril.
  */
-export function defaultContentDateForUpload(selectedYear: number, monthKey: string | undefined): string {
+export function defaultContentDateForUpload(
+  selectedYear: number,
+  monthKey: string | undefined,
+  weekOfMonth?: number,
+): string {
   const now = new Date()
   const yNow = now.getFullYear()
   const moNow = now.getMonth() + 1
@@ -81,11 +86,22 @@ export function defaultContentDateForUpload(selectedYear: number, monthKey: stri
     if (yNow === selectedYear) return todayStr
     return `${selectedYear}-01-01`
   }
+
   const [y, m] = monthKey.split('-').map(Number)
   if (!y || !m || m < 1 || m > 12) return todayStr
-  const monthStart = `${y}-${String(m).padStart(2, '0')}-01`
+
+  if (weekOfMonth && weekOfMonth >= 1 && weekOfMonth <= 5) {
+    const r = weekOfMonthRange(monthKey, weekOfMonth)
+    if (r) {
+      if (yNow === y && moNow === m && dayNow >= parseInt(r.start.slice(8), 10) && dayNow <= parseInt(r.end.slice(8), 10)) {
+        return todayStr
+      }
+      return r.start
+    }
+  }
+
   if (yNow === y && moNow === m) return todayStr
-  return monthStart
+  return `${y}-${String(m).padStart(2, '0')}-01`
 }
 
 export function groupMediaByWeek<T extends WithDate>(items: T[]): Map<number, T[]> {
