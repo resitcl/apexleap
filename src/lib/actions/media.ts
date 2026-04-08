@@ -98,7 +98,13 @@ export async function getMediaItems(params?: {
     const endStr = endExclusive.toISOString().slice(0, 10)
     query = query.gte('media_date', startDate).lt('media_date', endStr)
   } else if (params?.year) {
-    query = query.gte('media_date', `${params.year}-01-01`).lt('media_date', `${params.year + 1}-01-01`)
+    const y = params.year
+    const start = `${y}-01-01`
+    const end = `${y + 1}-01-01`
+    // Incluye ítems legacy sin media_date (solo created_at en ese año).
+    query = query.or(
+      `and(media_date.gte.${start},media_date.lt.${end}),and(media_date.is.null,created_at.gte.${start},created_at.lt.${end})`,
+    )
   }
 
   const { data, error, count } = await query
@@ -267,7 +273,7 @@ export async function createMediaItem(input: MediaInput) {
 
   if (!missingColumn) throw new Error(error.message)
 
-  const legacyPayload = {
+  const legacyBase = {
     title: parsed.title,
     type: parsed.type,
     category: parsed.category,
@@ -278,12 +284,26 @@ export async function createMediaItem(input: MediaInput) {
     club_id: clubId,
     created_by: userId ?? null,
   }
+  /** Con fecha el ítem entra en el archivo por año; sin columna en BD se omite abajo. */
+  const legacyPayload = {
+    ...legacyBase,
+    ...(parsed.media_date ? { media_date: parsed.media_date } : {}),
+  }
 
-  const legacyRes = await supabase
-    .from('media_items')
-    .insert(legacyPayload)
-    .select()
-    .single()
+  async function insertLegacy(payload: Record<string, unknown>) {
+    return supabase.from('media_items').insert(payload).select().single()
+  }
+
+  let legacyRes = await insertLegacy(legacyPayload)
+
+  if (
+    legacyRes.error &&
+    (legacyRes.error.code === 'PGRST204' ||
+      legacyRes.error.code === '42703' ||
+      /media_date/i.test(legacyRes.error.message))
+  ) {
+    legacyRes = await insertLegacy(legacyBase)
+  }
 
   if (legacyRes.error) {
     // Segundo fallback para esquemas legacy con enums más restringidos.
@@ -294,15 +314,29 @@ export async function createMediaItem(input: MediaInput) {
       ? parsed.category
       : 'other'
 
-    const legacyRes2 = await supabase
-      .from('media_items')
-      .insert({
-        ...legacyPayload,
-        type: sanitizedType,
-        category: sanitizedCategory,
-      })
-      .select()
-      .single()
+    const payloadSanitized = {
+      ...legacyPayload,
+      type: sanitizedType,
+      category: sanitizedCategory,
+    }
+    let legacyRes2 = await supabase.from('media_items').insert(payloadSanitized).select().single()
+
+    if (
+      legacyRes2.error &&
+      (legacyRes2.error.code === 'PGRST204' ||
+        legacyRes2.error.code === '42703' ||
+        /media_date/i.test(legacyRes2.error.message))
+    ) {
+      legacyRes2 = await supabase
+        .from('media_items')
+        .insert({
+          ...legacyBase,
+          type: sanitizedType,
+          category: sanitizedCategory,
+        })
+        .select()
+        .single()
+    }
 
     if (legacyRes2.error) throw new Error(legacyRes2.error.message)
     revalidatePath('/dashboard/media')

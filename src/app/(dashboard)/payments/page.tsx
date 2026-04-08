@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { requireClubStaffPage } from "@/lib/actions/club-context"
 import { getPayments, getPaymentSummary } from "@/lib/actions/payments"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -21,6 +22,7 @@ const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secon
 }
 
 export default async function PaymentsPage({ searchParams }: PageProps) {
+  await requireClubStaffPage()
   const params = await searchParams
   const page = Number(params.page ?? 1)
 

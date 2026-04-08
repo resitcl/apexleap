@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { requireClubStaffPage } from "@/lib/actions/club-context"
 import { Button } from "@/components/ui/button"
 import { ChevronLeft } from "lucide-react"
 import { NewPaymentForm } from "@/components/payments/NewPaymentForm"
@@ -6,6 +7,7 @@ import { getAthletes } from "@/lib/actions/athletes"
 import { getPlans } from "@/lib/actions/plans"
 
 export default async function NewPaymentPage() {
+  await requireClubStaffPage()
   const [athletesResult, plans] = await Promise.all([
     getAthletes({ limit: 200 }),
     getPlans(),

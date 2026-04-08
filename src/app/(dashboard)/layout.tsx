@@ -201,50 +201,51 @@ export default async function DashboardLayout({
     "/dashboard/athletes":      'pending-enrollments',
   }
 
-  const totalAlerts = alerts.overduePayments + alerts.expiringSoonDocs + alerts.expiringSubscriptions
-
-  const notificationItems: NotificationItem[] = [
-    ...(alerts.pendingEnrollments > 0 ? [{
-      id: 'pending-enrollments',
-      type: 'enrollment' as const,
-      title: `${alerts.pendingEnrollments} ${alerts.pendingEnrollments === 1 ? 'inscripción pendiente' : 'inscripciones pendientes'}`,
-      description: 'Nuevos atletas esperando aprobación del club.',
-      href: '/dashboard/athletes/pending',
-      count: alerts.pendingEnrollments,
-    }] : []),
-    ...(alerts.paidToday > 0 ? [{
-      id: 'paid-today',
-      type: 'payment_success' as const,
-      title: `${alerts.paidToday} ${alerts.paidToday === 1 ? 'pago registrado hoy' : 'pagos registrados hoy'}`,
-      description: 'Pagos confirmados durante el día.',
-      href: '/dashboard/payments?status=paid',
-      count: alerts.paidToday,
-    }] : []),
-    ...(alerts.overduePayments > 0 ? [{
-      id: 'overdue-payments',
-      type: 'payment' as const,
-      title: `${alerts.overduePayments} ${alerts.overduePayments === 1 ? 'pago vencido' : 'pagos vencidos'}`,
-      description: 'Alumnos con cuotas en mora. Se requiere acción.',
-      href: '/dashboard/payments?status=overdue',
-      count: alerts.overduePayments,
-    }] : []),
-    ...(alerts.expiringSoonDocs > 0 ? [{
-      id: 'expiring-docs',
-      type: 'document' as const,
-      title: `${alerts.expiringSoonDocs} ${alerts.expiringSoonDocs === 1 ? 'documento por vencer' : 'documentos por vencer'}`,
-      description: 'Vencen en los próximos 30 días.',
-      href: '/dashboard/documents',
-      count: alerts.expiringSoonDocs,
-    }] : []),
-    ...(alerts.expiringSubscriptions > 0 ? [{
-      id: 'expiring-subs',
-      type: 'subscription' as const,
-      title: `${alerts.expiringSubscriptions} ${alerts.expiringSubscriptions === 1 ? 'suscripción por vencer' : 'suscripciones por vencer'}`,
-      description: 'Suscripciones que vencen en los próximos 7 días.',
-      href: '/dashboard/subscriptions',
-      count: alerts.expiringSubscriptions,
-    }] : []),
-  ]
+  /** Enlaces solo para staff; los atletas no deben ver rutas de administración en la campana. */
+  const notificationItems: NotificationItem[] = isAthlete
+    ? []
+    : [
+        ...(alerts.pendingEnrollments > 0 ? [{
+          id: 'pending-enrollments',
+          type: 'enrollment' as const,
+          title: `${alerts.pendingEnrollments} ${alerts.pendingEnrollments === 1 ? 'inscripción pendiente' : 'inscripciones pendientes'}`,
+          description: 'Nuevos atletas esperando aprobación del club.',
+          href: '/dashboard/athletes/pending',
+          count: alerts.pendingEnrollments,
+        }] : []),
+        ...(alerts.paidToday > 0 ? [{
+          id: 'paid-today',
+          type: 'payment_success' as const,
+          title: `${alerts.paidToday} ${alerts.paidToday === 1 ? 'pago registrado hoy' : 'pagos registrados hoy'}`,
+          description: 'Pagos confirmados durante el día.',
+          href: '/dashboard/payments?status=paid',
+          count: alerts.paidToday,
+        }] : []),
+        ...(alerts.overduePayments > 0 ? [{
+          id: 'overdue-payments',
+          type: 'payment' as const,
+          title: `${alerts.overduePayments} ${alerts.overduePayments === 1 ? 'pago vencido' : 'pagos vencidos'}`,
+          description: 'Alumnos con cuotas en mora. Se requiere acción.',
+          href: '/dashboard/payments?status=overdue',
+          count: alerts.overduePayments,
+        }] : []),
+        ...(alerts.expiringSoonDocs > 0 ? [{
+          id: 'expiring-docs',
+          type: 'document' as const,
+          title: `${alerts.expiringSoonDocs} ${alerts.expiringSoonDocs === 1 ? 'documento por vencer' : 'documentos por vencer'}`,
+          description: 'Vencen en los próximos 30 días.',
+          href: '/dashboard/documents',
+          count: alerts.expiringSoonDocs,
+        }] : []),
+        ...(alerts.expiringSubscriptions > 0 ? [{
+          id: 'expiring-subs',
+          type: 'subscription' as const,
+          title: `${alerts.expiringSubscriptions} ${alerts.expiringSubscriptions === 1 ? 'suscripción por vencer' : 'suscripciones por vencer'}`,
+          description: 'Suscripciones que vencen en los próximos 7 días.',
+          href: '/dashboard/subscriptions',
+          count: alerts.expiringSubscriptions,
+        }] : []),
+      ]
 
   const sidebarGroupsWithBadges = NAV_GROUPS.map((group) => ({
     label: group.label,

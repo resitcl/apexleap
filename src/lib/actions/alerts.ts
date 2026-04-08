@@ -2,7 +2,7 @@
 
 import { createAdminClient } from '@/lib/supabase/admin'
 import { useBrandPrimaryFromClubSettings } from '@/lib/club-branding'
-import { getClubId } from '@/lib/actions/club-context'
+import { getClubId, getClubMembershipRole } from '@/lib/actions/club-context'
 
 export async function getSidebarAlerts() {
   let clubId: string
@@ -32,6 +32,30 @@ export async function getSidebarAlerts() {
     .select('name, primary_color, secondary_color, logo_url, settings')
     .eq('id', clubId)
     .single()
+
+  const emptyStaffCounts = {
+    overduePayments: 0,
+    expiringSoonDocs: 0,
+    expiringSubscriptions: 0,
+    pendingEnrollments: 0,
+    paidToday: 0,
+  }
+
+  try {
+    const membership = await getClubMembershipRole()
+    if (membership === 'athlete') {
+      return {
+        ...emptyStaffCounts,
+        clubName:         clubData?.name          ?? null,
+        primaryColor:     clubData?.primary_color ?? null,
+        secondaryColor:   clubData?.secondary_color ?? null,
+        logoUrl:          clubData?.logo_url       ?? null,
+        useBrandPrimaryForUi: useBrandPrimaryFromClubSettings(clubData?.settings),
+      }
+    }
+  } catch {
+    /* sin rol → seguir con consultas de staff */
+  }
 
   const [paymentsRes, docsRes, subsRes, enrollmentsRes, paidTodayRes] = await Promise.all([
     supabase

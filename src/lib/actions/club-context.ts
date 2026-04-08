@@ -1,5 +1,6 @@
 import { auth } from '@clerk/nextjs/server'
 import { cookies } from 'next/headers'
+import { redirect } from 'next/navigation'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { CLUB_COOKIE } from '@/lib/constants'
 
@@ -77,6 +78,12 @@ export async function getUserRole(): Promise<UserRole> {
     .single()
 
   return (data?.role as UserRole) ?? 'athlete'
+}
+
+/** Redirige al portal del atleta si el rol en `user_clubs` es solo `athlete` (sin staff). */
+export async function requireClubStaffPage() {
+  const role = await getClubMembershipRole()
+  if (role === 'athlete') redirect('/dashboard/athlete')
 }
 
 export async function getClubSportType(): Promise<string | null> {

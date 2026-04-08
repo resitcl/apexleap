@@ -1,5 +1,6 @@
 export const dynamic = "force-dynamic"
 
+import { requireClubStaffPage } from "@/lib/actions/club-context"
 import Link from "next/link"
 import { Suspense } from "react"
 import { getPayments, getPaymentSummary } from "@/lib/actions/payments"
@@ -42,6 +43,7 @@ const METHOD_LABEL: Record<string, string> = {
 }
 
 export default async function PaymentsPage({ searchParams }: PageProps) {
+  await requireClubStaffPage()
   const params = await searchParams
   const page = Number(params.page ?? 1)
   const from        = params.from        ?? ""
