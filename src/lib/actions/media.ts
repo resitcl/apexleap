@@ -64,7 +64,6 @@ export async function getMediaItems(params?: {
     .from('media_items')
     .select('*', { count: 'exact' })
     .eq('club_id', clubId)
-    .order('media_date', { ascending: false, nullsFirst: false })
     .order('created_at', { ascending: false })
     .range(from, to)
 
@@ -120,7 +119,23 @@ export async function getMediaItems(params?: {
   const { data, error, count } = await query
   if (error) {
     if (error.code === '42P01') return { items: [], total: 0, tableExists: false }
-    throw new Error(error.message)
+
+    // If the complex OR filter caused the error, retry with a simple query (no date filter).
+    console.error('[getMediaItems] query error, retrying without date filter:', error.code, error.message)
+    const fallback = supabase
+      .from('media_items')
+      .select('*', { count: 'exact' })
+      .eq('club_id', clubId)
+      .order('created_at', { ascending: false })
+      .range(from, to)
+    if (params?.type) fallback.eq('type', params.type)
+    if (params?.category) fallback.eq('category', params.category)
+    const { data: fbData, error: fbErr, count: fbCount } = await fallback
+    if (fbErr) {
+      console.error('[getMediaItems] fallback also failed:', fbErr.code, fbErr.message)
+      throw new Error(fbErr.message)
+    }
+    return { items: fbData ?? [], total: fbCount ?? 0, tableExists: true }
   }
   return { items: data ?? [], total: count ?? 0, tableExists: true }
 }
@@ -306,8 +321,9 @@ export async function createMediaItem(input: MediaInput) {
   const { userId } = await auth()
   const parsed = mediaSchema.parse(input)
   const supabase = createAdminClient()
+  const now = new Date().toISOString()
 
-  const fullPayload = { ...parsed, club_id: clubId, created_by: userId ?? null }
+  const fullPayload = { ...parsed, club_id: clubId, created_by: userId ?? null, created_at: now }
   const { data, error } = await supabase
     .from('media_items')
     .insert(fullPayload)
@@ -319,14 +335,9 @@ export async function createMediaItem(input: MediaInput) {
     return data
   }
 
-  // Fallback de compatibilidad para entornos con esquema parcial (sin columnas enhanced).
-  const missingColumn =
-    error.code === 'PGRST204' ||
-    error.code === '42703' ||
-    /column/i.test(error.message)
+  console.error('[createMediaItem] full insert failed:', error.code, error.message)
 
-  if (!missingColumn) throw new Error(error.message)
-
+  // Fallback: catch ANY insert error (not just missing-column) so we always try legacy.
   const legacyBase = {
     title: parsed.title,
     type: parsed.type,
@@ -337,6 +348,7 @@ export async function createMediaItem(input: MediaInput) {
     is_public: parsed.is_public,
     club_id: clubId,
     created_by: userId ?? null,
+    created_at: now,
   }
   /** Con fecha el ítem entra en el archivo por año; sin columna en BD se omite abajo. */
   const legacyPayload = {
@@ -348,56 +360,43 @@ export async function createMediaItem(input: MediaInput) {
     return supabase.from('media_items').insert(payload).select().single()
   }
 
-  let legacyRes = await insertLegacy(legacyPayload)
+  // Progressive fallback: try with more columns → fewer columns until one works.
+  const attempts: { label: string; payload: Record<string, unknown> }[] = [
+    { label: 'legacy+date', payload: legacyPayload },
+    { label: 'legacy-base', payload: legacyBase },
+  ]
 
-  if (
-    legacyRes.error &&
-    (legacyRes.error.code === 'PGRST204' ||
-      legacyRes.error.code === '42703' ||
-      /media_date/i.test(legacyRes.error.message))
-  ) {
-    legacyRes = await insertLegacy(legacyBase)
-  }
+  const sanitizedType = parsed.type === 'document' ? 'video' : parsed.type
+  const sanitizedCategory = (['match', 'highlight', 'training', 'photo', 'other'] as const).includes(
+    parsed.category as 'match' | 'highlight' | 'training' | 'photo' | 'other'
+  )
+    ? parsed.category
+    : 'other'
 
-  if (legacyRes.error) {
-    // Segundo fallback para esquemas legacy con enums más restringidos.
-    const sanitizedType = parsed.type === 'document' ? 'video' : parsed.type
-    const sanitizedCategory = (['match', 'highlight', 'training', 'photo', 'other'] as const).includes(
-      parsed.category as 'match' | 'highlight' | 'training' | 'photo' | 'other'
+  if (sanitizedType !== parsed.type || sanitizedCategory !== parsed.category) {
+    attempts.push(
+      { label: 'sanitized+date', payload: { ...legacyPayload, type: sanitizedType, category: sanitizedCategory } },
+      { label: 'sanitized-base', payload: { ...legacyBase, type: sanitizedType, category: sanitizedCategory } },
     )
-      ? parsed.category
-      : 'other'
-
-    const payloadSanitized = {
-      ...legacyPayload,
-      type: sanitizedType,
-      category: sanitizedCategory,
-    }
-    let legacyRes2 = await supabase.from('media_items').insert(payloadSanitized).select().single()
-
-    if (
-      legacyRes2.error &&
-      (legacyRes2.error.code === 'PGRST204' ||
-        legacyRes2.error.code === '42703' ||
-        /media_date/i.test(legacyRes2.error.message))
-    ) {
-      legacyRes2 = await supabase
-        .from('media_items')
-        .insert({
-          ...legacyBase,
-          type: sanitizedType,
-          category: sanitizedCategory,
-        })
-        .select()
-        .single()
-    }
-
-    if (legacyRes2.error) throw new Error(legacyRes2.error.message)
-    revalidatePath('/dashboard/media')
-    return legacyRes2.data
   }
-  revalidatePath('/dashboard/media')
-  return legacyRes.data
+
+  // Also try without created_at in case column doesn't exist or has DB default
+  for (const a of [...attempts]) {
+    const { created_at: _ca, ...withoutCa } = a.payload
+    if (_ca) attempts.push({ label: `${a.label}/noCa`, payload: withoutCa })
+  }
+
+  for (const { label, payload } of attempts) {
+    const { data: d, error: e } = await supabase.from('media_items').insert(payload).select().single()
+    if (!e) {
+      console.log('[createMediaItem] success via:', label)
+      revalidatePath('/dashboard/media')
+      return d
+    }
+    console.error(`[createMediaItem] ${label} failed:`, e.code, e.message)
+  }
+
+  throw new Error('No se pudo insertar el contenido en ninguna variante del esquema.')
 }
 
 export async function deleteMediaItem(id: string) {
@@ -429,9 +428,14 @@ export async function toggleMediaLandingFeatured(id: string, featured: boolean):
 export async function getMediaStats() {
   const clubId = await getClubId()
   const supabase = createAdminClient()
-  const { data, error } = await supabase
+  // Try enhanced columns; fall back to basic ones if they don't exist.
+  let { data, error } = await supabase
     .from('media_items').select('type, category, is_featured, visibility, views_count').eq('club_id', clubId)
-  if (error) return null
+  if (error) {
+    const res2 = await supabase.from('media_items').select('type, category').eq('club_id', clubId)
+    if (res2.error) return null
+    data = res2.data
+  }
   const items = data ?? []
   return {
     total:      items.length,

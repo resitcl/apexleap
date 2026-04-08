@@ -171,29 +171,24 @@ export default async function MediaPage({ searchParams }: PageProps) {
   let weekBuckets: number[] = [0, 0, 0, 0, 0]
 
   try {
-    const [mediaResult, mediaStats, byMonth, years] = await Promise.all([
-      getMediaItems({
-        type: type || undefined,
-        category: category || undefined,
-        search: search || undefined,
-        month: month || undefined,
-        weekOfMonth: weekNum,
-        year: month ? undefined : selectedYear,
-        page: listPage,
-        limit: listLimit,
-      }),
-      getMediaStats(),
-      getMediaByMonth(selectedYear),
-      getMediaYears(),
-    ])
-    result = mediaResult
-    stats = mediaStats
-    monthlyData = byMonth
-    mediaYears = years
-    if (month) {
-      weekBuckets = await getMediaWeekBuckets(month)
-    }
-  } catch { /* silent */ }
+    result = await getMediaItems({
+      type: type || undefined,
+      category: category || undefined,
+      search: search || undefined,
+      month: month || undefined,
+      weekOfMonth: weekNum,
+      year: month ? undefined : selectedYear,
+      page: listPage,
+      limit: listLimit,
+    })
+  } catch (err) {
+    console.error('[MediaHub] getMediaItems failed:', err)
+  }
+
+  try { stats = await getMediaStats() } catch { /* stats are optional */ }
+  try { monthlyData = await getMediaByMonth(selectedYear) } catch { /* optional */ }
+  try { mediaYears = await getMediaYears() } catch { /* optional */ }
+  try { if (month) weekBuckets = await getMediaWeekBuckets(month) } catch { /* optional */ }
 
   const { items, total, tableExists } = result
   const perPage = listLimit
