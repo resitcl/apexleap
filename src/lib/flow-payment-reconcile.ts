@@ -81,6 +81,9 @@ export async function reconcileFlowPaymentByToken(token: string) {
 
   let payment = byToken
   if (!payment) return { ok: false as const, reason: 'payment_not_found' }
+  if (payment.status === 'paid') {
+    return { ok: true as const, paid: true as const, alreadyPaid: true as const }
+  }
 
   const { data: clubRow } = await supabase
     .from('clubs')
@@ -90,8 +93,24 @@ export async function reconcileFlowPaymentByToken(token: string) {
   const flowConfig = resolveFlowConfigFromSettings((clubRow?.settings ?? {}) as Record<string, unknown>)
   if (!flowConfig) return { ok: false as const, reason: 'flow_not_configured' }
 
-  const statusResponse = await getFlowPaymentStatus(flowConfig, token.trim())
-  const paid = flowStatusIsPaid(statusResponse.status)
+  let statusResponse: Record<string, unknown> = {}
+  let paid = false
+  try {
+    statusResponse = await getFlowPaymentStatus(flowConfig, token.trim())
+    paid = flowStatusIsPaid(statusResponse.status)
+  } catch {
+    // Si Flow status falla en este instante, validamos contra BD:
+    // webhook/retorno previo pueden haber confirmado el pago ya.
+    const { data: fallbackByToken } = await supabase
+      .from('payments')
+      .select('id, club_id, athlete_id, plan_id, status')
+      .eq('transaction_id', token.trim())
+      .maybeSingle()
+    if (fallbackByToken?.status === 'paid') {
+      return { ok: true as const, paid: true as const, alreadyPaid: true as const }
+    }
+    return { ok: true as const, paid: false as const }
+  }
   const paymentIdFromOrder = parsePaymentIdFromCommerceOrder(statusResponse.commerceOrder)
 
   if (paymentIdFromOrder && paymentIdFromOrder !== payment.id) {
@@ -104,7 +123,17 @@ export async function reconcileFlowPaymentByToken(token: string) {
     if (byOrder) payment = byOrder
   }
 
-  if (!paid) return { ok: true as const, paid: false as const }
+  if (!paid) {
+    const { data: fallbackByToken } = await supabase
+      .from('payments')
+      .select('status')
+      .eq('transaction_id', token.trim())
+      .maybeSingle()
+    if (fallbackByToken?.status === 'paid') {
+      return { ok: true as const, paid: true as const, alreadyPaid: true as const }
+    }
+    return { ok: true as const, paid: false as const }
+  }
   if (payment.status === 'paid') return { ok: true as const, paid: true as const, alreadyPaid: true as const }
 
   const paidAt = new Date().toISOString()
