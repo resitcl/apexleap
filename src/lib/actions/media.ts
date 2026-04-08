@@ -246,13 +246,48 @@ export async function createMediaItem(input: MediaInput) {
   const { userId } = await auth()
   const parsed = mediaSchema.parse(input)
   const supabase = createAdminClient()
+
+  const fullPayload = { ...parsed, club_id: clubId, created_by: userId ?? null }
   const { data, error } = await supabase
     .from('media_items')
-    .insert({ ...parsed, club_id: clubId, created_by: userId ?? null })
-    .select().single()
-  if (error) throw new Error(error.message)
+    .insert(fullPayload)
+    .select()
+    .single()
+
+  if (!error) {
+    revalidatePath('/dashboard/media')
+    return data
+  }
+
+  // Fallback de compatibilidad para entornos con esquema parcial (sin columnas enhanced).
+  const missingColumn =
+    error.code === 'PGRST204' ||
+    error.code === '42703' ||
+    /column/i.test(error.message)
+
+  if (!missingColumn) throw new Error(error.message)
+
+  const legacyPayload = {
+    title: parsed.title,
+    type: parsed.type,
+    category: parsed.category,
+    url: parsed.url,
+    thumbnail_url: parsed.thumbnail_url ?? null,
+    description: parsed.description ?? null,
+    is_public: parsed.is_public,
+    club_id: clubId,
+    created_by: userId ?? null,
+  }
+
+  const legacyRes = await supabase
+    .from('media_items')
+    .insert(legacyPayload)
+    .select()
+    .single()
+
+  if (legacyRes.error) throw new Error(legacyRes.error.message)
   revalidatePath('/dashboard/media')
-  return data
+  return legacyRes.data
 }
 
 export async function deleteMediaItem(id: string) {
