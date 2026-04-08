@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -34,9 +35,12 @@ const VISIBILITY_OPTIONS = [
 interface MediaUploadModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  /** Alinea la fecha del ítem con el mes/año del archivo (evita “éxito” pero lista vacía). */
+  suggestedMediaDate?: string
 }
 
-export function MediaUploadModal({ open, onOpenChange }: MediaUploadModalProps) {
+export function MediaUploadModal({ open, onOpenChange, suggestedMediaDate }: MediaUploadModalProps) {
+  const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [sourceTab, setSourceTab] = useState<'youtube' | 'url'>('youtube')
   const [form, setForm] = useState({
@@ -54,6 +58,11 @@ export function MediaUploadModal({ open, onOpenChange }: MediaUploadModalProps) 
     visibility: 'public' as 'public' | 'members' | 'coaches' | 'private',
   })
   const [tagInput, setTagInput] = useState('')
+
+  useEffect(() => {
+    if (!open || !suggestedMediaDate) return
+    setForm((p) => ({ ...p, media_date: suggestedMediaDate }))
+  }, [open, suggestedMediaDate])
 
   function set<K extends keyof typeof form>(k: K, v: typeof form[K]) {
     setForm((p) => ({ ...p, [k]: v }))
@@ -104,11 +113,12 @@ export function MediaUploadModal({ open, onOpenChange }: MediaUploadModalProps) 
       }
       await createMediaItem(input)
       toast.success('Contenido agregado exitosamente')
+      router.refresh()
       onOpenChange(false)
       setForm({
         title: '', type: 'video', category: 'other', url: '', thumbnail_url: '',
         description: '', is_public: true, source_type: 'youtube',
-        media_date: new Date().toISOString().split('T')[0], tags: [],
+        media_date: suggestedMediaDate ?? new Date().toISOString().split('T')[0], tags: [],
         is_featured: false, visibility: 'public',
       })
     } catch (err) {
@@ -340,7 +350,7 @@ export function MediaUploadModal({ open, onOpenChange }: MediaUploadModalProps) 
   )
 }
 
-export function MediaUploadButton() {
+export function MediaUploadButton({ suggestedMediaDate }: { suggestedMediaDate?: string }) {
   const [open, setOpen] = useState(false)
 
   return (
@@ -348,7 +358,7 @@ export function MediaUploadButton() {
       <Button size="sm" className="gap-2 h-10 px-5" onClick={() => setOpen(true)}>
         <Plus className="w-4 h-4" /> Agregar Contenido
       </Button>
-      <MediaUploadModal open={open} onOpenChange={setOpen} />
+      <MediaUploadModal open={open} onOpenChange={setOpen} suggestedMediaDate={suggestedMediaDate} />
     </>
   )
 }

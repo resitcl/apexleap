@@ -9,6 +9,14 @@ export function weekOfMonthFromDate(isoDate: string): number {
   return Math.min(5, Math.ceil(day / 7))
 }
 
+/** Suma un día a una fecha `YYYY-MM-DD` (UTC) para rangos exclusivos en consultas. */
+export function addOneDayIso(isoDate: string): string {
+  const [y, mo, d] = isoDate.split('-').map(Number)
+  if (!y || !mo || !d) return isoDate
+  const t = new Date(Date.UTC(y, mo - 1, d + 1))
+  return t.toISOString().slice(0, 10)
+}
+
 export function weekOfMonthRange(
   monthKey: string,
   week: number
@@ -48,18 +56,49 @@ export function weekLabelEs(monthKey: string, week: number): string {
   return `Semana ${week} (${a}–${b} ${ms})`
 }
 
-type WithDate = { media_date: string | null }
+type WithDate = { media_date: string | null; created_at?: string | null }
+
+/** Fecha YYYY-MM-DD para agrupar: prioriza media_date; si falta, el día de created_at. */
+export function effectiveMediaDay(item: WithDate): string | null {
+  if (item.media_date) return item.media_date
+  const c = item.created_at
+  if (typeof c === 'string' && c.length >= 10) return c.slice(0, 10)
+  return null
+}
+
+/**
+ * Fecha por defecto al publicar desde el archivo (coherente con mes/año de la URL).
+ * Si estás viendo marzo, el alta no debe usar "hoy" en abril (quedaría invisible al filtro).
+ */
+export function defaultContentDateForUpload(selectedYear: number, monthKey: string | undefined): string {
+  const now = new Date()
+  const yNow = now.getFullYear()
+  const moNow = now.getMonth() + 1
+  const dayNow = now.getDate()
+  const todayStr = `${yNow}-${String(moNow).padStart(2, '0')}-${String(dayNow).padStart(2, '0')}`
+
+  if (!monthKey) {
+    if (yNow === selectedYear) return todayStr
+    return `${selectedYear}-01-01`
+  }
+  const [y, m] = monthKey.split('-').map(Number)
+  if (!y || !m || m < 1 || m > 12) return todayStr
+  const monthStart = `${y}-${String(m).padStart(2, '0')}-01`
+  if (yNow === y && moNow === m) return todayStr
+  return monthStart
+}
 
 export function groupMediaByWeek<T extends WithDate>(items: T[]): Map<number, T[]> {
   const map = new Map<number, T[]>()
   for (const item of items) {
-    if (!item.media_date) continue
-    const w = weekOfMonthFromDate(item.media_date)
+    const day = effectiveMediaDay(item)
+    if (!day) continue
+    const w = weekOfMonthFromDate(day)
     if (!map.has(w)) map.set(w, [])
     map.get(w)!.push(item)
   }
   for (const [, arr] of map) {
-    arr.sort((a, b) => (b.media_date ?? '').localeCompare(a.media_date ?? ''))
+    arr.sort((a, b) => (effectiveMediaDay(b) ?? '').localeCompare(effectiveMediaDay(a) ?? ''))
   }
   return map
 }

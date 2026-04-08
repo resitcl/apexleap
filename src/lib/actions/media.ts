@@ -10,7 +10,7 @@ import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { z } from 'zod'
 import { getClubId } from '@/lib/actions/club-context'
-import { weekOfMonthFromDate, weekOfMonthRange } from '@/lib/media-archive'
+import { addOneDayIso, weekOfMonthFromDate, weekOfMonthRange } from '@/lib/media-archive'
 
 const mediaSchema = z.object({
   title:         z.string().min(2),
@@ -89,14 +89,24 @@ export async function getMediaItems(params?: {
   if (params?.month && params?.weekOfMonth && params.weekOfMonth >= 1 && params.weekOfMonth <= 5) {
     const r = weekOfMonthRange(params.month, params.weekOfMonth)
     if (r) {
-      query = query.gte('media_date', r.start).lte('media_date', r.end)
+      const endExclusive = addOneDayIso(r.end)
+      const startTs = `${r.start}T00:00:00.000Z`
+      const endTs = `${endExclusive}T00:00:00.000Z`
+      query = query.or(
+        `and(media_date.gte.${r.start},media_date.lte.${r.end}),and(media_date.is.null,created_at.gte.${startTs},created_at.lt.${endTs})`,
+      )
     }
   } else if (params?.month) {
     const [y, mo] = params.month.split('-').map(Number)
-    const startDate = `${y}-${String(mo).padStart(2, '0')}-01`
-    const endExclusive = new Date(y, mo, 1)
-    const endStr = endExclusive.toISOString().slice(0, 10)
-    query = query.gte('media_date', startDate).lt('media_date', endStr)
+    if (y && mo >= 1 && mo <= 12) {
+      const startDate = `${y}-${String(mo).padStart(2, '0')}-01`
+      const nextMonthStart = mo === 12 ? `${y + 1}-01-01` : `${y}-${String(mo + 1).padStart(2, '0')}-01`
+      const startTs = `${startDate}T00:00:00.000Z`
+      const endTs = `${nextMonthStart}T00:00:00.000Z`
+      query = query.or(
+        `and(media_date.gte.${startDate},media_date.lt.${nextMonthStart}),and(media_date.is.null,created_at.gte.${startTs},created_at.lt.${endTs})`,
+      )
+    }
   } else if (params?.year) {
     const y = params.year
     const start = `${y}-01-01`
@@ -137,6 +147,18 @@ export async function getMediaByMonth(year?: number, options?: { visibilityIn?: 
 
   if (error) return {}
 
+  let qNull = supabase
+    .from('media_items')
+    .select('id, media_date, type, category, created_at')
+    .eq('club_id', clubId)
+    .is('media_date', null)
+    .gte('created_at', `${targetYear}-01-01T00:00:00.000Z`)
+    .lt('created_at', `${targetYear + 1}-01-01T00:00:00.000Z`)
+  if (options?.visibilityIn?.length) {
+    qNull = qNull.in('visibility', options.visibilityIn)
+  }
+  const { data: dataNull } = await qNull
+
   const grouped: Record<string, { videos: number; photos: number; total: number }> = {}
   for (const item of data ?? []) {
     if (!item.media_date) continue
@@ -146,18 +168,26 @@ export async function getMediaByMonth(year?: number, options?: { visibilityIn?: 
     if (item.type === 'video') grouped[month].videos++
     if (item.type === 'photo') grouped[month].photos++
   }
+  for (const item of dataNull ?? []) {
+    const ca = item.created_at as string | null
+    if (!ca || ca.length < 7) continue
+    const month = ca.slice(0, 7)
+    if (!grouped[month]) grouped[month] = { videos: 0, photos: 0, total: 0 }
+    grouped[month].total++
+    if (item.type === 'video') grouped[month].videos++
+    if (item.type === 'photo') grouped[month].photos++
+  }
   return grouped
 }
 
-/** Años con al menos un ítem con fecha; incluye el año actual si hace falta */
+/** Años con al menos un ítem (media_date o created_at si no hay fecha de archivo) */
 export async function getMediaYears(): Promise<number[]> {
   const clubId = await getClubId()
   const supabase = createAdminClient()
   const { data, error } = await supabase
     .from('media_items')
-    .select('media_date')
+    .select('media_date, created_at')
     .eq('club_id', clubId)
-    .not('media_date', 'is', null)
 
   const current = new Date().getFullYear()
   if (error || !data?.length) return [current]
@@ -165,7 +195,12 @@ export async function getMediaYears(): Promise<number[]> {
   const years = new Set<number>()
   for (const row of data) {
     const md = row.media_date as string | null
-    if (md && md.length >= 4) years.add(parseInt(md.slice(0, 4), 10))
+    if (md && md.length >= 4) {
+      years.add(parseInt(md.slice(0, 4), 10))
+      continue
+    }
+    const ca = row.created_at as string | null
+    if (ca && ca.length >= 4) years.add(parseInt(ca.slice(0, 4), 10))
   }
   years.add(current)
   return [...years].sort((a, b) => b - a)
@@ -181,7 +216,7 @@ export async function getMediaWeekBuckets(
   const [y, m] = monthKey.split('-').map(Number)
   if (!y || !m || m < 1 || m > 12) return [0, 0, 0, 0, 0]
   const start = `${y}-${String(m).padStart(2, '0')}-01`
-  const endExclusive = new Date(y, m, 1).toISOString().slice(0, 10)
+  const endExclusive = m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, '0')}-01`
   let q = supabase
     .from('media_items')
     .select('media_date')
@@ -200,6 +235,25 @@ export async function getMediaWeekBuckets(
     const md = row.media_date as string | null
     if (!md) continue
     const w = weekOfMonthFromDate(md) - 1
+    if (w >= 0 && w < 5) counts[w]++
+  }
+
+  let qNull = supabase
+    .from('media_items')
+    .select('media_date, created_at')
+    .eq('club_id', clubId)
+    .is('media_date', null)
+    .gte('created_at', `${start}T00:00:00.000Z`)
+    .lt('created_at', `${endExclusive}T00:00:00.000Z`)
+  if (options?.visibilityIn?.length) {
+    qNull = qNull.in('visibility', options.visibilityIn)
+  }
+  const { data: rowsNull } = await qNull
+  for (const row of rowsNull ?? []) {
+    const ca = row.created_at as string | null
+    if (!ca || ca.length < 10) continue
+    const day = ca.slice(0, 10)
+    const w = weekOfMonthFromDate(day) - 1
     if (w >= 0 && w < 5) counts[w]++
   }
   return counts

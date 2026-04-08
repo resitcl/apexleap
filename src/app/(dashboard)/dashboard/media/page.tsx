@@ -4,7 +4,7 @@ import Link from "next/link"
 import { redirect } from "next/navigation"
 import { checkUserHasClub } from "@/lib/actions/onboarding"
 import { getMediaItems, getMediaStats, getMediaByMonth, getMediaYears, getMediaWeekBuckets } from "@/lib/actions/media"
-import { groupMediaByWeek, weekLabelEs, monthLabelEs } from "@/lib/media-archive"
+import { groupMediaByWeek, weekLabelEs, monthLabelEs, defaultContentDateForUpload, effectiveMediaDay } from "@/lib/media-archive"
 import { AthleteSectionHeader } from "@/components/athlete/AthleteSectionHeader"
 import { Badge } from "@/components/ui/badge"
 import { MediaUploadButton } from "@/components/media/MediaUploadModal"
@@ -44,7 +44,10 @@ function MediaHubCard({ item }: { item: MediaItemRow }) {
     (item.thumbnail_url as string | null) ??
     (item.type === 'video' ? getYoutubeThumbnail(item.url as string) : null)
   const isFeatured = (item as Record<string, unknown>).is_featured as boolean
-  const mediaDate = (item as Record<string, unknown>).media_date as string | null
+  const mediaDate = effectiveMediaDay({
+    media_date: (item as Record<string, unknown>).media_date as string | null,
+    created_at: (item as Record<string, unknown>).created_at as string | null,
+  })
 
   return (
     <div className="group rounded-2xl bg-[#111111] border border-white/[0.04] overflow-hidden hover:border-primary/30 transition-all">
@@ -154,6 +157,8 @@ export default async function MediaPage({ searchParams }: PageProps) {
   const weekNum =
     weekRaw && /^[1-5]$/.test(weekRaw) ? parseInt(weekRaw, 10) : undefined
 
+  const suggestedUploadDate = defaultContentDateForUpload(selectedYear, month || undefined)
+
   const archiveMonthNoWeek = Boolean(month) && weekNum === undefined
   const listLimit = archiveMonthNoWeek ? 500 : 24
   const listPage = archiveMonthNoWeek ? 1 : page
@@ -193,8 +198,12 @@ export default async function MediaPage({ searchParams }: PageProps) {
   const { items, total, tableExists } = result
   const perPage = listLimit
   const totalPages = Math.ceil(total / perPage)
-  const itemsWithDate = items.filter((i) => Boolean((i as Record<string, unknown>).media_date))
-  const itemsNoDate = items.filter((i) => !(i as Record<string, unknown>).media_date)
+  const itemsWithDate = items.filter((i) =>
+    Boolean(effectiveMediaDay({ media_date: (i as Record<string, unknown>).media_date as string | null, created_at: (i as Record<string, unknown>).created_at as string | null })),
+  )
+  const itemsNoDate = items.filter(
+    (i) => !effectiveMediaDay({ media_date: (i as Record<string, unknown>).media_date as string | null, created_at: (i as Record<string, unknown>).created_at as string | null }),
+  )
   const groupedByWeek = archiveMonthNoWeek ? groupMediaByWeek(itemsWithDate) : null
 
   function buildHref(overrides: Record<string, string | undefined>) {
@@ -225,7 +234,7 @@ export default async function MediaPage({ searchParams }: PageProps) {
         icon={Film}
         title="Media Hub"
         description="Archivo del año: el coach documenta qué se trabaja por mes y semana; los alumnos buscan o repasan clase a clase."
-        endSlot={<MediaUploadButton />}
+        endSlot={<MediaUploadButton suggestedMediaDate={suggestedUploadDate} />}
       />
 
       {!tableExists ? (
@@ -436,7 +445,7 @@ export default async function MediaPage({ searchParams }: PageProps) {
               <Sparkles className="w-16 h-16 mx-auto mb-4 text-muted-foreground/20" />
               <h3 className="text-xl font-black tracking-tight mb-2">Sin contenido</h3>
               <p className="text-muted-foreground text-sm mb-6">Agrega videos, fotos e highlights del club</p>
-              <MediaUploadButton />
+              <MediaUploadButton suggestedMediaDate={suggestedUploadDate} />
             </div>
           ) : (
             <>

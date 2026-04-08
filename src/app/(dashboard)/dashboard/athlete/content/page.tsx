@@ -4,7 +4,7 @@ import Link from "next/link"
 import { redirect } from "next/navigation"
 import { checkUserHasClub } from "@/lib/actions/onboarding"
 import { getMediaItems, getMediaByMonth, getFeaturedMedia, getMediaYears, getMediaWeekBuckets } from "@/lib/actions/media"
-import { groupMediaByWeek, weekLabelEs, monthLabelEs } from "@/lib/media-archive"
+import { groupMediaByWeek, weekLabelEs, monthLabelEs, effectiveMediaDay } from "@/lib/media-archive"
 import { getClubSettings } from "@/lib/actions/settings"
 import { getSportVocab } from "@/lib/sport-vocab"
 import { Badge } from "@/components/ui/badge"
@@ -48,7 +48,10 @@ function AthleteMediaCard({ item }: { item: MediaItemRow }) {
   const thumb =
     (item.thumbnail_url as string | null) ??
     (item.type === 'video' ? getYoutubeThumbnail(item.url as string) : null)
-  const mediaDate = (item as Record<string, unknown>).media_date as string | null
+  const mediaDate = effectiveMediaDay({
+    media_date: (item as Record<string, unknown>).media_date as string | null,
+    created_at: (item as Record<string, unknown>).created_at as string | null,
+  })
   const isFeatured = (item as Record<string, unknown>).is_featured as boolean
 
   return (
@@ -194,8 +197,12 @@ export default async function AthleteContentPage({ searchParams }: PageProps) {
   const { items, total, tableExists } = result
   const perPage = listLimit
   const totalPages = Math.ceil(total / perPage)
-  const itemsWithDate = items.filter((i) => Boolean((i as Record<string, unknown>).media_date))
-  const itemsNoDate = items.filter((i) => !(i as Record<string, unknown>).media_date)
+  const itemsWithDate = items.filter((i) =>
+    Boolean(effectiveMediaDay({ media_date: (i as Record<string, unknown>).media_date as string | null, created_at: (i as Record<string, unknown>).created_at as string | null })),
+  )
+  const itemsNoDate = items.filter(
+    (i) => !effectiveMediaDay({ media_date: (i as Record<string, unknown>).media_date as string | null, created_at: (i as Record<string, unknown>).created_at as string | null }),
+  )
   const groupedByWeek = archiveMonthNoWeek ? groupMediaByWeek(itemsWithDate) : null
 
   function buildHref(overrides: Record<string, string | undefined>) {
