@@ -55,6 +55,7 @@ export default async function AthletePaymentsPage() {
   const paymentSettingsBlock = rawSettings.payment_settings as {
     bank_info?: Record<string, string> | null
     cash_instructions?: string
+    flow?: { checkout_url?: string }
   } | null | undefined
   const mergedBank = {
     ...((rawSettings.bank_info as Record<string, string> | undefined) ?? {}),
@@ -63,6 +64,7 @@ export default async function AthletePaymentsPage() {
   const bankInfo = Object.keys(mergedBank).length > 0 ? mergedBank : null
   const enabledMethods = getEnabledPaymentMethodIdsFromClubSettings(rawSettings)
   const cashInstructions = paymentSettingsBlock?.cash_instructions ?? undefined
+  const flowCheckoutUrl = paymentSettingsBlock?.flow?.checkout_url?.trim() || null
 
   const { data: payments } = await supabase
     .from('payments')
@@ -197,6 +199,7 @@ export default async function AthletePaymentsPage() {
           bankInfo={bankInfo}
           enabledMethods={enabledMethods}
           cashInstructions={cashInstructions}
+          flowCheckoutUrl={flowCheckoutUrl}
         />
       )}
 

@@ -27,6 +27,7 @@ interface BankInfo {
 interface GatewayConfig {
   enabled: boolean; sandbox: boolean
   api_key: string; secret_key: string; commerce_code: string
+  checkout_url?: string
 }
 
 export interface PaymentSettings {
@@ -44,11 +45,12 @@ export interface PaymentSettings {
 type GatewayId = 'flow' | 'webpay' | 'mercadopago' | 'khipu'
 const GATEWAYS: {
   id: GatewayId; label: string; description: string
-  fields: { key: 'api_key' | 'secret_key' | 'commerce_code'; label: string; placeholder: string; secret?: boolean }[]
+  fields: { key: 'api_key' | 'secret_key' | 'commerce_code' | 'checkout_url'; label: string; placeholder: string; secret?: boolean }[]
 }[] = [
   { id: 'flow', label: 'Flow', description: 'Pagos en línea con Flow.cl', fields: [
     { key: 'api_key', label: 'API Key', placeholder: 'Ej: 1234567890' },
     { key: 'secret_key', label: 'Secret Key', placeholder: 'Ej: abc123...', secret: true },
+    { key: 'checkout_url', label: 'URL Checkout (Link de pago Flow)', placeholder: 'https://www.flow.cl/...' },
   ]},
   { id: 'webpay', label: 'Webpay (Transbank)', description: 'Tarjeta crédito/débito vía Transbank', fields: [
     { key: 'commerce_code', label: 'Código de Comercio', placeholder: 'Ej: 597012345678' },
@@ -76,7 +78,7 @@ const EMPTY_BANK: BankInfo = {
   email: '',
   whatsapp_phone: '',
 }
-const EMPTY_GW: GatewayConfig = { enabled: false, sandbox: true, api_key: '', secret_key: '', commerce_code: '' }
+const EMPTY_GW: GatewayConfig = { enabled: false, sandbox: true, api_key: '', secret_key: '', commerce_code: '', checkout_url: '' }
 
 function toState(v?: Partial<PaymentSettings> | null): PaymentSettings {
   return {

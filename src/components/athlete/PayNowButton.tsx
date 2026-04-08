@@ -20,9 +20,10 @@ interface PayNowButtonProps {
   } | null
   enabledMethods?: string[] | null
   cashInstructions?: string
+  flowCheckoutUrl?: string | null
 }
 
-export function PayNowButton({ planName, planPrice, planCycle, hasOverdue, hasPending, bankInfo, enabledMethods, cashInstructions }: PayNowButtonProps) {
+export function PayNowButton({ planName, planPrice, planCycle, hasOverdue, hasPending, bankInfo, enabledMethods, cashInstructions, flowCheckoutUrl }: PayNowButtonProps) {
   const [open, setOpen] = useState(false)
 
   return (
@@ -83,6 +84,7 @@ export function PayNowButton({ planName, planPrice, planCycle, hasOverdue, hasPe
           bankInfo={bankInfo}
           enabledMethods={enabledMethods}
           cashInstructions={cashInstructions}
+          flowCheckoutUrl={flowCheckoutUrl}
           onClose={() => setOpen(false)}
         />
       )}

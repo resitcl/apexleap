@@ -24,14 +24,6 @@ const BELT_ES: Record<string, string> = {
   red: 'Cinta Roja',
 }
 
-const NEXT_BELT_ES: Record<string, string> = {
-  white: 'Cinta Azul',
-  blue: 'Cinta Violeta',
-  purple: 'Cinta Café',
-  brown: 'Cinta Negra',
-  black: 'Cinta Roja/Negra',
-}
-
 interface Props {
   sportType: string | null
   beltLevel: string | null
@@ -45,7 +37,6 @@ export function AthleteDashboardRankCard({ sportType, beltLevel, stripesRaw }: P
   const isBeltSport = sportType && BELT_SPORTS.includes(sportType as (typeof BELT_SPORTS)[number])
   const isBjj = sportType === 'Jiu-Jitsu'
   const stripes = parseStripes(stripesRaw)
-  const stripePct = Math.round((stripes / 4) * 100)
   const beltKey = beltLevel?.toLowerCase() ?? ''
 
   const displayTitle =
@@ -74,7 +65,7 @@ export function AthleteDashboardRankCard({ sportType, beltLevel, stripesRaw }: P
 
   return (
     <div
-      className={`rounded-2xl p-6 border shadow-sm flex flex-col w-full lg:min-w-[280px] lg:max-w-[340px] lg:shrink-0 overflow-hidden ${
+      className={`rounded-2xl p-6 border shadow-sm flex flex-col w-full lg:min-w-[280px] lg:max-w-[340px] lg:shrink-0 lg:h-full overflow-hidden ${
         isBjj
           ? 'border-primary/20 bg-gradient-to-br from-card via-card to-primary/10'
           : 'border-border bg-card'
@@ -134,26 +125,6 @@ export function AthleteDashboardRankCard({ sportType, beltLevel, stripesRaw }: P
         </p>
         {!isBjj && (
           <p className="text-xs text-muted-foreground/50 mt-1 font-mono">{beltLevel}</p>
-        )}
-
-        {NEXT_BELT_ES[beltKey] && (
-          <div className="mt-auto pt-5">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-sm font-bold">
-                <span className="text-primary">{stripePct ?? 0}%</span>
-                <span className="text-muted-foreground/60 font-medium text-sm">
-                  {' '}
-                  hacia {NEXT_BELT_ES[beltKey]}
-                </span>
-              </p>
-            </div>
-            <div className="h-2.5 rounded-full bg-muted overflow-hidden ring-1 ring-border">
-              <div
-                className="h-full rounded-full bg-gradient-to-r from-primary to-primary/80 transition-all duration-700"
-                style={{ width: `${stripePct ?? 0}%` }}
-              />
-            </div>
-          </div>
         )}
       </div>
     </div>

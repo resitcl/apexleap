@@ -12,6 +12,7 @@ import { getClubSettings } from "@/lib/actions/settings"
 import { getSportConfig } from "@/lib/sport-fields"
 import { getSportVocab } from "@/lib/sport-vocab"
 import { getEvents } from "@/lib/actions/events"
+import { getMediaItems } from "@/lib/actions/media"
 import { SmoothcompEventsWidget, SmoothcompEventsSkeleton } from "@/components/athlete/SmoothcompEventsWidget"
 import { AthleteOnboardingWizard } from "@/components/athlete/AthleteOnboardingWizard"
 import { AthleteProfileOnboardingWrapper } from "@/components/athlete/AthleteProfileOnboardingWrapper"
@@ -147,6 +148,22 @@ export default async function AthletePage({ searchParams }: { searchParams?: Pro
     upcomingClubEvents = allEvents.filter((e) => e.is_visible_to_athletes !== false).slice(0, 3)
   } catch { /* silent */ }
 
+  type MediaHubItem = {
+    id: string
+    title: string
+    type: string
+    category: string | null
+    media_date: string | null
+    created_at: string
+    url: string
+  }
+  let latestMedia: MediaHubItem | null = null
+  try {
+    const mediaResult = await getMediaItems({ page: 1, limit: 1, visibilityIn: ['public', 'members'] })
+    const firstMedia = (mediaResult?.items?.[0] ?? null) as MediaHubItem | null
+    latestMedia = firstMedia
+  } catch { /* silent */ }
+
   const todayDate = today.toLocaleDateString("es-CL", { weekday: "long", day: "numeric", month: "long" })
   const hour = today.getHours()
   const greeting = hour < 12 ? "Buenos días" : hour < 19 ? "Buenas tardes" : "Buenas noches"
@@ -279,7 +296,7 @@ export default async function AthletePage({ searchParams }: { searchParams?: Pro
       )}
 
       {/* ── KPI ROW: 4 cards + RANK card (estructura Stitch) ── */}
-      <div className="flex flex-col lg:flex-row gap-4 lg:items-start">
+      <div className="flex flex-col lg:flex-row gap-4 lg:items-stretch">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 flex-1">
 
         {/* CHECK-INS */}
@@ -377,59 +394,49 @@ export default async function AthletePage({ searchParams }: { searchParams?: Pro
         <AthleteDashboardRankCard sportType={sportType} beltLevel={beltLevel} stripesRaw={techMeta?.stripes} />
       </div>
 
-      {/* ── TORNEOS ROW ── */}
-      {(upcomingComps.length > 0 || sportType === 'Jiu-Jitsu') && (
-        <div className="rounded-2xl bg-card p-6 border border-border shadow-sm flex flex-col">
+      <div className="grid lg:grid-cols-5 gap-4 items-start pb-8">
+      {/* ── LEFT COLUMN (3/5): Media HUB + Attendance + Events ── */}
+      <div className="space-y-4 lg:col-span-3">
+          {/* ÚLTIMO CONTENIDO MEDIA HUB */}
+          <div className="rounded-2xl bg-card p-6 border border-border shadow-sm">
             <div className="flex items-center justify-between mb-4">
-              <p className="text-xl font-black tracking-tight">
-                {sportType === 'Jiu-Jitsu' ? 'Torneos en Chile' : vocab.competitions}
-              </p>
-              <Trophy className="w-5 h-5 text-primary" />
+              <p className="text-xl font-black tracking-tight">Último contenido</p>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-primary/80">Media HUB</span>
             </div>
-
-            <div className="flex-1 overflow-hidden">
-              {upcomingComps.length > 0 && (
-                <div className="space-y-0">
-                  {upcomingComps.slice(0, 3).map((c) => {
-                    const compDate = new Date(c.start_date + 'T12:00:00')
-                    const daysTo = Math.ceil((compDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
-                    return (
-                      <div key={c.id} className="py-2.5 border-b border-border/20 last:border-0 flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-primary/10 flex flex-col items-center justify-center shrink-0">
-                          <span className="text-[8px] uppercase font-bold text-primary/70 leading-none">
-                            {compDate.toLocaleDateString('es-CL', { month: 'short' })}
-                          </span>
-                          <span className="text-sm font-black text-primary leading-tight">{compDate.getDate()}</span>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-bold leading-snug truncate">{c.name}</p>
-                          <p className="text-[10px] text-muted-foreground/50 font-medium mt-0.5 flex items-center gap-2">
-                            {c.location && <span className="flex items-center gap-1 truncate"><MapPin className="w-3 h-3" />{c.location}</span>}
-                          </p>
-                        </div>
-                        <span className="text-[10px] font-black text-primary shrink-0">{daysTo}D</span>
-                      </div>
-                    )
-                  })}
+            {latestMedia ? (
+              <div className="space-y-3">
+                <p className="text-sm font-bold leading-snug">{latestMedia.title}</p>
+                <p className="text-[11px] text-muted-foreground/60 font-medium">
+                  {(latestMedia.type ?? 'contenido').toUpperCase()}
+                  {latestMedia.category ? ` · ${latestMedia.category}` : ''}
+                  {' · '}
+                  {new Date(
+                    latestMedia.media_date
+                      ? `${latestMedia.media_date}T12:00:00`
+                      : latestMedia.created_at
+                  ).toLocaleDateString('es-CL', { day: 'numeric', month: 'short', year: 'numeric' })}
+                </p>
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {latestMedia.url && (
+                    <a href={latestMedia.url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary font-bold inline-flex items-center gap-1 hover:gap-2 transition-all">
+                      Abrir contenido <ChevronRight className="w-3.5 h-3.5" />
+                    </a>
+                  )}
+                  <Link href="/dashboard/athlete/content" className="text-xs text-primary font-bold inline-flex items-center gap-1 hover:gap-2 transition-all">
+                    Ver Media HUB <ChevronRight className="w-3.5 h-3.5" />
+                  </Link>
                 </div>
-              )}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground/60 font-medium">Aún no hay contenido publicado en el Media HUB.</p>
+                <Link href="/dashboard/athlete/content" className="text-xs text-primary font-bold inline-flex items-center gap-1 hover:gap-2 transition-all">
+                  Ir al Media HUB <ChevronRight className="w-3.5 h-3.5" />
+                </Link>
+              </div>
+            )}
+          </div>
 
-              {sportType === 'Jiu-Jitsu' && (
-                <Suspense fallback={<SmoothcompEventsSkeleton />}>
-                  <SmoothcompEventsWidget />
-                </Suspense>
-              )}
-            </div>
-
-            <Link href="/dashboard/competitions" className="mt-auto pt-3 text-xs text-primary font-bold inline-flex items-center gap-1 hover:gap-2 transition-all">
-              Ver todos <ChevronRight className="w-3.5 h-3.5" />
-            </Link>
-        </div>
-      )}
-
-      {/* ── BOTTOM SECTION: Attendance (left) + Events (right) ── */}
-      <div className="grid lg:grid-cols-[1fr_360px] gap-4 items-start pb-8">
-        <div className="space-y-4">
           {/* ATTENDANCE TRENDS */}
         <div className="rounded-2xl bg-card p-6 md:p-8 border border-border shadow-sm">
           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-8">
@@ -488,7 +495,7 @@ export default async function AthletePage({ searchParams }: { searchParams?: Pro
         </div>
 
         {/* PRÓXIMOS EVENTOS DEL CLUB */}
-        <div className="rounded-2xl bg-card p-6 border border-border shadow-sm flex flex-col h-full">
+        <div className="rounded-2xl bg-card p-6 border border-border shadow-sm flex flex-col">
           <div className="flex items-center justify-between mb-6">
             <p className="text-xl font-black tracking-tight">Próximos Eventos</p>
             <Calendar className="w-5 h-5 text-primary" />
@@ -528,6 +535,56 @@ export default async function AthletePage({ searchParams }: { searchParams?: Pro
           </Link>
         </div>
       </div>
+
+      {/* ── RIGHT COLUMN (2/5): TORNEOS EN CHILE ── */}
+      {(upcomingComps.length > 0 || sportType === 'Jiu-Jitsu') && (
+        <div className="rounded-2xl bg-card p-6 border border-border shadow-sm flex flex-col lg:col-span-2">
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-xl font-black tracking-tight">
+                {sportType === 'Jiu-Jitsu' ? 'Torneos en Chile' : vocab.competitions}
+              </p>
+              <Trophy className="w-5 h-5 text-primary" />
+            </div>
+
+            <div className="flex-1 overflow-hidden">
+              {upcomingComps.length > 0 && (
+                <div className="space-y-0">
+                  {upcomingComps.slice(0, 3).map((c) => {
+                    const compDate = new Date(c.start_date + 'T12:00:00')
+                    const daysTo = Math.ceil((compDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+                    return (
+                      <div key={c.id} className="py-2.5 border-b border-border/20 last:border-0 flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-primary/10 flex flex-col items-center justify-center shrink-0">
+                          <span className="text-[8px] uppercase font-bold text-primary/70 leading-none">
+                            {compDate.toLocaleDateString('es-CL', { month: 'short' })}
+                          </span>
+                          <span className="text-sm font-black text-primary leading-tight">{compDate.getDate()}</span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold leading-snug truncate">{c.name}</p>
+                          <p className="text-[10px] text-muted-foreground/50 font-medium mt-0.5 flex items-center gap-2">
+                            {c.location && <span className="flex items-center gap-1 truncate"><MapPin className="w-3 h-3" />{c.location}</span>}
+                          </p>
+                        </div>
+                        <span className="text-[10px] font-black text-primary shrink-0">{daysTo}D</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+
+              {sportType === 'Jiu-Jitsu' && (
+                <Suspense fallback={<SmoothcompEventsSkeleton />}>
+                  <SmoothcompEventsWidget />
+                </Suspense>
+              )}
+            </div>
+
+            <Link href="/dashboard/competitions" className="mt-auto pt-3 text-xs text-primary font-bold inline-flex items-center gap-1 hover:gap-2 transition-all">
+              Ver todos <ChevronRight className="w-3.5 h-3.5" />
+            </Link>
+        </div>
+      )}
       </div>
 
       {/* ── TEAM SPORT WIDGETS ── */}

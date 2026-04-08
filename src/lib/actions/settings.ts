@@ -144,10 +144,10 @@ export async function updatePaymentSettings(paymentSettings: {
     /** Ej. +56912345678 — para que el atleta envíe el comprobante por WhatsApp */
     whatsapp_phone?: string
   }
-  flow: { enabled: boolean; sandbox: boolean; api_key: string; secret_key: string; commerce_code: string }
-  webpay: { enabled: boolean; sandbox: boolean; api_key: string; secret_key: string; commerce_code: string }
-  mercadopago: { enabled: boolean; sandbox: boolean; api_key: string; secret_key: string; commerce_code: string }
-  khipu: { enabled: boolean; sandbox: boolean; api_key: string; secret_key: string; commerce_code: string }
+  flow: { enabled: boolean; sandbox: boolean; api_key: string; secret_key: string; commerce_code: string; checkout_url?: string }
+  webpay: { enabled: boolean; sandbox: boolean; api_key: string; secret_key: string; commerce_code: string; checkout_url?: string }
+  mercadopago: { enabled: boolean; sandbox: boolean; api_key: string; secret_key: string; commerce_code: string; checkout_url?: string }
+  khipu: { enabled: boolean; sandbox: boolean; api_key: string; secret_key: string; commerce_code: string; checkout_url?: string }
   cash_instructions: string
 }) {
   const membership = await getClubMembershipRole()

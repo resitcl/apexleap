@@ -28,6 +28,7 @@ interface PayNowModalProps {
   /** null/undefined = club sin `payment_settings` guardado (mostrar todos). [] = ninguno. */
   enabledMethods?: string[] | null
   cashInstructions?: string
+  flowCheckoutUrl?: string | null
   onClose: () => void
 }
 
@@ -46,7 +47,7 @@ const PAYMENT_METHODS = [
 
 type Step = 'method' | 'transfer_details' | 'done' | 'waiting'
 
-export function PayNowModal({ planName, planPrice, planCycle, bankInfo, enabledMethods, cashInstructions, onClose }: PayNowModalProps) {
+export function PayNowModal({ planName, planPrice, planCycle, bankInfo, enabledMethods, cashInstructions, flowCheckoutUrl, onClose }: PayNowModalProps) {
   const visibleMethods =
     enabledMethods === undefined || enabledMethods === null
       ? PAYMENT_METHODS
@@ -94,6 +95,18 @@ export function PayNowModal({ planName, planPrice, planCycle, bankInfo, enabledM
 
     setLoading(true)
     try {
+      if (selectedMethod === 'flow') {
+        if (!flowCheckoutUrl) {
+          throw new Error('Flow está habilitado, pero falta configurar la URL de checkout en Ajustes de Pagos.')
+        }
+        // Dejamos registro pendiente en ApexLeap y luego redirigimos al checkout externo.
+        await submitSelfPayment({
+          paymentMethod: selectedMethod,
+        })
+        window.location.href = flowCheckoutUrl
+        return
+      }
+
       let receiptUrl: string | undefined
       let transferReceiptSource: 'upload' | 'whatsapp' | undefined
       if (isTransfer && viaWhatsapp) {
