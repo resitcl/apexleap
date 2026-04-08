@@ -38,7 +38,11 @@ function gatewayConfigured(id: OnlineGatewayId, g?: GatewayCfg): boolean {
     case 'webpay':
       return nonEmpty(g.commerce_code) && nonEmpty(g.api_key) && nonEmpty(g.secret_key)
     case 'mercadopago':
-      return nonEmpty(g.api_key) && nonEmpty(g.secret_key)
+      return (
+        (nonEmpty(g.api_key) && nonEmpty(g.secret_key)) ||
+        nonEmpty(g.checkout_url) ||
+        nonEmpty(g.checkoutUrl)
+      )
     case 'khipu':
       return nonEmpty(g.api_key) && nonEmpty(g.secret_key)
     default:

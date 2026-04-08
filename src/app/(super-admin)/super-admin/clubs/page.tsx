@@ -72,12 +72,23 @@ export default async function SuperAdminClubsPage() {
                 {/* Club header */}
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2.5 min-w-0">
-                    <div
-                      className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm shrink-0"
-                      style={{ backgroundColor: club.primary_color ?? "#6366f1" }}
-                    >
-                      {club.name.slice(0, 2).toUpperCase()}
-                    </div>
+                    {club.logo_url ? (
+                      <div className="w-10 h-10 rounded-xl overflow-hidden border border-border/60 bg-muted shrink-0">
+                        <img
+                          src={club.logo_url}
+                          alt={`Logo de ${club.name}`}
+                          className="w-full h-full object-cover"
+                          loading="lazy"
+                        />
+                      </div>
+                    ) : (
+                      <div
+                        className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm shrink-0"
+                        style={{ backgroundColor: club.primary_color ?? "#6366f1" }}
+                      >
+                        {club.name.slice(0, 2).toUpperCase()}
+                      </div>
+                    )}
                     <div className="min-w-0">
                       <p className="font-semibold leading-tight truncate">{club.name}</p>
                       <p className="text-xs text-muted-foreground truncate">

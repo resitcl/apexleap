@@ -12,7 +12,8 @@ import { updatePaymentSettings } from '@/lib/actions/settings'
 const BANKS = [
   'Banco de Chile', 'Banco Estado', 'Banco Santander', 'BCI', 'Banco Itaú',
   'Scotiabank', 'Banco BICE', 'Banco Security', 'Banco Falabella',
-  'Banco Ripley', 'Banco Consorcio', 'Coopeuch', 'Otro',
+  'Banco Ripley', 'Banco Consorcio', 'Coopeuch', 'Caja Los Andes',
+  'Mercado Pago', 'Tenpo', 'MACH', 'Tapp Caja Los Andes', 'Otro',
 ]
 const ACCOUNT_TYPES = ['Cuenta Corriente', 'Cuenta Vista', 'Cuenta de Ahorro', 'Cuenta RUT']
 
@@ -60,6 +61,7 @@ const GATEWAYS: {
   { id: 'mercadopago', label: 'MercadoPago', description: 'Tarjetas, saldo MP, PSE', fields: [
     { key: 'api_key', label: 'Public Key', placeholder: 'Ej: APP_USR-...' },
     { key: 'secret_key', label: 'Access Token', placeholder: 'Ej: APP_USR-...-...', secret: true },
+    { key: 'checkout_url', label: 'Link de pago (Mercado Pago)', placeholder: 'https://mpago.la/...' },
   ]},
   { id: 'khipu', label: 'Khipu', description: 'Transferencia bancaria instantánea', fields: [
     { key: 'api_key', label: 'Receiver ID', placeholder: 'Ej: 123456' },

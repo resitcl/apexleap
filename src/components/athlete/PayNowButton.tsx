@@ -22,9 +22,10 @@ interface PayNowButtonProps {
   enabledMethods?: string[] | null
   cashInstructions?: string
   flowCheckoutUrl?: string | null
+  mercadopagoCheckoutUrl?: string | null
 }
 
-export function PayNowButton({ planName, planPrice, planCycle, hasOverdue, hasPending, bankInfo, enabledMethods, cashInstructions, flowCheckoutUrl }: PayNowButtonProps) {
+export function PayNowButton({ planName, planPrice, planCycle, hasOverdue, hasPending, bankInfo, enabledMethods, cashInstructions, flowCheckoutUrl, mercadopagoCheckoutUrl }: PayNowButtonProps) {
   const [open, setOpen] = useState(false)
   const mountedRef = useRef(false)
 
@@ -94,6 +95,7 @@ export function PayNowButton({ planName, planPrice, planCycle, hasOverdue, hasPe
           enabledMethods={enabledMethods}
           cashInstructions={cashInstructions}
           flowCheckoutUrl={flowCheckoutUrl}
+          mercadopagoCheckoutUrl={mercadopagoCheckoutUrl}
           onClose={() => {
             if (mountedRef.current) setOpen(false)
           }}

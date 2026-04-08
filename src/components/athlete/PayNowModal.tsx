@@ -29,6 +29,7 @@ interface PayNowModalProps {
   enabledMethods?: string[] | null
   cashInstructions?: string
   flowCheckoutUrl?: string | null
+  mercadopagoCheckoutUrl?: string | null
   onClose: () => void
 }
 
@@ -47,7 +48,7 @@ const PAYMENT_METHODS = [
 
 type Step = 'method' | 'transfer_details' | 'done' | 'waiting'
 
-export function PayNowModal({ planName, planPrice, planCycle, bankInfo, enabledMethods, cashInstructions, flowCheckoutUrl, onClose }: PayNowModalProps) {
+export function PayNowModal({ planName, planPrice, planCycle, bankInfo, enabledMethods, cashInstructions, flowCheckoutUrl, mercadopagoCheckoutUrl, onClose }: PayNowModalProps) {
   const visibleMethods =
     enabledMethods === undefined || enabledMethods === null
       ? PAYMENT_METHODS
@@ -117,6 +118,12 @@ export function PayNowModal({ planName, planPrice, planCycle, bankInfo, enabledM
           await submitSelfPayment({ paymentMethod: selectedMethod })
           window.location.href = flowCheckoutUrl
         }
+        return
+      }
+
+      if (selectedMethod === 'mercadopago' && mercadopagoCheckoutUrl) {
+        await submitSelfPayment({ paymentMethod: selectedMethod })
+        window.location.href = mercadopagoCheckoutUrl
         return
       }
 

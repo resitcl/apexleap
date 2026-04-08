@@ -57,6 +57,7 @@ export default async function AthletePaymentsPage() {
     bank_info?: Record<string, string> | null
     cash_instructions?: string
     flow?: { checkout_url?: string; checkoutUrl?: string }
+    mercadopago?: { checkout_url?: string; checkoutUrl?: string }
   } | null | undefined
   const mergedBank = {
     ...((rawSettings.bank_info as Record<string, string> | undefined) ?? {}),
@@ -68,6 +69,10 @@ export default async function AthletePaymentsPage() {
   const flowCheckoutUrl =
     paymentSettingsBlock?.flow?.checkout_url?.trim() ||
     paymentSettingsBlock?.flow?.checkoutUrl?.trim() ||
+    null
+  const mercadopagoCheckoutUrl =
+    paymentSettingsBlock?.mercadopago?.checkout_url?.trim() ||
+    paymentSettingsBlock?.mercadopago?.checkoutUrl?.trim() ||
     null
 
   const { data: payments } = await supabase
@@ -206,6 +211,7 @@ export default async function AthletePaymentsPage() {
           enabledMethods={enabledMethods}
           cashInstructions={cashInstructions}
           flowCheckoutUrl={flowCheckoutUrl}
+          mercadopagoCheckoutUrl={mercadopagoCheckoutUrl}
         />
       )}
 
