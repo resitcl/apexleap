@@ -56,6 +56,7 @@ export async function getAthletes(params?: {
     .from('athletes')
     .select('*, subscriptions(id, status, plan_id, plans(name)), payments(id, status, paid_at, payment_method), attendance(id, checked_in_at), documents(id, expiry_date)', { count: 'exact' })
     .eq('club_id', clubId)
+    .is('archived_at', null)
     .order(
       params?.sort === 'created_at'      ? 'created_at' :
       params?.sort === 'status'          ? 'status' :
@@ -158,19 +159,32 @@ export async function updateAthlete(id: string, input: Partial<AthleteInput>) {
   return data
 }
 
-export async function deleteAthlete(id: string) {
+/** Quita al alumno del club sin borrar pagos ni historial contable (marca archived_at). */
+export async function archiveAthlete(id: string) {
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
   const { error } = await supabase
     .from('athletes')
-    .delete()
+    .update({
+      archived_at: new Date().toISOString(),
+      status: 'inactive',
+    })
     .eq('id', id)
     .eq('club_id', clubId)
+    .is('archived_at', null)
 
   if (error) throw new Error(error.message)
 
   revalidatePath('/dashboard/athletes')
+  revalidatePath(`/dashboard/athletes/${id}`)
+  revalidatePath('/dashboard/payments')
+  revalidatePath('/dashboard/finances')
+}
+
+/** @deprecated Usa archiveAthlete: conserva pagos y reportes. */
+export async function deleteAthlete(id: string) {
+  return archiveAthlete(id)
 }
 
 export async function bulkUpdateAthleteStatus(ids: string[], status: 'active' | 'inactive' | 'suspended') {

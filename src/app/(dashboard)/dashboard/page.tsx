@@ -235,7 +235,7 @@ export default async function DashboardPage() {
               Nuevo {vocab.athlete}
             </button>
           </Link>
-          <div className="hidden sm:flex items-center gap-2.5 text-[11px] font-bold uppercase tracking-[0.15em] text-muted-foreground/80 border border-white/[0.06] rounded-2xl px-4 py-3 bg-card/40">
+          <div className="hidden sm:flex items-center gap-2.5 text-[11px] font-bold uppercase tracking-[0.15em] text-muted-foreground/80 border border-border rounded-2xl px-4 py-3 bg-card">
             <Calendar className="w-4 h-4 text-primary" />
             <span>{todayDate}</span>
           </div>
@@ -247,7 +247,7 @@ export default async function DashboardPage() {
 
         {/* Alumnos Activos */}
         <Link href="/dashboard/athletes" className="block group">
-          <div className="rounded-[20px] bg-[#111111] border border-white/[0.04] p-5 hover:bg-[#1a1a1a] transition-colors h-full flex flex-col justify-between shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
+          <div className="rounded-[20px] border border-border bg-card p-5 shadow-sm transition-colors h-full flex flex-col justify-between hover:bg-muted/50">
             <div className="flex items-center gap-2.5 mb-5">
               <Users className="w-4 h-4 text-muted-foreground/50 group-hover:text-primary transition-colors" />
               <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">{vocab.athletes}</p>
@@ -267,7 +267,7 @@ export default async function DashboardPage() {
 
         {/* Ingresos del Mes */}
         <Link href={`/dashboard/finances?tab=overview&month=${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`} className="block group">
-          <div className="rounded-[20px] bg-[#111111] border border-white/[0.04] p-5 hover:bg-[#1a1a1a] transition-colors h-full flex flex-col justify-between shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
+          <div className="rounded-[20px] border border-border bg-card p-5 shadow-sm transition-colors h-full flex flex-col justify-between hover:bg-muted/50">
             <div className="flex items-center gap-2.5 mb-5">
               <Wallet className="w-4 h-4 text-muted-foreground/50 group-hover:text-primary transition-colors" />
               <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Ingresos</p>
@@ -289,13 +289,13 @@ export default async function DashboardPage() {
 
         {/* Check-ins Hoy */}
         <Link href="/dashboard/attendance" className="block group">
-          <div className="rounded-[20px] bg-[#111111] border border-white/[0.04] p-5 hover:bg-[#1a1a1a] transition-colors h-full flex flex-col justify-between shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
+          <div className="rounded-[20px] border border-border bg-card p-5 shadow-sm transition-colors h-full flex flex-col justify-between hover:bg-muted/50">
             <div className="flex items-center gap-2.5 mb-5">
               <QrCode className="w-4 h-4 text-muted-foreground/50 group-hover:text-primary transition-colors" />
               <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Check-ins</p>
             </div>
             <div>
-              <p className="text-4xl font-black tracking-tight text-white leading-none">{summary.todayCheckIns}</p>
+              <p className="text-4xl font-black tracking-tight text-foreground leading-none">{summary.todayCheckIns}</p>
               <p className="text-[12px] text-muted-foreground/50 mt-2 font-medium">
                 {todaySessions.length > 0 ? `${todaySessions.length} sesión${todaySessions.length !== 1 ? 'es' : ''} hoy` : 'hoy'}
               </p>
@@ -305,7 +305,7 @@ export default async function DashboardPage() {
 
         {/* Deudas Vencidas */}
         <Link href="/dashboard/payments?status=overdue" className="block group">
-          <div className="rounded-[20px] bg-[#111111] border border-white/[0.04] p-5 hover:bg-[#1a1a1a] transition-colors h-full flex flex-col justify-between shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
+          <div className="rounded-[20px] border border-border bg-card p-5 shadow-sm transition-colors h-full flex flex-col justify-between hover:bg-muted/50">
             <div className="flex items-center gap-2.5 mb-5">
               <AlertCircle className="w-4 h-4 text-muted-foreground/50 group-hover:text-red-400 transition-colors" />
               <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Por Cobrar</p>
@@ -324,7 +324,7 @@ export default async function DashboardPage() {
         </Link>
 
         {/* Featured: Estado del Club (Semáforo) */}
-        <div className="rounded-[20px] bg-[#111111] border border-white/[0.04] p-5 h-full flex flex-col col-span-2 md:col-span-2 lg:col-span-1 shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
+        <div className="rounded-[20px] border border-border bg-card p-5 shadow-sm h-full flex flex-col col-span-2 md:col-span-2 lg:col-span-1">
           <div className="flex items-start justify-between mb-3">
             <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">
               Estado {vocab.team}
@@ -335,12 +335,12 @@ export default async function DashboardPage() {
           </div>
           {total > 0 ? (
             <>
-              <p className="text-4xl font-black leading-none text-white tracking-tight">
+              <p className="text-4xl font-black leading-none text-foreground tracking-tight">
                 {greenPct}%
               </p>
               <p className="text-[12px] text-muted-foreground/50 mt-1.5 font-medium">aptos para entrenar</p>
               <div className="mt-auto pt-4">
-                <div className="flex rounded-full overflow-hidden h-2.5 mb-3 bg-white/[0.04]">
+                <div className="flex rounded-full overflow-hidden h-2.5 mb-3 bg-muted">
                   {greenPct > 0 && <div className="bg-primary transition-all" style={{ width: `${greenPct}%` }} />}
                   {yellowPct > 0 && <div className="bg-amber-400 transition-all" style={{ width: `${yellowPct}%` }} />}
                   {redPct > 0 && <div className="bg-red-500 transition-all" style={{ width: `${redPct}%` }} />}
@@ -391,8 +391,8 @@ export default async function DashboardPage() {
             </Link>
           )}
           {dormantCount > 0 && (
-            <Link href="/dashboard/athletes?inactive=1" className="flex-1 min-w-[200px] bg-white/[0.02] border border-white/[0.04] rounded-2xl p-4 flex items-center gap-3 hover:bg-white/[0.04] transition-colors group">
-              <div className="w-9 h-9 rounded-xl bg-white/[0.04] flex items-center justify-center shrink-0">
+            <Link href="/dashboard/athletes?inactive=1" className="flex-1 min-w-[200px] rounded-2xl border border-border bg-muted/40 p-4 flex items-center gap-3 hover:bg-muted/60 transition-colors group">
+              <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center shrink-0">
                 <Activity className="w-4 h-4 text-muted-foreground/50" />
               </div>
               <div className="flex-1 min-w-0">
@@ -407,7 +407,7 @@ export default async function DashboardPage() {
 
       {/* ── SMART ALERTS: Profile Data ── */}
       {(smartAlerts.noEmergencyContact > 0 || smartAlerts.noPhoto > 0 || smartAlerts.incompleteProfiles > 0) && (
-        <div className="rounded-[20px] bg-[#111111] border border-white/[0.04] p-5 shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
+        <div className="rounded-[20px] border border-border bg-card p-5 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <p className="text-sm font-black tracking-tight flex items-center gap-2">
               <UserX className="w-4 h-4 text-amber-400" />
@@ -419,7 +419,7 @@ export default async function DashboardPage() {
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {smartAlerts.noEmergencyContact > 0 && (
-              <Link href="/dashboard/athletes?filter=noEmergency" className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/[0.04] hover:bg-white/[0.04] transition-colors group">
+              <Link href="/dashboard/athletes?filter=noEmergency" className="flex items-center gap-3 p-3 rounded-xl border border-border bg-muted/30 hover:bg-muted/50 transition-colors group">
                 <div className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center shrink-0">
                   <Phone className="w-3.5 h-3.5 text-red-400" />
                 </div>
@@ -430,7 +430,7 @@ export default async function DashboardPage() {
               </Link>
             )}
             {smartAlerts.noPhoto > 0 && (
-              <Link href="/dashboard/athletes?filter=noPhoto" className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/[0.04] hover:bg-white/[0.04] transition-colors group">
+              <Link href="/dashboard/athletes?filter=noPhoto" className="flex items-center gap-3 p-3 rounded-xl border border-border bg-muted/30 hover:bg-muted/50 transition-colors group">
                 <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center shrink-0">
                   <Camera className="w-3.5 h-3.5 text-amber-400" />
                 </div>
@@ -441,7 +441,7 @@ export default async function DashboardPage() {
               </Link>
             )}
             {smartAlerts.noBirthDate > 0 && (
-              <Link href="/dashboard/athletes?filter=noBirthDate" className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/[0.04] hover:bg-white/[0.04] transition-colors group">
+              <Link href="/dashboard/athletes?filter=noBirthDate" className="flex items-center gap-3 p-3 rounded-xl border border-border bg-muted/30 hover:bg-muted/50 transition-colors group">
                 <div className="w-8 h-8 rounded-lg bg-cyan-500/10 flex items-center justify-center shrink-0">
                   <Calendar className="w-3.5 h-3.5 text-cyan-400" />
                 </div>
@@ -452,7 +452,7 @@ export default async function DashboardPage() {
               </Link>
             )}
             {smartAlerts.noDocumentNumber > 0 && (
-              <Link href="/dashboard/athletes?filter=noDocument" className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/[0.04] hover:bg-white/[0.04] transition-colors group">
+              <Link href="/dashboard/athletes?filter=noDocument" className="flex items-center gap-3 p-3 rounded-xl border border-border bg-muted/30 hover:bg-muted/50 transition-colors group">
                 <div className="w-8 h-8 rounded-lg bg-violet-500/10 flex items-center justify-center shrink-0">
                   <IdCard className="w-3.5 h-3.5 text-violet-400" />
                 </div>
@@ -481,7 +481,7 @@ export default async function DashboardPage() {
           {monthlyRevenue.length > 0 && (() => {
             const maxAmount = Math.max(...monthlyRevenue.map((m) => m.amount), 1)
             return (
-              <div className="rounded-[20px] bg-[#111111] border border-white/[0.04] p-6 shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
+              <div className="rounded-[20px] border border-border bg-card p-6 shadow-sm">
                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6">
                   <div>
                     <p className="text-xl font-black tracking-tight">Ingresos</p>
@@ -526,7 +526,7 @@ export default async function DashboardPage() {
           {athleteGrowth.length > 0 && athleteGrowth.some(g => g.total > 0) && (() => {
             const maxTotal = Math.max(...athleteGrowth.map((g) => g.total), 1)
             return (
-              <div className="rounded-[20px] bg-[#111111] border border-white/[0.04] p-6 shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
+              <div className="rounded-[20px] border border-border bg-card p-6 shadow-sm">
                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6">
                   <div>
                     <p className="text-xl font-black tracking-tight">Crecimiento {vocab.athletes}</p>
@@ -577,7 +577,7 @@ export default async function DashboardPage() {
           {weeklyByDay.some((d) => d.total > 0) && (() => {
             const maxVal = Math.max(...weeklyByDay.map((d) => d.total), 1)
             return (
-              <div className="rounded-[20px] bg-[#111111] border border-white/[0.04] p-6 shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
+              <div className="rounded-[20px] border border-border bg-card p-6 shadow-sm">
                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6">
                   <div>
                     <p className="text-xl font-black tracking-tight">Asistencia Semanal</p>
@@ -599,7 +599,7 @@ export default async function DashboardPage() {
                         <span className="text-[10px] text-muted-foreground/40 font-bold">
                           {d.total > 0 ? d.total : ''}
                         </span>
-                        <div className="w-full relative rounded-md overflow-hidden bg-white/[0.02]" style={{ height: `${heightPct}%` }}>
+                        <div className="w-full relative rounded-md overflow-hidden bg-muted/50" style={{ height: `${heightPct}%` }}>
                           <div
                             className={`absolute bottom-0 left-0 right-0 ${isToday ? 'bg-violet-400' : 'bg-violet-400/40'} rounded-md`}
                             style={{ height: `${validPct}%` }}
@@ -618,11 +618,11 @@ export default async function DashboardPage() {
 
           {/* Activity Feed */}
           {activity.length > 0 && (
-            <div className="rounded-[20px] bg-[#111111] border border-white/[0.04] overflow-hidden shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
-              <div className="px-6 py-4 border-b border-white/[0.04]">
+            <div className="rounded-[20px] border border-border bg-card overflow-hidden shadow-sm">
+              <div className="px-6 py-4 border-b border-border">
                 <p className="text-lg font-black tracking-tight">Actividad Reciente</p>
               </div>
-              <div className="divide-y divide-white/[0.04]">
+              <div className="divide-y divide-border">
                 {activity.slice(0, 6).map((item) => {
                   const Icon = item.type === 'payment' ? CreditCard : item.type === 'checkin' ? QrCode : UserCheck
                   const iconColor = item.type === 'payment' ? 'text-primary bg-primary/10' :
@@ -637,7 +637,7 @@ export default async function DashboardPage() {
                     return `${days}d`
                   })()
                   return (
-                    <div key={item.id} className="flex items-center gap-3 px-6 py-3 hover:bg-white/[0.02] transition-colors">
+                    <div key={item.id} className="flex items-center gap-3 px-6 py-3 hover:bg-muted/40 transition-colors">
                       <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${iconColor}`}>
                         <Icon className="w-4 h-4" />
                       </div>
@@ -658,7 +658,7 @@ export default async function DashboardPage() {
         <div className="space-y-6">
 
           {/* Quick Actions */}
-          <div className="rounded-[20px] bg-[#111111] border border-white/[0.04] p-5 shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
+          <div className="rounded-[20px] border border-border bg-card p-5 shadow-sm">
             <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 mb-4">Acciones Rápidas</p>
             <div className="grid grid-cols-2 gap-2">
               {[
@@ -667,7 +667,7 @@ export default async function DashboardPage() {
                 { href: "/dashboard/attendance?tab=today", label: "Check-in", icon: QrCode, color: "bg-violet-400/10 text-violet-400 hover:bg-violet-400/20" },
                 { href: "/dashboard/documents/new", label: "Documento", icon: FileText, color: "bg-amber-400/10 text-amber-400 hover:bg-amber-400/20" },
                 { href: "/dashboard/competitions/new", label: vocab.competition, icon: Trophy, color: "bg-pink-400/10 text-pink-400 hover:bg-pink-400/20" },
-                { href: "/dashboard/settings", label: "Configuración", icon: Settings, color: "bg-white/[0.04] text-muted-foreground/60 hover:bg-white/[0.08]" },
+                { href: "/dashboard/settings", label: "Configuración", icon: Settings, color: "bg-muted text-muted-foreground hover:bg-muted/80" },
               ].map((item) => (
                 <Link key={item.href} href={item.href}>
                   <div className={`flex flex-col items-center gap-2 p-3 rounded-xl transition-colors cursor-pointer ${item.color}`}>
@@ -681,7 +681,7 @@ export default async function DashboardPage() {
 
           {/* TEAM SPORT: Upcoming Matches */}
           {isTeamSport && upcomingMatches.length > 0 && (
-            <div className="rounded-[20px] bg-[#111111] border border-white/[0.04] p-5 shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
+            <div className="rounded-[20px] border border-border bg-card p-5 shadow-sm">
               <div className="flex items-center justify-between mb-4">
                 <p className="text-lg font-black tracking-tight">Próximos Partidos</p>
                 <Swords className="w-5 h-5 text-primary" />
@@ -691,7 +691,7 @@ export default async function DashboardPage() {
                   const matchDate = new Date(m.match_date + 'T12:00:00')
                   return (
                     <div key={m.id} className="flex gap-3">
-                      <div className="w-12 h-12 rounded-xl bg-white/[0.04] border border-white/[0.04] flex flex-col items-center justify-center shrink-0">
+                      <div className="w-12 h-12 rounded-xl border border-border bg-muted/50 flex flex-col items-center justify-center shrink-0">
                         <span className="text-[9px] uppercase font-bold text-muted-foreground/50 leading-none">
                           {matchDate.toLocaleDateString('es-CL', { month: 'short' })}
                         </span>
@@ -700,7 +700,7 @@ export default async function DashboardPage() {
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-bold leading-snug truncate">vs. {m.opponent ?? 'Por definir'}</p>
                         <p className="text-[10px] text-muted-foreground/50 font-medium mt-1 flex items-center gap-2">
-                          <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${m.is_home ? 'bg-primary/10 text-primary' : 'bg-white/[0.04] text-muted-foreground/60'}`}>
+                          <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${m.is_home ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
                             {m.is_home ? 'LOCAL' : 'VISITA'}
                           </span>
                           {m.location && <span className="flex items-center gap-1 truncate"><MapPin className="w-3 h-3" />{m.location}</span>}
@@ -718,7 +718,7 @@ export default async function DashboardPage() {
 
           {/* TEAM SPORT: Season Record */}
           {isTeamSport && seasonRecord.total > 0 && (
-            <div className="rounded-[20px] bg-[#111111] border border-white/[0.04] p-5 shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
+            <div className="rounded-[20px] border border-border bg-card p-5 shadow-sm">
               <div className="flex items-center justify-between mb-4">
                 <p className="text-lg font-black tracking-tight">Récord Temporada</p>
                 <BarChart3 className="w-5 h-5 text-cyan-400" />
@@ -728,7 +728,7 @@ export default async function DashboardPage() {
                 <div><p className="text-2xl font-black text-amber-400">{seasonRecord.draws}</p><p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground/40 mt-0.5">Empates</p></div>
                 <div><p className="text-2xl font-black text-red-400">{seasonRecord.losses}</p><p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground/40 mt-0.5">Derrotas</p></div>
               </div>
-              <div className="h-2 rounded-full bg-white/[0.04] overflow-hidden flex">
+              <div className="h-2 rounded-full bg-muted overflow-hidden flex">
                 {seasonRecord.wins > 0 && <div className="bg-primary h-full" style={{ width: `${(seasonRecord.wins / seasonRecord.total) * 100}%` }} />}
                 {seasonRecord.draws > 0 && <div className="bg-amber-400 h-full" style={{ width: `${(seasonRecord.draws / seasonRecord.total) * 100}%` }} />}
                 {seasonRecord.losses > 0 && <div className="bg-red-400 h-full" style={{ width: `${(seasonRecord.losses / seasonRecord.total) * 100}%` }} />}
@@ -738,7 +738,7 @@ export default async function DashboardPage() {
 
           {/* ACADEMY: Belt Distribution */}
           {!isTeamSport && Object.keys(beltDistribution).length > 0 && (
-            <div className="rounded-[20px] bg-[#111111] border border-white/[0.04] p-5 shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
+            <div className="rounded-[20px] border border-border bg-card p-5 shadow-sm">
               <div className="flex items-center justify-between mb-4">
                 <p className="text-lg font-black tracking-tight">Distribución Rangos</p>
                 <Award className="w-5 h-5 text-amber-400" />
@@ -770,7 +770,7 @@ export default async function DashboardPage() {
 
           {/* ACADEMY: Upcoming Graduations */}
           {!isTeamSport && upcomingGraduations.length > 0 && (
-            <div className="rounded-[20px] bg-[#111111] border border-white/[0.04] p-5 shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
+            <div className="rounded-[20px] border border-border bg-card p-5 shadow-sm">
               <div className="flex items-center justify-between mb-4">
                 <p className="text-lg font-black tracking-tight">Candidatos Graduación</p>
                 <Zap className="w-5 h-5 text-amber-400" />
@@ -778,9 +778,9 @@ export default async function DashboardPage() {
               <div className="space-y-3">
                 {upcomingGraduations.map((a) => (
                   <Link key={a.id} href={`/dashboard/athletes/${a.id}`} className="flex items-center gap-3 group">
-                    <Avatar className="w-9 h-9 border border-white/[0.04]">
+                    <Avatar className="w-9 h-9 border border-border">
                       <AvatarImage src={a.photo_url ?? undefined} />
-                      <AvatarFallback className="bg-[#1a1a1a] text-[10px] font-bold">
+                      <AvatarFallback className="bg-muted text-[10px] font-bold">
                         {a.name.slice(0, 2).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
@@ -799,7 +799,7 @@ export default async function DashboardPage() {
 
           {/* Upcoming Competitions */}
           {upcomingComps.length > 0 && (
-            <div className="rounded-[20px] bg-[#111111] border border-white/[0.04] p-5 shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
+            <div className="rounded-[20px] border border-border bg-card p-5 shadow-sm">
               <div className="flex items-center justify-between mb-4">
                 <p className="text-lg font-black tracking-tight">{vocab.competitions}</p>
                 <Trophy className="w-5 h-5 text-pink-400" />
@@ -835,7 +835,7 @@ export default async function DashboardPage() {
 
           {/* Upcoming Sessions */}
           {upcomingSchedules.length > 0 && (
-            <div className="rounded-[20px] bg-[#111111] border border-white/[0.04] p-5 shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
+            <div className="rounded-[20px] border border-border bg-card p-5 shadow-sm">
               <div className="flex items-center justify-between mb-4">
                 <p className="text-lg font-black tracking-tight">Agenda 7 días</p>
                 <ClipboardCheck className="w-5 h-5 text-violet-400" />
@@ -867,7 +867,7 @@ export default async function DashboardPage() {
 
           {/* Retention & Stats */}
           {retention !== null && (
-            <div className="rounded-[20px] bg-[#111111] border border-white/[0.04] p-5 shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
+            <div className="rounded-[20px] border border-border bg-card p-5 shadow-sm">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50">Retención</p>
                 <TrendingUp className="w-4 h-4 text-teal-400" />
@@ -884,7 +884,7 @@ export default async function DashboardPage() {
           {/* Athletes Without Plan Alert */}
           {athletesWithoutPlan > 0 && (
             <Link href="/dashboard/subscriptions" className="block">
-              <div className="rounded-[20px] bg-white/[0.02] border border-white/[0.04] p-4 hover:bg-white/[0.04] transition-colors">
+              <div className="rounded-[20px] border border-border bg-muted/30 p-4 hover:bg-muted/50 transition-colors">
                 <div className="flex items-center gap-3">
                   <Users className="w-5 h-5 text-muted-foreground/50" />
                   <div>
@@ -904,7 +904,7 @@ export default async function DashboardPage() {
             const prev = monthlyAttendance.length >= 2 ? monthlyAttendance[monthlyAttendance.length - 2] : null
             const trend = cur && prev && prev.total > 0 ? Math.round(((cur.total - prev.total) / prev.total) * 100) : 0
             return (
-              <div className="rounded-[20px] bg-[#111111] border border-white/[0.04] p-5 shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
+              <div className="rounded-[20px] border border-border bg-card p-5 shadow-sm">
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50">Check-ins Mes</p>
                   <Activity className="w-4 h-4 text-violet-400" />

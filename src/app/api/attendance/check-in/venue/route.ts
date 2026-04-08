@@ -49,6 +49,7 @@ export async function POST(req: NextRequest) {
       .eq('club_id', venue.club_id)
       .or(`document_number.ilike.%${cleanDoc}%`)
       .eq('status', 'active')
+      .is('archived_at', null)
       .single()
 
     if (!athlete) {

@@ -11,6 +11,7 @@ import { LogInjuryForm } from "@/components/athletes/LogInjuryForm"
 import { ResolveInjuryButton } from "@/components/athletes/ResolveInjuryButton"
 import { HealthStatusButton } from "@/components/athletes/HealthStatusButton"
 import { ExportAthleteButton } from "@/components/athletes/ExportAthleteButton"
+import { ArchiveAthleteButton } from "@/components/athletes/ArchiveAthleteButton"
 import { AthleteNotesButton } from "@/components/athletes/AthleteNotesButton"
 import { ManualCheckInButton } from "@/components/athletes/ManualCheckInButton"
 import { NewSubscriptionFromAthleteButton } from "@/components/athletes/NewSubscriptionFromAthleteButton"
@@ -61,6 +62,7 @@ export default async function AthleteDetailPage({ params }: PageProps) {
     plans: { name: string; billing_cycle: string } | null
   }>
 
+  const archivedAt = (athlete as { archived_at?: string | null }).archived_at ?? null
   const activeSub = subscriptions.find((s) => s.status === "active")
   const overduePayments = payments.filter((p) => p.status === "overdue")
   const attendanceRate = attendance.length > 0
@@ -69,6 +71,20 @@ export default async function AthleteDetailPage({ params }: PageProps) {
 
   return (
     <div className="max-w-5xl mx-auto space-y-4 pb-12 pt-1">
+      {archivedAt && (
+        <div
+          role="alert"
+          className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm"
+        >
+          <p className="font-bold text-amber-900 dark:text-amber-200">Alumno dado de baja</p>
+          <p className="mt-1 text-amber-900/85 dark:text-amber-100/85">
+            Ya no aparece en el listado ni puede fichar. El historial de pagos y sus registros en finanzas se conservan.
+          </p>
+          <p className="mt-1 text-xs text-amber-800/80 dark:text-amber-100/70">
+            Fecha de baja: {new Date(archivedAt).toLocaleString('es-CL', { dateStyle: 'medium' })}
+          </p>
+        </div>
+      )}
       {/* ── GREETING ── */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
@@ -96,29 +112,34 @@ export default async function AthleteDetailPage({ params }: PageProps) {
           </Button>
         </Link>
         <div className="flex-1" />
-        {/* Acciones secundarias */}
-        <AthleteNotesButton athleteId={id} currentNotes={athlete.notes ?? null} />
-        <LogInjuryForm athleteId={id} />
+        {!archivedAt && (
+          <AthleteNotesButton athleteId={id} currentNotes={athlete.notes ?? null} />
+        )}
+        {!archivedAt && <LogInjuryForm athleteId={id} />}
         <ExportAthleteButton
           athlete={athlete}
           payments={payments}
           attendance={attendance}
         />
-        {/* Acciones primarias */}
-        <NewSubscriptionFromAthleteButton athleteId={id} />
-        <Link href={`/dashboard/payments/new?athleteId=${id}`}>
-          <Button variant="outline" size="sm" className="gap-1.5">
-            <DollarSign className="w-3.5 h-3.5" />
-            Registrar Pago
-          </Button>
-        </Link>
-        <ManualCheckInButton athleteId={id} />
-        <Link href={`/dashboard/athletes/${id}/edit`}>
-          <Button size="sm" className="gap-1.5">
-            <Pencil className="w-3.5 h-3.5" />
-            Editar
-          </Button>
-        </Link>
+        {!archivedAt && <NewSubscriptionFromAthleteButton athleteId={id} />}
+        {!archivedAt && (
+          <Link href={`/dashboard/payments/new?athleteId=${id}`}>
+            <Button variant="outline" size="sm" className="gap-1.5">
+              <DollarSign className="w-3.5 h-3.5" />
+              Registrar Pago
+            </Button>
+          </Link>
+        )}
+        {!archivedAt && <ManualCheckInButton athleteId={id} />}
+        {!archivedAt && (
+          <Link href={`/dashboard/athletes/${id}/edit`}>
+            <Button size="sm" className="gap-1.5">
+              <Pencil className="w-3.5 h-3.5" />
+              Editar
+            </Button>
+          </Link>
+        )}
+        {!archivedAt && <ArchiveAthleteButton athleteId={id} athleteName={athlete.name} />}
       </div>
 
       {/* Profile Card */}

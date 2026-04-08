@@ -30,7 +30,8 @@ export async function getDashboardSummary() {
     supabase
       .from('athletes')
       .select('id, status, health_status, created_at')
-      .eq('club_id', clubId),
+      .eq('club_id', clubId)
+      .is('archived_at', null),
 
     // All payments for MRR + monthly income
     supabase
@@ -197,6 +198,7 @@ export async function getCoachDashboard() {
       .select('id, name, health_status, status, photo_url, notes, birth_date')
       .eq('club_id', clubId)
       .eq('status', 'active')
+      .is('archived_at', null)
       .order('name'),
 
     supabase
@@ -299,6 +301,7 @@ export async function getRecentActivity(limit = 10) {
       .from('athletes')
       .select('id, name, created_at')
       .eq('club_id', clubId)
+      .is('archived_at', null)
       .order('created_at', { ascending: false })
       .limit(5),
   ])
@@ -536,6 +539,7 @@ export async function getAthletesWithoutPlan() {
     .select('id', { count: 'exact', head: true })
     .eq('club_id', clubId)
     .eq('status', 'active')
+    .is('archived_at', null)
 
   if (withPlanIds.length > 0) query = query.not('id', 'in', `(${withPlanIds.join(',')})`)
 
@@ -670,7 +674,7 @@ export async function getAthletePortal() {
   const todayDow = today.getDay()
 
   const { data: athletesByEmail } = email
-    ? await supabase.from('athletes').select('id').eq('club_id', clubId).eq('email', email).limit(1)
+    ? await supabase.from('athletes').select('id').eq('club_id', clubId).eq('email', email).is('archived_at', null).limit(1)
     : { data: null }
 
   const athleteId = athletesByEmail?.[0]?.id ?? null
@@ -747,6 +751,7 @@ export async function getDormantAthletes(days = 30) {
     .select('id, name, attendance(checked_in_at)')
     .eq('club_id', clubId)
     .eq('status', 'active')
+    .is('archived_at', null)
 
   if (!athletes) return 0
   return athletes.filter((a) => {
@@ -778,6 +783,7 @@ export async function getAthleteGrowth(months = 6) {
       .from('athletes')
       .select('id', { count: 'exact', head: true })
       .eq('club_id', clubId)
+      .is('archived_at', null)
       .lte('created_at', monthEndISO)
 
     // Count athletes created in this specific month
@@ -785,6 +791,7 @@ export async function getAthleteGrowth(months = 6) {
       .from('athletes')
       .select('id', { count: 'exact', head: true })
       .eq('club_id', clubId)
+      .is('archived_at', null)
       .gte('created_at', monthStart)
       .lte('created_at', monthEndISO)
 
@@ -903,6 +910,7 @@ export async function getBeltDistribution() {
     .select('id, technical_meta')
     .eq('club_id', clubId)
     .eq('status', 'active')
+    .is('archived_at', null)
 
   const athletes = data ?? []
   const distribution: Record<string, number> = {}
@@ -929,6 +937,7 @@ export async function getUpcomingGraduations() {
     .select('id, name, photo_url, technical_meta')
     .eq('club_id', clubId)
     .eq('status', 'active')
+    .is('archived_at', null)
 
   const candidates = (data ?? []).filter((a) => {
     const meta = a.technical_meta as Record<string, unknown> | null
@@ -960,6 +969,7 @@ export async function getSmartAlerts() {
     .select('id, name, email, phone, birth_date, emergency_contact, emergency_phone, photo_url, document_number, status, created_at')
     .eq('club_id', clubId)
     .eq('status', 'active')
+    .is('archived_at', null)
 
   const all = athletes ?? []
 

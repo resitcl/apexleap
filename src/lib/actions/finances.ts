@@ -99,6 +99,68 @@ export async function getFinanceSummary(month?: string) {
   }
 }
 
+/** Ingresos aún no cobrados que se esperan en el mes (cuotas con vencimiento en el mes + próxima facturación de suscripción si no hay fila en el mes). */
+export async function getExpectedMonthIncome(monthIso: string) {
+  const clubId = await getClubId()
+  const supabase = createAdminClient()
+  const parts = monthIso.split('-')
+  const y = Number(parts[0])
+  const mo = Number(parts[1])
+  if (!y || !mo) {
+    return { month: monthIso, fromScheduled: 0, fromSubscriptions: 0, total: 0 }
+  }
+  const start = `${y}-${String(mo).padStart(2, '0')}-01`
+  const end = new Date(y, mo, 0).toISOString().split('T')[0]
+
+  const { data: pendingRows } = await supabase
+    .from('payments')
+    .select('amount, athlete_id')
+    .eq('club_id', clubId)
+    .in('status', ['pending', 'overdue'])
+    .gte('due_date', start)
+    .lte('due_date', end)
+
+  const fromScheduled = (pendingRows ?? []).reduce((s, p) => s + Number(p.amount), 0)
+
+  const { data: dueInMonth } = await supabase
+    .from('payments')
+    .select('athlete_id')
+    .eq('club_id', clubId)
+    .gte('due_date', start)
+    .lte('due_date', end)
+
+  const athletesWithAnyDueInMonth = new Set(
+    (dueInMonth ?? []).map((p) => p.athlete_id).filter(Boolean) as string[],
+  )
+
+  const { data: subs } = await supabase
+    .from('subscriptions')
+    .select('athlete_id, next_billing_date, plans(price), athletes(archived_at)')
+    .eq('club_id', clubId)
+    .eq('status', 'active')
+    .gte('next_billing_date', start)
+    .lte('next_billing_date', end)
+
+  let fromSubscriptions = 0
+  for (const s of subs ?? []) {
+    const rawAth = s.athletes as { archived_at: string | null } | { archived_at: string | null }[] | null
+    const ath = Array.isArray(rawAth) ? rawAth[0] : rawAth
+    if (ath?.archived_at) continue
+    const aid = s.athlete_id as string
+    if (!aid) continue
+    if (athletesWithAnyDueInMonth.has(aid)) continue
+    const plan = s.plans as { price: number } | null
+    fromSubscriptions += Number(plan?.price ?? 0)
+  }
+
+  return {
+    month: monthIso,
+    fromScheduled,
+    fromSubscriptions,
+    total: fromScheduled + fromSubscriptions,
+  }
+}
+
 export async function createExpense(input: ExpenseInput) {
   const clubId = await getClubId()
   const { userId } = await auth()

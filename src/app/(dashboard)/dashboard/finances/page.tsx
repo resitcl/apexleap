@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic"
 
 import Link from "next/link"
-import { getFinanceSummary, getExpenses, getCoaches, getMonthlyFinanceChart } from "@/lib/actions/finances"
+import { getFinanceSummary, getExpenses, getCoaches, getMonthlyFinanceChart, getExpectedMonthIncome } from "@/lib/actions/finances"
 import { getSuppliers } from "@/lib/actions/suppliers"
 import { SUPPLIER_CATEGORIES } from "@/lib/constants/suppliers"
 import { NewSupplierButton } from "@/components/finances/NewSupplierButton"
@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import {
   TrendingUp, TrendingDown, DollarSign, AlertCircle, Users, Building2,
-  Wallet, PieChart, BarChart3, UserCog, Truck,
+  Wallet, PieChart, BarChart3, UserCog, Truck, CalendarClock,
 } from "lucide-react"
 import { InfoTooltip } from "@/components/ui/info-tooltip"
 import { NewExpenseForm } from "@/components/finances/NewExpenseForm"
@@ -56,6 +56,7 @@ export default async function FinancesPage({ searchParams }: PageProps) {
   let coaches: Awaited<ReturnType<typeof getCoaches>> = []
   let chartData: Awaited<ReturnType<typeof getMonthlyFinanceChart>> = []
   let suppliers: Awaited<ReturnType<typeof getSuppliers>> = []
+  let expectedIncome = { total: 0, fromScheduled: 0, fromSubscriptions: 0, month: month }
 
   const prevMonth = (() => {
     const [y, m] = month.split('-').map(Number)
@@ -64,15 +65,17 @@ export default async function FinancesPage({ searchParams }: PageProps) {
   })()
 
   try {
-    const [s, prev, e, c, ch, sup] = await Promise.all([
+    const [s, prev, e, c, ch, sup, exp] = await Promise.all([
       getFinanceSummary(month),
       getFinanceSummary(prevMonth),
       getExpenses({ month, category: category || undefined }),
       getCoaches(),
       getMonthlyFinanceChart(6),
       getSuppliers({ activeOnly: false }),
+      getExpectedMonthIncome(month),
     ])
     summary = s
+    expectedIncome = exp
     prevSummary = prev
     expenses = e.expenses
       .filter((ex) => amountMin === undefined || Number(ex.amount) >= amountMin)
@@ -140,6 +143,17 @@ export default async function FinancesPage({ searchParams }: PageProps) {
           value={`$${summary.pendingIncome.toLocaleString("es-CL")}`}
           description="pagos pendientes"
           tone="warning"
+        />
+        <DashboardMetricCard
+          icon={<CalendarClock className="w-4 h-4" />}
+          label="Ingresos esperados (mes)"
+          value={`$${expectedIncome.total.toLocaleString("es-CL")}`}
+          description={
+            expectedIncome.total > 0
+              ? `Cuotas programadas $${expectedIncome.fromScheduled.toLocaleString('es-CL')} · Suscripciones $${expectedIncome.fromSubscriptions.toLocaleString('es-CL')}`
+              : "Sin cobros previstos este mes"
+          }
+          tone="info"
         />
         {expenses.length > 0 && (() => {
           const maxExp = expenses.slice().sort((a, b) => Number(b.amount) - Number(a.amount))[0]

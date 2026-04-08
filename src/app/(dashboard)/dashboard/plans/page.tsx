@@ -117,7 +117,7 @@ export default async function PlansPage() {
             return (
               <div
                 key={plan.id}
-                className={`group rounded-2xl bg-[#111111] border border-white/[0.04] p-6 flex flex-col hover:border-primary/30 transition-all ${!plan.is_active ? 'opacity-50' : ''}`}
+                className={`group flex flex-col rounded-2xl border border-border bg-card p-6 shadow-sm transition-all hover:border-primary/30 ${!plan.is_active ? 'opacity-50' : ''}`}
               >
                 {/* Header */}
                 <div className="flex items-start justify-between gap-3 mb-4">
@@ -141,7 +141,7 @@ export default async function PlansPage() {
                   </div>
                   <div className="flex flex-col gap-1.5 shrink-0">
                     {!plan.is_visible && (
-                      <Badge className="text-[9px] uppercase font-black tracking-wider bg-white/[0.06] text-muted-foreground border-0 gap-1">
+                      <Badge className="text-[9px] uppercase font-black tracking-wider bg-muted text-muted-foreground border-0 gap-1">
                         <EyeOff className="w-3 h-3" /> Oculto
                       </Badge>
                     )}
@@ -190,22 +190,22 @@ export default async function PlansPage() {
 
                 {/* Active athletes avatars */}
                 {activeAthletes.length > 0 && (
-                  <div className="pt-4 border-t border-white/[0.04] mb-4">
+                  <div className="mb-4 border-t border-border pt-4">
                     <p className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground/50 mb-2">
                       Suscriptores
                     </p>
                     <div className="flex flex-wrap gap-1">
                       {activeAthletes.slice(0, 6).map((a) => (
                         <Link key={a.id} href={`/dashboard/athletes/${a.id}`} title={a.name}>
-                          <Avatar className="w-8 h-8 hover:ring-2 hover:ring-primary transition-all border border-white/[0.08]">
-                            <AvatarFallback className="text-[10px] font-black bg-white/[0.04]">
+                          <Avatar className="h-8 w-8 border border-border transition-all hover:ring-2 hover:ring-primary">
+                            <AvatarFallback className="text-[10px] font-black bg-muted">
                               {a.name.slice(0, 2).toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
                         </Link>
                       ))}
                       {activeAthletes.length > 6 && (
-                        <div className="w-8 h-8 rounded-full bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-[10px] font-bold text-muted-foreground/60">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full border border-border bg-muted text-[10px] font-bold text-muted-foreground">
                           +{activeAthletes.length - 6}
                         </div>
                       )}
@@ -214,9 +214,9 @@ export default async function PlansPage() {
                 )}
 
                 {/* Actions */}
-                <div className="flex gap-2 pt-4 border-t border-white/[0.04]">
+                <div className="flex gap-2 border-t border-border pt-4">
                   <Link href={`/dashboard/plans/${plan.id}`} className="flex-1">
-                    <Button variant="outline" className="w-full h-10 gap-2 text-xs font-bold uppercase tracking-widest border-white/[0.08] hover:bg-white/[0.04]">
+                    <Button variant="outline" className="h-10 w-full gap-2 text-xs font-bold uppercase tracking-widest">
                       Ver detalle <ChevronRight className="w-3.5 h-3.5" />
                     </Button>
                   </Link>

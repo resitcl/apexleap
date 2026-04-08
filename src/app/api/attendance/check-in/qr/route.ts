@@ -63,6 +63,7 @@ export async function POST(req: NextRequest) {
       .from('athletes')
       .select('id, name, email, status, health_status')
       .eq('club_id', venue.club_id)
+      .is('archived_at', null)
 
     if (!athletes || athletes.length === 0) {
       return NextResponse.json({ error: 'No hay atletas registrados en este club.' }, { status: 404 })

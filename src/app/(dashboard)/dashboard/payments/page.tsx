@@ -4,11 +4,12 @@ import { requireClubStaffPage } from "@/lib/actions/club-context"
 import Link from "next/link"
 import { Suspense } from "react"
 import { getPayments, getPaymentSummary } from "@/lib/actions/payments"
+import { getExpectedMonthIncome } from "@/lib/actions/finances"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Plus, DollarSign, Clock, AlertTriangle, TrendingUp, CheckCircle, CreditCard, FileText, ArrowUpRight, ChevronLeft, ChevronRight } from "lucide-react"
+import { Plus, DollarSign, Clock, AlertTriangle, TrendingUp, CheckCircle, CreditCard, FileText, ArrowUpRight, ChevronLeft, ChevronRight, CalendarClock } from "lucide-react"
 import { InfoTooltip } from "@/components/ui/info-tooltip"
 import { PaymentsFilter } from "@/components/payments/PaymentsFilter"
 import { MarkAsPaidButton } from "@/components/payments/MarkAsPaidButton"
@@ -64,13 +65,17 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
   let total = 0
   let summary = { total_collected: 0, total_pending: 0, total_overdue: 0, count_overdue: 0 }
   let error: string | null = null
+  const currentMonthIso = new Date().toISOString().slice(0, 7)
+  let expectedMonth = { total: 0, fromScheduled: 0, fromSubscriptions: 0, month: currentMonthIso }
 
   try {
-    const [result, allResult, summaryResult] = await Promise.all([
+    const [result, allResult, summaryResult, expectedRes] = await Promise.all([
       getPayments({ status: params.status, page, limit: 25, from: from || undefined, to: to || undefined, athleteId: athleteId || undefined, search: search || undefined, athleteName: athleteName || undefined, amountMin: amountMin ? Number(amountMin) : undefined, amountMax: amountMax ? Number(amountMax) : undefined, paymentMethod: paymentMethod || undefined }),
       getPayments({ status: params.status, page: 1, limit: 1000, from: from || undefined, to: to || undefined, athleteId: athleteId || undefined, search: search || undefined, athleteName: athleteName || undefined, amountMin: amountMin ? Number(amountMin) : undefined, amountMax: amountMax ? Number(amountMax) : undefined, paymentMethod: paymentMethod || undefined }),
       getPaymentSummary(),
+      getExpectedMonthIncome(currentMonthIso),
     ])
+    expectedMonth = expectedRes
     let pList = result.payments
     let pAll  = allResult.payments
     if (paidFrom) {
@@ -221,7 +226,7 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
       )}
 
       {/* ═══════════ KPI GRID ═══════════ */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
         {/* Hero: Recaudado */}
         <Card className="col-span-2 lg:col-span-1 rounded-2xl border-white/[0.04] bg-card shadow-sm hover:border-primary/20 transition-colors overflow-hidden relative">
           <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary/60 to-primary/20" />
@@ -274,8 +279,27 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
           </CardContent>
         </Card>
 
+        <Card className="rounded-2xl border-border bg-card shadow-sm">
+          <CardContent className="pt-6 pb-5">
+            <div className="mb-3 flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 flex items-center gap-1">
+                  <CalendarClock className="h-3.5 w-3.5 text-sky-500" /> Ingresos esperados
+                </p>
+                <InfoTooltip text="Suma del mes: cuotas pendientes/vencidas con fecha de vencimiento en el mes calendario más montos de suscripciones activas cuya próxima facturación cae en el mes y aún no tienen fila de pago en ese período." />
+              </div>
+            </div>
+            <p className={`text-3xl font-black tracking-tighter ${expectedMonth.total > 0 ? 'text-sky-600 dark:text-sky-400' : 'text-muted-foreground/30'}`}>
+              ${expectedMonth.total.toLocaleString('es-CL')}
+            </p>
+            <p className="mt-1.5 text-xs text-muted-foreground/60 font-medium">
+              Mes {currentMonthIso.slice(5, 7)}/{currentMonthIso.slice(0, 4)} · programado ${expectedMonth.fromScheduled.toLocaleString('es-CL')} · suscripciones ${expectedMonth.fromSubscriptions.toLocaleString('es-CL')}
+            </p>
+          </CardContent>
+        </Card>
+
         {/* % Cobrado */}
-        <Card className="rounded-2xl border-white/[0.04] bg-card shadow-sm">
+        <Card className="rounded-2xl border-border bg-card shadow-sm">
           <CardContent className="pt-6 pb-5">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-1.5">

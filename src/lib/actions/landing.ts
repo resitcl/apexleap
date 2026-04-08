@@ -122,7 +122,7 @@ export async function getPublicUpcomingSchedule(clubId: string) {
 export async function getPublicClubStats(clubId: string) {
   const supabase = createAdminClient()
   const [athletesRes, matchesRes] = await Promise.all([
-    supabase.from('athletes').select('id', { count: 'exact', head: true }).eq('club_id', clubId).eq('status', 'active'),
+    supabase.from('athletes').select('id', { count: 'exact', head: true }).eq('club_id', clubId).eq('status', 'active').is('archived_at', null),
     supabase.from('matches').select('id, is_home, home_score, away_score').eq('club_id', clubId).eq('status', 'finished').not('home_score', 'is', null),
   ])
   const athletes = athletesRes.count ?? 0
@@ -152,6 +152,7 @@ export async function getPublicClubAthletes(clubId: string) {
     .select('id, name, photo_url, technical_meta')
     .eq('club_id', clubId)
     .eq('status', 'active')
+    .is('archived_at', null)
     .order('name')
     .limit(20)
   return data ?? []

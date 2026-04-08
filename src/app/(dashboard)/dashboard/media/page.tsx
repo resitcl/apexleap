@@ -51,7 +51,7 @@ function MediaHubCard({ item }: { item: MediaItemRow }) {
   })
 
   return (
-    <div className="group rounded-2xl bg-[#111111] border border-white/[0.04] overflow-hidden hover:border-primary/30 transition-all">
+    <div className="group overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all hover:border-primary/30">
       <MediaPlayerDialog title={item.title as string} url={item.url as string}>
         <button type="button" className="relative aspect-video bg-black/50 overflow-hidden w-full text-left cursor-pointer">
           {thumb ? (
@@ -62,7 +62,7 @@ function MediaHubCard({ item }: { item: MediaItemRow }) {
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
             />
           ) : (
-            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-white/[0.02] to-white/[0.05]">
+            <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-muted/30 to-muted/50">
               <TypeIcon className="w-12 h-12 text-muted-foreground/20" />
             </div>
           )}
@@ -99,7 +99,7 @@ function MediaHubCard({ item }: { item: MediaItemRow }) {
             )}
           </div>
         </div>
-        <div className="flex items-center justify-between pt-3 border-t border-white/[0.04]">
+        <div className="flex items-center justify-between border-t border-border pt-3">
           <div className="flex items-center gap-1">
             <LandingFeaturedButton
               id={item.id as string}
@@ -111,7 +111,7 @@ function MediaHubCard({ item }: { item: MediaItemRow }) {
               href={item.url as string}
               target="_blank"
               rel="noopener noreferrer"
-              className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white/[0.08] text-muted-foreground/60 hover:text-primary transition-colors"
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
             >
               <ExternalLink className="w-4 h-4" />
             </a>
@@ -236,7 +236,7 @@ export default async function MediaPage({ searchParams }: PageProps) {
       />
 
       {!tableExists ? (
-        <div className="rounded-2xl border border-dashed border-white/[0.08] bg-white/[0.02] p-12 text-center">
+        <div className="rounded-2xl border border-dashed border-border bg-muted/20 p-12 text-center">
           <Film className="w-16 h-16 mx-auto mb-4 text-muted-foreground/30" />
           <h3 className="text-xl font-black tracking-tight mb-2">Tabla no configurada</h3>
           <p className="text-muted-foreground text-sm max-w-md mx-auto">
@@ -248,35 +248,35 @@ export default async function MediaPage({ searchParams }: PageProps) {
           {/* ── KPI ROW ── */}
           {stats && (
             <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
-              <div className="rounded-xl bg-[#111111] border border-white/[0.04] p-4">
+              <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
                 <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 mb-1">Total</p>
                 <p className="text-2xl font-black text-foreground">{stats.total}</p>
               </div>
-              <div className="rounded-xl bg-[#111111] border border-white/[0.04] p-4">
+              <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
                 <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 mb-1 flex items-center gap-1">
                   <PlayCircle className="w-3 h-3" /> Videos
                 </p>
                 <p className="text-2xl font-black text-violet-400">{stats.videos}</p>
               </div>
-              <div className="rounded-xl bg-[#111111] border border-white/[0.04] p-4">
+              <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
                 <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 mb-1 flex items-center gap-1">
                   <Image className="w-3 h-3" /> Fotos
                 </p>
                 <p className="text-2xl font-black text-emerald-400">{stats.photos}</p>
               </div>
-              <div className="rounded-xl bg-[#111111] border border-white/[0.04] p-4">
+              <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
                 <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 mb-1 flex items-center gap-1">
                   <Star className="w-3 h-3" /> Destacados
                 </p>
                 <p className="text-2xl font-black text-amber-400">{stats.featured}</p>
               </div>
-              <div className="rounded-xl bg-[#111111] border border-white/[0.04] p-4">
+              <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
                 <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 mb-1 flex items-center gap-1">
                   <Eye className="w-3 h-3" /> Públicos
                 </p>
                 <p className="text-2xl font-black text-cyan-400">{stats.public}</p>
               </div>
-              <div className="rounded-xl bg-[#111111] border border-white/[0.04] p-4">
+              <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
                 <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 mb-1">Partidos</p>
                 <p className="text-2xl font-black text-primary">{stats.matches}</p>
               </div>
@@ -284,7 +284,7 @@ export default async function MediaPage({ searchParams }: PageProps) {
           )}
 
           {/* ── AÑO + CALENDARIO MENSUAL ── */}
-          <div className="rounded-xl bg-[#111111] border border-white/[0.04] p-4 space-y-4">
+          <div className="space-y-4 rounded-xl border border-border bg-card p-4 shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <p className="text-xs font-black uppercase tracking-widest text-muted-foreground/50 flex items-center gap-2">
                 <Calendar className="w-3.5 h-3.5" /> Archivo por mes
@@ -299,7 +299,7 @@ export default async function MediaPage({ searchParams }: PageProps) {
                       className={`h-8 min-w-[2.5rem] px-2 rounded-lg text-xs font-black flex items-center justify-center transition-colors ${
                         selectedYear === y
                           ? 'bg-primary text-primary-foreground'
-                          : 'bg-white/[0.05] text-muted-foreground hover:bg-white/[0.1] border border-white/[0.08]'
+                          : 'border border-border bg-muted/50 text-muted-foreground hover:bg-muted'
                       }`}
                     >
                       {y}
@@ -327,8 +327,8 @@ export default async function MediaPage({ searchParams }: PageProps) {
                         isActive
                           ? 'bg-primary text-primary-foreground'
                           : hasContent
-                            ? 'bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08]'
-                            : 'bg-white/[0.01] text-muted-foreground/30'
+                            ? 'border border-border bg-muted/40 hover:bg-muted/70'
+                            : 'bg-muted/15 text-muted-foreground/40'
                       }`}
                     >
                       <p className="text-[10px] font-bold uppercase">{m}</p>
@@ -343,7 +343,7 @@ export default async function MediaPage({ searchParams }: PageProps) {
 
             {/* Semanas del mes (1–5) */}
             {month && (
-              <div className="pt-2 border-t border-white/[0.06]">
+              <div className="border-t border-border pt-2">
                 <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 mb-2">
                   {monthLabelEs(month)} — por semana
                 </p>
@@ -357,7 +357,7 @@ export default async function MediaPage({ searchParams }: PageProps) {
                           className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] font-bold transition-all ${
                             isWeek
                               ? 'bg-primary text-primary-foreground'
-                              : 'bg-white/[0.05] text-muted-foreground hover:bg-white/[0.1] border border-white/[0.08]'
+                              : 'border border-border bg-muted/50 text-muted-foreground hover:bg-muted'
                           }`}
                         >
                           {weekLabelEs(month, w)}
@@ -375,7 +375,7 @@ export default async function MediaPage({ searchParams }: PageProps) {
           </div>
 
           {/* ── FILTERS ── */}
-          <div className="flex flex-wrap items-center gap-3 p-4 rounded-xl bg-white/[0.02] border border-white/[0.04]">
+          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-muted/20 p-4">
             {/* Search */}
             <form method="get" action="/dashboard/media" className="flex items-center gap-2 flex-wrap">
               <input type="hidden" name="year" value={String(selectedYear)} />
@@ -390,7 +390,7 @@ export default async function MediaPage({ searchParams }: PageProps) {
                   name="search" 
                   defaultValue={search}
                   placeholder="Buscar contenido..."
-                  className="h-10 pl-10 pr-4 rounded-lg border border-white/[0.08] bg-white/[0.02] text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 min-w-[12rem] w-full max-w-sm" 
+                  className="h-10 min-h-10 w-full min-w-[12rem] max-w-sm rounded-lg border border-input bg-background pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-ring" 
                 />
               </div>
               <button type="submit" className="h-10 px-4 rounded-lg bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors">
@@ -398,7 +398,7 @@ export default async function MediaPage({ searchParams }: PageProps) {
               </button>
             </form>
 
-            <div className="w-px h-8 bg-white/[0.08] mx-1 hidden sm:block" />
+            <div className="mx-1 hidden h-8 w-px bg-border sm:block" />
 
             {/* Type filters */}
             <div className="flex items-center gap-1.5">
@@ -407,13 +407,13 @@ export default async function MediaPage({ searchParams }: PageProps) {
                   <button className={`h-9 px-4 rounded-full text-[10px] uppercase tracking-widest font-black transition-all ${
                     (val === "" && !type) || type === val
                       ? "bg-primary text-primary-foreground"
-                      : "bg-white/[0.04] text-muted-foreground hover:text-foreground hover:bg-white/[0.08]"
+                      : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground"
                   }`}>{lbl}</button>
                 </Link>
               ))}
             </div>
 
-            <div className="w-px h-8 bg-white/[0.08] mx-1 hidden sm:block" />
+            <div className="mx-1 hidden h-8 w-px bg-border sm:block" />
 
             {/* Category filters */}
             <div className="flex items-center gap-1.5 flex-wrap">
@@ -421,8 +421,8 @@ export default async function MediaPage({ searchParams }: PageProps) {
                 <Link key={val} href={buildHref({ category: category === val ? undefined : val, page: '1' })}>
                   <button className={`h-9 px-3 rounded-full text-[10px] font-bold transition-all flex items-center gap-1.5 ${
                     category === val 
-                      ? "bg-primary/20 text-primary border border-primary/30" 
-                      : "bg-white/[0.02] text-muted-foreground hover:text-foreground border border-transparent"
+                      ? "border border-primary/30 bg-primary/10 text-primary" 
+                      : "border border-transparent bg-muted/30 text-muted-foreground hover:bg-muted/50 hover:text-foreground"
                   }`}>
                     <span>{meta.emoji}</span> {meta.label}
                   </button>
@@ -439,7 +439,7 @@ export default async function MediaPage({ searchParams }: PageProps) {
 
           {/* ── CONTENT GRID ── */}
           {items.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-white/[0.08] bg-white/[0.02] p-16 text-center">
+            <div className="rounded-2xl border border-dashed border-border bg-muted/20 p-16 text-center">
               <Sparkles className="w-16 h-16 mx-auto mb-4 text-muted-foreground/20" />
               <h3 className="text-xl font-black tracking-tight mb-2">Sin contenido</h3>
               <p className="text-muted-foreground text-sm mb-6">Agrega videos, fotos e highlights del club</p>
@@ -462,7 +462,7 @@ export default async function MediaPage({ searchParams }: PageProps) {
                     if (!list.length) return null
                     return (
                       <section key={w} className="space-y-3">
-                        <h3 className="text-sm font-black uppercase tracking-widest text-primary/90 border-b border-white/10 pb-2">
+                        <h3 className="border-b border-border pb-2 text-sm font-black uppercase tracking-widest text-primary/90">
                           {weekLabelEs(month, w)}
                         </h3>
                         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -475,7 +475,7 @@ export default async function MediaPage({ searchParams }: PageProps) {
                   })}
                   {itemsNoDate.length > 0 && (
                     <section className="space-y-3">
-                      <h3 className="text-sm font-black uppercase tracking-widest text-muted-foreground border-b border-white/10 pb-2">
+                      <h3 className="border-b border-border pb-2 text-sm font-black uppercase tracking-widest text-muted-foreground">
                         Sin fecha en el archivo
                       </h3>
                       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -501,7 +501,7 @@ export default async function MediaPage({ searchParams }: PageProps) {
             <div className="flex items-center justify-center gap-3">
               {page > 1 && (
                 <Link href={buildHref({ page: String(page - 1) })}>
-                  <button className="h-10 px-4 rounded-full border border-white/[0.08] bg-white/[0.02] text-xs font-bold hover:bg-white/[0.06] transition-colors flex items-center gap-2">
+                  <button type="button" className="flex h-10 items-center gap-2 rounded-full border border-border bg-card px-4 text-xs font-bold transition-colors hover:bg-muted">
                     <ChevronLeft className="w-4 h-4" /> Anterior
                   </button>
                 </Link>
@@ -511,7 +511,7 @@ export default async function MediaPage({ searchParams }: PageProps) {
               </span>
               {page < totalPages && (
                 <Link href={buildHref({ page: String(page + 1) })}>
-                  <button className="h-10 px-4 rounded-full border border-white/[0.08] bg-white/[0.02] text-xs font-bold hover:bg-white/[0.06] transition-colors flex items-center gap-2">
+                  <button type="button" className="flex h-10 items-center gap-2 rounded-full border border-border bg-card px-4 text-xs font-bold transition-colors hover:bg-muted">
                     Siguiente <ChevronRight className="w-4 h-4" />
                   </button>
                 </Link>

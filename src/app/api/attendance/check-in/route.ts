@@ -35,6 +35,7 @@ export async function POST(req: NextRequest) {
         .from('athletes')
         .select('id, name, club_id, status, health_status')
         .eq('id', athleteId)
+        .is('archived_at', null)
         .single()
 
       if (!athlete) {
@@ -84,6 +85,7 @@ export async function POST(req: NextRequest) {
       .eq('club_id', tokenRecord.club_id)
       .ilike('document_number', documentNumber.replace(/[.-]/g, ''))
       .eq('status', 'active')
+      .is('archived_at', null)
       .single()
 
     if (!athlete) {
