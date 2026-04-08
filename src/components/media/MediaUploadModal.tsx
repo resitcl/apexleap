@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { Plus, Youtube, Upload, Link2, Calendar, Star, Eye, Tag } from "lucide-react"
 import { createMediaItem, type MediaInput } from "@/lib/actions/media"
 
@@ -125,6 +125,9 @@ export function MediaUploadModal({ open, onOpenChange }: MediaUploadModalProps) 
           <DialogTitle className="text-xl font-black tracking-tight flex items-center gap-2">
             <Plus className="w-5 h-5 text-primary" /> Agregar Contenido
           </DialogTitle>
+          <DialogDescription>
+            Publica videos, fotos o enlaces para tu club en el Media Hub.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6 py-2">

@@ -285,7 +285,29 @@ export async function createMediaItem(input: MediaInput) {
     .select()
     .single()
 
-  if (legacyRes.error) throw new Error(legacyRes.error.message)
+  if (legacyRes.error) {
+    // Segundo fallback para esquemas legacy con enums más restringidos.
+    const sanitizedType = parsed.type === 'document' ? 'video' : parsed.type
+    const sanitizedCategory = (['match', 'highlight', 'training', 'photo', 'other'] as const).includes(
+      parsed.category as 'match' | 'highlight' | 'training' | 'photo' | 'other'
+    )
+      ? parsed.category
+      : 'other'
+
+    const legacyRes2 = await supabase
+      .from('media_items')
+      .insert({
+        ...legacyPayload,
+        type: sanitizedType,
+        category: sanitizedCategory,
+      })
+      .select()
+      .single()
+
+    if (legacyRes2.error) throw new Error(legacyRes2.error.message)
+    revalidatePath('/dashboard/media')
+    return legacyRes2.data
+  }
   revalidatePath('/dashboard/media')
   return legacyRes.data
 }
