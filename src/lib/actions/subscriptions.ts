@@ -150,6 +150,40 @@ export async function updateSubscriptionStatus(
   return data
 }
 
+/** Ajuste manual de vigencia (fin de suscripción y fin del periodo facturado actual). */
+export async function updateSubscriptionDates(
+  id: string,
+  input: { end_date?: string | null; current_period_end?: string | null }
+) {
+  const clubId = await getClubId()
+  const supabase = createAdminClient()
+
+  const updateRow: Record<string, unknown> = {}
+  if (input.end_date !== undefined) updateRow.end_date = input.end_date
+  if (input.current_period_end !== undefined) updateRow.current_period_end = input.current_period_end
+
+  if (Object.keys(updateRow).length === 0) {
+    throw new Error('No hay cambios')
+  }
+
+  const { data, error } = await supabase
+    .from('subscriptions')
+    .update(updateRow)
+    .eq('id', id)
+    .eq('club_id', clubId)
+    .select('athlete_id')
+    .single()
+
+  if (error) throw new Error(error.message)
+
+  revalidatePath('/dashboard/subscriptions')
+  revalidatePath('/dashboard/athlete')
+  if (data?.athlete_id) {
+    revalidatePath(`/dashboard/athletes/${data.athlete_id as string}`)
+  }
+  return data
+}
+
 export async function getSubscriptionStats() {
   const clubId = await getClubId()
   const supabase = createAdminClient()

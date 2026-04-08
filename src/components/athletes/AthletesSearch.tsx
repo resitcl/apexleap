@@ -44,7 +44,7 @@ export function AthletesSearch() {
         <input
           type="text"
           placeholder="Buscar por nombre, email o RUT..."
-          className="w-full h-11 pl-11 pr-10 rounded-xl border border-white/[0.06] bg-muted/20 text-sm font-medium text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all"
+          className="h-11 w-full rounded-xl border border-input bg-background pl-11 pr-10 text-sm font-medium text-foreground placeholder:text-muted-foreground/50 transition-all focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-ring"
           defaultValue={currentSearch}
           onChange={(e) => {
             const val = e.target.value
@@ -73,8 +73,8 @@ export function AthletesSearch() {
                 onClick={() => updateParams('status', currentStatus === f.value ? null : f.value)}
                 className={`inline-flex items-center h-7 px-3 rounded-lg text-[10px] font-bold uppercase tracking-widest border transition-all ${
                   currentStatus === f.value
-                    ? 'bg-primary text-primary-foreground border-primary shadow-[0_0_8px_rgba(var(--primary),0.2)]'
-                    : 'border-white/[0.06] text-muted-foreground/60 hover:border-primary/30 hover:text-foreground bg-transparent'
+                    ? 'border-primary bg-primary text-primary-foreground'
+                    : 'border-input bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground'
                 }`}
               >
                 {f.label}
@@ -84,7 +84,7 @@ export function AthletesSearch() {
         </div>
 
         {/* Divider */}
-        <div className="w-px h-5 bg-white/[0.06] hidden sm:block" />
+        <div className="hidden h-5 w-px bg-border sm:block" />
 
         {/* Salud */}
         <div className="flex items-center gap-2">
@@ -96,8 +96,8 @@ export function AthletesSearch() {
                 onClick={() => updateParams('health', currentHealth === f.value ? null : f.value)}
                 className={`inline-flex items-center gap-1.5 h-7 px-3 rounded-lg text-[10px] font-bold uppercase tracking-widest border transition-all ${
                   currentHealth === f.value
-                    ? 'bg-primary text-primary-foreground border-primary shadow-[0_0_8px_rgba(var(--primary),0.2)]'
-                    : 'border-white/[0.06] text-muted-foreground/60 hover:border-primary/30 hover:text-foreground bg-transparent'
+                    ? 'border-primary bg-primary text-primary-foreground'
+                    : 'border-input bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground'
                 }`}
               >
                 <span className={`w-1.5 h-1.5 rounded-full ${currentHealth === f.value ? 'bg-primary-foreground' : f.dot}`} />

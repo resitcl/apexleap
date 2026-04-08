@@ -38,6 +38,8 @@ interface Payment {
   notes: string | null
   athlete_id: string
   plan_id: string | null
+  period_start?: string | null
+  period_end?: string | null
   athletes: { id: string; name: string; photo_url: string | null } | null
   plans: { name: string; billing_cycle?: string } | null
 }

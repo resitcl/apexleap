@@ -273,6 +273,13 @@ export async function markAsPaid(id: string, method: string, paidAt?: string) {
   return data
 }
 
+function toPaidAtIso(value: string | null): string | null {
+  if (value === null || value === '') return null
+  const d = value.includes('T') ? new Date(value) : new Date(`${value}T12:00:00`)
+  if (Number.isNaN(d.getTime())) throw new Error('Fecha de pago inválida')
+  return d.toISOString()
+}
+
 export async function updatePayment(id: string, input: {
   concept?: string
   amount?: number
@@ -280,19 +287,44 @@ export async function updatePayment(id: string, input: {
   notes?: string | null
   type?: string
   payment_method?: string | null
+  /** Fecha en que se registró el pago (transferencia, efectivo, etc.). */
+  paid_at?: string | null
+  /** Periodo cubierto por la cuota (si aplica). */
+  period_start?: string | null
+  period_end?: string | null
 }) {
   const clubId = await getClubId()
   const supabase = createAdminClient()
-  const safeUpdate = Object.fromEntries(
-    Object.entries({ ...input }).filter(([, v]) => v !== undefined),
-  )
+
+  const { data: existing } = await supabase
+    .from('payments')
+    .select('athlete_id')
+    .eq('id', id)
+    .eq('club_id', clubId)
+    .maybeSingle()
+
+  const updateRow: Record<string, unknown> = {}
+  if (input.concept !== undefined) updateRow.concept = input.concept
+  if (input.amount !== undefined) updateRow.amount = input.amount
+  if (input.due_date !== undefined) updateRow.due_date = input.due_date
+  if (input.notes !== undefined) updateRow.notes = input.notes
+  if (input.type !== undefined) updateRow.type = input.type
+  if (input.payment_method !== undefined) updateRow.payment_method = input.payment_method
+  if (input.period_start !== undefined) updateRow.period_start = input.period_start
+  if (input.period_end !== undefined) updateRow.period_end = input.period_end
+  if (input.paid_at !== undefined) updateRow.paid_at = toPaidAtIso(input.paid_at)
+
   const { error } = await supabase
     .from('payments')
-    .update(safeUpdate)
+    .update(updateRow)
     .eq('id', id)
     .eq('club_id', clubId)
   if (error) throw new Error(error.message)
+
   revalidatePath('/dashboard/payments')
+  revalidatePath('/dashboard/subscriptions')
+  revalidatePath('/dashboard/athlete')
+  if (existing?.athlete_id) revalidatePath(`/dashboard/athletes/${existing.athlete_id as string}`)
 }
 
 export async function updatePaymentStatus(

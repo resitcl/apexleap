@@ -10,9 +10,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Plus, Users, TrendingUp, PauseCircle, XCircle, AlertTriangle, DollarSign, Clock } from "lucide-react"
 import { InfoTooltip } from "@/components/ui/info-tooltip"
+import { DashboardPage, DashboardPageHeader } from "@/components/ui/dashboard-kit"
 import { SubscriptionStatusButton } from "@/components/subscriptions/SubscriptionStatusButton"
 import { RenewSubscriptionButton } from "@/components/subscriptions/RenewSubscriptionButton"
+import { EditSubscriptionValidityButton } from "@/components/subscriptions/EditSubscriptionValidityButton"
 import { ExportSubscriptionsButton } from "@/components/subscriptions/ExportSubscriptionsButton"
+import { SubscriptionsFilter } from "@/components/subscriptions/SubscriptionsFilter"
 
 const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   active:    { label: "Activa",     variant: "default" },
@@ -108,7 +111,6 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
       if (!plan) return sum
       return sum + plan.price * (CYCLE_MONTHLY[plan.billing_cycle] ?? 1)
     }, 0)
-  const hasFilters = !!(params.status || planId || search || expiring)
 
   const now = new Date()
   const in7  = new Date(now); in7.setDate(in7.getDate() + 7)
@@ -117,35 +119,54 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
   const expiringIn30 = allSubs.filter((s) => s.status === 'active' && s.end_date && new Date(s.end_date) <= in30 && new Date(s.end_date) >= now).length
   const thirtyDaysAgo = new Date(now); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
   const longExpired = allSubs.filter((s) => s.status === 'expired' && s.end_date && new Date(s.end_date) < thirtyDaysAgo)
+  const paymentMethods = [...new Set(allSubs.map((s) => s.payment_method).filter(Boolean))] as string[]
+
+  const subscriptionsListQuery = (pageOverride?: number) => {
+    const o: Record<string, string> = {}
+    if (params.status) o.status = params.status
+    if (planId) o.planId = planId
+    if (search) o.search = search
+    if (expiring) o.expiring = expiring
+    if (method) o.method = method
+    if (sortBy) o.sort = sortBy
+    if (priceMinStr) o.priceMin = priceMinStr
+    if (priceMaxStr) o.priceMax = priceMaxStr
+    if (startFrom) o.startFrom = startFrom
+    if (startTo) o.startTo = startTo
+    if (pageOverride !== undefined) o.page = String(pageOverride)
+    const s = new URLSearchParams(o).toString()
+    return s ? `?${s}` : ''
+  }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-3 flex-wrap">
-        <div>
-          <h1 className="text-3xl font-bold">Suscripciones</h1>
-          <p className="text-sm text-muted-foreground flex flex-wrap items-center gap-x-2">
+    <DashboardPage>
+      <DashboardPageHeader
+        title="Suscripciones"
+        subtitle={
+          <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <span>{total} registros</span>
             {stats.mrr > 0 && <span className="text-green-600 font-medium">· MRR: ${Math.round(stats.mrr).toLocaleString('es-CL')}</span>}
             {expiringIn7 > 0 && <span className="text-red-600 font-medium">· {expiringIn7} vence{expiringIn7 > 1 ? 'n' : ''} esta semana</span>}
             {expiringIn7 === 0 && expiringIn30 > 0 && <span className="text-yellow-600 font-medium">· {expiringIn30} vence{expiringIn30 > 1 ? 'n' : ''} en 30 días</span>}
             {athletesWithoutSub > 0 && <span className="text-orange-600 font-medium">· {athletesWithoutSub} sin suscripción</span>}
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <ExportSubscriptionsButton subscriptions={allSubs.map((s) => ({
-            ...s,
-            athletes: s.athletes as { name: string } | null,
-            plans: s.plans as { name: string; price: number; billing_cycle: string } | null,
-          }))} />
-          <Link href="/dashboard/subscriptions/new">
-            <Button className="gap-2">
-              <Plus className="w-4 h-4" />
-              Asignar Plan
-            </Button>
-          </Link>
-        </div>
-      </div>
+          </span>
+        }
+        actions={
+          <div className="flex flex-wrap gap-2">
+            <ExportSubscriptionsButton subscriptions={allSubs.map((s) => ({
+              ...s,
+              athletes: s.athletes as { name: string } | null,
+              plans: s.plans as { name: string; price: number; billing_cycle: string } | null,
+            }))} />
+            <Link href="/dashboard/subscriptions/new">
+              <Button className="gap-2 rounded-xl font-black uppercase tracking-widest text-xs">
+                <Plus className="w-4 h-4" />
+                Asignar Plan
+              </Button>
+            </Link>
+          </div>
+        }
+      />
 
       {longExpired.length > 0 && (
         <Link href="/dashboard/subscriptions?status=expired">
@@ -426,100 +447,20 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
         )
       })()}
 
-      {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="flex flex-wrap gap-2">
-          {[undefined, "active", "paused", "cancelled", "expired"].map((s) => (
-            <Link
-              key={s ?? "all"}
-              href={s
-                ? `/dashboard/subscriptions?status=${s}${planId ? `&planId=${planId}` : ''}`
-                : `/dashboard/subscriptions${planId ? `?planId=${planId}` : ''}`}
-            >
-              <Badge
-                variant={params.status === s || (!params.status && !s) ? "default" : "outline"}
-                className="cursor-pointer"
-              >
-                {s ? STATUS_CONFIG[s]?.label : "Todas"}
-              </Badge>
-            </Link>
-          ))}
-        </div>
-        {(() => {
-          const methods = [...new Set(allSubs.map((s) => s.payment_method).filter(Boolean))] as string[]
-          if (methods.length < 2) return null
-          const METHOD_LABELS: Record<string, string> = { cash: 'Efectivo', transfer: 'Transferencia', card: 'Tarjeta', webpay: 'Webpay', mercadopago: 'MP', flow: 'Flow' }
-          return (
-            <div className="flex flex-wrap gap-2 items-center w-full">
-              <span className="text-xs text-muted-foreground font-medium">Método:</span>
-              <Link href={`/dashboard/subscriptions?${new URLSearchParams({ ...(params.status ? { status: params.status } : {}), ...(planId ? { planId } : {}), ...(search ? { search } : {}) }).toString()}`}>
-                <button className={`h-7 px-2.5 rounded-md border text-xs font-medium transition-colors ${!method ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-input hover:bg-accent'}`}>Todos</button>
-              </Link>
-              {methods.map((m) => (
-                <Link key={m} href={`/dashboard/subscriptions?${new URLSearchParams({ ...(params.status ? { status: params.status } : {}), ...(planId ? { planId } : {}), ...(search ? { search } : {}), method: m }).toString()}`}>
-                  <button className={`h-7 px-2.5 rounded-md border text-xs font-medium transition-colors ${method === m ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-input hover:bg-accent'}`}>{METHOD_LABELS[m] ?? m}</button>
-                </Link>
-              ))}
-            </div>
-          )
-        })()}
-        <div className="flex flex-wrap gap-2 items-center w-full">
-          <span className="text-xs text-muted-foreground font-medium">Orden:</span>
-          <Link href={`/dashboard/subscriptions?${new URLSearchParams({ ...(params.status ? { status: params.status } : {}), ...(planId ? { planId } : {}), ...(search ? { search } : {}), ...(method ? { method } : {}) }).toString()}`}>
-            <button className={`h-7 px-2.5 rounded-md border text-xs font-medium transition-colors ${!sortBy ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-input hover:bg-accent'}`}>Predeterminado</button>
-          </Link>
-          <Link href={`/dashboard/subscriptions?${new URLSearchParams({ ...(params.status ? { status: params.status } : {}), ...(planId ? { planId } : {}), ...(search ? { search } : {}), ...(method ? { method } : {}), sort: 'expiring' }).toString()}`}>
-            <button className={`h-7 px-2.5 rounded-md border text-xs font-medium transition-colors ${sortBy === 'expiring' ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-input hover:bg-accent'}`}>Por vencer</button>
-          </Link>
-        </div>
-        <form method="get" action="/dashboard/subscriptions" className="flex flex-wrap items-center gap-2">
-          {params.status && <input type="hidden" name="status" value={params.status} />}
-          <input
-            type="text" name="search" defaultValue={search}
-            placeholder="Buscar alumno..."
-            className="h-8 px-3 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring w-36"
-          />
-          {plans.length > 0 && (
-            <select name="planId" defaultValue={planId}
-              className="h-8 px-2 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring">
-              <option value="">Todos los planes</option>
-              {plans.map((p) => (
-                <option key={p.id} value={p.id}>{p.name}</option>
-              ))}
-            </select>
-          )}
-          <select name="method" defaultValue={method}
-            className="h-8 px-2 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring">
-            <option value="">Cualquier método</option>
-            <option value="cash">Efectivo</option>
-            <option value="transfer">Transferencia</option>
-            <option value="card">Tarjeta</option>
-            <option value="webpay">Webpay</option>
-            <option value="mercadopago">MercadoPago</option>
-            <option value="flow">Flow</option>
-          </select>
-          <select name="expiring" defaultValue={expiring}
-            className="h-8 px-2 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring">
-            <option value="">Cualquier vencimiento</option>
-            <option value="7">Vence en 7 días</option>
-            <option value="30">Vence en 30 días</option>
-          </select>
-          <input type="number" name="priceMin" defaultValue={priceMinStr} min={0} placeholder="Precio mín."
-            className="h-8 px-3 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring w-24" />
-          <input type="number" name="priceMax" defaultValue={priceMaxStr} min={0} placeholder="Precio máx."
-            className="h-8 px-3 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring w-24" />
-          <span className="text-xs text-muted-foreground font-medium">Inicio:</span>
-          <input type="date" name="startFrom" defaultValue={startFrom}
-            className="h-8 px-2 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring" />
-          <input type="date" name="startTo" defaultValue={startTo}
-            className="h-8 px-2 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring" />
-          <button type="submit" className="h-8 px-3 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90">Filtrar</button>
-          {(planId || search || expiring || method || priceMinStr || priceMaxStr || startFrom || startTo) && (
-            <Link href={`/dashboard/subscriptions${params.status ? `?status=${params.status}` : ''}`}
-              className="text-xs text-muted-foreground hover:text-foreground">✕ Limpiar</Link>
-          )}
-        </form>
-      </div>
+      <SubscriptionsFilter
+        plans={plans}
+        paymentMethods={paymentMethods}
+        currentStatus={params.status}
+        currentPlanId={planId}
+        currentSearch={search}
+        currentExpiring={expiring}
+        currentMethod={method}
+        currentSort={sortBy}
+        currentPriceMin={priceMinStr}
+        currentPriceMax={priceMaxStr}
+        currentStartFrom={startFrom}
+        currentStartTo={startTo}
+      />
 
       {/* List */}
       {subs.length === 0 ? (
@@ -634,7 +575,14 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
                         )}
                         <Badge variant={cfg.variant}>{cfg.label}</Badge>
                       </div>
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                        <EditSubscriptionValidityButton
+                          subscriptionId={sub.id}
+                          endDate={sub.end_date}
+                          currentPeriodEnd={
+                            (sub as { current_period_end?: string | null }).current_period_end ?? null
+                          }
+                        />
                         {(sub.status === 'expired' || sub.status === 'cancelled') && (
                           <RenewSubscriptionButton subscriptionId={sub.id} />
                         )}
@@ -657,30 +605,18 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
           </p>
           <div className="flex gap-2">
             {page > 1 && (
-              <Link href={`/dashboard/subscriptions?${new URLSearchParams({
-                ...(params.status ? { status:   params.status } : {}),
-                ...(planId        ? { planId }                  : {}),
-                ...(search        ? { search }                  : {}),
-                ...(expiring      ? { expiring }                : {}),
-                page: String(page - 1),
-              }).toString()}`}>
-                <button className="h-9 px-4 rounded-md border border-input bg-background text-sm hover:bg-accent transition-colors">← Anterior</button>
+              <Link href={`/dashboard/subscriptions${subscriptionsListQuery(page - 1)}`}>
+                <button type="button" className="h-9 px-4 rounded-md border border-input bg-background text-sm hover:bg-accent transition-colors">← Anterior</button>
               </Link>
             )}
             {page * 25 < total && (
-              <Link href={`/dashboard/subscriptions?${new URLSearchParams({
-                ...(params.status ? { status:   params.status } : {}),
-                ...(planId        ? { planId }                  : {}),
-                ...(search        ? { search }                  : {}),
-                ...(expiring      ? { expiring }                : {}),
-                page: String(page + 1),
-              }).toString()}`}>
-                <button className="h-9 px-4 rounded-md border border-input bg-background text-sm hover:bg-accent transition-colors">Siguiente →</button>
+              <Link href={`/dashboard/subscriptions${subscriptionsListQuery(page + 1)}`}>
+                <button type="button" className="h-9 px-4 rounded-md border border-input bg-background text-sm hover:bg-accent transition-colors">Siguiente →</button>
               </Link>
             )}
           </div>
         </div>
       )}
-    </div>
+    </DashboardPage>
   )
 }

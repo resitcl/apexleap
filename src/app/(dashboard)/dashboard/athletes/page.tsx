@@ -297,7 +297,7 @@ export default async function AthletesPage({ searchParams }: PageProps) {
 
         {/* Activos */}
         <Link href="/dashboard/athletes?status=active" className="block h-full">
-          <div className="rounded-[20px] bg-[#111111] border border-white/[0.04] p-5 hover:bg-[#1a1a1a] transition-colors h-full flex flex-col justify-between">
+          <div className="rounded-[20px] border border-border bg-card p-5 shadow-sm transition-colors hover:bg-muted/50 h-full flex flex-col justify-between">
             <div className="flex items-center gap-2.5 mb-5">
               <Users className="w-5 h-5 text-muted-foreground/50" />
               <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70">Activos</p>
@@ -311,7 +311,7 @@ export default async function AthletesPage({ searchParams }: PageProps) {
 
         {/* Lesionados */}
         <Link href="/dashboard/athletes?health=injured" className="block h-full">
-          <div className="rounded-[20px] bg-[#111111] border border-white/[0.04] p-5 hover:bg-[#1a1a1a] transition-colors h-full flex flex-col justify-between">
+          <div className="rounded-[20px] border border-border bg-card p-5 shadow-sm transition-colors hover:bg-muted/50 h-full flex flex-col justify-between">
             <div className="flex items-center gap-2.5 mb-5">
               <Activity className="w-5 h-5 text-muted-foreground/50" />
               <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70">Lesionados</p>
@@ -325,7 +325,7 @@ export default async function AthletesPage({ searchParams }: PageProps) {
 
         {/* Asistencia Promedio */}
         {avgAttendanceRate !== null ? (
-          <div className="rounded-[20px] bg-[#111111] border border-white/[0.04] p-5 h-full flex flex-col justify-between">
+          <div className="rounded-[20px] border border-border bg-card p-5 shadow-sm h-full flex flex-col justify-between">
             <div className="flex items-center gap-2.5 mb-5">
               <TrendingUp className="w-5 h-5 text-muted-foreground/50" />
               <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70">Asistencia</p>
@@ -336,7 +336,7 @@ export default async function AthletesPage({ searchParams }: PageProps) {
             </div>
           </div>
         ) : (
-          <div className="rounded-[20px] bg-[#111111] border border-white/[0.04] p-5 h-full flex flex-col justify-between">
+          <div className="rounded-[20px] border border-border bg-card p-5 shadow-sm h-full flex flex-col justify-between">
             <div className="flex items-center gap-2.5 mb-5">
               <TrendingUp className="w-5 h-5 text-muted-foreground/50" />
               <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70">Docs Vencidos</p>
@@ -352,7 +352,7 @@ export default async function AthletesPage({ searchParams }: PageProps) {
         {(() => {
           const active = allAthletes.filter((a) => a.status === 'active')
           if (active.length === 0) return (
-            <div className="rounded-[20px] bg-[#111111] border border-white/[0.04] p-5 h-full flex flex-col justify-between">
+            <div className="rounded-[20px] border border-border bg-card p-5 shadow-sm h-full flex flex-col justify-between">
               <div className="flex items-center gap-2.5 mb-5">
                 <UserCheck className="w-5 h-5 text-muted-foreground/50" />
                 <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70">Con Plan</p>
@@ -370,7 +370,7 @@ export default async function AthletesPage({ searchParams }: PageProps) {
           const pct = Math.round((withSub / active.length) * 100)
           return (
             <Link href="/dashboard/subscriptions" className="block h-full">
-              <div className="rounded-[20px] bg-[#111111] border border-white/[0.04] p-5 hover:bg-[#1a1a1a] transition-colors h-full flex flex-col justify-between">
+              <div className="rounded-[20px] border border-border bg-card p-5 shadow-sm transition-colors hover:bg-muted/50 h-full flex flex-col justify-between">
                 <div className="flex items-center gap-2.5 mb-5">
                   <UserCheck className="w-5 h-5 text-muted-foreground/50" />
                   <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70">Con Plan</p>
@@ -385,7 +385,7 @@ export default async function AthletesPage({ searchParams }: PageProps) {
         })()}
 
         {/* Featured: Deuda Total */}
-        <div className="rounded-[20px] bg-[#111111] border border-white/[0.04] p-5 h-full flex flex-col justify-between col-span-2 md:col-span-2 lg:col-span-1">
+        <div className="rounded-[20px] border border-border bg-card p-5 shadow-sm h-full flex flex-col justify-between col-span-2 md:col-span-2 lg:col-span-1">
           <div className="flex items-start justify-between mb-3">
             <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70">Deuda Total</p>
             <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${totalDebt > 0 ? 'bg-red-500/10' : 'bg-primary/10'}`}>
@@ -401,7 +401,7 @@ export default async function AthletesPage({ searchParams }: PageProps) {
             </p>
           </div>
           {expiredDocsCount > 0 && (
-            <div className="mt-auto pt-3 border-t border-white/[0.04]">
+            <div className="mt-auto pt-3 border-t border-border">
               <p className="text-[11px] text-amber-500 font-bold">{expiredDocsCount} doc{expiredDocsCount !== 1 ? 's' : ''} vencido{expiredDocsCount !== 1 ? 's' : ''}</p>
             </div>
           )}
@@ -496,8 +496,8 @@ export default async function AthletesPage({ searchParams }: PageProps) {
               </div>
             )}
             {showEmerg && (
-              <div className="flex-1 min-w-[280px] bg-white/[0.02] border border-white/[0.04] rounded-[16px] p-3 flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-white/[0.04] flex items-center justify-center shrink-0">
+              <div className="flex-1 min-w-[280px] rounded-[16px] border border-border bg-muted/40 p-3 flex items-center gap-3">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted">
                   <AlertCircle className="w-4 h-4 text-muted-foreground/50" />
                 </div>
                 <div className="flex-1">
@@ -518,25 +518,25 @@ export default async function AthletesPage({ searchParams }: PageProps) {
       {/* ═══════════ SEARCH & FILTERS ═══════════ */}
       <div className="flex items-center gap-4 w-full">
         {/* Search Bar - Principal */}
-        <div className="flex-1 bg-[#111111] rounded-[20px] border border-white/[0.04] p-2 flex items-center shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
+        <div className="flex flex-1 items-center rounded-[20px] border border-border bg-card p-2 shadow-sm">
           <div className="flex-1">
             <AthletesSearch />
           </div>
           
-          <div className="h-8 w-px bg-white/[0.04] mx-2" />
+          <div className="mx-2 h-8 w-px bg-border" />
           
           {/* Quick Selects - Inline */}
           <div className="flex items-center gap-2 pr-2 overflow-x-auto hide-scrollbar">
             {/* Filtro Plan */}
             {plans.length > 0 && (
-              <div className="flex items-center gap-1.5 border-r border-white/[0.04] pr-3 mr-1">
+              <div className="mr-1 flex items-center gap-1.5 border-r border-border pr-3">
                 <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/40">Plan:</span>
                 <Link href={`/dashboard/athletes?${new URLSearchParams({ ...(params.search ? { search: params.search } : {}), ...(params.status ? { status: params.status } : {}), ...(params.health ? { health: params.health } : {}), ...(params.subStatus ? { subStatus: params.subStatus } : {}), ...(params.categoryId ? { categoryId: params.categoryId } : {}), ...(sort ? { sort } : {}) }).toString()}`}>
-                  <button className={`h-7 px-2.5 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all ${!params.planId ? 'bg-white/[0.08] text-white' : 'text-muted-foreground/60 hover:text-foreground'}`}>Todos</button>
+                  <button className={`h-7 px-2.5 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all ${!params.planId ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted/80 hover:text-foreground'}`}>Todos</button>
                 </Link>
                 {plans.map((plan) => (
                   <Link key={plan.id} href={`/dashboard/athletes?${new URLSearchParams({ ...(params.search ? { search: params.search } : {}), ...(params.status ? { status: params.status } : {}), ...(params.health ? { health: params.health } : {}), planId: plan.id, ...(params.subStatus ? { subStatus: params.subStatus } : {}), ...(params.categoryId ? { categoryId: params.categoryId } : {}), ...(sort ? { sort } : {}) }).toString()}`}>
-                    <button className={`h-7 px-2.5 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all ${params.planId === plan.id ? 'bg-white/[0.08] text-white' : 'text-muted-foreground/60 hover:text-foreground'}`}>{plan.name}</button>
+                    <button className={`h-7 px-2.5 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all ${params.planId === plan.id ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted/80 hover:text-foreground'}`}>{plan.name}</button>
                   </Link>
                 ))}
               </div>
@@ -547,20 +547,20 @@ export default async function AthletesPage({ searchParams }: PageProps) {
               <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/40">Estado:</span>
               <div className="flex gap-1">
                 <Link href={`/dashboard/athletes?${new URLSearchParams({ ...(params.search ? { search: params.search } : {}), ...(params.planId ? { planId: params.planId } : {}) }).toString()}`}>
-                  <button className={`h-7 px-2.5 rounded-full text-[10px] font-bold uppercase tracking-widest border transition-all ${!params.status ? 'bg-primary text-primary-foreground border-primary' : 'border-transparent text-muted-foreground/60 hover:text-foreground hover:bg-white/[0.02]'}`}>Todos</button>
+                  <button className={`h-7 px-2.5 rounded-full text-[10px] font-bold uppercase tracking-widest border transition-all ${!params.status ? 'bg-primary text-primary-foreground border-primary' : 'border-transparent text-muted-foreground hover:bg-muted/80 hover:text-foreground'}`}>Todos</button>
                 </Link>
                 <Link href={`/dashboard/athletes?${new URLSearchParams({ ...(params.search ? { search: params.search } : {}), ...(params.planId ? { planId: params.planId } : {}), status: 'active' }).toString()}`}>
-                  <button className={`h-7 px-2.5 rounded-full text-[10px] font-bold uppercase tracking-widest border transition-all ${params.status === 'active' ? 'bg-primary text-primary-foreground border-primary' : 'border-transparent text-muted-foreground/60 hover:text-foreground hover:bg-white/[0.02]'}`}>Activos</button>
+                  <button className={`h-7 px-2.5 rounded-full text-[10px] font-bold uppercase tracking-widest border transition-all ${params.status === 'active' ? 'bg-primary text-primary-foreground border-primary' : 'border-transparent text-muted-foreground hover:bg-muted/80 hover:text-foreground'}`}>Activos</button>
                 </Link>
                 <Link href={`/dashboard/athletes?${new URLSearchParams({ ...(params.search ? { search: params.search } : {}), ...(params.planId ? { planId: params.planId } : {}), status: 'inactive' }).toString()}`}>
-                  <button className={`h-7 px-2.5 rounded-full text-[10px] font-bold uppercase tracking-widest border transition-all ${params.status === 'inactive' ? 'bg-primary text-primary-foreground border-primary' : 'border-transparent text-muted-foreground/60 hover:text-foreground hover:bg-white/[0.02]'}`}>Inactivos</button>
+                  <button className={`h-7 px-2.5 rounded-full text-[10px] font-bold uppercase tracking-widest border transition-all ${params.status === 'inactive' ? 'bg-primary text-primary-foreground border-primary' : 'border-transparent text-muted-foreground hover:bg-muted/80 hover:text-foreground'}`}>Inactivos</button>
                 </Link>
               </div>
             </div>
             
             {/* Clear All Inline */}
             {(params.search || params.status || params.health || params.planId || params.subStatus || params.categoryId || sort || showInactive || filterDebtOld60 || filterExpiredDocs || params.ageMin || params.ageMax || params.debtMin || params.debtMax) && (
-              <div className="flex items-center gap-2 pl-3 ml-1 border-l border-white/[0.04]">
+              <div className="ml-1 flex items-center gap-2 border-l border-border pl-3">
                 <Link href="/dashboard/athletes" className="h-7 px-2.5 rounded-full text-[10px] font-bold uppercase tracking-widest text-destructive/80 hover:text-destructive hover:bg-destructive/10 transition-colors flex items-center gap-1.5">
                   ✕ Limpiar
                 </Link>
@@ -570,8 +570,8 @@ export default async function AthletesPage({ searchParams }: PageProps) {
         </div>
 
         {/* View Control Box */}
-        <div className="bg-[#111111] rounded-[20px] border border-white/[0.04] p-3 flex items-center justify-between gap-4 shrink-0 shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.06] bg-white/[0.02] shrink-0">
+        <div className="flex shrink-0 items-center justify-between gap-4 rounded-[20px] border border-border bg-card p-3 shadow-sm">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border bg-muted/50">
             <Filter className="w-4 h-4 text-muted-foreground/50" />
           </div>
           <div className="text-right pr-2">
@@ -598,9 +598,9 @@ export default async function AthletesPage({ searchParams }: PageProps) {
           ) : null}
         />
       ) : (
-        <div className="rounded-[24px] border border-white/[0.04] bg-[#111111] shadow-[0_8px_30px_rgba(0,0,0,0.12)] overflow-hidden">
+        <div className="overflow-hidden rounded-[24px] border border-border bg-card shadow-sm">
           {/* Table Header */}
-          <div className="hidden lg:grid grid-cols-[minmax(260px,2.8fr)_120px_minmax(180px,1.5fr)_130px_170px_100px] gap-4 px-6 py-5 border-b border-white/[0.04]">
+          <div className="hidden lg:grid grid-cols-[minmax(260px,2.8fr)_120px_minmax(180px,1.5fr)_130px_170px_100px] gap-4 border-b border-border px-6 py-5">
             <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50">Atleta</span>
             <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50">Estado</span>
             <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50">Plan Actual</span>
@@ -610,7 +610,7 @@ export default async function AthletesPage({ searchParams }: PageProps) {
           </div>
 
           {/* Table Rows */}
-          <div className="divide-y divide-white/[0.04]">
+          <div className="divide-y divide-border">
             {athletes.map((athlete) => {
               const subs = athlete.subscriptions as Array<{ status: string; plans: { name: string; price?: number; billing_cycle?: string } | null }> | null ?? []
               const activeSub    = subs.find((s) => s.status === 'active')
@@ -631,26 +631,26 @@ export default async function AthletesPage({ searchParams }: PageProps) {
               const catColor = cat?.color
 
               return (
-                <Link key={athlete.id} href={`/dashboard/athletes/${athlete.id}`} className="block group hover:bg-[#151515] transition-colors">
+                <Link key={athlete.id} href={`/dashboard/athletes/${athlete.id}`} className="group block transition-colors hover:bg-muted/50">
                   <div className="grid grid-cols-1 lg:grid-cols-[minmax(260px,2.8fr)_120px_minmax(180px,1.5fr)_130px_170px_100px] gap-4 items-center px-6 py-5">
 
                     {/* ── Athlete ── */}
                     <div className="flex items-center gap-4 min-w-0">
                       <div className="relative shrink-0">
-                        <Avatar className="w-12 h-12 border border-white/[0.04] shadow-sm bg-[#1a1a1a]">
+                        <Avatar className="h-12 w-12 border border-border bg-muted shadow-sm">
                           <AvatarImage src={athlete.photo_url ?? undefined} />
-                          <AvatarFallback className="text-xs font-black text-white/50 bg-[#222222]">
+                          <AvatarFallback className="bg-muted text-xs font-black text-muted-foreground">
                             {athlete.name.slice(0, 2).toUpperCase()}
                           </AvatarFallback>
                         </Avatar>
-                        <span className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-[#111111] group-hover:border-[#151515] transition-colors ${athlete.status === 'active' ? 'bg-primary' : athlete.status === 'suspended' ? 'bg-destructive' : 'bg-muted-foreground/40'}`} />
+                        <span className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-card transition-colors group-hover:border-muted ${athlete.status === 'active' ? 'bg-primary' : athlete.status === 'suspended' ? 'bg-destructive' : 'bg-muted-foreground/40'}`} />
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                          <span className="text-[15px] font-bold text-white truncate tracking-tight">{athlete.name}</span>
+                          <span className="truncate text-[15px] font-bold tracking-tight text-foreground">{athlete.name}</span>
                           <HealthStatusBadge status={athlete.health_status} />
                           {cat && cat.name !== 'General' && (
-                            <span className="hidden xl:inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full bg-white/[0.04] border border-white/[0.06]" style={catColor ? { borderColor: catColor, color: catColor } : {}}>
+                            <span className="hidden xl:inline-flex items-center gap-1 rounded-full border border-border bg-muted/80 px-2 py-0.5 text-[9px] font-bold" style={catColor ? { borderColor: catColor, color: catColor } : {}}>
                               {catColor && <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: catColor }} />}
                               {cat.name}
                             </span>
@@ -673,7 +673,7 @@ export default async function AthletesPage({ searchParams }: PageProps) {
                           ? 'bg-primary/10 text-primary border-primary/20'
                           : athlete.status === 'suspended'
                             ? 'bg-destructive/10 text-destructive border-destructive/30'
-                            : 'bg-white/[0.03] text-muted-foreground/60 border-white/[0.06]'
+                            : 'border-border bg-muted/50 text-muted-foreground'
                       }`}>
                         <span className={`w-1.5 h-1.5 rounded-full ${
                           athlete.status === 'active' ? 'bg-primary' :
@@ -687,7 +687,7 @@ export default async function AthletesPage({ searchParams }: PageProps) {
                     <div className="min-w-0">
                       {activeSub?.plans ? (
                         <>
-                          <p className="text-[13px] font-bold text-white truncate mb-0.5">{activeSub.plans.name}</p>
+                          <p className="mb-0.5 truncate text-[13px] font-bold text-foreground">{activeSub.plans.name}</p>
                           <p className="text-[11px] text-muted-foreground/50 font-medium">
                             {activeSub.plans.price ? `$${activeSub.plans.price.toLocaleString('es-CL')}/` : ''}{activeSub.plans.billing_cycle === 'monthly' ? 'mes' : activeSub.plans.billing_cycle === 'annual' ? 'año' : activeSub.plans.billing_cycle ?? ''}
                           </p>
@@ -707,7 +707,7 @@ export default async function AthletesPage({ searchParams }: PageProps) {
                     <div>
                       {lastPaid?.paid_at ? (
                         <>
-                          <p className="text-[13px] text-white font-bold mb-0.5">
+                          <p className="mb-0.5 text-[13px] font-bold text-foreground">
                             {new Date(lastPaid.paid_at).toLocaleDateString('es-CL', { day: 'numeric', month: 'short' })}
                           </p>
                           <p className="text-[11px] text-muted-foreground/50 font-medium">último cobro</p>
@@ -772,7 +772,7 @@ export default async function AthletesPage({ searchParams }: PageProps) {
                         )
                         return null
                       })()}
-                      <span className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/[0.04] bg-[#1a1a1a] text-muted-foreground/60 transition-all group-hover:bg-white/[0.08] group-hover:text-white shrink-0">
+                      <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border bg-muted text-muted-foreground transition-all group-hover:bg-muted/80 group-hover:text-foreground">
                         <ArrowRight className="w-4 h-4" />
                       </span>
                     </div>
@@ -808,7 +808,7 @@ export default async function AthletesPage({ searchParams }: PageProps) {
             <div className="flex items-center gap-2 flex-wrap">
               {page > 1 && (
                 <Link href={`/dashboard/athletes?${makePageQs(page - 1)}`}>
-                  <button className="inline-flex items-center gap-2 h-10 px-4 rounded-full border border-white/[0.06] bg-[#111111] hover:bg-[#1a1a1a] hover:border-primary/30 transition-all text-muted-foreground hover:text-foreground text-xs font-black uppercase tracking-widest">
+                  <button className="inline-flex h-10 items-center gap-2 rounded-full border border-border bg-card px-4 text-xs font-black uppercase tracking-widest text-muted-foreground transition-all hover:border-primary/30 hover:bg-muted/80 hover:text-foreground">
                     <ChevronLeft className="w-4 h-4" />
                     Anterior
                   </button>
@@ -819,10 +819,10 @@ export default async function AthletesPage({ searchParams }: PageProps) {
                 const isCurrent = p === page
                 return (
                   <Link key={p} href={`/dashboard/athletes?${makePageQs(p)}`}>
-                    <button className={`w-10 h-10 rounded-full text-xs font-black flex items-center justify-center transition-all ${
+                    <button className={`flex h-10 w-10 items-center justify-center rounded-full text-xs font-black transition-all ${
                       isCurrent
                         ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/30'
-                        : 'border border-white/[0.06] bg-[#111111] text-muted-foreground hover:bg-[#1a1a1a] hover:border-primary/30 hover:text-foreground'
+                        : 'border border-border bg-card text-muted-foreground hover:border-primary/30 hover:bg-muted/80 hover:text-foreground'
                     }`}>
                       {p}
                     </button>
@@ -831,7 +831,7 @@ export default async function AthletesPage({ searchParams }: PageProps) {
               })}
               {page * 20 < total && (
                 <Link href={`/dashboard/athletes?${makePageQs(page + 1)}`}>
-                  <button className="inline-flex items-center gap-2 h-10 px-4 rounded-full border border-white/[0.06] bg-[#111111] hover:bg-[#1a1a1a] hover:border-primary/30 transition-all text-muted-foreground hover:text-foreground text-xs font-black uppercase tracking-widest">
+                  <button className="inline-flex h-10 items-center gap-2 rounded-full border border-border bg-card px-4 text-xs font-black uppercase tracking-widest text-muted-foreground transition-all hover:border-primary/30 hover:bg-muted/80 hover:text-foreground">
                     Siguiente
                     <ChevronRight className="w-4 h-4" />
                   </button>
