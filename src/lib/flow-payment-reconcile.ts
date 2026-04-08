@@ -69,7 +69,36 @@ async function activateSubscriptionForPaidPayment(
     .eq('club_id', clubId)
 }
 
-export async function reconcileFlowPaymentByToken(token: string) {
+async function markPaymentAsPaid(
+  supabase: ReturnType<typeof createAdminClient>,
+  payment: { id: string; club_id: string; athlete_id: string; plan_id: string | null },
+  token: string,
+  source: string,
+) {
+  const paidAt = new Date().toISOString()
+  const { error } = await supabase
+    .from('payments')
+    .update({
+      status: 'paid',
+      paid_at: paidAt,
+      payment_method: 'flow',
+      transaction_id: token,
+      notes: `Flow token: ${token} (${source})`,
+    })
+    .eq('id', payment.id)
+    .eq('club_id', payment.club_id)
+  if (error) return { ok: false as const, reason: 'update_failed', error: error.message }
+
+  await activateSubscriptionForPaidPayment(supabase, payment.club_id, payment, new Date(paidAt))
+  return { ok: true as const, paid: true as const, paymentId: payment.id }
+}
+
+type ReconcileOpts = {
+  /** When true, mark as paid even if getStatus API is unavailable (webhook source) */
+  trustWebhook?: boolean
+}
+
+export async function reconcileFlowPaymentByToken(token: string, opts?: ReconcileOpts) {
   const supabase = createAdminClient()
   if (!token?.trim()) return { ok: false as const, reason: 'missing_token' }
 
@@ -93,65 +122,48 @@ export async function reconcileFlowPaymentByToken(token: string) {
   const flowConfig = resolveFlowConfigFromSettings((clubRow?.settings ?? {}) as Record<string, unknown>)
   if (!flowConfig) return { ok: false as const, reason: 'flow_not_configured' }
 
+  // Try to verify with Flow API
   let statusResponse: Record<string, unknown> = {}
   let paid = false
+  let apiAvailable = true
   try {
     statusResponse = await getFlowPaymentStatus(flowConfig, token.trim())
     paid = flowStatusIsPaid(statusResponse.status)
   } catch {
-    // Si Flow status falla en este instante, validamos contra BD:
-    // webhook/retorno previo pueden haber confirmado el pago ya.
-    const { data: fallbackByToken } = await supabase
-      .from('payments')
-      .select('id, club_id, athlete_id, plan_id, status')
-      .eq('transaction_id', token.trim())
-      .maybeSingle()
-    if (fallbackByToken?.status === 'paid') {
+    apiAvailable = false
+  }
+
+  if (paid) {
+    const paymentIdFromOrder = parsePaymentIdFromCommerceOrder(statusResponse.commerceOrder)
+    if (paymentIdFromOrder && paymentIdFromOrder !== payment.id) {
+      const { data: byOrder } = await supabase
+        .from('payments')
+        .select('id, club_id, athlete_id, plan_id, status')
+        .eq('id', paymentIdFromOrder)
+        .eq('club_id', payment.club_id)
+        .maybeSingle()
+      if (byOrder) payment = byOrder
+    }
+    if (payment.status === 'paid') {
       return { ok: true as const, paid: true as const, alreadyPaid: true as const }
     }
-    return { ok: true as const, paid: false as const }
-  }
-  const paymentIdFromOrder = parsePaymentIdFromCommerceOrder(statusResponse.commerceOrder)
-
-  if (paymentIdFromOrder && paymentIdFromOrder !== payment.id) {
-    const { data: byOrder } = await supabase
-      .from('payments')
-      .select('id, club_id, athlete_id, plan_id, status')
-      .eq('id', paymentIdFromOrder)
-      .eq('club_id', payment.club_id)
-      .maybeSingle()
-    if (byOrder) payment = byOrder
+    return markPaymentAsPaid(supabase, payment, token.trim(), 'verified_by_api')
   }
 
-  if (!paid) {
-    const { data: fallbackByToken } = await supabase
-      .from('payments')
-      .select('status')
-      .eq('transaction_id', token.trim())
-      .maybeSingle()
-    if (fallbackByToken?.status === 'paid') {
-      return { ok: true as const, paid: true as const, alreadyPaid: true as const }
-    }
-    return { ok: true as const, paid: false as const }
+  // Flow API says not paid, or API is unavailable
+  if (!apiAvailable && opts?.trustWebhook) {
+    return markPaymentAsPaid(supabase, payment, token.trim(), 'trusted_webhook')
   }
-  if (payment.status === 'paid') return { ok: true as const, paid: true as const, alreadyPaid: true as const }
 
-  const paidAt = new Date().toISOString()
-  const notesSuffix = `Flow token: ${token}`
-  const { error: updErr } = await supabase
+  // Check if DB was updated by another process
+  const { data: fallback } = await supabase
     .from('payments')
-    .update({
-      status: 'paid',
-      paid_at: paidAt,
-      payment_method: 'flow',
-      transaction_id: token,
-      notes: notesSuffix,
-    })
-    .eq('id', payment.id)
-    .eq('club_id', payment.club_id)
-  if (updErr) return { ok: false as const, reason: 'update_failed', error: updErr.message }
+    .select('status')
+    .eq('transaction_id', token.trim())
+    .maybeSingle()
+  if (fallback?.status === 'paid') {
+    return { ok: true as const, paid: true as const, alreadyPaid: true as const }
+  }
 
-  await activateSubscriptionForPaidPayment(supabase, payment.club_id, payment, new Date(paidAt))
-  return { ok: true as const, paid: true as const, paymentId: payment.id }
+  return { ok: true as const, paid: false as const, apiAvailable }
 }
-

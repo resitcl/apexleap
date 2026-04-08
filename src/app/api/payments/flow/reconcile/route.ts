@@ -9,25 +9,56 @@ import { reconcileFlowPaymentByToken } from '@/lib/flow-payment-reconcile'
 
 export async function GET(req: Request) {
   const url = new URL(req.url)
-  const token = url.searchParams.get('token') ?? ''
-  if (!token.trim()) {
-    return NextResponse.json({ ok: false, state: 'failed', reason: 'missing_token' }, { status: 400 })
+  const tokenParam = url.searchParams.get('token') ?? ''
+  const paymentIdParam = url.searchParams.get('payment_id') ?? ''
+
+  if (!tokenParam.trim() && !paymentIdParam.trim()) {
+    return NextResponse.json(
+      { ok: false, state: 'failed', reason: 'missing_token_or_payment_id' },
+      { status: 400 },
+    )
   }
 
-  const diag: Record<string, unknown> = { token }
   const supabase = createAdminClient()
+  const diag: Record<string, unknown> = { tokenParam, paymentIdParam }
 
-  // Step 1: Find payment by token
-  const { data: payment, error: payErr } = await supabase
-    .from('payments')
-    .select('id, club_id, athlete_id, plan_id, status, transaction_id, payment_method')
-    .eq('transaction_id', token.trim())
-    .maybeSingle()
+  // Step 1: Find payment by token OR payment_id
+  let payment: {
+    id: string; club_id: string; athlete_id: string
+    plan_id: string | null; status: string
+    transaction_id: string | null; payment_method: string | null
+  } | null = null
+  let payErr: string | null = null
 
+  if (tokenParam.trim()) {
+    const res = await supabase
+      .from('payments')
+      .select('id, club_id, athlete_id, plan_id, status, transaction_id, payment_method')
+      .eq('transaction_id', tokenParam.trim())
+      .maybeSingle()
+    payment = res.data
+    payErr = res.error?.message ?? null
+  }
+
+  if (!payment && paymentIdParam.trim()) {
+    const res = await supabase
+      .from('payments')
+      .select('id, club_id, athlete_id, plan_id, status, transaction_id, payment_method')
+      .eq('id', paymentIdParam.trim())
+      .maybeSingle()
+    payment = res.data
+    payErr = res.error?.message ?? null
+    diag.step1_foundBy = 'payment_id'
+  } else if (payment) {
+    diag.step1_foundBy = 'transaction_id'
+  }
+
+  const token = payment?.transaction_id ?? tokenParam.trim()
   diag.step1_payment = payment
-    ? { id: payment.id, status: payment.status, club_id: payment.club_id }
+    ? { id: payment.id, status: payment.status, club_id: payment.club_id, transaction_id: payment.transaction_id }
     : null
-  diag.step1_error = payErr?.message ?? null
+  diag.step1_error = payErr
+  diag.resolvedToken = token
 
   if (!payment) {
     return NextResponse.json({ ok: false, state: 'failed', reason: 'payment_not_found', diag })
@@ -70,37 +101,31 @@ export async function GET(req: Request) {
   diag.step3_statusType = flowResponse?.status !== undefined ? typeof flowResponse.status : null
   diag.step3_isPaid = flowResponse ? flowStatusIsPaid(flowResponse.status) : null
 
-  // Step 4: If Flow says paid, try to reconcile
+  // Step 4: Try to reconcile (with trustWebhook so it works even if API is down)
   const flowSaysPaid = flowResponse ? flowStatusIsPaid(flowResponse.status) : false
+  diag.step4_flowSaysPaid = flowSaysPaid
+  diag.step4_flowApiDown = !!flowError
 
-  if (flowSaysPaid && payment.status !== 'paid') {
-    diag.step4_action = 'updating_payment_to_paid'
-    try {
-      const result = await reconcileFlowPaymentByToken(token)
-      diag.step4_reconcileResult = result
-    } catch (e) {
-      diag.step4_reconcileError = e instanceof Error ? e.message : String(e)
-    }
-
-    // Re-check DB
-    const { data: afterUpdate } = await supabase
-      .from('payments')
-      .select('status')
-      .eq('id', payment.id)
-      .single()
-    diag.step4_finalDbStatus = afterUpdate?.status ?? null
-  } else if (!flowSaysPaid && flowResponse) {
-    diag.step4_action = 'flow_says_not_paid'
-    diag.step4_flowStatus = flowResponse.status
-  } else if (flowError) {
-    diag.step4_action = 'flow_api_failed'
+  diag.step4_action = 'reconciling_with_trust'
+  try {
+    const result = await reconcileFlowPaymentByToken(token, { trustWebhook: true })
+    diag.step4_reconcileResult = result
+  } catch (e) {
+    diag.step4_reconcileError = e instanceof Error ? e.message : String(e)
   }
+
+  const { data: afterUpdate } = await supabase
+    .from('payments')
+    .select('status')
+    .eq('id', payment.id)
+    .single()
+  diag.step4_finalDbStatus = afterUpdate?.status ?? null
 
   // Final state
   const { data: finalPayment } = await supabase
     .from('payments')
     .select('status')
-    .eq('transaction_id', token.trim())
+    .eq('id', payment.id)
     .maybeSingle()
 
   const finalStatus = finalPayment?.status

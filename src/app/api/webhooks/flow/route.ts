@@ -16,10 +16,9 @@ export async function POST(req: Request) {
       const url = new URL(req.url)
       token = url.searchParams.get('token') ?? ''
     }
-    await reconcileFlowPaymentByToken(token)
+    await reconcileFlowPaymentByToken(token, { trustWebhook: true })
     return NextResponse.json({ ok: true })
   } catch {
-    // Flow reintenta; devolvemos 200 para evitar loops ruidosos.
     return NextResponse.json({ ok: true })
   }
 }
@@ -28,10 +27,9 @@ export async function GET(req: Request) {
   try {
     const url = new URL(req.url)
     const token = url.searchParams.get('token') ?? ''
-    await reconcileFlowPaymentByToken(token)
+    await reconcileFlowPaymentByToken(token, { trustWebhook: true })
     return NextResponse.json({ ok: true })
   } catch {
     return NextResponse.json({ ok: true })
   }
 }
-

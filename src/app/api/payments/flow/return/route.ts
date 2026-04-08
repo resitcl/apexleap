@@ -29,12 +29,14 @@ async function handleReturn(req: Request) {
     } catch { /* use empty token */ }
   }
 
-  let paid = false
+  // Flow redirige al usuario aquí después de pagar.
+  // Confiamos en este retorno como fuente de confirmación (trustWebhook)
+  // porque el usuario viene directamente del checkout de Flow.
   let flowState: 'paid' | 'pending' | 'failed' = 'pending'
   let reason = 'unknown'
   try {
-    const result = await reconcileFlowPaymentByToken(token)
-    paid = Boolean(result && 'paid' in result && result.paid)
+    const result = await reconcileFlowPaymentByToken(token, { trustWebhook: true })
+    const paid = Boolean(result && 'paid' in result && result.paid)
     if (paid) {
       flowState = 'paid'
       reason = 'reconciled_paid'
@@ -45,9 +47,8 @@ async function handleReturn(req: Request) {
     reason = 'reconcile_exception'
   }
 
-  // Fuente de verdad final para UI: estado real en BD por token.
-  // Evita falsos "failed" por race condition entre retorno y webhook.
-  if (token) {
+  // Verificación final desde BD
+  if (token && flowState !== 'paid') {
     try {
       const supabase = createAdminClient()
       const { data: payment } = await supabase
@@ -66,7 +67,7 @@ async function handleReturn(req: Request) {
         reason = `db_${payment.status}`
       }
     } catch {
-      // no-op: mantenemos estado calculado
+      // mantenemos estado calculado
     }
   }
 
