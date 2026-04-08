@@ -79,7 +79,7 @@ export function FlowPaymentBanner() {
     <div
       className={`relative rounded-2xl border px-5 py-4 shadow-sm flex items-center gap-4 animate-in fade-in slide-in-from-top-2 duration-300 ${
         paid
-          ? 'border-primary/30 bg-primary/10'
+          ? 'border-emerald-500/30 bg-emerald-500/10'
           : pending
             ? 'border-amber-500/30 bg-amber-500/10'
             : 'border-destructive/30 bg-destructive/10'
@@ -87,11 +87,11 @@ export function FlowPaymentBanner() {
     >
       <div
         className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${
-          paid ? 'bg-primary/20' : pending ? 'bg-amber-500/20' : 'bg-destructive/20'
+          paid ? 'bg-emerald-500/20' : pending ? 'bg-amber-500/20' : 'bg-destructive/20'
         }`}
       >
         {paid ? (
-          <CheckCircle2 className="w-6 h-6 text-primary" />
+          <CheckCircle2 className="w-6 h-6 text-emerald-500" />
         ) : pending ? (
           <CheckCircle2 className="w-6 h-6 text-amber-500" />
         ) : (
@@ -100,7 +100,7 @@ export function FlowPaymentBanner() {
       </div>
 
       <div className="flex-1 min-w-0">
-        <p className={`text-sm font-black tracking-tight uppercase ${paid ? 'text-primary' : pending ? 'text-amber-500' : 'text-destructive'}`}>
+        <p className={`text-sm font-black tracking-tight uppercase ${paid ? 'text-emerald-500' : pending ? 'text-amber-500' : 'text-destructive'}`}>
           {paid ? 'Pago confirmado por Flow' : pending ? 'Pago en validación' : 'Pago no confirmado'}
         </p>
         <p className="text-xs text-muted-foreground mt-0.5">
