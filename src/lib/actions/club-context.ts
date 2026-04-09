@@ -103,15 +103,25 @@ export async function getClubSportType(): Promise<string | null> {
   return data?.sport_type ?? null
 }
 
-export async function getClubInfo(): Promise<{ id: string; name: string; slug: string }> {
+export async function getClubInfo(): Promise<{
+  id: string
+  name: string
+  slug: string
+  logo_url: string | null
+}> {
   const clubId = await getClubId()
   const supabase = createAdminClient()
   const { data } = await supabase
     .from('clubs')
-    .select('id, name, slug')
+    .select('id, name, slug, logo_url')
     .eq('id', clubId)
     .single()
-  return { id: clubId, name: data?.name ?? 'Club', slug: data?.slug ?? 'club' }
+  return {
+    id: clubId,
+    name: data?.name ?? 'Club',
+    slug: data?.slug ?? 'club',
+    logo_url: (data?.logo_url as string | null) ?? null,
+  }
 }
 
 export async function switchToClub(clubId: string): Promise<void> {

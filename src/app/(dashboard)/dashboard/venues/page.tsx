@@ -22,7 +22,7 @@ import { VenueQRButton } from "@/components/venues/VenueQRButton"
 export default async function VenuesPage() {
   let venues: Awaited<ReturnType<typeof getVenues>> = []
   let schedules: Awaited<ReturnType<typeof getSchedules>> = []
-  let clubInfo = { id: '', name: 'Club', slug: 'club' }
+  let clubInfo = { id: '', name: 'Club', slug: 'club', logo_url: null as string | null }
 
   try {
     ;[venues, schedules, clubInfo] = await Promise.all([getVenues(), getSchedules(), getClubInfo()])

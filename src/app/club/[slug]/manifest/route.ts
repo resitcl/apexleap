@@ -44,7 +44,7 @@ export async function GET(
     short_name: shortName,
     description,
     start_url: basePath,
-    scope: basePath,
+    scope: '/',
     display: 'standalone' as const,
     orientation: 'portrait-primary' as const,
     background_color: '#fafafa',

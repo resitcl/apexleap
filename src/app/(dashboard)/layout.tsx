@@ -1,4 +1,5 @@
 import React from "react"
+import type { Metadata } from "next"
 import { UserNavClient } from "@/components/layouts/UserNavClient"
 import { ChatWidget } from "@/components/layouts/ChatWidget"
 import Link from "next/link"
@@ -42,8 +43,33 @@ import { getSportVocab } from "@/lib/sport-vocab"
 import { isSuperAdmin } from "@/lib/actions/super-admin"
 import { AgreementGateWrapper } from "@/components/agreements/AgreementGateWrapper"
 import { ClubBrandingRoot } from "@/components/layouts/ClubBrandingRoot"
-import { canAccessClubAiChat, getUserRole } from "@/lib/actions/club-context"
+import { canAccessClubAiChat, getClubInfo, getUserRole } from "@/lib/actions/club-context"
 import type { UserRole } from "@/lib/actions/club-context"
+
+export async function generateMetadata(): Promise<Metadata> {
+  try {
+    const { slug, name, logo_url: logoUrl } = await getClubInfo()
+    const logo = logoUrl ?? undefined
+    return {
+      manifest: `/${slug}/manifest`,
+      appleWebApp: {
+        capable: true,
+        title: name,
+        statusBarStyle: "default",
+      },
+      ...(logo
+        ? {
+            icons: {
+              icon: [{ url: logo }],
+              apple: [{ url: logo }],
+            },
+          }
+        : {}),
+    }
+  } catch {
+    return {}
+  }
+}
 
 function buildAthleteNavGroups(v: ReturnType<typeof getSportVocab>, sportType: string | null) {
   const actividadItems = [

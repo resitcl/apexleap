@@ -36,8 +36,9 @@ export async function GET(
     name: `${club.name} — ApexLeap`,
     short_name: club.name.length > 12 ? `${club.name.slice(0, 12).trim()}…` : club.name,
     description: `Acceso a ${club.name}`,
-    start_url: `/${club.slug}/signin`,
-    scope: `/${club.slug}/`,
+    // Entrada por URL del club; scope en `/` para que /dashboard siga dentro de la PWA al iniciar sesión.
+    start_url: `/${club.slug}/`,
+    scope: '/',
     display: 'standalone' as const,
     orientation: 'portrait-primary' as const,
     background_color: '#fafafa',
