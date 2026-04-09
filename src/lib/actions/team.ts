@@ -200,6 +200,27 @@ export async function getTeamData() {
         { name: (u.name as string | null) ?? null, email: (u.email as string | null) ?? null },
       ]),
     )
+
+    // Fallback: completar nombre/email directamente desde Clerk para miembros antiguos
+    // que aún no tengan fila en `users`.
+    const missingIds = userIds.filter((id) => {
+      const info = userInfoById[id]
+      return !info || (!info.name && !info.email)
+    })
+
+    if (missingIds.length > 0) {
+      try {
+        const clerk = await clerkClient()
+        const clerkUsers = await clerk.users.getUserList({ userId: missingIds, limit: missingIds.length })
+        for (const u of clerkUsers.data) {
+          const email = u.emailAddresses?.[0]?.emailAddress ?? null
+          const name = [u.firstName, u.lastName].filter(Boolean).join(' ') || email || null
+          userInfoById[u.id] = { name, email }
+        }
+      } catch {
+        // Si Clerk falla, mantenemos fallback al user_id sin romper la vista.
+      }
+    }
   }
 
   return {
