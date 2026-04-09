@@ -10,8 +10,8 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { DashboardEmptyState, DashboardMetaPill, DashboardPage, DashboardPageHeader } from "@/components/ui/dashboard-kit"
-import { UserPlus, AlertCircle, Clock, Users, TrendingUp, UserCheck, Activity, Filter, CheckCircle2, ArrowRight, ChevronLeft, ChevronRight, Sparkles } from "lucide-react"
-import { AthletesSearch } from "@/components/athletes/AthletesSearch"
+import { UserPlus, AlertCircle, Clock, Users, TrendingUp, UserCheck, Activity, CheckCircle2, ArrowRight, ChevronLeft, ChevronRight, Sparkles } from "lucide-react"
+import { AthletesFilter } from "@/components/athletes/AthletesFilter"
 import { HealthStatusBadge } from "@/components/athletes/HealthStatusBadge"
 import { ExportAthletesButton } from "@/components/athletes/ExportAthletesButton"
 import { BulkActionsWrapper } from "@/components/athletes/BulkActionsWrapper"
@@ -517,71 +517,7 @@ export default async function AthletesPage({ searchParams }: PageProps) {
       {/* Bulk Actions */}
       <BulkActionsWrapper athletes={athletes.map((a) => ({ id: a.id, name: a.name, photo_url: (a as { photo_url?: string | null }).photo_url ?? null, status: a.status, health_status: a.health_status }))} />
 
-      {/* ═══════════ SEARCH & FILTERS ═══════════ */}
-      <div className="flex items-center gap-4 w-full">
-        {/* Search Bar - Principal */}
-        <div className="flex flex-1 items-center rounded-[20px] border border-border bg-card p-2 shadow-sm">
-          <div className="flex-1">
-            <AthletesSearch />
-          </div>
-          
-          <div className="mx-2 h-8 w-px bg-border" />
-          
-          {/* Quick Selects - Inline */}
-          <div className="flex items-center gap-2 pr-2 overflow-x-auto hide-scrollbar">
-            {/* Filtro Plan */}
-            {plans.length > 0 && (
-              <div className="mr-1 flex items-center gap-1.5 border-r border-border pr-3">
-                <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/40">Plan:</span>
-                <Link href={`/dashboard/athletes?${new URLSearchParams({ ...(params.search ? { search: params.search } : {}), ...(params.status ? { status: params.status } : {}), ...(params.health ? { health: params.health } : {}), ...(params.subStatus ? { subStatus: params.subStatus } : {}), ...(params.categoryId ? { categoryId: params.categoryId } : {}), ...(sort ? { sort } : {}) }).toString()}`}>
-                  <button className={`h-7 px-2.5 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all ${!params.planId ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted/80 hover:text-foreground'}`}>Todos</button>
-                </Link>
-                {plans.map((plan) => (
-                  <Link key={plan.id} href={`/dashboard/athletes?${new URLSearchParams({ ...(params.search ? { search: params.search } : {}), ...(params.status ? { status: params.status } : {}), ...(params.health ? { health: params.health } : {}), planId: plan.id, ...(params.subStatus ? { subStatus: params.subStatus } : {}), ...(params.categoryId ? { categoryId: params.categoryId } : {}), ...(sort ? { sort } : {}) }).toString()}`}>
-                    <button className={`h-7 px-2.5 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all ${params.planId === plan.id ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted/80 hover:text-foreground'}`}>{plan.name}</button>
-                  </Link>
-                ))}
-              </div>
-            )}
-
-            {/* Status Quick Select */}
-            <div className="flex items-center gap-1.5">
-              <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/40">Estado:</span>
-              <div className="flex gap-1">
-                <Link href={`/dashboard/athletes?${new URLSearchParams({ ...(params.search ? { search: params.search } : {}), ...(params.planId ? { planId: params.planId } : {}) }).toString()}`}>
-                  <button className={`h-7 px-2.5 rounded-full text-[10px] font-bold uppercase tracking-widest border transition-all ${!params.status ? 'bg-primary text-primary-foreground border-primary' : 'border-transparent text-muted-foreground hover:bg-muted/80 hover:text-foreground'}`}>Todos</button>
-                </Link>
-                <Link href={`/dashboard/athletes?${new URLSearchParams({ ...(params.search ? { search: params.search } : {}), ...(params.planId ? { planId: params.planId } : {}), status: 'active' }).toString()}`}>
-                  <button className={`h-7 px-2.5 rounded-full text-[10px] font-bold uppercase tracking-widest border transition-all ${params.status === 'active' ? 'bg-primary text-primary-foreground border-primary' : 'border-transparent text-muted-foreground hover:bg-muted/80 hover:text-foreground'}`}>Activos</button>
-                </Link>
-                <Link href={`/dashboard/athletes?${new URLSearchParams({ ...(params.search ? { search: params.search } : {}), ...(params.planId ? { planId: params.planId } : {}), status: 'inactive' }).toString()}`}>
-                  <button className={`h-7 px-2.5 rounded-full text-[10px] font-bold uppercase tracking-widest border transition-all ${params.status === 'inactive' ? 'bg-primary text-primary-foreground border-primary' : 'border-transparent text-muted-foreground hover:bg-muted/80 hover:text-foreground'}`}>Inactivos</button>
-                </Link>
-              </div>
-            </div>
-            
-            {/* Clear All Inline */}
-            {(params.search || params.status || params.health || params.planId || params.subStatus || params.categoryId || sort || showInactive || filterDebtOld60 || filterExpiredDocs || params.ageMin || params.ageMax || params.debtMin || params.debtMax) && (
-              <div className="ml-1 flex items-center gap-2 border-l border-border pl-3">
-                <Link href="/dashboard/athletes" className="h-7 px-2.5 rounded-full text-[10px] font-bold uppercase tracking-widest text-destructive/80 hover:text-destructive hover:bg-destructive/10 transition-colors flex items-center gap-1.5">
-                  ✕ Limpiar
-                </Link>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* View Control Box */}
-        <div className="flex shrink-0 items-center justify-between gap-4 rounded-[20px] border border-border bg-card p-3 shadow-sm">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border bg-muted/50">
-            <Filter className="w-4 h-4 text-muted-foreground/50" />
-          </div>
-          <div className="text-right pr-2">
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground/45 mb-0.5">{visibleStart}-{visibleEnd}</p>
-            <p className="text-[11px] font-bold text-foreground">de {total.toLocaleString('es-CL')}</p>
-          </div>
-        </div>
-      </div>
+      <AthletesFilter plans={plans} categories={categories} />
 
       {/* ═══════════ ATHLETES TABLE ═══════════ */}
       {error ? (
@@ -799,6 +735,14 @@ export default async function AthletesPage({ searchParams }: PageProps) {
           if (params.subStatus) base.subStatus = params.subStatus
           if (params.categoryId) base.categoryId = params.categoryId
           if (sort)             base.sort = sort
+          if (params.inactive === '1') base.inactive = '1'
+          if (params.expiredDocs === '1') base.expiredDocs = '1'
+          if (params.debtOld60 === '1') base.debtOld60 = '1'
+          if (params.ageMin)    base.ageMin = params.ageMin
+          if (params.ageMax)    base.ageMax = params.ageMax
+          if (params.debtMin)   base.debtMin = params.debtMin
+          if (params.debtMax)   base.debtMax = params.debtMax
+          if (params.minAtt)   base.minAtt = params.minAtt
           base.page = String(p)
           return new URLSearchParams(base).toString()
         }

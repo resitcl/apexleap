@@ -1,6 +1,7 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import type { NextRequest, NextFetchEvent } from 'next/server'
+import { TENANT_ENTRY_SLUG_COOKIE } from '@/lib/constants'
 
 /* ── Rutas que Clerk NO debe tocar en absoluto ── */
 const BYPASS_CLERK_PREFIXES = [
@@ -31,7 +32,24 @@ const clerkMw = clerkMiddleware(async (auth, request) => {
   const nextWithPathname = () => {
     const requestHeaders = new Headers(request.headers)
     requestHeaders.set('x-pathname', pathname)
-    return NextResponse.next({ request: { headers: requestHeaders } })
+    const res = NextResponse.next({ request: { headers: requestHeaders } })
+
+    const parts = pathname.split('/').filter(Boolean)
+    const first = parts[0]
+    const isKnownRoot = !!first && KNOWN_ROOTS.has(first)
+    const isTenantEntry =
+      !!first &&
+      !isKnownRoot &&
+      (parts.length === 1 || (parts.length === 2 && ['signin', 'signup'].includes(parts[1])))
+
+    if (isTenantEntry) {
+      res.cookies.set(TENANT_ENTRY_SLUG_COOKIE, first, {
+        path: '/',
+        maxAge: 60 * 30, // 30 minutos, solo para completar auth
+        sameSite: 'lax',
+      })
+    }
+    return res
   }
 
   const segments = pathname.split('/').filter(Boolean)

@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { inviteUserToClub, revokeInvitation, removeTeamMember } from '@/lib/actions/team'
+import { inviteUserToClub, revokeInvitation, removeTeamMember, updateTeamMemberRole } from '@/lib/actions/team'
 import { toast } from 'sonner'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -14,6 +14,8 @@ interface Member {
   role: string
   is_active: boolean
   created_at: string
+  name: string | null
+  email: string | null
 }
 
 interface Invitation {
@@ -122,6 +124,20 @@ export function TeamManager({ members, invitations, clubSlug }: Props) {
     })
   }
 
+  function handleUpdateRole(userId: string, nextRole: 'admin' | 'admin_athlete' | 'coach' | 'athlete') {
+    setWorking(`role:${userId}`)
+    start(async () => {
+      const result = await updateTeamMemberRole(userId, nextRole)
+      if (!result.ok) {
+        toast.error(result.error)
+      } else {
+        toast.success('Rol actualizado')
+        router.refresh()
+      }
+      setWorking(null)
+    })
+  }
+
   const pendingInvitations = invitations.filter(i => i.status === 'pending')
   const pastInvitations    = invitations.filter(i => i.status !== 'pending')
 
@@ -204,19 +220,34 @@ export function TeamManager({ members, invitations, clubSlug }: Props) {
               {members.map(m => (
                 <div key={m.user_id} className="flex items-center justify-between gap-3 p-2.5 rounded-lg border border-border bg-card">
                   <div className="min-w-0">
-                    <p className="text-xs font-mono text-muted-foreground truncate">{m.user_id}</p>
+                    <p className="text-sm font-semibold truncate">{m.name ?? 'Usuario'}</p>
+                    <p className="text-xs text-muted-foreground truncate">{m.email ?? m.user_id}</p>
                     <span className={`inline-block text-[10px] font-semibold px-1.5 py-0.5 rounded-full mt-0.5 ${ROLE_COLORS[m.role] ?? 'bg-muted'}`}>
                       {ROLE_LABELS[m.role] ?? m.role}
                     </span>
                   </div>
-                  <button
-                    onClick={() => handleRemove(m.user_id)}
-                    disabled={isPending}
-                    title="Remover del club"
-                    className="w-7 h-7 inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 disabled:opacity-40 transition-colors shrink-0"
-                  >
-                    {working === m.user_id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-                  </button>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <select
+                      value={m.role}
+                      onChange={(e) => handleUpdateRole(m.user_id, e.target.value as 'admin' | 'admin_athlete' | 'coach' | 'athlete')}
+                      className="h-8 px-2 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+                      disabled={isPending}
+                    >
+                      {ROLES.map((r) => (
+                        <option key={r.value} value={r.value}>
+                          {r.label}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={() => handleRemove(m.user_id)}
+                      disabled={isPending}
+                      title="Remover del club"
+                      className="w-7 h-7 inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 disabled:opacity-40 transition-colors shrink-0"
+                    >
+                      {working === m.user_id || working === `role:${m.user_id}` ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>

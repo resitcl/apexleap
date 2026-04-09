@@ -5,7 +5,18 @@ import { TeamManager } from "@/components/settings/TeamManager"
 import { Users } from "lucide-react"
 
 export default async function TeamPage() {
-  let data = { members: [] as { user_id: string; role: string; is_active: boolean; created_at: string }[], invitations: [] as { id: string; email: string; role: string; status: string; created_at: string; accepted_at: string | null }[], clubSlug: '' }
+  let data = {
+    members: [] as {
+      user_id: string
+      role: string
+      is_active: boolean
+      created_at: string
+      name: string | null
+      email: string | null
+    }[],
+    invitations: [] as { id: string; email: string; role: string; status: string; created_at: string; accepted_at: string | null }[],
+    clubSlug: '',
+  }
 
   try {
     data = await getTeamData()

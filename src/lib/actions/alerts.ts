@@ -12,6 +12,7 @@ export async function getSidebarAlerts() {
       expiringSoonDocs: 0,
       expiringSubscriptions: 0,
       pendingEnrollments: 0,
+      pendingEnrollmentPaid: 0,
       paidToday: 0,
       clubName: null,
       primaryColor: null,
@@ -38,6 +39,7 @@ export async function getSidebarAlerts() {
     expiringSoonDocs: 0,
     expiringSubscriptions: 0,
     pendingEnrollments: 0,
+    pendingEnrollmentPaid: 0,
     paidToday: 0,
   }
 
@@ -57,7 +59,7 @@ export async function getSidebarAlerts() {
     /* sin rol → seguir con consultas de staff */
   }
 
-  const [paymentsRes, docsRes, subsRes, enrollmentsRes, paidTodayRes] = await Promise.all([
+  const [paymentsRes, docsRes, subsRes, enrollmentsRes, paidTodayRes, pendingEnrollmentPaidRes] = await Promise.all([
     supabase
       .from('payments')
       .select('id', { count: 'exact', head: true })
@@ -91,6 +93,24 @@ export async function getSidebarAlerts() {
       .eq('club_id', clubId)
       .eq('status', 'paid')
       .gte('paid_at', dayStartIso),
+
+    // Inscripciones ya pagadas de atletas aún pendientes de aprobación.
+    supabase
+      .from('payments')
+      .select('id', { count: 'exact', head: true })
+      .eq('club_id', clubId)
+      .eq('status', 'paid')
+      .ilike('concept', 'Inscripción%')
+      .in(
+        'athlete_id',
+        (
+          await supabase
+            .from('athletes')
+            .select('id')
+            .eq('club_id', clubId)
+            .eq('enrollment_status', 'pending_approval')
+        ).data?.map((a) => a.id) ?? ['00000000-0000-0000-0000-000000000000']
+      ),
   ])
 
   return {
@@ -98,6 +118,7 @@ export async function getSidebarAlerts() {
     expiringSoonDocs:      docsRes.count     ?? 0,
     expiringSubscriptions: subsRes.count     ?? 0,
     pendingEnrollments:    enrollmentsRes.count ?? 0,
+    pendingEnrollmentPaid: pendingEnrollmentPaidRes.count ?? 0,
     paidToday:             paidTodayRes.count ?? 0,
     clubName:         clubData?.name          ?? null,
     primaryColor:     clubData?.primary_color ?? null,

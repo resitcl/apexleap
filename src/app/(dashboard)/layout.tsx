@@ -246,6 +246,14 @@ export default async function DashboardLayout({
           href: '/dashboard/athletes/pending',
           count: alerts.pendingEnrollments,
         }] : []),
+        ...(alerts.pendingEnrollmentPaid > 0 ? [{
+          id: 'pending-enrollment-paid',
+          type: 'enrollment' as const,
+          title: `${alerts.pendingEnrollmentPaid} ${alerts.pendingEnrollmentPaid === 1 ? 'inscripción pagada por revisar' : 'inscripciones pagadas por revisar'}`,
+          description: 'Atletas con pago de inscripción confirmado, pendientes de aprobación.',
+          href: '/dashboard/athletes/pending',
+          count: alerts.pendingEnrollmentPaid,
+        }] : []),
         ...(alerts.paidToday > 0 ? [{
           id: 'paid-today',
           type: 'payment_success' as const,

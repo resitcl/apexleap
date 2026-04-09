@@ -233,6 +233,11 @@ export default async function AthletePage({ searchParams }: { searchParams?: Pro
   void sessions // used for potential future features
 
   const beltLevel = (techMeta?.belt as string | undefined) ?? null
+  const preferredPosition =
+    (typeof techMeta?.position === 'string' && techMeta.position.trim()) ||
+    (typeof techMeta?.preferred_positions === 'string' && techMeta.preferred_positions.trim()) ||
+    null
+  const jerseyNumber = (athlete as { jersey_number?: number | null }).jersey_number ?? null
 
   return (
     <div className="space-y-4 pb-12 pt-1">
@@ -391,7 +396,13 @@ export default async function AthletePage({ searchParams }: { searchParams?: Pro
 
         </div>
 
-        <AthleteDashboardRankCard sportType={sportType} beltLevel={beltLevel} stripesRaw={techMeta?.stripes} />
+        <AthleteDashboardRankCard
+          sportType={sportType}
+          beltLevel={beltLevel}
+          stripesRaw={techMeta?.stripes}
+          jerseyNumber={jerseyNumber}
+          preferredPosition={preferredPosition}
+        />
       </div>
 
       <div className="grid lg:grid-cols-5 gap-4 items-start pb-8">

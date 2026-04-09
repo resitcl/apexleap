@@ -121,6 +121,46 @@ export async function removeTeamMember(clerkUserId: string): Promise<{ ok: true 
   }
 }
 
+export async function updateTeamMemberRole(
+  clerkUserId: string,
+  role: 'admin' | 'admin_athlete' | 'coach' | 'athlete'
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const { userId } = await auth()
+    if (!userId) return { ok: false, error: 'No autorizado' }
+
+    const clubId = await getClubId()
+    const supabase = createAdminClient()
+
+    // Solo admin/admin_athlete pueden cambiar roles.
+    const { data: me } = await supabase
+      .from('user_clubs')
+      .select('role')
+      .eq('user_id', userId)
+      .eq('club_id', clubId)
+      .eq('is_active', true)
+      .maybeSingle()
+
+    if (!me || !['admin', 'admin_athlete'].includes(me.role)) {
+      return { ok: false, error: 'No tienes permisos para cambiar roles.' }
+    }
+
+    const { error } = await supabase
+      .from('user_clubs')
+      .update({ role })
+      .eq('user_id', clerkUserId)
+      .eq('club_id', clubId)
+      .eq('is_active', true)
+
+    if (error) return { ok: false, error: error.message }
+
+    revalidatePath('/dashboard/settings/team')
+    return { ok: true }
+  } catch (err: unknown) {
+    return { ok: false, error: clerkErrMsg(err) }
+  }
+}
+
 export async function getTeamData() {
   const clubId = await getClubId()
   const supabase = createAdminClient()
@@ -144,8 +184,30 @@ export async function getTeamData() {
       .single(),
   ])
 
+  const members = membersRes.data ?? []
+  const userIds = members.map((m) => m.user_id)
+
+  let userInfoById: Record<string, { name: string | null; email: string | null }> = {}
+  if (userIds.length > 0) {
+    const { data: usersData } = await supabase
+      .from('users')
+      .select('clerk_id, name, email')
+      .in('clerk_id', userIds)
+
+    userInfoById = Object.fromEntries(
+      (usersData ?? []).map((u) => [
+        u.clerk_id as string,
+        { name: (u.name as string | null) ?? null, email: (u.email as string | null) ?? null },
+      ]),
+    )
+  }
+
   return {
-    members: membersRes.data ?? [],
+    members: members.map((m) => ({
+      ...m,
+      name: userInfoById[m.user_id]?.name ?? null,
+      email: userInfoById[m.user_id]?.email ?? null,
+    })),
     invitations: invitationsRes.data ?? [],
     clubSlug: clubRes.data?.slug ?? '',
   }

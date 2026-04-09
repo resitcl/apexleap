@@ -28,13 +28,24 @@ interface Props {
   sportType: string | null
   beltLevel: string | null
   stripesRaw: unknown
+  jerseyNumber?: number | string | null
+  preferredPosition?: string | null
 }
 
 /**
  * Card "Rango actual" del dashboard atleta. Para academias de BJJ muestra cinta SVG + franjas.
  */
-export function AthleteDashboardRankCard({ sportType, beltLevel, stripesRaw }: Props) {
+const TEAM_SPORTS = ['Fútbol', 'Básquetbol', 'Vóley', 'Rugby', 'Hockey', 'Handball', 'Waterpolo'] as const
+
+export function AthleteDashboardRankCard({
+  sportType,
+  beltLevel,
+  stripesRaw,
+  jerseyNumber,
+  preferredPosition,
+}: Props) {
   const isBeltSport = sportType && BELT_SPORTS.includes(sportType as (typeof BELT_SPORTS)[number])
+  const isTeamSport = !!sportType && TEAM_SPORTS.includes(sportType as (typeof TEAM_SPORTS)[number])
   const isBjj = sportType === 'Jiu-Jitsu'
   const stripes = parseStripes(stripesRaw)
   const beltKey = beltLevel?.toLowerCase() ?? ''
@@ -46,6 +57,38 @@ export function AthleteDashboardRankCard({ sportType, beltLevel, stripesRaw }: P
 
   const accent = beltLevel ? getBeltColor(beltLevel) : '#444'
   const isLightBeltColor = beltLevel ? isLightBelt(beltLevel) : false
+
+  if (isTeamSport) {
+    const shirtNumber =
+      jerseyNumber === null || jerseyNumber === undefined || String(jerseyNumber).trim() === ''
+        ? '?'
+        : String(jerseyNumber)
+    const positionLabel =
+      preferredPosition && preferredPosition.trim().length > 0
+        ? preferredPosition
+        : 'Sin posición asignada'
+
+    return (
+      <div className="rounded-2xl bg-card p-6 border border-border shadow-sm flex flex-col w-full lg:w-64 lg:shrink-0">
+        <div className="flex items-start justify-between mb-4">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">Ficha de jugador</p>
+          <div className="w-10 h-10 rounded-xl bg-muted/30 flex items-center justify-center shrink-0">
+            <span className="text-lg">🏀</span>
+          </div>
+        </div>
+        <div className="space-y-2.5">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Dorsal</p>
+            <p className="text-3xl font-black leading-none tracking-tight text-foreground">#{shirtNumber}</p>
+          </div>
+          <div className="pt-2 border-t border-border">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Posición</p>
+            <p className="text-sm font-semibold text-foreground">{positionLabel}</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   if (!beltLevel || !isBeltSport) {
     return (
