@@ -42,7 +42,7 @@ import { getSportVocab } from "@/lib/sport-vocab"
 import { isSuperAdmin } from "@/lib/actions/super-admin"
 import { AgreementGateWrapper } from "@/components/agreements/AgreementGateWrapper"
 import { ClubBrandingRoot } from "@/components/layouts/ClubBrandingRoot"
-import { getUserRole } from "@/lib/actions/club-context"
+import { canAccessClubAiChat, getUserRole } from "@/lib/actions/club-context"
 import type { UserRole } from "@/lib/actions/club-context"
 
 function buildAthleteNavGroups(v: ReturnType<typeof getSportVocab>, sportType: string | null) {
@@ -180,6 +180,13 @@ export default async function DashboardLayout({
   let role: UserRole = 'admin'
   try { role = await getUserRole() } catch { /* silent */ }
   const isAthlete = role === 'athlete'
+
+  let showClubAiChat = false
+  try {
+    showClubAiChat = await canAccessClubAiChat()
+  } catch {
+    showClubAiChat = false
+  }
 
   const vocab = getSportVocab(sportType)
   const NAV_GROUPS = isAthlete ? buildAthleteNavGroups(vocab, sportType) : buildNavGroups(vocab)
@@ -382,8 +389,7 @@ export default async function DashboardLayout({
           </AgreementGateWrapper>
         </main>
 
-        {/* AI Chat Assistant */}
-        <ChatWidget />
+        {showClubAiChat && <ChatWidget />}
       </div>
     </div>
   )

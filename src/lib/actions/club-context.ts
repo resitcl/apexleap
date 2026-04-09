@@ -80,6 +80,12 @@ export async function getUserRole(): Promise<UserRole> {
   return (data?.role as UserRole) ?? 'athlete'
 }
 
+/** Rol de staff que puede usar el asistente IA del club (no atletas). */
+export async function canAccessClubAiChat(): Promise<boolean> {
+  const role = await getClubMembershipRole()
+  return role === 'admin' || role === 'admin_athlete' || role === 'coach'
+}
+
 /** Redirige al portal del atleta si el rol en `user_clubs` es solo `athlete` (sin staff). */
 export async function requireClubStaffPage() {
   const role = await getClubMembershipRole()

@@ -1,4 +1,5 @@
 import { auth } from '@clerk/nextjs/server'
+import { getClubMembershipRole } from '@/lib/actions/club-context'
 import { createAdminClient } from '@/lib/supabase/admin'
 import OpenAI from 'openai'
 
@@ -25,6 +26,16 @@ const PAGE_LABELS: Record<string, string> = {
 export async function POST(req: Request) {
   const { userId } = await auth()
   if (!userId) return new Response('Unauthorized', { status: 401 })
+
+  let membershipRole: string
+  try {
+    membershipRole = await getClubMembershipRole()
+  } catch {
+    return new Response('Club no encontrado', { status: 404 })
+  }
+  if (membershipRole === 'athlete') {
+    return new Response('El asistente IA solo está disponible para administración y cuerpo técnico.', { status: 403 })
+  }
 
   if (!process.env.OPENAI_API_KEY) {
     return new Response(
