@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
   // 2. Obtener el club del usuario autenticado
   const { data: userClub, error: clubErr } = await supabase
     .from('user_clubs')
-    .select('club_id, role, clubs(id, name, slug, logo_url, primary_color, settings)')
+    .select('club_id, role, clubs(id, name, slug, logo_url, primary_color, email, settings)')
     .eq('user_id', userId)
     .eq('is_active', true)
     .in('role', ['admin', 'coach', 'admin_athlete'])
@@ -45,12 +45,14 @@ export async function POST(req: NextRequest) {
     slug: string
     logo_url?: string | null
     primary_color?: string | null
+    email?: string | null
     settings?: Record<string, unknown>
   }
   const clubName = club.name
   const clubSlug = club.slug
   const clubLogoUrl = club.logo_url ?? null
   const clubBrandColor = club.primary_color ?? null
+  const clubEmail = club.email ?? null
 
   // Instrucciones de pago del club (si están configuradas)
   const paymentInstructions =
@@ -120,6 +122,7 @@ export async function POST(req: NextRequest) {
       paymentInstructions,
       logoUrl: clubLogoUrl,
       brandColor: clubBrandColor,
+      replyTo: clubEmail,
     })
 
     if (result.success) {

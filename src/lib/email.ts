@@ -16,6 +16,16 @@ const FROM_EMAIL =
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://apexleap.vercel.app'
 
+/**
+ * Resuelve el reply-to para un correo.
+ * Prioridad: email del club → variable global RESEND_REPLY_TO → sin reply-to
+ */
+function resolveReplyTo(clubEmail: string | null | undefined): string | undefined {
+  if (clubEmail && clubEmail.trim()) return clubEmail.trim()
+  if (process.env.RESEND_REPLY_TO?.trim()) return process.env.RESEND_REPLY_TO.trim()
+  return undefined
+}
+
 // ---------------------------------------------------------------------------
 // Tipos compartidos
 // ---------------------------------------------------------------------------
@@ -267,6 +277,7 @@ export async function sendInvitationEmail(opts: {
   adminName?: string
   logoUrl?: string | null
   brandColor?: string | null
+  replyTo?: string | null
 }): Promise<SendEmailResult> {
   if (!process.env.RESEND_API_KEY) {
     console.warn('[email] RESEND_API_KEY no configurada — email de invitación no enviado')
@@ -274,9 +285,11 @@ export async function sendInvitationEmail(opts: {
   }
 
   try {
+    const replyTo = resolveReplyTo(opts.replyTo)
     const { data, error } = await resend.emails.send({
       from: FROM_EMAIL,
       to: opts.to,
+      ...(replyTo ? { reply_to: replyTo } : {}),
       subject: `¡Bienvenido/a a ${opts.clubName}! 🥋`,
       html: buildInvitationHtml(opts),
     })
@@ -310,6 +323,7 @@ export async function sendPaymentReminderEmail(opts: {
   paymentInstructions?: string
   logoUrl?: string | null
   brandColor?: string | null
+  replyTo?: string | null
 }): Promise<SendEmailResult> {
   if (!process.env.RESEND_API_KEY) {
     console.warn('[email] RESEND_API_KEY no configurada — recordatorio de pago no enviado')
@@ -317,9 +331,11 @@ export async function sendPaymentReminderEmail(opts: {
   }
 
   try {
+    const replyTo = resolveReplyTo(opts.replyTo)
     const { data, error } = await resend.emails.send({
       from: FROM_EMAIL,
       to: opts.to,
+      ...(replyTo ? { reply_to: replyTo } : {}),
       subject: `Recordatorio de pago – ${opts.clubName}`,
       html: buildPaymentReminderHtml(opts),
     })

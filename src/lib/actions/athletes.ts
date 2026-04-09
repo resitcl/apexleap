@@ -147,6 +147,7 @@ export async function createAthlete(input: AthleteInput) {
       clubSlug: clubInfo.slug,
       logoUrl: clubInfo.logo_url,
       brandColor: clubInfo.primary_color,
+      replyTo: clubInfo.email,
     }).catch((err) =>
       console.error('[athletes] Error inesperado al enviar invitación:', err)
     )
@@ -302,9 +303,12 @@ export async function sendClubInvitationEmail(
 </table>
 </body></html>`
 
+    const replyTo = clubInfo.email?.trim() || process.env.RESEND_REPLY_TO?.trim() || undefined
+
     const { error } = await resend.emails.send({
       from: process.env.RESEND_FROM_EMAIL ?? 'ApexLeap <onboarding@resend.dev>',
       to: z_email,
+      ...(replyTo ? { reply_to: replyTo } : {}),
       subject: `Te invitan a unirte a ${clubInfo.name} 🥋`,
       html,
     })
@@ -347,6 +351,7 @@ export async function sendAthleteInvitation(
       clubSlug: clubInfo.slug,
       logoUrl: clubInfo.logo_url,
       brandColor: clubInfo.primary_color,
+      replyTo: clubInfo.email,
     })
 
     if (!result.success) return { ok: false, error: result.error ?? 'No se pudo enviar el correo.' }
