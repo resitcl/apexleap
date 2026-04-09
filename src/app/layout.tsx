@@ -1,10 +1,11 @@
 export const dynamic = "force-dynamic"
 
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "@/components/ui/sonner";
+import { RegisterServiceWorker } from "@/components/pwa/RegisterServiceWorker";
 import "./globals.css";
 
 const inter = Inter({
@@ -16,6 +17,25 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "ApexLeap - Performance Hub para Clubes Deportivos",
   description: "Plataforma SaaS de gestión integral para academias de artes marciales y clubes deportivos",
+  applicationName: "ApexLeap",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "ApexLeap",
+  },
+  formatDetection: {
+    telephone: false,
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#fafafa" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
+  ],
 };
 
 export default function RootLayout({
@@ -32,6 +52,7 @@ export default function RootLayout({
           <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
             {children}
             <Toaster />
+            <RegisterServiceWorker />
           </ThemeProvider>
         </body>
       </html>

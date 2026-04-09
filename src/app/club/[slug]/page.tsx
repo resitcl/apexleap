@@ -18,13 +18,28 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const club = await getPublicClubLanding(slug)
   if (!club) return { title: 'Club no encontrado' }
   const c = club as Record<string, unknown>
+  const logoUrl = typeof c.logo_url === 'string' ? c.logo_url : undefined
   return {
     title: c.name as string,
     description: (c.landing_description ?? c.description ?? `Bienvenido a ${c.name}`) as string,
+    manifest: `/club/${slug}/manifest`,
+    appleWebApp: {
+      capable: true,
+      title: c.name as string,
+      statusBarStyle: 'default',
+    },
+    ...(logoUrl
+      ? {
+          icons: {
+            icon: [{ url: logoUrl }],
+            apple: [{ url: logoUrl }],
+          },
+        }
+      : {}),
     openGraph: {
       title: c.name as string,
       description: (c.landing_description ?? c.description ?? '') as string,
-      images: c.logo_url ? [c.logo_url as string] : [],
+      images: logoUrl ? [logoUrl] : [],
     },
   }
 }
