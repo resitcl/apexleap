@@ -108,12 +108,13 @@ export async function getClubInfo(): Promise<{
   name: string
   slug: string
   logo_url: string | null
+  primary_color: string | null
 }> {
   const clubId = await getClubId()
   const supabase = createAdminClient()
   const { data } = await supabase
     .from('clubs')
-    .select('id, name, slug, logo_url')
+    .select('id, name, slug, logo_url, primary_color')
     .eq('id', clubId)
     .single()
   return {
@@ -121,6 +122,7 @@ export async function getClubInfo(): Promise<{
     name: data?.name ?? 'Club',
     slug: data?.slug ?? 'club',
     logo_url: (data?.logo_url as string | null) ?? null,
+    primary_color: (data?.primary_color as string | null) ?? null,
   }
 }
 

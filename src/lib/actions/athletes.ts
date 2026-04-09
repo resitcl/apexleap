@@ -4,7 +4,8 @@ import { auth } from '@clerk/nextjs/server'
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { z } from 'zod'
-import { getClubId } from '@/lib/actions/club-context'
+import { getClubId, getClubInfo } from '@/lib/actions/club-context'
+import { sendInvitationEmail } from '@/lib/email'
 
 const athleteSchema = z.object({
   name: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
@@ -134,6 +135,22 @@ export async function createAthlete(input: AthleteInput) {
     .single()
 
   if (error) throw new Error(translateAthleteError(error.message))
+
+  // Enviar email de bienvenida si el alumno tiene email registrado
+  if (parsed.email) {
+    const clubInfo = await getClubInfo()
+    // No bloqueamos si el email falla — solo lo registramos
+    sendInvitationEmail({
+      to: parsed.email,
+      athleteName: parsed.name,
+      clubName: clubInfo.name,
+      clubSlug: clubInfo.slug,
+      logoUrl: clubInfo.logo_url,
+      brandColor: clubInfo.primary_color,
+    }).catch((err) =>
+      console.error('[athletes] Error inesperado al enviar invitación:', err)
+    )
+  }
 
   revalidatePath('/dashboard/athletes')
   return data

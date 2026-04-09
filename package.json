@@ -28,7 +28,8 @@
     "svix": "^1.86.0",
     "tailwind-merge": "^3.5.0",
     "xlsx": "^0.18.5",
-    "zod": "^3.25.76"
+    "zod": "^3.25.76",
+    "resend": "4.5.1"
   },
   "devDependencies": {
     "@tailwindcss/oxide": "^4.2.2",
