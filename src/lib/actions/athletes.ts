@@ -218,3 +218,140 @@ export async function bulkUpdateAthleteStatus(ids: string[], status: 'active' | 
   revalidatePath('/dashboard/athletes')
   return { updated: ids.length }
 }
+
+/**
+ * Envía un correo de invitación a cualquier email para que la persona
+ * se inscriba en el club. El link apunta a /[slug]/signup.
+ */
+export async function sendClubInvitationEmail(
+  email: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const z_email = email.toLowerCase().trim()
+    if (!z_email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(z_email)) {
+      return { ok: false, error: 'Email inválido.' }
+    }
+
+    const clubInfo = await getClubInfo()
+    const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://apexleap.vercel.app'
+    const signupUrl = `${APP_URL}/${clubInfo.slug}/signup`
+
+    const { Resend } = await import('resend')
+    const { normalizeClubPrimary, primaryForegroundForHex } = await import('@/lib/club-branding')
+    const resend = new Resend(process.env.RESEND_API_KEY)
+
+    if (!process.env.RESEND_API_KEY) {
+      return { ok: false, error: 'RESEND_API_KEY no configurada en el servidor.' }
+    }
+
+    const brandBg = normalizeClubPrimary(clubInfo.primary_color)
+    const brandFg = primaryForegroundForHex(brandBg)
+    const logoHtml = clubInfo.logo_url
+      ? `<img src="${clubInfo.logo_url}" alt="${clubInfo.name}" style="max-height:48px;max-width:160px;margin-bottom:12px;display:block;margin-left:auto;margin-right:auto;" />`
+      : ''
+
+    const html = `
+<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Te invitamos a ${clubInfo.name}</title></head>
+<body style="margin:0;padding:0;background:#f4f4f5;font-family:Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 20px;">
+  <tr><td align="center">
+    <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+      <tr>
+        <td style="background:${brandBg};padding:28px 40px;text-align:center;">
+          ${logoHtml}
+          <p style="margin:0;color:${brandFg};font-size:20px;font-weight:700;">🥋 ${clubInfo.name}</p>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:40px;">
+          <h1 style="margin:0 0 16px;font-size:24px;color:#18181b;">¡Estás invitado/a!</h1>
+          <p style="margin:0 0 16px;font-size:16px;color:#52525b;line-height:1.6;">
+            Te han invitado a unirte a <strong>${clubInfo.name}</strong>. Haz clic en el botón
+            para completar tu inscripción y empezar a entrenar.
+          </p>
+          <p style="margin:0 0 32px;font-size:16px;color:#52525b;line-height:1.6;">
+            El proceso toma menos de 2 minutos. Solo necesitas crear una cuenta gratuita.
+          </p>
+          <table cellpadding="0" cellspacing="0">
+            <tr>
+              <td style="background:${brandBg};border-radius:8px;text-align:center;">
+                <a href="${signupUrl}" style="display:inline-block;padding:14px 32px;color:${brandFg};font-size:16px;font-weight:700;text-decoration:none;">
+                  Inscribirme ahora →
+                </a>
+              </td>
+            </tr>
+          </table>
+          <p style="margin:32px 0 0;font-size:13px;color:#a1a1aa;">
+            Si el botón no funciona, copia este link:<br/>
+            <a href="${signupUrl}" style="color:${brandBg};">${signupUrl}</a>
+          </p>
+        </td>
+      </tr>
+      <tr>
+        <td style="background:#f4f4f5;padding:20px 40px;border-top:1px solid #e4e4e7;">
+          <p style="margin:0;font-size:12px;color:#a1a1aa;text-align:center;">
+            Enviado por <strong>${clubInfo.name}</strong> · ApexLeap
+          </p>
+        </td>
+      </tr>
+    </table>
+  </td></tr>
+</table>
+</body></html>`
+
+    const { error } = await resend.emails.send({
+      from: process.env.RESEND_FROM_EMAIL ?? 'ApexLeap <onboarding@resend.dev>',
+      to: z_email,
+      subject: `Te invitan a unirte a ${clubInfo.name} 🥋`,
+      html,
+    })
+
+    if (error) return { ok: false, error: error.message }
+    return { ok: true }
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : 'Error inesperado.' }
+  }
+}
+
+/**
+ * Envía (o reenvía) el correo de invitación/bienvenida a un alumno existente.
+ * Útil cuando el alumno aún no ha creado su cuenta o quiere recibir el link de nuevo.
+ */
+export async function sendAthleteInvitation(
+  athleteId: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const clubId = await getClubId()
+    const supabase = createAdminClient()
+
+    // Obtener datos del alumno
+    const { data: athlete, error: athleteErr } = await supabase
+      .from('athletes')
+      .select('id, name, email')
+      .eq('id', athleteId)
+      .eq('club_id', clubId)
+      .single()
+
+    if (athleteErr || !athlete) return { ok: false, error: 'Alumno no encontrado.' }
+    if (!athlete.email) return { ok: false, error: 'El alumno no tiene email registrado.' }
+
+    const clubInfo = await getClubInfo()
+
+    const result = await sendInvitationEmail({
+      to: athlete.email,
+      athleteName: athlete.name,
+      clubName: clubInfo.name,
+      clubSlug: clubInfo.slug,
+      logoUrl: clubInfo.logo_url,
+      brandColor: clubInfo.primary_color,
+    })
+
+    if (!result.success) return { ok: false, error: result.error ?? 'No se pudo enviar el correo.' }
+    return { ok: true }
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : 'Error inesperado.' }
+  }
+}

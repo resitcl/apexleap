@@ -15,6 +15,7 @@ import { AthletesSearch } from "@/components/athletes/AthletesSearch"
 import { HealthStatusBadge } from "@/components/athletes/HealthStatusBadge"
 import { ExportAthletesButton } from "@/components/athletes/ExportAthletesButton"
 import { BulkActionsWrapper } from "@/components/athletes/BulkActionsWrapper"
+import { SendInvitationDialog } from "@/components/athletes/SendInvitationDialog"
 
 interface PageProps {
   searchParams: Promise<{
@@ -282,6 +283,7 @@ export default async function AthletesPage({ searchParams }: PageProps) {
               </Link>
             )}
             <ExportAthletesButton athletes={allAthletes} />
+            <SendInvitationDialog />
             <Link href="/dashboard/athletes/new">
               <Button className="gap-2 h-10 px-5 rounded-xl font-black uppercase tracking-widest text-xs bg-primary text-primary-foreground shadow-lg shadow-primary/25 hover:bg-primary/90">
                 <UserPlus className="w-4 h-4" />

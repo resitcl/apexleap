@@ -15,6 +15,7 @@ import { ArchiveAthleteButton } from "@/components/athletes/ArchiveAthleteButton
 import { AthleteNotesButton } from "@/components/athletes/AthleteNotesButton"
 import { ManualCheckInButton } from "@/components/athletes/ManualCheckInButton"
 import { NewSubscriptionFromAthleteButton } from "@/components/athletes/NewSubscriptionFromAthleteButton"
+import { InviteAthleteButton } from "@/components/athletes/InviteAthleteButton"
 import {
   ChevronLeft, Pencil, Phone, Mail, FileText,
   Calendar, CreditCard, CheckSquare, Activity, Heart,
@@ -112,6 +113,9 @@ export default async function AthleteDetailPage({ params }: PageProps) {
           </Button>
         </Link>
         <div className="flex-1" />
+        {!archivedAt && athlete.email && (
+          <InviteAthleteButton athleteId={id} athleteEmail={athlete.email} />
+        )}
         {!archivedAt && (
           <AthleteNotesButton athleteId={id} currentNotes={athlete.notes ?? null} />
         )}
