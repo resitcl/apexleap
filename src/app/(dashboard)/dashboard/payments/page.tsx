@@ -3,23 +3,21 @@ export const dynamic = "force-dynamic"
 import { requireClubStaffPage } from "@/lib/actions/club-context"
 import Link from "next/link"
 import { Suspense } from "react"
-import { getPayments, getPaymentSummary, getNextBillingDateByAthleteIds } from "@/lib/actions/payments"
-import { getExpectedMonthIncome } from "@/lib/actions/finances"
+import { getPayments, getNextBillingDateByAthleteIds } from "@/lib/actions/payments"
+import { getPaymentMetrics } from "@/lib/actions/billing"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Plus, DollarSign, Clock, AlertTriangle, TrendingUp, CheckCircle, CreditCard, FileText, ArrowUpRight, ChevronLeft, ChevronRight, CalendarClock } from "lucide-react"
+import { Plus, DollarSign, Clock, AlertTriangle, TrendingUp, CreditCard, ArrowUpRight, ChevronLeft, ChevronRight, CalendarClock, Target, Wallet, BarChart3, ArrowDownRight, Activity, Users } from "lucide-react"
 import { InfoTooltip } from "@/components/ui/info-tooltip"
 import { PaymentsFilter } from "@/components/payments/PaymentsFilter"
 import { MarkAsPaidButton } from "@/components/payments/MarkAsPaidButton"
-import { ConfirmTransferButton } from "@/components/payments/ConfirmTransferButton"
 import { PaymentRowClient } from "@/components/payments/PaymentRowClient"
 import { ExportPaymentsButton } from "@/components/payments/ExportPaymentsButton"
 import { BulkMarkAsPaidButton } from "@/components/payments/BulkMarkAsPaidButton"
 import { DeletePaymentButton } from "@/components/payments/DeletePaymentButton"
 import { EditPaymentButton } from "@/components/payments/EditPaymentButton"
-import { DismissibleAlert } from "@/components/ui/DismissibleAlert"
 import { SyncOverdueButton } from "@/components/payments/SyncOverdueButton"
 
 interface PageProps {
@@ -43,6 +41,10 @@ const METHOD_LABEL: Record<string, string> = {
   flow: 'Flow', mercadopago: 'MercadoPago', khipu: 'Khipu', other: 'Otro',
 }
 
+function formatCurrency(value: number) {
+  return `$${Math.round(value).toLocaleString('es-CL')}`
+}
+
 export default async function PaymentsPage({ searchParams }: PageProps) {
   await requireClubStaffPage()
   const params = await searchParams
@@ -57,56 +59,72 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
   const paymentMethod  = params.paymentMethod  ?? ""
   const paidFrom       = params.paidFrom       ?? ""
   const paidTo         = params.paidTo         ?? ""
-  const dueFrom        = params.dueFrom        ?? ""
-  const dueTo          = params.dueTo          ?? ""
 
   let payments: Awaited<ReturnType<typeof getPayments>>["payments"] = []
   let allPayments: Awaited<ReturnType<typeof getPayments>>["payments"] = []
   let total = 0
-  let summary = { total_collected: 0, total_pending: 0, total_overdue: 0, count_overdue: 0 }
+  let metrics: Awaited<ReturnType<typeof getPaymentMetrics>> | null = null
   let error: string | null = null
   const currentMonthIso = new Date().toISOString().slice(0, 7)
-  let expectedMonth = { total: 0, fromScheduled: 0, fromSubscriptions: 0, month: currentMonthIso }
   let nextBillingByAthlete: Record<string, string | null> = {}
 
   try {
-    const [result, allResult, summaryResult, expectedRes] = await Promise.all([
-      getPayments({ status: params.status, page, limit: 25, from: from || undefined, to: to || undefined, athleteId: athleteId || undefined, search: search || undefined, athleteName: athleteName || undefined, amountMin: amountMin ? Number(amountMin) : undefined, amountMax: amountMax ? Number(amountMax) : undefined, paymentMethod: paymentMethod || undefined }),
-      getPayments({ status: params.status, page: 1, limit: 1000, from: from || undefined, to: to || undefined, athleteId: athleteId || undefined, search: search || undefined, athleteName: athleteName || undefined, amountMin: amountMin ? Number(amountMin) : undefined, amountMax: amountMax ? Number(amountMax) : undefined, paymentMethod: paymentMethod || undefined }),
-      getPaymentSummary(),
-      getExpectedMonthIncome(currentMonthIso),
+    const [result, allResult, metricsResult] = await Promise.all([
+      getPayments({ status: params.status, page, limit: 25, from: from || undefined, to: to || undefined, athleteId: athleteId || undefined, search: search || undefined, athleteName: athleteName || undefined, amountMin: amountMin ? Number(amountMin) : undefined, amountMax: amountMax ? Number(amountMax) : undefined, paymentMethod: paymentMethod || undefined, paidFrom: paidFrom || undefined, paidTo: paidTo || undefined }),
+      getPayments({ status: params.status, from: from || undefined, to: to || undefined, athleteId: athleteId || undefined, search: search || undefined, athleteName: athleteName || undefined, amountMin: amountMin ? Number(amountMin) : undefined, amountMax: amountMax ? Number(amountMax) : undefined, paymentMethod: paymentMethod || undefined, paidFrom: paidFrom || undefined, paidTo: paidTo || undefined }),
+      getPaymentMetrics(currentMonthIso),
     ])
-    expectedMonth = expectedRes
-    let pList = result.payments
-    let pAll  = allResult.payments
-    if (paidFrom) {
-      pList = pList.filter((p) => p.paid_at && p.paid_at >= paidFrom)
-      pAll  = pAll.filter((p) => p.paid_at && p.paid_at >= paidFrom)
-    }
-    if (paidTo) {
-      pList = pList.filter((p) => p.paid_at && p.paid_at.slice(0,10) <= paidTo)
-      pAll  = pAll.filter((p) => p.paid_at && p.paid_at.slice(0,10) <= paidTo)
-    }
-    if (dueFrom) {
-      pList = pList.filter((p) => p.due_date && p.due_date >= dueFrom)
-      pAll  = pAll.filter((p) => p.due_date && p.due_date >= dueFrom)
-    }
-    if (dueTo) {
-      pList = pList.filter((p) => p.due_date && p.due_date <= dueTo)
-      pAll  = pAll.filter((p) => p.due_date && p.due_date <= dueTo)
-    }
-    payments = pList
-    allPayments = pAll
+    payments = result.payments
+    allPayments = allResult.payments
     total = result.total
-    summary = summaryResult
-    nextBillingByAthlete = await getNextBillingDateByAthleteIds(pList.map((p) => p.athlete_id))
+    metrics = metricsResult
+    nextBillingByAthlete = await getNextBillingDateByAthleteIds(result.payments.map((p) => p.athlete_id))
   } catch (e) {
     error = e instanceof Error ? e.message : 'Error al cargar pagos'
   }
 
-  // ── Derived data ──
-  const totalEmitted = summary.total_collected + summary.total_pending + summary.total_overdue
-  const collectionPct = totalEmitted > 0 ? Math.round((summary.total_collected / totalEmitted) * 100) : 0
+  const dashboard = metrics ?? {
+    actualIncome: 0,
+    actualIncomeCount: 0,
+    projectedIncome: 0,
+    projectedIncomeCount: 0,
+    expectedFromSubscriptions: 0,
+    activeSubscriptionsCount: 0,
+    totalOverdue: 0,
+    overdueCount: 0,
+    overdueOlderThan30Days: 0,
+    overdueOlderThan60Days: 0,
+    totalPending: 0,
+    pendingCount: 0,
+    collectionRate: 0,
+    previousMonthActual: 0,
+    monthOverMonthChange: 0,
+    expectedMonthTotal: 0,
+    expectedMonthFromScheduled: 0,
+    expectedMonthFromSubscriptions: 0,
+    collectionGap: 0,
+    pendingTransfersCount: 0,
+    overdueThisWeekCount: 0,
+    overdueAthletesCount: 0,
+    duplicateGroupsCount: 0,
+    monthlyTrend: [] as Array<{ key: string; label: string; collected: number; emitted: number; overdue: number }>,
+    methodMix: [] as Array<{ method: string; amount: number; count: number; pct: number }>,
+    overdueAging: { upTo30Days: 0, from31To60Days: 0, over60Days: 0 },
+  }
+  const currentMonthLabel = new Date(`${currentMonthIso}-01T12:00:00`).toLocaleDateString('es-CL', { month: 'long', year: 'numeric' })
+  const expectedProgress = dashboard.expectedMonthTotal > 0
+    ? Math.min(100, Math.round((dashboard.actualIncome / dashboard.expectedMonthTotal) * 100))
+    : 0
+  const emittedProgress = dashboard.collectionRate
+  const monthlyChart = dashboard.monthlyTrend
+  const chartMax = Math.max(...monthlyChart.flatMap((m) => [m.collected, m.emitted, m.overdue]), 1)
+  const tableHasFilters = !!(params.status || search || athleteName || from || to || paidFrom || paidTo || amountMin || amountMax || paymentMethod || athleteId)
+  const tableSummary = [
+    tableHasFilters ? `${allPayments.length} movimientos filtrados` : `${allPayments.length} movimientos en tabla/exportación`,
+    search ? `concepto: ${search}` : null,
+    athleteName ? `atleta: ${athleteName}` : null,
+    params.status ? `estado: ${STATUS_CONFIG[params.status]?.label ?? params.status}` : null,
+  ].filter(Boolean)
 
   // Overdue alerts
   const overdueAthletes = (() => {
@@ -119,31 +137,6 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
     }
     return Object.values(map).sort((a, b) => b.debt - a.debt)
   })()
-
-  // Payment method distribution
-  const methodDistribution = (() => {
-    const result: Record<string, number> = {}
-    for (const p of allPayments.filter((p) => p.status === 'paid' && p.payment_method)) {
-      result[p.payment_method!] = (result[p.payment_method!] ?? 0) + Number(p.amount)
-    }
-    return Object.entries(result).sort(([, a], [, b]) => b - a)
-  })()
-
-  // Monthly chart data
-  const monthlyChart = (() => {
-    const now = new Date()
-    const months: { key: string; label: string; paid: number; overdue: number }[] = []
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-      const label = d.toLocaleDateString('es-CL', { month: 'short' })
-      const paid   = allPayments.filter((p) => p.status === 'paid' && p.paid_at?.startsWith(key)).reduce((s, p) => s + Number(p.amount), 0)
-      const overdue = allPayments.filter((p) => p.status === 'overdue' && (p.due_date ?? '').startsWith(key)).reduce((s, p) => s + Number(p.amount), 0)
-      months.push({ key, label, paid, overdue })
-    }
-    return months
-  })()
-  const chartMax = Math.max(...monthlyChart.map((m) => m.paid + m.overdue), 1)
 
   // Debt per athlete (for table)
   const debtByAthlete: Record<string, number> = {}
@@ -173,9 +166,12 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
     if (athleteName)     base.athleteName = athleteName
     if (from)            base.from = from
     if (to)              base.to = to
+    if (paidFrom)        base.paidFrom = paidFrom
+    if (paidTo)          base.paidTo = paidTo
     if (amountMin)       base.amountMin = amountMin
     if (amountMax)       base.amountMax = amountMax
     if (paymentMethod)   base.paymentMethod = paymentMethod
+    if (athleteId)       base.athleteId = athleteId
     return new URLSearchParams({ ...base, ...overrides }).toString()
   }
 
@@ -184,21 +180,39 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
 
       {/* ═══════════ HEADER ═══════════ */}
       <div className="flex flex-col lg:flex-row items-start lg:items-end justify-between gap-6">
-        <div>
-          <h1 className="text-4xl md:text-5xl font-black tracking-tighter uppercase leading-none text-foreground flex items-center gap-3">
-            <CreditCard className="w-10 h-10 text-primary" /> Pagos
-          </h1>
-          <p className="text-sm md:text-base text-muted-foreground/80 mt-3 max-w-xl font-medium flex flex-wrap items-center gap-x-2">
-            <span>{total} transacciones</span>
-            {summary.total_collected > 0 && <span className="text-primary font-bold">· ${summary.total_collected.toLocaleString('es-CL')} cobrado</span>}
-            {summary.total_overdue > 0 && <span className="text-destructive font-bold">· ${summary.total_overdue.toLocaleString('es-CL')} vencido</span>}
-          </p>
+        <div className="space-y-3">
+          <div className="flex items-center gap-3">
+            <CreditCard className="w-10 h-10 text-primary" />
+            <div>
+              <h1 className="text-4xl md:text-5xl font-black tracking-tighter uppercase leading-none text-foreground">
+                Pagos
+              </h1>
+              <p className="mt-2 text-sm md:text-base text-muted-foreground/80 font-medium">
+                Tablero de cobranza para {currentMonthLabel}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/5 text-primary">
+              {formatCurrency(dashboard.actualIncome)} cobrados este mes
+            </Badge>
+            <Badge variant="outline" className="rounded-full">
+              {formatCurrency(dashboard.expectedMonthTotal)} esperados
+            </Badge>
+            {dashboard.totalOverdue > 0 && (
+              <Badge variant="outline" className="rounded-full border-destructive/30 bg-destructive/5 text-destructive">
+                {formatCurrency(dashboard.totalOverdue)} en mora
+              </Badge>
+            )}
+          </div>
         </div>
+
         <div className="flex items-center gap-3 flex-wrap">
           <SyncOverdueButton />
-          {payments.filter(p => p.status === 'pending' || p.status === 'overdue').length > 1 && (
+          {payments.filter((p) => p.status === 'pending' || p.status === 'overdue').length > 1 && (
             <BulkMarkAsPaidButton
-              ids={payments.filter(p => p.status === 'pending' || p.status === 'overdue').map(p => p.id)}
+              ids={payments.filter((p) => p.status === 'pending' || p.status === 'overdue').map((p) => p.id)}
             />
           )}
           <ExportPaymentsButton
@@ -228,197 +242,349 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
       )}
 
       {/* ═══════════ KPI GRID ═══════════ */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-        {/* Hero: Recaudado */}
-        <Card className="col-span-2 lg:col-span-1 rounded-2xl border-white/[0.04] bg-card shadow-sm hover:border-primary/20 transition-colors overflow-hidden relative">
-          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary/60 to-primary/20" />
-          <CardContent className="pt-8 pb-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-1.5">
-                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Recaudado</p>
-                <InfoTooltip text="Suma de todos los pagos con estado 'pagado'." />
+      <div className="grid gap-4 lg:grid-cols-12">
+        <Card className="lg:col-span-4 rounded-2xl border-primary/20 bg-card shadow-sm overflow-hidden relative">
+          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary to-primary/30" />
+          <CardContent className="pt-7 pb-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Cobrado este mes</p>
+                <p className="mt-3 text-4xl font-black tracking-tighter text-primary">{formatCurrency(dashboard.actualIncome)}</p>
               </div>
-              <DollarSign className="w-5 h-5 text-primary" />
+              <DollarSign className="h-6 w-6 text-primary" />
             </div>
-            <p className="text-4xl font-black text-primary tracking-tighter drop-shadow-[0_0_8px_rgba(var(--primary),0.3)]">
-              ${summary.total_collected.toLocaleString('es-CL')}
-            </p>
-            <p className="text-xs text-muted-foreground/60 mt-2 font-medium">Total pagos confirmados</p>
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+              <span className="text-muted-foreground/70">{dashboard.actualIncomeCount} pagos confirmados</span>
+              {dashboard.previousMonthActual > 0 && (
+                <span className={`inline-flex items-center gap-1 font-bold ${dashboard.monthOverMonthChange >= 0 ? 'text-emerald-500' : 'text-destructive'}`}>
+                  {dashboard.monthOverMonthChange >= 0 ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowDownRight className="h-3.5 w-3.5" />}
+                  {dashboard.monthOverMonthChange >= 0 ? '+' : ''}{dashboard.monthOverMonthChange}% vs mes anterior
+                </span>
+              )}
+            </div>
           </CardContent>
         </Card>
 
-        {/* Pendiente */}
-        <Card className="rounded-2xl border-white/[0.04] bg-card shadow-sm hover:border-amber-500/20 transition-colors">
+        <Card className="lg:col-span-3 rounded-2xl border-border bg-card shadow-sm">
           <CardContent className="pt-6 pb-5">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-1.5">
-                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Pendiente</p>
-                <InfoTooltip text="Pagos emitidos que aún no han vencido ni sido cobrados." />
+                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Esperado del mes</p>
+                <InfoTooltip text="Programado del mes más cobros esperados por suscripciones activas sin fila emitida." />
               </div>
-              <Clock className="w-4 h-4 text-amber-400" />
+              <Target className="h-4 w-4 text-sky-500" />
             </div>
-            <p className={`text-3xl font-black tracking-tighter ${summary.total_pending > 0 ? 'text-amber-400 drop-shadow-[0_0_8px_rgba(245,158,11,0.3)]' : 'text-muted-foreground/30'}`}>
-              ${summary.total_pending.toLocaleString('es-CL')}
+            <p className="text-3xl font-black tracking-tighter text-sky-500">{formatCurrency(dashboard.expectedMonthTotal)}</p>
+            <p className="mt-1.5 text-xs text-muted-foreground/60 font-medium">
+              Programado {formatCurrency(dashboard.expectedMonthFromScheduled)} · suscripciones {formatCurrency(dashboard.expectedMonthFromSubscriptions)}
             </p>
-            <p className="text-xs text-muted-foreground/60 mt-1.5 font-medium">Por cobrar</p>
           </CardContent>
         </Card>
 
-        {/* Vencido */}
-        <Card className={`rounded-2xl shadow-sm transition-colors ${summary.total_overdue > 0 ? 'border-destructive/20 hover:border-destructive/40' : 'border-white/[0.04]'}`}>
+        <Card className="lg:col-span-2 rounded-2xl border-border bg-card shadow-sm">
           <CardContent className="pt-6 pb-5">
             <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-1.5">
-                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Vencido</p>
-                <InfoTooltip text="Monto total con fecha de vencimiento superada y sin pagar." />
-              </div>
-              <AlertTriangle className={`w-4 h-4 ${summary.total_overdue > 0 ? 'text-destructive' : 'text-muted-foreground/40'}`} />
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Brecha del mes</p>
+              <Wallet className="h-4 w-4 text-amber-400" />
             </div>
-            <p className={`text-3xl font-black tracking-tighter ${summary.total_overdue > 0 ? 'text-destructive drop-shadow-[0_0_8px_rgba(239,68,68,0.3)]' : 'text-muted-foreground/30'}`}>
-              ${summary.total_overdue.toLocaleString('es-CL')}
-            </p>
-            <p className="text-xs text-muted-foreground/60 mt-1.5 font-medium">{summary.count_overdue} cuotas morosas</p>
-          </CardContent>
-        </Card>
-
-        <Card className="rounded-2xl border-border bg-card shadow-sm">
-          <CardContent className="pt-6 pb-5">
-            <div className="mb-3 flex items-center justify-between">
-              <div className="flex items-center gap-1.5">
-                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 flex items-center gap-1">
-                  <CalendarClock className="h-3.5 w-3.5 text-sky-500" /> Ingresos esperados
-                </p>
-                <InfoTooltip text="Suma del mes: cuotas pendientes/vencidas con fecha de vencimiento en el mes calendario más montos de suscripciones activas cuya próxima facturación cae en el mes y aún no tienen fila de pago en ese período." />
-              </div>
-            </div>
-            <p className={`text-3xl font-black tracking-tighter ${expectedMonth.total > 0 ? 'text-sky-600 dark:text-sky-400' : 'text-muted-foreground/30'}`}>
-              ${expectedMonth.total.toLocaleString('es-CL')}
+            <p className={`text-3xl font-black tracking-tighter ${dashboard.collectionGap > 0 ? 'text-amber-400' : 'text-emerald-500'}`}>
+              {formatCurrency(dashboard.collectionGap)}
             </p>
             <p className="mt-1.5 text-xs text-muted-foreground/60 font-medium">
-              Mes {currentMonthIso.slice(5, 7)}/{currentMonthIso.slice(0, 4)} · programado ${expectedMonth.fromScheduled.toLocaleString('es-CL')} · suscripciones ${expectedMonth.fromSubscriptions.toLocaleString('es-CL')}
+              {dashboard.collectionGap > 0 ? 'Falta por recaudar este mes' : 'Meta mensual cubierta'}
             </p>
           </CardContent>
         </Card>
 
-        {/* % Cobrado */}
-        <Card className="rounded-2xl border-border bg-card shadow-sm">
+        <Card className={`lg:col-span-3 rounded-2xl shadow-sm ${dashboard.totalOverdue > 0 ? 'border-destructive/20' : 'border-border'}`}>
           <CardContent className="pt-6 pb-5">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-1.5">
-                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">% Cobrado</p>
-                <InfoTooltip text="Porcentaje cobrado sobre el total emitido." />
+                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">En mora</p>
+                <InfoTooltip text="Deuda vencida acumulada pendiente de regularización." />
               </div>
-              <TrendingUp className="w-4 h-4 text-primary" />
+              <AlertTriangle className={`h-4 w-4 ${dashboard.totalOverdue > 0 ? 'text-destructive' : 'text-muted-foreground/40'}`} />
             </div>
-            <p className={`text-3xl font-black tracking-tighter ${collectionPct >= 80 ? 'text-primary' : collectionPct >= 50 ? 'text-amber-400' : 'text-destructive'}`}>
-              {collectionPct}%
+            <p className={`text-3xl font-black tracking-tighter ${dashboard.totalOverdue > 0 ? 'text-destructive' : 'text-muted-foreground/40'}`}>
+              {formatCurrency(dashboard.totalOverdue)}
             </p>
+            <p className="mt-1.5 text-xs text-muted-foreground/60 font-medium">
+              {dashboard.overdueCount} pagos · {dashboard.overdueAthletesCount} atletas con mora
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="lg:col-span-4 rounded-2xl border-border bg-card shadow-sm">
+          <CardContent className="pt-6 pb-5">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-1.5">
+                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Avance contra esperado</p>
+                <InfoTooltip text="Cobrado este mes comparado contra lo esperado para el mismo mes." />
+              </div>
+              <TrendingUp className="h-4 w-4 text-primary" />
+            </div>
+            <div className="flex items-end justify-between gap-4">
+              <p className={`text-3xl font-black tracking-tighter ${expectedProgress >= 80 ? 'text-primary' : expectedProgress >= 50 ? 'text-amber-400' : 'text-destructive'}`}>
+                {expectedProgress}%
+              </p>
+              <p className="text-xs text-muted-foreground/70 text-right">
+                {formatCurrency(dashboard.actualIncome)} / {formatCurrency(dashboard.expectedMonthTotal)}
+              </p>
+            </div>
             <div className="mt-2 h-1.5 w-full rounded-full bg-muted/40 overflow-hidden">
               <div
-                className={`h-full rounded-full transition-all ${collectionPct >= 80 ? 'bg-primary' : collectionPct >= 50 ? 'bg-amber-400' : 'bg-destructive'}`}
-                style={{ width: `${collectionPct}%` }}
+                className={`h-full rounded-full ${expectedProgress >= 80 ? 'bg-primary' : expectedProgress >= 50 ? 'bg-amber-400' : 'bg-destructive'}`}
+                style={{ width: `${expectedProgress}%` }}
               />
             </div>
-            <p className="text-xs text-muted-foreground/60 mt-1.5 font-medium">
-              ${summary.total_collected.toLocaleString('es-CL')} / ${totalEmitted.toLocaleString('es-CL')}
+          </CardContent>
+        </Card>
+
+        <Card className="lg:col-span-4 rounded-2xl border-border bg-card shadow-sm">
+          <CardContent className="pt-6 pb-5">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-1.5">
+                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Tasa sobre emitido</p>
+                <InfoTooltip text="Cobrado este mes versus pagos emitidos con vencimiento en el mismo mes." />
+              </div>
+              <BarChart3 className="h-4 w-4 text-primary" />
+            </div>
+            <div className="flex items-end justify-between gap-4">
+              <p className={`text-3xl font-black tracking-tighter ${emittedProgress >= 80 ? 'text-primary' : emittedProgress >= 50 ? 'text-amber-400' : 'text-destructive'}`}>
+                {emittedProgress}%
+              </p>
+              <p className="text-xs text-muted-foreground/70 text-right">
+                {formatCurrency(dashboard.actualIncome)} / {formatCurrency(dashboard.projectedIncome)}
+              </p>
+            </div>
+            <div className="mt-2 h-1.5 w-full rounded-full bg-muted/40 overflow-hidden">
+              <div
+                className={`h-full rounded-full ${emittedProgress >= 80 ? 'bg-primary' : emittedProgress >= 50 ? 'bg-amber-400' : 'bg-destructive'}`}
+                style={{ width: `${emittedProgress}%` }}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="lg:col-span-4 rounded-2xl border-border bg-card shadow-sm">
+          <CardContent className="pt-6 pb-5">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Base activa</p>
+              <Users className="h-4 w-4 text-muted-foreground" />
+            </div>
+            <p className="text-3xl font-black tracking-tighter text-foreground">{dashboard.activeSubscriptionsCount}</p>
+            <p className="mt-1.5 text-xs text-muted-foreground/60 font-medium">
+              Suscripciones activas · {dashboard.pendingCount} pagos pendientes abiertos
             </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* ═══════════ ALERT BANNER ═══════════ */}
-      {overdueAthletes.length > 0 && (() => {
-        const totalDebt = overdueAthletes.reduce((s, a) => s + a.debt, 0)
-        return (
-          <div className="rounded-2xl border border-destructive/20 bg-gradient-to-r from-destructive/10 via-destructive/5 to-transparent p-5 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-destructive/20 flex items-center justify-center shrink-0">
-              <AlertTriangle className="w-6 h-6 text-destructive" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-base font-black tracking-tight text-foreground">
-                Alertas de pagos
-              </p>
-              <p className="text-sm text-muted-foreground mt-0.5">
-                {overdueAthletes.length} atleta{overdueAthletes.length !== 1 ? 's' : ''} con cuotas vencidas · ${totalDebt.toLocaleString('es-CL')} en mora.
-                {overdueAthletes.length <= 3 && (
-                  <span className="text-destructive font-bold ml-1">
-                    {overdueAthletes.map(a => a.name).join(', ')}
-                  </span>
-                )}
-              </p>
-            </div>
-            <Link href="/dashboard/payments?status=overdue">
-              <button className="shrink-0 h-10 px-5 rounded-xl border border-destructive/30 text-destructive font-black uppercase tracking-widest text-[10px] hover:bg-destructive/10 transition-colors flex items-center gap-2">
-                Ver Morosos <ArrowUpRight className="w-3.5 h-3.5" />
-              </button>
-            </Link>
-          </div>
-        )
-      })()}
-
       {/* ═══════════ CHARTS ROW ═══════════ */}
-      {(methodDistribution.length > 0 || monthlyChart.some(m => m.paid > 0 || m.overdue > 0)) && (
-        <div className="grid lg:grid-cols-2 gap-6">
-          {/* Method Distribution */}
-          {methodDistribution.length > 0 && (
-            <Card className="rounded-2xl border-white/[0.04] bg-card shadow-sm">
-              <CardHeader className="pb-0 pt-5 px-6">
-                <CardTitle className="text-sm font-black uppercase tracking-widest text-foreground">Distribución por Método</CardTitle>
-              </CardHeader>
-              <CardContent className="px-6 pt-4 pb-5">
-                <div className="space-y-3">
-                  {methodDistribution.map(([method, amount]) => {
-                    const pct = totalEmitted > 0 ? Math.round((amount / summary.total_collected) * 100) : 0
-                    return (
-                      <div key={method} className="flex items-center gap-3">
-                        <span className="text-xs font-bold text-muted-foreground w-28 truncate">{METHOD_LABEL[method] ?? method}</span>
-                        <div className="flex-1 h-2 rounded-full bg-muted/30 overflow-hidden">
-                          <div className="h-full rounded-full bg-primary/70" style={{ width: `${Math.max(pct, 2)}%` }} />
-                        </div>
-                        <span className="text-xs font-black text-foreground w-24 text-right">${amount.toLocaleString('es-CL')}</span>
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,1fr)]">
+        <Card className="rounded-2xl border-white/[0.04] bg-card shadow-sm">
+          <CardHeader className="pb-0 pt-5 px-6">
+            <CardTitle className="text-sm font-black uppercase tracking-widest text-foreground">Cobrado vs Emitido</CardTitle>
+            <p className="text-xs text-muted-foreground/70">Lectura mensual de los últimos 6 meses para saber si la cobranza acompaña la emisión de cuotas.</p>
+          </CardHeader>
+          <CardContent className="px-6 pt-5 pb-6">
+            <div className="flex items-end gap-3 h-56">
+              {monthlyChart.map((m, i) => {
+                const collectedH = Math.max(m.collected > 0 ? Math.round((m.collected / chartMax) * 168) : 0, m.collected > 0 ? 10 : 0)
+                const emittedH = Math.max(m.emitted > 0 ? Math.round((m.emitted / chartMax) * 168) : 0, m.emitted > 0 ? 10 : 0)
+                const overdueH = Math.max(m.overdue > 0 ? Math.round((m.overdue / chartMax) * 168) : 0, m.overdue > 0 ? 6 : 0)
+                const isCurrent = i === monthlyChart.length - 1
+                return (
+                  <div key={m.key} className="flex-1 min-w-0 flex flex-col items-center gap-2">
+                    <div className="flex items-end justify-center gap-1.5 h-44 w-full">
+                      <div className="flex flex-col items-center gap-1 w-full">
+                        <div
+                          className={`w-full max-w-6 rounded-t-md ${isCurrent ? 'bg-primary' : 'bg-primary/50'}`}
+                          style={{ height: collectedH }}
+                        />
+                        <span className="text-[9px] text-muted-foreground/60">Cob.</span>
                       </div>
-                    )
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+                      <div className="flex flex-col items-center gap-1 w-full">
+                        <div
+                          className={`w-full max-w-6 rounded-t-md ${isCurrent ? 'bg-sky-500/90' : 'bg-sky-500/50'}`}
+                          style={{ height: emittedH }}
+                        />
+                        <span className="text-[9px] text-muted-foreground/60">Emi.</span>
+                      </div>
+                      <div className="flex flex-col items-center gap-1 w-full">
+                        <div
+                          className="w-full max-w-6 rounded-t-md bg-destructive/60"
+                          style={{ height: overdueH }}
+                        />
+                        <span className="text-[9px] text-muted-foreground/60">Mora</span>
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <p className={`text-[10px] font-bold ${isCurrent ? 'text-foreground' : 'text-muted-foreground/70'}`}>{m.label}</p>
+                      <p className="text-[9px] text-muted-foreground/50">{formatCurrency(m.collected)}</p>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+            <div className="mt-4 flex flex-wrap gap-4 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
+              <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-primary inline-block" />Cobrado</span>
+              <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-sky-500/90 inline-block" />Emitido</span>
+              <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-destructive/60 inline-block" />En mora</span>
+            </div>
+          </CardContent>
+        </Card>
 
-          {/* Monthly Chart */}
-          {monthlyChart.some(m => m.paid > 0 || m.overdue > 0) && (
-            <Card className="rounded-2xl border-white/[0.04] bg-card shadow-sm">
-              <CardHeader className="pb-0 pt-5 px-6">
-                <CardTitle className="text-sm font-black uppercase tracking-widest text-foreground">Cobrado vs Vencido</CardTitle>
-              </CardHeader>
-              <CardContent className="px-6 pt-4 pb-5">
-                <div className="flex items-end gap-3 h-32">
-                  {monthlyChart.map((m, i) => {
-                    const paidH  = Math.max(m.paid > 0 ? Math.round((m.paid / chartMax) * 120) : 0, m.paid > 0 ? 6 : 0)
-                    const overdH = Math.max(m.overdue > 0 ? Math.round((m.overdue / chartMax) * 120) : 0, m.overdue > 0 ? 6 : 0)
-                    const isCurrent = i === monthlyChart.length - 1
-                    return (
-                      <div key={m.key} className="flex-1 flex flex-col items-center gap-1">
-                        {m.paid > 0 && (
-                          <span className="text-[9px] font-bold text-muted-foreground/50">${(m.paid / 1000).toFixed(0)}k</span>
-                        )}
-                        <div className="flex flex-col-reverse w-full gap-px items-center">
-                          {paidH > 0 && <div className={`w-full rounded-t-md ${isCurrent ? 'bg-primary' : 'bg-primary/40'}`} style={{ height: paidH }} />}
-                          {overdH > 0 && <div className="w-full bg-destructive/50 rounded-sm" style={{ height: overdH }} />}
+        <div className="grid gap-6">
+          <Card className="rounded-2xl border-white/[0.04] bg-card shadow-sm">
+            <CardHeader className="pb-0 pt-5 px-6">
+              <CardTitle className="text-sm font-black uppercase tracking-widest text-foreground">Mix por Método</CardTitle>
+              <p className="text-xs text-muted-foreground/70">Solo pagos cobrados durante el mes actual.</p>
+            </CardHeader>
+            <CardContent className="px-6 pt-4 pb-5">
+              {dashboard.methodMix.length === 0 ? (
+                <p className="text-sm text-muted-foreground/60">Aún no hay cobros del mes para comparar métodos.</p>
+              ) : (
+                <div className="space-y-3">
+                  {dashboard.methodMix.map((row) => (
+                    <div key={row.method} className="space-y-1.5">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-xs font-bold text-muted-foreground truncate">{METHOD_LABEL[row.method] ?? row.method}</span>
+                        <div className="text-right">
+                          <p className="text-xs font-black text-foreground">{formatCurrency(row.amount)}</p>
+                          <p className="text-[10px] text-muted-foreground/60">{row.count} pagos · {row.pct}%</p>
                         </div>
-                        <span className={`text-[10px] font-bold ${isCurrent ? 'text-foreground' : 'text-muted-foreground/60'}`}>{m.label}</span>
                       </div>
-                    )
-                  })}
+                      <div className="h-2 rounded-full bg-muted/30 overflow-hidden">
+                        <div className="h-full rounded-full bg-primary/70" style={{ width: `${Math.max(row.pct, 4)}%` }} />
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <div className="flex gap-5 mt-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
-                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-primary inline-block" />Cobrado</span>
-                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-destructive/50 inline-block" />Vencido</span>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-2xl border-white/[0.04] bg-card shadow-sm">
+            <CardHeader className="pb-0 pt-5 px-6">
+              <CardTitle className="text-sm font-black uppercase tracking-widest text-foreground">Mora por Antigüedad</CardTitle>
+              <p className="text-xs text-muted-foreground/70">Ayuda a separar mora reciente de deuda envejecida.</p>
+            </CardHeader>
+            <CardContent className="px-6 pt-4 pb-5">
+              <div className="space-y-3">
+                {[
+                  { label: '1 a 30 días', value: dashboard.overdueAging.upTo30Days },
+                  { label: '31 a 60 días', value: dashboard.overdueAging.from31To60Days },
+                  { label: '+60 días', value: dashboard.overdueAging.over60Days },
+                ].map((bucket) => {
+                  const pct = dashboard.totalOverdue > 0 ? Math.round((bucket.value / dashboard.totalOverdue) * 100) : 0
+                  return (
+                    <div key={bucket.label} className="space-y-1.5">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-xs font-bold text-muted-foreground">{bucket.label}</span>
+                        <span className="text-xs font-black text-foreground">{formatCurrency(bucket.value)}</span>
+                      </div>
+                      <div className="h-2 rounded-full bg-muted/30 overflow-hidden">
+                        <div className="h-full rounded-full bg-destructive/60" style={{ width: `${Math.max(pct, bucket.value > 0 ? 4 : 0)}%` }} />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* ═══════════ ATTENTION TODAY ═══════════ */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-black uppercase tracking-widest text-foreground">Atención Hoy</h2>
+            <p className="text-sm text-muted-foreground/70">Accesos rápidos a focos operativos de cobranza y seguimiento.</p>
+          </div>
+          <Badge variant="outline" className="rounded-full">KPIs del mes no cambian con filtros</Badge>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <Link href="/dashboard/payments?status=pending&paymentMethod=transfer">
+            <Card className="rounded-2xl border-border bg-card shadow-sm hover:border-primary/30 hover:bg-muted/10 transition-colors">
+              <CardContent className="pt-5 pb-5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Transferencias</p>
+                    <p className="mt-2 text-3xl font-black tracking-tighter text-foreground">{dashboard.pendingTransfersCount}</p>
+                  </div>
+                  <Clock className="h-5 w-5 text-amber-400" />
                 </div>
+                <p className="mt-2 text-xs text-muted-foreground/60">Pagos con comprobante o transferencia por revisar.</p>
               </CardContent>
             </Card>
-          )}
+          </Link>
+
+          <Link href="/dashboard/payments?status=overdue">
+            <Card className="rounded-2xl border-border bg-card shadow-sm hover:border-primary/30 hover:bg-muted/10 transition-colors">
+              <CardContent className="pt-5 pb-5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Vencidos semana</p>
+                    <p className="mt-2 text-3xl font-black tracking-tighter text-foreground">{dashboard.overdueThisWeekCount}</p>
+                  </div>
+                  <Activity className="h-5 w-5 text-destructive" />
+                </div>
+                <p className="mt-2 text-xs text-muted-foreground/60">Pagos que entraron en mora durante los últimos 7 días.</p>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link href="/dashboard/payments?status=overdue">
+            <Card className="rounded-2xl border-border bg-card shadow-sm hover:border-primary/30 hover:bg-muted/10 transition-colors">
+              <CardContent className="pt-5 pb-5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Morosos</p>
+                    <p className="mt-2 text-3xl font-black tracking-tighter text-foreground">{dashboard.overdueAthletesCount}</p>
+                  </div>
+                  <Users className="h-5 w-5 text-destructive" />
+                </div>
+                <p className="mt-2 text-xs text-muted-foreground/60">Atletas con al menos un pago vencido en cartera.</p>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link href="/dashboard/payments">
+            <Card className="rounded-2xl border-border bg-card shadow-sm hover:border-primary/30 hover:bg-muted/10 transition-colors">
+              <CardContent className="pt-5 pb-5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Duplicados</p>
+                    <p className="mt-2 text-3xl font-black tracking-tighter text-foreground">{dashboard.duplicateGroupsCount}</p>
+                  </div>
+                  <CalendarClock className="h-5 w-5 text-amber-400" />
+                </div>
+                <p className="mt-2 text-xs text-muted-foreground/60">Posibles cobros repetidos por atleta y mes de vencimiento.</p>
+              </CardContent>
+            </Card>
+          </Link>
         </div>
-      )}
+      </div>
+
+      {/* ═══════════ OPERATIONS HEADER ═══════════ */}
+      <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
+        <div>
+          <h2 className="text-sm font-black uppercase tracking-widest text-foreground">Movimientos y Cobranza</h2>
+          <p className="mt-1 text-sm text-muted-foreground/70">
+            Usa filtros para trabajar el detalle; el resumen superior sigue mostrando la salud mensual del club.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {tableSummary.map((item) => (
+            <Badge key={item} variant="outline" className="rounded-full">
+              {item}
+            </Badge>
+          ))}
+        </div>
+      </div>
 
       {/* ═══════════ FILTERS ═══════════ */}
       <Suspense fallback={null}>

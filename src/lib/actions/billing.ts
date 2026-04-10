@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getClubId } from '@/lib/actions/club-context'
+import { getExpectedMonthIncome } from '@/lib/actions/finances'
 import { auth } from '@clerk/nextjs/server'
 import {
   calculatePeriodEnd,
@@ -26,11 +27,18 @@ export async function getPaymentMetrics(month?: string) {
   const nextMonth = new Date(targetMonth + '-01')
   nextMonth.setMonth(nextMonth.getMonth() + 1)
   const monthEnd = nextMonth.toISOString().split('T')[0]
+  const today = new Date()
+  const sevenDaysAgo = new Date(today)
+  sevenDaysAgo.setDate(today.getDate() - 7)
+  const thirtyDaysAgo = new Date(today)
+  thirtyDaysAgo.setDate(today.getDate() - 30)
+  const sixtyDaysAgo = new Date(today)
+  sixtyDaysAgo.setDate(today.getDate() - 60)
 
   // Get all payments for analysis
   const { data: allPayments } = await supabase
     .from('payments')
-    .select('id, amount, status, due_date, paid_at, period_start, period_end')
+    .select('id, athlete_id, amount, status, due_date, paid_at, payment_method, notes, period_start, period_end')
     .eq('club_id', clubId)
 
   // Get active subscriptions for projected income
@@ -46,8 +54,24 @@ export async function getPaymentMetrics(month?: string) {
 
   const payments = allPayments ?? []
   const subscriptions = activeSubscriptions ?? []
+  const expectedMonth = await getExpectedMonthIncome(targetMonth)
 
-  // Calculate metrics
+  const monthlyTrend = Array.from({ length: 6 }, (_, idx) => {
+    const d = new Date(today.getFullYear(), today.getMonth() - (5 - idx), 1)
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+    return {
+      key,
+      label: d.toLocaleDateString('es-CL', { month: 'short' }),
+      collected: 0,
+      emitted: 0,
+      overdue: 0,
+    }
+  })
+  const monthlyTrendByKey = new Map(monthlyTrend.map((item) => [item.key, item]))
+  const methodMixMap: Record<string, { amount: number; count: number }> = {}
+  const duplicateCounts: Record<string, number> = {}
+  const overdueAthletes = new Set<string>()
+
   const metrics = {
     // Actual income this month (payments marked as paid this month)
     actualIncome: 0,
@@ -77,24 +101,59 @@ export async function getPaymentMetrics(month?: string) {
     // Month-over-month comparison
     previousMonthActual: 0,
     monthOverMonthChange: 0,
-  }
 
-  const thirtyDaysAgo = new Date()
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
-  const sixtyDaysAgo = new Date()
-  sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60)
+    // Expected target for the current month
+    expectedMonthTotal: expectedMonth.total,
+    expectedMonthFromScheduled: expectedMonth.fromScheduled,
+    expectedMonthFromSubscriptions: expectedMonth.fromSubscriptions,
+    collectionGap: 0,
+
+    // Operational insights
+    pendingTransfersCount: 0,
+    overdueThisWeekCount: 0,
+    overdueAthletesCount: 0,
+    duplicateGroupsCount: 0,
+
+    // Charts
+    monthlyTrend,
+    methodMix: [] as Array<{ method: string; amount: number; count: number; pct: number }>,
+    overdueAging: {
+      upTo30Days: 0,
+      from31To60Days: 0,
+      over60Days: 0,
+    },
+  }
 
   for (const p of payments) {
     const amount = Number(p.amount)
     const dueDate = p.due_date
     const paidAt = p.paid_at
+    const paidMonth = paidAt?.slice(0, 7)
+    const dueMonth = dueDate?.slice(0, 7)
+    const duplicateKey = `${p.athlete_id ?? ''}|${dueMonth ?? ''}`
+    duplicateCounts[duplicateKey] = (duplicateCounts[duplicateKey] ?? 0) + 1
+
+    const notes = typeof p.notes === 'string' ? p.notes : ''
+    const hasReceipt = /https?:\/\/[^\s]+/i.test(notes)
+    const isTransfer =
+      p.payment_method === 'transfer' || notes.toLowerCase().includes('comprobante')
+
+    if ((p.status === 'pending' || p.status === 'overdue') && (isTransfer || hasReceipt)) {
+      metrics.pendingTransfersCount++
+    }
 
     // Actual income: paid this month
     if (p.status === 'paid' && paidAt) {
-      const paidMonth = paidAt.slice(0, 7)
       if (paidMonth === targetMonth) {
         metrics.actualIncome += amount
         metrics.actualIncomeCount++
+
+        if (p.payment_method) {
+          const current = methodMixMap[p.payment_method] ?? { amount: 0, count: 0 }
+          current.amount += amount
+          current.count += 1
+          methodMixMap[p.payment_method] = current
+        }
       }
       // Previous month for comparison
       const prevMonth = new Date(targetMonth + '-01')
@@ -103,6 +162,13 @@ export async function getPaymentMetrics(month?: string) {
       if (paidMonth === prevMonthStr) {
         metrics.previousMonthActual += amount
       }
+    }
+
+    if (dueMonth && monthlyTrendByKey.has(dueMonth)) {
+      monthlyTrendByKey.get(dueMonth)!.emitted += amount
+    }
+    if (paidMonth && monthlyTrendByKey.has(paidMonth) && p.status === 'paid') {
+      monthlyTrendByKey.get(paidMonth)!.collected += amount
     }
 
     // Projected income: due this month
@@ -115,12 +181,25 @@ export async function getPaymentMetrics(month?: string) {
     if (p.status === 'overdue') {
       metrics.totalOverdue += amount
       metrics.overdueCount++
-
-      if (new Date(dueDate) < thirtyDaysAgo) {
-        metrics.overdueOlderThan30Days += amount
+      if (p.athlete_id) overdueAthletes.add(p.athlete_id)
+      if (dueMonth && monthlyTrendByKey.has(dueMonth)) {
+        monthlyTrendByKey.get(dueMonth)!.overdue += amount
       }
-      if (new Date(dueDate) < sixtyDaysAgo) {
+
+      const dueDateObj = new Date(`${dueDate}T12:00:00`)
+      if (dueDateObj >= sevenDaysAgo) {
+        metrics.overdueThisWeekCount++
+      }
+
+      if (dueDateObj < sixtyDaysAgo) {
+        metrics.overdueOlderThan30Days += amount
         metrics.overdueOlderThan60Days += amount
+        metrics.overdueAging.over60Days += amount
+      } else if (dueDateObj < thirtyDaysAgo) {
+        metrics.overdueOlderThan30Days += amount
+        metrics.overdueAging.from31To60Days += amount
+      } else {
+        metrics.overdueAging.upTo30Days += amount
       }
     }
 
@@ -144,6 +223,9 @@ export async function getPaymentMetrics(month?: string) {
   if (metrics.projectedIncome > 0) {
     metrics.collectionRate = Math.round((metrics.actualIncome / metrics.projectedIncome) * 100)
   }
+  if (metrics.expectedMonthTotal > 0) {
+    metrics.collectionGap = Math.max(metrics.expectedMonthTotal - metrics.actualIncome, 0)
+  }
 
   // Month-over-month change
   if (metrics.previousMonthActual > 0) {
@@ -151,6 +233,19 @@ export async function getPaymentMetrics(month?: string) {
       ((metrics.actualIncome - metrics.previousMonthActual) / metrics.previousMonthActual) * 100
     )
   }
+
+  metrics.overdueAthletesCount = overdueAthletes.size
+  metrics.duplicateGroupsCount = Object.values(duplicateCounts).filter((count) => count > 1).length
+
+  const methodTotal = Object.values(methodMixMap).reduce((sum, item) => sum + item.amount, 0)
+  metrics.methodMix = Object.entries(methodMixMap)
+    .map(([method, data]) => ({
+      method,
+      amount: data.amount,
+      count: data.count,
+      pct: methodTotal > 0 ? Math.round((data.amount / methodTotal) * 100) : 0,
+    }))
+    .sort((a, b) => b.amount - a.amount)
 
   return metrics
 }

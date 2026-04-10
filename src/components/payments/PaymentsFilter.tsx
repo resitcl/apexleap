@@ -8,6 +8,7 @@ const STATUS_OPTIONS = [
   { value: 'pending',   label: 'Pendiente', activeClass: 'bg-amber-500 text-white border-amber-500' },
   { value: 'paid',      label: 'Pagado',    activeClass: 'bg-emerald-500 text-white border-emerald-500' },
   { value: 'overdue',   label: 'Vencido',   activeClass: 'bg-red-500 text-white border-red-500' },
+  { value: 'failed',    label: 'Fallido',   activeClass: 'bg-red-700 text-white border-red-700' },
   { value: 'cancelled', label: 'Cancelado', activeClass: 'bg-zinc-500 text-white border-zinc-500' },
 ]
 

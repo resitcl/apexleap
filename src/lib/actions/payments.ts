@@ -116,21 +116,20 @@ export async function getPayments(params?: {
   amountMin?: number
   amountMax?: number
   paymentMethod?: string
+  paidFrom?: string
+  paidTo?: string
 }) {
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
   const page = params?.page ?? 1
-  const limit = params?.limit ?? 25
-  const rangeFrom = (page - 1) * limit
-  const rangeTo = rangeFrom + limit - 1
+  const limit = params?.limit
 
   let query = supabase
     .from('payments')
-    .select('*, athletes(id, name, photo_url), plans(id, name)', { count: 'exact' })
+    .select('*, athletes(id, name, photo_url), plans(id, name, billing_cycle)', { count: 'exact' })
     .eq('club_id', clubId)
     .order('due_date', { ascending: false })
-    .range(rangeFrom, rangeTo)
 
   if (params?.status)    query = query.eq('status', params.status)
   if (params?.athleteId) query = query.eq('athlete_id', params.athleteId)
@@ -140,6 +139,8 @@ export async function getPayments(params?: {
   if (params?.amountMin != null) query = query.gte('amount', params.amountMin)
   if (params?.amountMax != null) query = query.lte('amount', params.amountMax)
   if (params?.paymentMethod)     query = query.eq('payment_method', params.paymentMethod)
+  if (params?.paidFrom)  query = query.gte('paid_at', `${params.paidFrom}T00:00:00`)
+  if (params?.paidTo)    query = query.lte('paid_at', `${params.paidTo}T23:59:59.999`)
   if (params?.athleteName) {
     const { data: athlData } = await supabase
       .from('athletes').select('id').eq('club_id', clubId)
@@ -147,6 +148,12 @@ export async function getPayments(params?: {
     const ids = (athlData ?? []).map((a) => a.id)
     if (ids.length === 0) return { payments: [], total: 0 }
     query = query.in('athlete_id', ids)
+  }
+
+  if (limit != null) {
+    const rangeFrom = (page - 1) * limit
+    const rangeTo = rangeFrom + limit - 1
+    query = query.range(rangeFrom, rangeTo)
   }
 
   const { data, error, count } = await query
