@@ -46,6 +46,45 @@ export function calculateNextPeriodStart(currentStart: Date, cycle: BillingCycle
   return nextStart
 }
 
+/** Normaliza YYYY-MM-DD desde string DB o input date. */
+function normYmd(s: string | null | undefined): string | null {
+  if (!s || s.length < 10) return null
+  return s.slice(0, 10)
+}
+
+/**
+ * Fechas de suscripción al activar un pago: usa inicio/fin de período del pago si existen;
+ * si no, cae en paidAt (comportamiento anterior).
+ * Así el próximo cobro sigue el ciclo del período cubierto y no “salta” un mes por usar solo la fecha de pago.
+ */
+export function subscriptionPeriodFieldsForPlan(
+  cycle: BillingCycle,
+  opts: { periodStart?: string | null; periodEnd?: string | null; paidAt: Date },
+): {
+  startStr: string
+  endStr: string | null
+  nextBillingStr: string | null
+  billingAnchorDay: number
+} {
+  const ps = normYmd(opts.periodStart)
+  const pe = normYmd(opts.periodEnd)
+  const anchor = ps ? new Date(`${ps}T12:00:00`) : opts.paidAt
+  const startStr = ps ?? opts.paidAt.toISOString().split('T')[0]
+
+  let endStr: string | null
+  if (pe) endStr = pe
+  else {
+    const end = calculatePeriodEnd(anchor, cycle)
+    endStr = end ? end.toISOString().split('T')[0] : null
+  }
+
+  const nextStart = calculateNextPeriodStart(anchor, cycle)
+  const nextBillingStr = nextStart ? nextStart.toISOString().split('T')[0] : null
+  const billingAnchorDay = getBillingAnchorDay(anchor)
+
+  return { startStr, endStr, nextBillingStr, billingAnchorDay }
+}
+
 /**
  * Get the billing anchor day (day of month when billing should occur).
  * Uses the original subscription start date's day.

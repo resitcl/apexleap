@@ -129,24 +129,24 @@ export function PaymentRowClient({ payment, athleteDebt, isDuplicate, nextBillin
           )}
         </div>
 
-        {/* Next subscription payment */}
-        <div>
-          <p className="md:hidden text-[9px] font-black uppercase tracking-widest text-muted-foreground/50 mb-0.5">Próximo pago</p>
-          {nextBillingDate ? (
-            <p className="text-sm text-muted-foreground font-medium">
-              {new Date(nextBillingDate + 'T12:00:00').toLocaleDateString('es-CL', { day: 'numeric', month: 'short', year: 'numeric' })}
-            </p>
-          ) : (
-            <span className="text-sm text-muted-foreground/40">—</span>
-          )}
-        </div>
-
         {/* Paid at */}
         <div>
           <p className="md:hidden text-[9px] font-black uppercase tracking-widest text-muted-foreground/50 mb-0.5">Fecha pago</p>
           {payment.paid_at ? (
             <p className="text-sm text-muted-foreground font-medium">
               {new Date(payment.paid_at).toLocaleDateString('es-CL', { day: 'numeric', month: 'short', year: 'numeric' })}
+            </p>
+          ) : (
+            <span className="text-sm text-muted-foreground/40">—</span>
+          )}
+        </div>
+
+        {/* Next subscription payment */}
+        <div>
+          <p className="md:hidden text-[9px] font-black uppercase tracking-widest text-muted-foreground/50 mb-0.5">Próximo pago</p>
+          {nextBillingDate ? (
+            <p className="text-sm text-muted-foreground font-medium">
+              {new Date(nextBillingDate + 'T12:00:00').toLocaleDateString('es-CL', { day: 'numeric', month: 'short', year: 'numeric' })}
             </p>
           ) : (
             <span className="text-sm text-muted-foreground/40">—</span>

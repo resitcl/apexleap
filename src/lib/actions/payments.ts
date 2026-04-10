@@ -5,9 +5,8 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { z } from 'zod'
 import { getClubId } from '@/lib/actions/club-context'
 import {
-  calculatePeriodEnd,
+  subscriptionPeriodFieldsForPlan,
   calculateNextPeriodStart,
-  getBillingAnchorDay,
   type BillingCycle,
 } from '@/lib/billing-utils'
 import { ONLINE_GATEWAY_IDS } from '@/lib/payment-methods'
@@ -38,6 +37,7 @@ async function _activateSubscription(
   payment: { athlete_id: string; plan_id: string | null },
   paidAtDate: Date,
   paymentMethod: string,
+  period?: { start?: string | null; end?: string | null },
 ) {
   if (!payment.plan_id || !payment.athlete_id) return
 
@@ -50,15 +50,11 @@ async function _activateSubscription(
   if (!plan) return
 
   const cycle = plan.billing_cycle as BillingCycle
-  const startStr = paidAtDate.toISOString().split('T')[0]
-
-  const periodEnd = calculatePeriodEnd(paidAtDate, cycle)
-  const endStr = periodEnd ? periodEnd.toISOString().split('T')[0] : null
-
-  const anchorDay = getBillingAnchorDay(paidAtDate)
-
-  const nextStart = calculateNextPeriodStart(paidAtDate, cycle)
-  const nextBillingStr = nextStart ? nextStart.toISOString().split('T')[0] : null
+  const { startStr, endStr, nextBillingStr, billingAnchorDay } = subscriptionPeriodFieldsForPlan(cycle, {
+    periodStart: period?.start,
+    periodEnd: period?.end,
+    paidAt: paidAtDate,
+  })
 
   // Sin pasarela con cargo recurrente real, transfer/efectivo/manual y gateways quedan sin auto-renovación
   const noAutoRenew = new Set<string>(['transfer', 'cash', 'manual', ...ONLINE_GATEWAY_IDS])
@@ -90,7 +86,7 @@ async function _activateSubscription(
     end_date: endStr,
     payment_method: paymentMethod,
     auto_renew: autoRenew,
-    billing_anchor_day: anchorDay,
+    billing_anchor_day: billingAnchorDay,
     current_period_start: startStr,
     current_period_end: endStr,
     next_billing_date: nextBillingStr,
@@ -271,14 +267,18 @@ export async function markAsPaid(id: string, method: string, paidAt?: string) {
   // Fetch payment before updating so we have athlete_id + plan_id
   const { data: payment, error: fetchError } = await supabase
     .from('payments')
-    .select('id, athlete_id, plan_id')
+    .select('id, athlete_id, plan_id, period_start, period_end')
     .eq('id', id)
     .eq('club_id', clubId)
     .single()
 
   if (fetchError || !payment) throw new Error('Pago no encontrado')
 
-  const paidAtDate = paidAt ? new Date(paidAt) : new Date()
+  const paidAtDate = paidAt
+    ? paidAt.includes('T')
+      ? new Date(paidAt)
+      : new Date(`${paidAt.slice(0, 10)}T12:00:00`)
+    : new Date()
 
   const { data, error } = await supabase
     .from('payments')
@@ -296,7 +296,10 @@ export async function markAsPaid(id: string, method: string, paidAt?: string) {
 
   // Activate subscription using the same logic as confirmTransferPayment
   if (payment.plan_id) {
-    await _activateSubscription(supabase, clubId, payment, paidAtDate, method)
+    await _activateSubscription(supabase, clubId, payment, paidAtDate, method, {
+      start: payment.period_start as string | null | undefined,
+      end: payment.period_end as string | null | undefined,
+    })
     revalidatePath('/dashboard/subscriptions')
     revalidatePath('/dashboard/athletes')
     revalidatePath(`/dashboard/athletes/${payment.athlete_id}`)
@@ -355,6 +358,43 @@ export async function updatePayment(id: string, input: {
     .eq('club_id', clubId)
   if (error) throw new Error(error.message)
 
+  const { data: pmt } = await supabase
+    .from('payments')
+    .select('status, athlete_id, plan_id, period_start, period_end')
+    .eq('id', id)
+    .eq('club_id', clubId)
+    .maybeSingle()
+
+  if (
+    pmt?.status === 'paid' &&
+    pmt.athlete_id &&
+    pmt.plan_id &&
+    pmt.period_start &&
+    String(pmt.period_start).length >= 10
+  ) {
+    const { data: planRow } = await supabase
+      .from('plans')
+      .select('billing_cycle')
+      .eq('id', pmt.plan_id)
+      .single()
+    if (planRow?.billing_cycle) {
+      const cycle = planRow.billing_cycle as BillingCycle
+      const anchor = new Date(`${String(pmt.period_start).slice(0, 10)}T12:00:00`)
+      const next = calculateNextPeriodStart(anchor, cycle)
+      await supabase
+        .from('subscriptions')
+        .update({
+          current_period_start: String(pmt.period_start).slice(0, 10),
+          current_period_end: pmt.period_end ? String(pmt.period_end).slice(0, 10) : null,
+          next_billing_date: next ? next.toISOString().split('T')[0] : null,
+        })
+        .eq('club_id', clubId)
+        .eq('athlete_id', pmt.athlete_id)
+        .eq('plan_id', pmt.plan_id)
+        .eq('status', 'active')
+    }
+  }
+
   revalidatePath('/dashboard/payments')
   revalidatePath('/dashboard/subscriptions')
   revalidatePath('/dashboard/athlete')
@@ -400,14 +440,14 @@ export async function confirmTransferPayment(paymentId: string, paidAt?: string)
 
   const { data: payment, error: paymentError } = await supabase
     .from('payments')
-    .select('id, athlete_id, plan_id')
+    .select('id, athlete_id, plan_id, period_start, period_end')
     .eq('id', paymentId)
     .eq('club_id', clubId)
     .single()
 
   if (paymentError || !payment) throw new Error('Pago no encontrado')
 
-  const paidAtDate = paidAt ? new Date(paidAt) : new Date()
+  const paidAtDate = paidAt ? new Date(`${paidAt}T12:00:00`) : new Date()
 
   const { error: updateError } = await supabase
     .from('payments')
@@ -422,7 +462,10 @@ export async function confirmTransferPayment(paymentId: string, paidAt?: string)
   if (updateError) throw new Error(updateError.message)
 
   if (payment.plan_id && payment.athlete_id) {
-    await _activateSubscription(supabase, clubId, payment, paidAtDate, 'transfer')
+    await _activateSubscription(supabase, clubId, payment, paidAtDate, 'transfer', {
+      start: payment.period_start as string | null | undefined,
+      end: payment.period_end as string | null | undefined,
+    })
     revalidatePath('/dashboard/subscriptions')
     revalidatePath('/dashboard/athletes')
     revalidatePath(`/dashboard/athletes/${payment.athlete_id}`)
@@ -444,7 +487,7 @@ export async function bulkMarkAsPaid(ids: string[], method = 'manual') {
   // Fetch affected payments so we can activate subscriptions
   const { data: payments, error: fetchError } = await supabase
     .from('payments')
-    .select('id, athlete_id, plan_id')
+    .select('id, athlete_id, plan_id, period_start, period_end')
     .in('id', ids)
     .eq('club_id', clubId)
     .in('status', ['pending', 'overdue'])
@@ -470,7 +513,10 @@ export async function bulkMarkAsPaid(ids: string[], method = 'manual') {
   // Activate subscriptions for each payment that has a plan
   const withPlan = (payments ?? []).filter((p) => p.plan_id)
   for (const p of withPlan) {
-    await _activateSubscription(supabase, clubId, p, paidAtDate, method)
+    await _activateSubscription(supabase, clubId, p, paidAtDate, method, {
+      start: p.period_start as string | null | undefined,
+      end: p.period_end as string | null | undefined,
+    })
   }
 
   if (withPlan.length > 0) {

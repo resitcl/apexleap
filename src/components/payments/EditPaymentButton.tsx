@@ -174,6 +174,20 @@ export function EditPaymentButton({ payment }: Props) {
                 className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
               />
             </div>
+            {!gatewayLocked && (
+              <div className="space-y-1">
+                <Label>Fecha de pago {payment.status !== 'paid' ? '(opcional)' : ''}</Label>
+                <input
+                  type="date"
+                  value={form.paid_at}
+                  onChange={(e) => set('paid_at', e.target.value)}
+                  className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+                {payment.status !== 'paid' && (
+                  <p className="text-[10px] text-muted-foreground">Si el pago ya se acreditó, puedes registrar la fecha aquí.</p>
+                )}
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>Monto</Label>
@@ -198,20 +212,6 @@ export function EditPaymentButton({ payment }: Props) {
                 />
               </div>
             </div>
-            {!gatewayLocked && (
-              <div className="space-y-1">
-                <Label>Fecha de pago {payment.status !== 'paid' ? '(opcional)' : ''}</Label>
-                <input
-                  type="date"
-                  value={form.paid_at}
-                  onChange={(e) => set('paid_at', e.target.value)}
-                  className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                />
-                {payment.status !== 'paid' && (
-                  <p className="text-[10px] text-muted-foreground">Si el pago ya se acreditó, puedes registrar la fecha aquí.</p>
-                )}
-              </div>
-            )}
             {!gatewayLocked && (payment.plan_id || form.period_start || form.period_end) && (
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">

@@ -459,11 +459,11 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
             <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50">Atleta</span>
             <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50">Monto</span>
             <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50">Plan</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50">Fecha pago</span>
             <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 inline-flex items-center gap-1">
               Próximo pago
-              <InfoTooltip text="Próxima fecha de cobro según la suscripción activa del atleta y el ciclo de su plan." />
+              <InfoTooltip text="Próxima fecha de cobro según la suscripción activa del atleta y el ciclo de su plan (a partir del inicio de período del pago)." />
             </span>
-            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50">Fecha pago</span>
             <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50">Estado Pago</span>
             <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 text-right">Acciones</span>
           </div>
@@ -548,24 +548,24 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
                     )}
                   </div>
 
-                  {/* Next subscription payment */}
-                  <div>
-                    <p className="md:hidden text-[9px] font-black uppercase tracking-widest text-muted-foreground/50 mb-0.5">Próximo pago</p>
-                    {nextPay ? (
-                      <p className="text-sm text-muted-foreground font-medium">
-                        {new Date(nextPay + 'T12:00:00').toLocaleDateString('es-CL', { day: 'numeric', month: 'short', year: 'numeric' })}
-                      </p>
-                    ) : (
-                      <span className="text-sm text-muted-foreground/40">—</span>
-                    )}
-                  </div>
-
                   {/* Paid at */}
                   <div>
                     <p className="md:hidden text-[9px] font-black uppercase tracking-widest text-muted-foreground/50 mb-0.5">Fecha pago</p>
                     {payment.paid_at ? (
                       <p className="text-sm text-muted-foreground font-medium">
                         {new Date(payment.paid_at).toLocaleDateString('es-CL', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      </p>
+                    ) : (
+                      <span className="text-sm text-muted-foreground/40">—</span>
+                    )}
+                  </div>
+
+                  {/* Next subscription payment */}
+                  <div>
+                    <p className="md:hidden text-[9px] font-black uppercase tracking-widest text-muted-foreground/50 mb-0.5">Próximo pago</p>
+                    {nextPay ? (
+                      <p className="text-sm text-muted-foreground font-medium">
+                        {new Date(nextPay + 'T12:00:00').toLocaleDateString('es-CL', { day: 'numeric', month: 'short', year: 'numeric' })}
                       </p>
                     ) : (
                       <span className="text-sm text-muted-foreground/40">—</span>

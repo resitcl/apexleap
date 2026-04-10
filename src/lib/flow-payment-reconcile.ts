@@ -1,10 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin'
-import {
-  calculatePeriodEnd,
-  calculateNextPeriodStart,
-  getBillingAnchorDay,
-  type BillingCycle,
-} from '@/lib/billing-utils'
+import { subscriptionPeriodFieldsForPlan, type BillingCycle } from '@/lib/billing-utils'
 import { ONLINE_GATEWAY_IDS } from '@/lib/payment-methods'
 import { getFlowPaymentStatus, flowStatusIsPaid, resolveFlowConfigFromSettings } from '@/lib/flow'
 
@@ -17,7 +12,12 @@ function parsePaymentIdFromCommerceOrder(value: unknown): string | null {
 async function activateSubscriptionForPaidPayment(
   supabase: ReturnType<typeof createAdminClient>,
   clubId: string,
-  payment: { athlete_id: string; plan_id: string | null },
+  payment: {
+    athlete_id: string
+    plan_id: string | null
+    period_start?: string | null
+    period_end?: string | null
+  },
   paidAtDate: Date,
 ) {
   if (!payment.plan_id || !payment.athlete_id) return
@@ -30,12 +30,11 @@ async function activateSubscriptionForPaidPayment(
   if (!plan) return
 
   const cycle = plan.billing_cycle as BillingCycle
-  const startStr = paidAtDate.toISOString().split('T')[0]
-  const periodEnd = calculatePeriodEnd(paidAtDate, cycle)
-  const endStr = periodEnd ? periodEnd.toISOString().split('T')[0] : null
-  const anchorDay = getBillingAnchorDay(paidAtDate)
-  const nextStart = calculateNextPeriodStart(paidAtDate, cycle)
-  const nextBillingStr = nextStart ? nextStart.toISOString().split('T')[0] : null
+  const { startStr, endStr, nextBillingStr, billingAnchorDay } = subscriptionPeriodFieldsForPlan(cycle, {
+    periodStart: payment.period_start,
+    periodEnd: payment.period_end,
+    paidAt: paidAtDate,
+  })
 
   const noAutoRenew = new Set<string>(['transfer', 'cash', 'manual', ...ONLINE_GATEWAY_IDS])
   const autoRenew = !noAutoRenew.has('flow')
@@ -56,7 +55,7 @@ async function activateSubscriptionForPaidPayment(
     end_date: endStr,
     payment_method: 'flow',
     auto_renew: autoRenew,
-    billing_anchor_day: anchorDay,
+    billing_anchor_day: billingAnchorDay,
     current_period_start: startStr,
     current_period_end: endStr,
     next_billing_date: nextBillingStr,
@@ -71,7 +70,14 @@ async function activateSubscriptionForPaidPayment(
 
 async function markPaymentAsPaid(
   supabase: ReturnType<typeof createAdminClient>,
-  payment: { id: string; club_id: string; athlete_id: string; plan_id: string | null },
+  payment: {
+    id: string
+    club_id: string
+    athlete_id: string
+    plan_id: string | null
+    period_start?: string | null
+    period_end?: string | null
+  },
   token: string,
   source: string,
 ) {
@@ -89,7 +95,19 @@ async function markPaymentAsPaid(
     .eq('club_id', payment.club_id)
   if (error) return { ok: false as const, reason: 'update_failed', error: error.message }
 
-  await activateSubscriptionForPaidPayment(supabase, payment.club_id, payment, new Date(paidAt))
+  const { data: withPeriods } = await supabase
+    .from('payments')
+    .select('athlete_id, plan_id, period_start, period_end')
+    .eq('id', payment.id)
+    .eq('club_id', payment.club_id)
+    .single()
+
+  await activateSubscriptionForPaidPayment(
+    supabase,
+    payment.club_id,
+    withPeriods ?? payment,
+    new Date(paidAt),
+  )
   return { ok: true as const, paid: true as const, paymentId: payment.id }
 }
 
@@ -104,7 +122,7 @@ export async function reconcileFlowPaymentByToken(token: string, opts?: Reconcil
 
   const { data: byToken } = await supabase
     .from('payments')
-    .select('id, club_id, athlete_id, plan_id, status')
+    .select('id, club_id, athlete_id, plan_id, status, period_start, period_end')
     .eq('transaction_id', token.trim())
     .maybeSingle()
 
@@ -138,7 +156,7 @@ export async function reconcileFlowPaymentByToken(token: string, opts?: Reconcil
     if (paymentIdFromOrder && paymentIdFromOrder !== payment.id) {
       const { data: byOrder } = await supabase
         .from('payments')
-        .select('id, club_id, athlete_id, plan_id, status')
+        .select('id, club_id, athlete_id, plan_id, status, period_start, period_end')
         .eq('id', paymentIdFromOrder)
         .eq('club_id', payment.club_id)
         .maybeSingle()
