@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic"
 import { requireClubStaffPage } from "@/lib/actions/club-context"
 import Link from "next/link"
 import { Suspense } from "react"
-import { getPayments, getPaymentSummary } from "@/lib/actions/payments"
+import { getPayments, getPaymentSummary, getNextBillingDateByAthleteIds } from "@/lib/actions/payments"
 import { getExpectedMonthIncome } from "@/lib/actions/finances"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -67,6 +67,7 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
   let error: string | null = null
   const currentMonthIso = new Date().toISOString().slice(0, 7)
   let expectedMonth = { total: 0, fromScheduled: 0, fromSubscriptions: 0, month: currentMonthIso }
+  let nextBillingByAthlete: Record<string, string | null> = {}
 
   try {
     const [result, allResult, summaryResult, expectedRes] = await Promise.all([
@@ -98,6 +99,7 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
     allPayments = pAll
     total = result.total
     summary = summaryResult
+    nextBillingByAthlete = await getNextBillingDateByAthleteIds(pList.map((p) => p.athlete_id))
   } catch (e) {
     error = e instanceof Error ? e.message : 'Error al cargar pagos'
   }
@@ -453,11 +455,15 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
       ) : (
         <Card className="rounded-2xl border-white/[0.04] bg-card shadow-sm overflow-hidden">
           {/* Table Header */}
-          <div className="hidden md:grid grid-cols-[minmax(200px,2fr)_110px_minmax(140px,1.5fr)_120px_130px_120px] gap-4 px-6 py-3.5 border-b border-white/[0.04] bg-muted/10">
+          <div className="hidden md:grid grid-cols-[minmax(200px,2fr)_110px_minmax(140px,1.5fr)_120px_110px_130px_120px] gap-4 px-6 py-3.5 border-b border-white/[0.04] bg-muted/10">
             <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50">Atleta</span>
             <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50">Monto</span>
             <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50">Plan</span>
-            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50">Vencimiento</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 inline-flex items-center gap-1">
+              Próximo pago
+              <InfoTooltip text="Próxima fecha de cobro según la suscripción activa del atleta y el ciclo de su plan." />
+            </span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50">Fecha pago</span>
             <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50">Estado Pago</span>
             <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 text-right">Acciones</span>
           </div>
@@ -475,6 +481,8 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
 
               const cfg = STATUS_CONFIG[payment.status] ?? { label: payment.status, variant: 'outline' as const, dot: 'bg-muted-foreground/40' }
               const plan = (payment as { plans?: { name: string; billing_cycle?: string } | null }).plans
+              const athleteIdKey = athlete?.id ?? payment.athlete_id ?? ''
+              const nextPay = athleteIdKey ? nextBillingByAthlete[athleteIdKey] ?? null : null
 
               // For pending transfers, use the interactive client component
               if (isPendingTransfer) {
@@ -489,6 +497,7 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
                     }}
                     athleteDebt={athleteDebt}
                     isDuplicate={isDuplicate}
+                    nextBillingDate={nextPay}
                   />
                 )
               }
@@ -496,7 +505,7 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
               return (
                 <div
                   key={payment.id}
-                  className="grid grid-cols-1 md:grid-cols-[minmax(200px,2fr)_110px_minmax(140px,1.5fr)_120px_130px_120px] gap-3 md:gap-4 items-center px-6 py-4 hover:bg-muted/5 transition-colors"
+                  className="grid grid-cols-1 md:grid-cols-[minmax(200px,2fr)_110px_minmax(140px,1.5fr)_120px_110px_130px_120px] gap-3 md:gap-4 items-center px-6 py-4 hover:bg-muted/5 transition-colors"
                 >
                   {/* Athlete */}
                   <div className="flex items-center gap-3 min-w-0">
@@ -539,30 +548,49 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
                     )}
                   </div>
 
-                  {/* Due date */}
+                  {/* Next subscription payment */}
                   <div>
-                    <p className="text-sm text-muted-foreground font-medium">
-                      {new Date(payment.due_date).toLocaleDateString('es-CL', { day: 'numeric', month: 'short', year: 'numeric' })}
-                    </p>
-                    {payment.status === 'overdue' && (() => {
-                      const days = Math.floor((Date.now() - new Date(payment.due_date).getTime()) / 86400000)
-                      if (days <= 0) return null
-                      return <p className="text-[10px] text-destructive font-bold">{days}d mora</p>
-                    })()}
+                    <p className="md:hidden text-[9px] font-black uppercase tracking-widest text-muted-foreground/50 mb-0.5">Próximo pago</p>
+                    {nextPay ? (
+                      <p className="text-sm text-muted-foreground font-medium">
+                        {new Date(nextPay + 'T12:00:00').toLocaleDateString('es-CL', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      </p>
+                    ) : (
+                      <span className="text-sm text-muted-foreground/40">—</span>
+                    )}
+                  </div>
+
+                  {/* Paid at */}
+                  <div>
+                    <p className="md:hidden text-[9px] font-black uppercase tracking-widest text-muted-foreground/50 mb-0.5">Fecha pago</p>
+                    {payment.paid_at ? (
+                      <p className="text-sm text-muted-foreground font-medium">
+                        {new Date(payment.paid_at).toLocaleDateString('es-CL', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      </p>
+                    ) : (
+                      <span className="text-sm text-muted-foreground/40">—</span>
+                    )}
                   </div>
 
                   {/* Status */}
-                  <div className="flex items-center gap-2">
-                    <span className={`w-2 h-2 rounded-full shrink-0 ${cfg.dot}`} />
-                    <span className={`text-sm font-bold ${
-                      payment.status === 'paid' ? 'text-primary' :
-                      payment.status === 'overdue' ? 'text-destructive' :
-                      payment.status === 'pending' ? 'text-amber-400' :
-                      'text-muted-foreground'
-                    }`}>
-                      {cfg.label}
-                    </span>
-                    {isDuplicate && <span className="text-[9px] bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded font-bold">DUP</span>}
+                  <div className="flex flex-col gap-0.5 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className={`w-2 h-2 rounded-full shrink-0 ${cfg.dot}`} />
+                      <span className={`text-sm font-bold ${
+                        payment.status === 'paid' ? 'text-primary' :
+                        payment.status === 'overdue' ? 'text-destructive' :
+                        payment.status === 'pending' ? 'text-amber-400' :
+                        'text-muted-foreground'
+                      }`}>
+                        {cfg.label}
+                      </span>
+                      {isDuplicate && <span className="text-[9px] bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded font-bold">DUP</span>}
+                    </div>
+                    {payment.status === 'overdue' && (() => {
+                      const days = Math.floor((Date.now() - new Date(payment.due_date).getTime()) / 86400000)
+                      if (days <= 0) return null
+                      return <p className="text-[10px] text-destructive font-bold pl-4">{days}d mora</p>
+                    })()}
                   </div>
 
                   {/* Actions */}

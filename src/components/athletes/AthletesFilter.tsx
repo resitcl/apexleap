@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { Search, X, SlidersHorizontal, ChevronDown, ChevronUp } from 'lucide-react'
 
 const ATHLETE_STATUS: { value: string | null; label: string }[] = [
@@ -89,6 +89,8 @@ export function AthletesFilter({ plans, categories }: Props) {
 
   const advancedCount = useMemo(() => {
     let n = 0
+    if (currentHealth) n++
+    if (currentPlanId) n++
     if (currentSubStatus) n++
     if (currentCategoryId) n++
     if (currentSort) n++
@@ -100,6 +102,8 @@ export function AthletesFilter({ plans, categories }: Props) {
     if (minAtt) n++
     return n
   }, [
+    currentHealth,
+    currentPlanId,
     currentSubStatus,
     currentCategoryId,
     currentSort,
@@ -137,178 +141,167 @@ export function AthletesFilter({ plans, categories }: Props) {
 
   return (
     <div className="space-y-3">
-      <div className="rounded-[20px] border border-border bg-card p-3 shadow-sm">
-        {/* Fila 1: búsqueda + conteo + estado membresía */}
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-          <div className="relative min-w-0 flex-1">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <input
-                type="text"
-                data-athletes-filter-search
-                placeholder="Buscar por nombre, email o RUT..."
-                className="h-10 w-full rounded-full border border-input bg-background pl-10 pr-24 text-sm font-medium text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-ring"
-                defaultValue={currentSearch}
-                onChange={(e) => {
-                  const val = e.target.value
-                  const w = window as Window & { _athSearch?: ReturnType<typeof setTimeout> }
-                  clearTimeout(w._athSearch)
-                  w._athSearch = setTimeout(() => updateParam('search', val || null), 350)
-                }}
-              />
-              <div className="absolute right-1.5 top-1/2 flex -translate-y-1/2 items-center gap-1">
-                {currentSearch ? (
-                  <button
-                    type="button"
-                    className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
-                    onClick={() => updateParam('search', null)}
-                    aria-label="Limpiar búsqueda"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                ) : null}
-                <button
-                  type="button"
-                  className="h-8 shrink-0 rounded-full bg-primary px-3 text-xs font-semibold text-primary-foreground hover:bg-primary/90"
-                  onClick={() => {
-                    const el = document.querySelector<HTMLInputElement>(
-                      'input[data-athletes-filter-search]',
-                    )
-                    updateParam('search', el?.value?.trim() || null)
-                  }}
-                >
-                  Buscar
-                </button>
-              </div>
-            </div>
+      {/* Fila principal — misma idea que PaymentsFilter: sin card envolvente */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative min-w-0 w-full sm:w-auto sm:min-w-[220px] sm:max-w-md sm:flex-1">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="text"
+            data-athletes-filter-search
+            placeholder="Buscar por nombre, email o RUT..."
+            className="h-9 w-full rounded-md border border-input bg-background pl-9 pr-[5.25rem] text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-ring"
+            defaultValue={currentSearch}
+            onChange={(e) => {
+              const val = e.target.value
+              const w = window as Window & { _athSearch?: ReturnType<typeof setTimeout> }
+              clearTimeout(w._athSearch)
+              w._athSearch = setTimeout(() => updateParam('search', val || null), 350)
+            }}
+          />
+          <div className="absolute right-1 top-1/2 flex -translate-y-1/2 items-center gap-0.5">
+            {currentSearch ? (
+              <button
+                type="button"
+                className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                onClick={() => updateParam('search', null)}
+                aria-label="Limpiar búsqueda"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className="h-7 shrink-0 rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+              onClick={() => {
+                const el = document.querySelector<HTMLInputElement>('input[data-athletes-filter-search]')
+                updateParam('search', el?.value?.trim() || null)
+              }}
+            >
+              Buscar
+            </button>
+          </div>
+        </div>
 
-          <div className="hidden h-8 w-px shrink-0 bg-border lg:block" />
+        <div className="hidden h-6 w-px shrink-0 bg-border sm:block" />
 
-          <div className="flex flex-wrap items-center gap-2 lg:max-w-[50%] xl:max-w-none">
-            <span className="hidden text-[10px] font-black uppercase tracking-widest text-muted-foreground sm:inline">
-              Estado
+        {ATHLETE_STATUS.map((opt) => {
+          const active =
+            (opt.value === null && !currentStatus) || (opt.value !== null && currentStatus === opt.value)
+          return (
+            <button
+              key={opt.value ?? 'all'}
+              type="button"
+              onClick={() => {
+                if (opt.value === null) {
+                  router.push(buildUrl({ status: null }))
+                  return
+                }
+                router.push(buildUrl({ status: currentStatus === opt.value ? null : opt.value }))
+              }}
+              className={`h-9 shrink-0 rounded-md border px-3 text-sm font-medium transition-colors ${
+                active
+                  ? 'border-primary bg-primary text-primary-foreground'
+                  : 'border-input bg-background text-muted-foreground hover:border-foreground/30 hover:text-foreground'
+              }`}
+            >
+              {opt.label}
+            </button>
+          )
+        })}
+
+        <div className="h-6 w-px shrink-0 bg-border" />
+
+        <button
+          type="button"
+          onClick={() => setExpanded(!expanded)}
+          className={`flex h-9 shrink-0 items-center gap-1.5 rounded-md border px-3 text-sm font-medium transition-colors ${
+            expanded || advancedCount > 0
+              ? 'border-primary/30 bg-primary/10 text-primary'
+              : 'border-input bg-background text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          <SlidersHorizontal className="h-3.5 w-3.5" />
+          Más filtros
+          {advancedCount > 0 ? (
+            <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+              {advancedCount}
             </span>
-            {ATHLETE_STATUS.map((opt) => {
-              const active =
-                (opt.value === null && !currentStatus) || (opt.value !== null && currentStatus === opt.value)
+          ) : null}
+          {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+        </button>
+
+        {hasAny ? (
+          <button
+            type="button"
+            onClick={() => router.push(pathname)}
+            className="flex h-9 shrink-0 items-center gap-1.5 rounded-md border border-input px-3 text-sm text-muted-foreground hover:text-foreground"
+          >
+            <X className="h-3.5 w-3.5" /> Limpiar
+          </button>
+        ) : null}
+      </div>
+
+      {/* Panel — Salud, plan y filtros avanzados (como vista de pagos) */}
+      {expanded ? (
+        <div className="space-y-4 rounded-lg border border-border bg-muted/30 p-4">
+          {/* Salud */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="w-24 shrink-0 text-xs font-medium text-muted-foreground">Salud</span>
+            {HEALTH_FILTERS.map((f) => {
+              const active = currentHealth === f.value
               return (
                 <button
-                  key={opt.value ?? 'all'}
+                  key={f.value}
                   type="button"
-                  onClick={() => {
-                    if (opt.value === null) {
-                      router.push(buildUrl({ status: null }))
-                      return
-                    }
-                    router.push(buildUrl({ status: currentStatus === opt.value ? null : opt.value }))
-                  }}
-                  className={`h-8 rounded-full border px-3 text-xs font-semibold transition-colors ${
+                  onClick={() => updateParam('health', active ? null : f.value)}
+                  className={`inline-flex h-7 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition-colors ${
                     active
                       ? 'border-primary bg-primary text-primary-foreground'
-                      : 'border-input bg-background text-muted-foreground hover:border-foreground/20 hover:text-foreground'
+                      : 'border-input bg-background text-muted-foreground hover:text-foreground'
                   }`}
                 >
-                  {opt.label}
+                  <span className={`h-1.5 w-1.5 rounded-full ${active ? 'bg-primary-foreground' : f.dot}`} />
+                  {f.label}
                 </button>
               )
             })}
           </div>
-        </div>
 
-        {/* Salud */}
-        <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3">
-          <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Salud</span>
-          {HEALTH_FILTERS.map((f) => {
-            const active = currentHealth === f.value
-            return (
-              <button
-                key={f.value}
-                type="button"
-                onClick={() => updateParam('health', active ? null : f.value)}
-                className={`inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition-colors ${
-                  active
-                    ? 'border-primary bg-primary text-primary-foreground'
-                    : 'border-input bg-background text-muted-foreground hover:border-foreground/20 hover:text-foreground'
-                }`}
-              >
-                <span className={`h-1.5 w-1.5 rounded-full ${active ? 'bg-primary-foreground' : f.dot}`} />
-                {f.label}
-              </button>
-            )
-          })}
-        </div>
-
-        {/* Planes */}
-        {plans.length > 0 ? (
-          <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3">
-            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Plan</span>
-            <div className="flex max-w-full flex-1 flex-wrap gap-1.5 overflow-x-auto pb-0.5">
-              <button
-                type="button"
-                onClick={() => router.push(buildUrl({ planId: null }))}
-                className={`h-7 shrink-0 rounded-full px-2.5 text-[10px] font-bold uppercase tracking-wider transition-colors ${
-                  !currentPlanId
-                    ? 'bg-primary text-primary-foreground'
-                    : 'border border-input bg-background text-muted-foreground hover:bg-muted'
-                }`}
-              >
-                Todos
-              </button>
-              {plans.map((p) => (
+          {/* Planes */}
+          {plans.length > 0 ? (
+            <div className="flex flex-wrap items-start gap-2">
+              <span className="w-24 shrink-0 pt-1 text-xs font-medium text-muted-foreground">Plan</span>
+              <div className="flex min-w-0 flex-1 flex-wrap gap-1.5">
                 <button
-                  key={p.id}
                   type="button"
-                  onClick={() =>
-                    router.push(buildUrl({ planId: currentPlanId === p.id ? null : p.id }))
-                  }
-                  className={`h-7 max-w-[200px] shrink-0 truncate rounded-full px-2.5 text-[10px] font-bold uppercase tracking-wider transition-colors ${
-                    currentPlanId === p.id
-                      ? 'bg-primary text-primary-foreground'
-                      : 'border border-input bg-background text-muted-foreground hover:bg-muted'
+                  onClick={() => router.push(buildUrl({ planId: null }))}
+                  className={`h-7 shrink-0 rounded-md border px-2.5 text-xs font-medium transition-colors ${
+                    !currentPlanId
+                      ? 'border-primary bg-primary text-primary-foreground'
+                      : 'border-input bg-background text-muted-foreground hover:text-foreground'
                   }`}
-                  title={p.name}
                 >
-                  {p.name}
+                  Todos
                 </button>
-              ))}
+                {plans.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => router.push(buildUrl({ planId: currentPlanId === p.id ? null : p.id }))}
+                    className={`h-7 max-w-[200px] shrink-0 truncate rounded-md border px-2.5 text-xs font-medium transition-colors ${
+                      currentPlanId === p.id
+                        ? 'border-primary bg-primary text-primary-foreground'
+                        : 'border-input bg-background text-muted-foreground hover:text-foreground'
+                    }`}
+                    title={p.name}
+                  >
+                    {p.name}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
-        ) : null}
-
-        {/* Más filtros + limpiar */}
-        <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3">
-          <button
-            type="button"
-            onClick={() => setExpanded(!expanded)}
-            className={`flex h-9 items-center gap-1.5 rounded-full border px-3 text-sm font-medium transition-colors ${
-              expanded || advancedCount > 0
-                ? 'border-primary/40 bg-primary/10 text-primary'
-                : 'border-input bg-background text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <SlidersHorizontal className="h-3.5 w-3.5" />
-            Más filtros
-            {advancedCount > 0 ? (
-              <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
-                {advancedCount}
-              </span>
-            ) : null}
-            {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-          </button>
-
-          {hasAny ? (
-            <button
-              type="button"
-              onClick={() => router.push(pathname)}
-              className="flex h-9 items-center gap-1.5 rounded-full border border-input px-3 text-sm text-muted-foreground hover:text-foreground"
-            >
-              <X className="h-3.5 w-3.5" /> Limpiar
-            </button>
           ) : null}
-        </div>
 
-        {/* Panel avanzado */}
-        {expanded ? (
-          <div className="mt-3 space-y-4 rounded-xl border border-border bg-muted/30 p-4">
             {categories.length > 0 ? (
               <div className="flex flex-wrap items-center gap-2">
                 <span className="w-28 shrink-0 text-xs font-medium text-muted-foreground">Categoría</span>
@@ -576,9 +569,8 @@ export function AthletesFilter({ plans, categories }: Props) {
                 </form>
               </div>
             </div>
-          </div>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
     </div>
   )
 }

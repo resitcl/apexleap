@@ -48,9 +48,11 @@ interface Props {
   payment: Payment
   athleteDebt: number
   isDuplicate: boolean
+  /** subscriptions.next_billing_date de la suscripción activa del atleta */
+  nextBillingDate: string | null
 }
 
-export function PaymentRowClient({ payment, athleteDebt, isDuplicate }: Props) {
+export function PaymentRowClient({ payment, athleteDebt, isDuplicate, nextBillingDate }: Props) {
   const [confirmOpen, setConfirmOpen] = useState(false)
 
   const athlete = payment.athletes
@@ -72,7 +74,7 @@ export function PaymentRowClient({ payment, athleteDebt, isDuplicate }: Props) {
   return (
     <>
       <div
-        className={`grid grid-cols-1 md:grid-cols-[minmax(200px,2fr)_110px_minmax(140px,1.5fr)_120px_130px_120px] gap-3 md:gap-4 items-center px-6 py-4 transition-colors ${
+        className={`grid grid-cols-1 md:grid-cols-[minmax(200px,2fr)_110px_minmax(140px,1.5fr)_120px_110px_130px_120px] gap-3 md:gap-4 items-center px-6 py-4 transition-colors ${
           isPendingTransfer
             ? 'cursor-pointer hover:bg-primary/5 border-l-2 border-l-primary/40'
             : 'hover:bg-muted/5'
@@ -127,30 +129,49 @@ export function PaymentRowClient({ payment, athleteDebt, isDuplicate }: Props) {
           )}
         </div>
 
-        {/* Due date */}
+        {/* Next subscription payment */}
         <div>
-          <p className="text-sm text-muted-foreground font-medium">
-            {new Date(payment.due_date).toLocaleDateString('es-CL', { day: 'numeric', month: 'short', year: 'numeric' })}
-          </p>
-          {payment.status === 'overdue' && (() => {
-            const days = Math.floor((Date.now() - new Date(payment.due_date).getTime()) / 86400000)
-            if (days <= 0) return null
-            return <p className="text-[10px] text-destructive font-bold">{days}d mora</p>
-          })()}
+          <p className="md:hidden text-[9px] font-black uppercase tracking-widest text-muted-foreground/50 mb-0.5">Próximo pago</p>
+          {nextBillingDate ? (
+            <p className="text-sm text-muted-foreground font-medium">
+              {new Date(nextBillingDate + 'T12:00:00').toLocaleDateString('es-CL', { day: 'numeric', month: 'short', year: 'numeric' })}
+            </p>
+          ) : (
+            <span className="text-sm text-muted-foreground/40">—</span>
+          )}
+        </div>
+
+        {/* Paid at */}
+        <div>
+          <p className="md:hidden text-[9px] font-black uppercase tracking-widest text-muted-foreground/50 mb-0.5">Fecha pago</p>
+          {payment.paid_at ? (
+            <p className="text-sm text-muted-foreground font-medium">
+              {new Date(payment.paid_at).toLocaleDateString('es-CL', { day: 'numeric', month: 'short', year: 'numeric' })}
+            </p>
+          ) : (
+            <span className="text-sm text-muted-foreground/40">—</span>
+          )}
         </div>
 
         {/* Status */}
-        <div className="flex items-center gap-2">
-          <span className={`w-2 h-2 rounded-full shrink-0 ${dot}`} />
-          <span className={`text-sm font-bold ${
-            payment.status === 'paid' ? 'text-primary' :
-            payment.status === 'overdue' ? 'text-destructive' :
-            payment.status === 'pending' ? 'text-amber-400' :
-            'text-muted-foreground'
-          }`}>
-            {label}
-          </span>
-          {isDuplicate && <span className="text-[9px] bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded font-bold">DUP</span>}
+        <div className="flex flex-col gap-0.5 min-w-0">
+          <div className="flex items-center gap-2">
+            <span className={`w-2 h-2 rounded-full shrink-0 ${dot}`} />
+            <span className={`text-sm font-bold ${
+              payment.status === 'paid' ? 'text-primary' :
+              payment.status === 'overdue' ? 'text-destructive' :
+              payment.status === 'pending' ? 'text-amber-400' :
+              'text-muted-foreground'
+            }`}>
+              {label}
+            </span>
+            {isDuplicate && <span className="text-[9px] bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded font-bold">DUP</span>}
+          </div>
+          {payment.status === 'overdue' && (() => {
+            const days = Math.floor((Date.now() - new Date(payment.due_date).getTime()) / 86400000)
+            if (days <= 0) return null
+            return <p className="text-[10px] text-destructive font-bold pl-4">{days}d mora</p>
+          })()}
         </div>
 
         {/* Actions */}

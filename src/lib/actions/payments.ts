@@ -158,6 +158,40 @@ export async function getPayments(params?: {
   return { payments: data ?? [], total: count ?? 0 }
 }
 
+/** Próxima fecha de cobro por atleta según suscripciones activas (`next_billing_date`, alineado al plan/ciclo). */
+export async function getNextBillingDateByAthleteIds(
+  athleteIds: string[],
+): Promise<Record<string, string | null>> {
+  const unique = [...new Set(athleteIds.filter(Boolean))]
+  if (unique.length === 0) return {}
+
+  const clubId = await getClubId()
+  const supabase = createAdminClient()
+
+  const { data, error } = await supabase
+    .from('subscriptions')
+    .select('athlete_id, next_billing_date')
+    .eq('club_id', clubId)
+    .eq('status', 'active')
+    .in('athlete_id', unique)
+
+  if (error) throw new Error(error.message)
+
+  const map: Record<string, string | null> = {}
+  for (const row of data ?? []) {
+    const aid = row.athlete_id as string
+    const nb = row.next_billing_date as string | null
+    if (nb == null) {
+      if (!(aid in map)) map[aid] = null
+      continue
+    }
+    const cur = map[aid]
+    if (cur == null || nb < cur) map[aid] = nb
+  }
+
+  return map
+}
+
 export async function getPaymentSummary() {
   const clubId = await getClubId()
   const supabase = createAdminClient()
