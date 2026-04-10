@@ -29,31 +29,55 @@ const coachSchema = z.object({
 export type ExpenseInput = z.infer<typeof expenseSchema>
 export type CoachInput = z.infer<typeof coachSchema>
 
+function getMonthRange(month?: string) {
+  const now = new Date()
+  const y = month ? month.split('-')[0] : String(now.getFullYear())
+  const m = month ? month.split('-')[1] : String(now.getMonth() + 1).padStart(2, '0')
+  const start = `${y}-${m}-01`
+  const end = new Date(Number(y), Number(m), 0).toISOString().split('T')[0]
+  return { year: y, month: m, start, end, monthKey: `${y}-${m}` }
+}
 
 // ── EXPENSES ──────────────────────────────────────────────────
 
-export async function getExpenses(params?: { month?: string; category?: string; page?: number }) {
+export async function getExpenses(params?: {
+  month?: string
+  category?: string
+  page?: number
+  limit?: number | null
+  amountMin?: number
+  amountMax?: number
+  dateFrom?: string
+  dateTo?: string
+  search?: string
+}) {
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
   const page = params?.page ?? 1
-  const limit = 25
-  const from = (page - 1) * limit
-  const to = from + limit - 1
+  const limit = params?.limit === undefined ? 25 : params.limit
 
   let query = supabase
     .from('expenses')
-    .select('*', { count: 'exact' })
+    .select('*, suppliers(id, name, category, is_active)', { count: 'exact' })
     .eq('club_id', clubId)
     .order('date', { ascending: false })
-    .range(from, to)
 
   if (params?.category) query = query.eq('category', params.category)
   if (params?.month) {
-    const [year, month] = params.month.split('-')
-    const start = `${year}-${month}-01`
-    const end = new Date(Number(year), Number(month), 0).toISOString().split('T')[0]
+    const { start, end } = getMonthRange(params.month)
     query = query.gte('date', start).lte('date', end)
+  }
+  if (params?.dateFrom) query = query.gte('date', params.dateFrom)
+  if (params?.dateTo) query = query.lte('date', params.dateTo)
+  if (params?.amountMin != null) query = query.gte('amount', params.amountMin)
+  if (params?.amountMax != null) query = query.lte('amount', params.amountMax)
+  if (params?.search) query = query.ilike('concept', `%${params.search}%`)
+
+  if (limit != null) {
+    const from = (page - 1) * limit
+    const to = from + limit - 1
+    query = query.range(from, to)
   }
 
   const { data, error, count } = await query
@@ -65,23 +89,27 @@ export async function getFinanceSummary(month?: string) {
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
-  const now = new Date()
-  const y = month ? month.split('-')[0] : String(now.getFullYear())
-  const m = month ? month.split('-')[1] : String(now.getMonth() + 1).padStart(2, '0')
-  const start = `${y}-${m}-01`
-  const end = new Date(Number(y), Number(m), 0).toISOString().split('T')[0]
+  const { start, end, monthKey } = getMonthRange(month)
 
   const [expensesRes, paymentsRes] = await Promise.all([
     supabase.from('expenses').select('amount, category').eq('club_id', clubId).gte('date', start).lte('date', end),
-    supabase.from('payments').select('amount, status').eq('club_id', clubId).gte('due_date', start).lte('due_date', end),
+    supabase.from('payments').select('amount, status, due_date, paid_at').eq('club_id', clubId),
   ])
 
   const totalExpenses = (expensesRes.data ?? []).reduce((s, e) => s + Number(e.amount), 0)
-  const totalIncome = (paymentsRes.data ?? [])
-    .filter((p) => p.status === 'paid')
+  const paymentRows = paymentsRes.data ?? []
+
+  const totalIncome = paymentRows
+    .filter((p) => p.status === 'paid' && p.paid_at?.slice(0, 7) === monthKey)
     .reduce((s, p) => s + Number(p.amount), 0)
-  const pendingIncome = (paymentsRes.data ?? [])
-    .filter((p) => p.status === 'pending' || p.status === 'overdue')
+  const emittedIncome = paymentRows
+    .filter((p) => p.due_date?.slice(0, 7) === monthKey)
+    .reduce((s, p) => s + Number(p.amount), 0)
+  const pendingIncome = paymentRows
+    .filter((p) => p.due_date?.slice(0, 7) === monthKey && (p.status === 'pending' || p.status === 'overdue'))
+    .reduce((s, p) => s + Number(p.amount), 0)
+  const overdueIncome = paymentRows
+    .filter((p) => p.due_date?.slice(0, 7) === monthKey && p.status === 'overdue')
     .reduce((s, p) => s + Number(p.amount), 0)
 
   const byCategory: Record<string, number> = {}
@@ -92,10 +120,12 @@ export async function getFinanceSummary(month?: string) {
   return {
     totalIncome,
     totalExpenses,
+    emittedIncome,
     pendingIncome,
+    overdueIncome,
     netBalance: totalIncome - totalExpenses,
     byCategory,
-    month: `${y}-${m}`,
+    month: monthKey,
   }
 }
 

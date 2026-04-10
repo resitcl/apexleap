@@ -13,6 +13,8 @@ interface Expense {
   date: string
   paid_to: string | null
   notes: string | null
+  receipt_url?: string | null
+  suppliers?: { name?: string } | { name?: string }[] | null
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -27,15 +29,22 @@ export function ExportExpensesButton({ expenses, month }: { expenses: Expense[];
     if (expenses.length === 0) { toast.error('Sin egresos para exportar'); return }
     setLoading(true)
     try {
-      const headers = ['Concepto', 'Categoría', 'Monto', 'Fecha', 'Pagado a', 'Notas']
-      const rows = expenses.map((e) => [
-        e.concept,
-        CATEGORY_LABELS[e.category] ?? e.category,
-        String(Number(e.amount)),
-        new Date(e.date + 'T12:00:00').toLocaleDateString('es-CL'),
-        e.paid_to ?? '',
-        e.notes ?? '',
-      ])
+      const headers = ['Concepto', 'Categoría', 'Monto', 'Fecha', 'Pagado a', 'Proveedor', 'Comprobante', 'Notas']
+      const rows = expenses.map((e) => {
+        const supRaw = e.suppliers
+        const supRow = Array.isArray(supRaw) ? supRaw[0] : supRaw
+        const supName = supRow?.name?.trim() ?? ''
+        return [
+          e.concept,
+          CATEGORY_LABELS[e.category] ?? e.category,
+          String(Number(e.amount)),
+          new Date(e.date + 'T12:00:00').toLocaleDateString('es-CL'),
+          e.paid_to ?? '',
+          supName,
+          (e.receipt_url ?? '').trim(),
+          e.notes ?? '',
+        ]
+      })
 
       const csv = [headers, ...rows]
         .map((row) => row.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(','))

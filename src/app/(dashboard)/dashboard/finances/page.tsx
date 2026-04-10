@@ -11,8 +11,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import {
   TrendingUp, TrendingDown, DollarSign, AlertCircle, Users, Building2,
-  Wallet, PieChart, BarChart3, UserCog, Truck, CalendarClock,
+  Wallet, PieChart, BarChart3, UserCog, Truck, CalendarClock, ExternalLink,
 } from "lucide-react"
+import { getSubscriptionStats } from "@/lib/actions/subscriptions"
 import { InfoTooltip } from "@/components/ui/info-tooltip"
 import { NewExpenseForm } from "@/components/finances/NewExpenseForm"
 import { NewCoachForm } from "@/components/finances/NewCoachForm"
@@ -36,8 +37,47 @@ const SALARY_TYPE_LABELS: Record<string, string> = {
   fixed: "Fijo mensual", per_session: "Por sesión", percentage: "% ingresos",
 }
 
+function buildExpensesHref(
+  month: string,
+  opts: {
+    category?: string
+    amountMin?: number
+    amountMax?: number
+    dateFrom?: string
+    dateTo?: string
+    page?: number
+  },
+) {
+  const p = new URLSearchParams({ tab: "expenses", month })
+  if (opts.category) p.set("category", opts.category)
+  if (opts.amountMin != null && !Number.isNaN(opts.amountMin)) p.set("amountMin", String(opts.amountMin))
+  if (opts.amountMax != null && !Number.isNaN(opts.amountMax)) p.set("amountMax", String(opts.amountMax))
+  if (opts.dateFrom) p.set("dateFrom", opts.dateFrom)
+  if (opts.dateTo) p.set("dateTo", opts.dateTo)
+  if (opts.page != null && opts.page > 1) p.set("page", String(opts.page))
+  return `/dashboard/finances?${p.toString()}`
+}
+
+function supplierLabel(exp: { suppliers?: unknown }): string | null {
+  const raw = exp.suppliers
+  if (!raw) return null
+  const row = Array.isArray(raw) ? raw[0] : raw
+  if (!row || typeof row !== "object") return null
+  const name = (row as { name?: string }).name
+  return name?.trim() ? name : null
+}
+
 interface PageProps {
-  searchParams: Promise<{ month?: string; tab?: string; category?: string; amountMin?: string; amountMax?: string; dateFrom?: string; dateTo?: string }>
+  searchParams: Promise<{
+    month?: string
+    tab?: string
+    category?: string
+    amountMin?: string
+    amountMax?: string
+    dateFrom?: string
+    dateTo?: string
+    page?: string
+  }>
 }
 
 export default async function FinancesPage({ searchParams }: PageProps) {
@@ -49,14 +89,37 @@ export default async function FinancesPage({ searchParams }: PageProps) {
   const amountMax = params.amountMax ? Number(params.amountMax) : undefined
   const dateFrom  = params.dateFrom  ?? ''
   const dateTo    = params.dateTo    ?? ''
+  const expensePage = Math.max(1, Number.parseInt(params.page ?? "1", 10) || 1)
 
-  let summary = { totalIncome: 0, totalExpenses: 0, pendingIncome: 0, netBalance: 0, byCategory: {} as Record<string, number>, month }
-  let prevSummary = { totalIncome: 0, totalExpenses: 0, pendingIncome: 0, netBalance: 0, byCategory: {} as Record<string, number>, month: '' }
-  let expenses: Awaited<ReturnType<typeof getExpenses>>["expenses"] = []
+  let summary = {
+    totalIncome: 0,
+    totalExpenses: 0,
+    pendingIncome: 0,
+    netBalance: 0,
+    emittedIncome: 0,
+    overdueIncome: 0,
+    byCategory: {} as Record<string, number>,
+    month,
+  }
+  let prevSummary = {
+    totalIncome: 0,
+    totalExpenses: 0,
+    pendingIncome: 0,
+    netBalance: 0,
+    emittedIncome: 0,
+    overdueIncome: 0,
+    byCategory: {} as Record<string, number>,
+    month: "",
+  }
+  let monthExpenses: Awaited<ReturnType<typeof getExpenses>>["expenses"] = []
+  let expensesFilteredAll: Awaited<ReturnType<typeof getExpenses>>["expenses"] = []
+  let expensesTabList: Awaited<ReturnType<typeof getExpenses>>["expenses"] = []
+  let expensesTabTotal = 0
   let coaches: Awaited<ReturnType<typeof getCoaches>> = []
   let chartData: Awaited<ReturnType<typeof getMonthlyFinanceChart>> = []
   let suppliers: Awaited<ReturnType<typeof getSuppliers>> = []
   let expectedIncome = { total: 0, fromScheduled: 0, fromSubscriptions: 0, month: month }
+  let subscriptionStats = { active: 0, paused: 0, cancelled: 0, expired: 0, mrr: 0 }
 
   const prevMonth = (() => {
     const [y, m] = month.split('-').map(Number)
@@ -65,27 +128,46 @@ export default async function FinancesPage({ searchParams }: PageProps) {
   })()
 
   try {
-    const [s, prev, e, c, ch, sup, exp] = await Promise.all([
+    const [s, prev, monthExpRes, c, ch, sup, exp, subStats] = await Promise.all([
       getFinanceSummary(month),
       getFinanceSummary(prevMonth),
-      getExpenses({ month, category: category || undefined }),
+      getExpenses({ month, limit: null }),
       getCoaches(),
       getMonthlyFinanceChart(6),
       getSuppliers({ activeOnly: false }),
       getExpectedMonthIncome(month),
+      getSubscriptionStats(),
     ])
     summary = s
     expectedIncome = exp
     prevSummary = prev
-    expenses = e.expenses
-      .filter((ex) => amountMin === undefined || Number(ex.amount) >= amountMin)
-      .filter((ex) => amountMax === undefined || Number(ex.amount) <= amountMax)
-      .filter((ex) => !dateFrom || ex.date >= dateFrom)
-      .filter((ex) => !dateTo   || ex.date <= dateTo)
+    monthExpenses = monthExpRes.expenses
     coaches = c
     chartData = ch
     suppliers = sup
+    subscriptionStats = subStats
+
+    if (tab === "expenses") {
+      const filterOpts = {
+        month,
+        category: category || undefined,
+        dateFrom: dateFrom || undefined,
+        dateTo: dateTo || undefined,
+        amountMin,
+        amountMax,
+      }
+      const [filteredAll, paged] = await Promise.all([
+        getExpenses({ ...filterOpts, limit: null }),
+        getExpenses({ ...filterOpts, page: expensePage, limit: 25 }),
+      ])
+      expensesFilteredAll = filteredAll.expenses
+      expensesTabList = paged.expenses
+      expensesTabTotal = paged.total
+    }
   } catch { /* show zeros */ }
+
+  const avgSubscriptionValue =
+    subscriptionStats.active > 0 ? Math.round(subscriptionStats.mrr / subscriptionStats.active) : 0
 
   const monthLabel = new Date(month + "-02").toLocaleDateString("es-CL", { month: "long", year: "numeric" })
   const chartMax = Math.max(...chartData.flatMap((m) => [m.income, m.expenses]), 1)
@@ -112,12 +194,18 @@ export default async function FinancesPage({ searchParams }: PageProps) {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <DashboardMetricCard
           icon={<TrendingUp className="w-4 h-4" />}
-          label="Ingresos"
+          label="Ingresos cobrados"
           value={`$${summary.totalIncome.toLocaleString("es-CL")}`}
           description={prevSummary.totalIncome > 0 ? (() => {
             const pct = Math.round(((summary.totalIncome - prevSummary.totalIncome) / prevSummary.totalIncome) * 100)
-            return `${pct >= 0 ? '▲' : '▼'} ${Math.abs(pct)}% vs mes anterior`
-          })() : "pagos recibidos"}
+            const base = `${pct >= 0 ? "▲" : "▼"} ${Math.abs(pct)}% vs mes anterior`
+            if (summary.emittedIncome > 0 && summary.emittedIncome !== summary.totalIncome) {
+              return `${base} · Emitido en mes $${summary.emittedIncome.toLocaleString("es-CL")}`
+            }
+            return base
+          })() : summary.emittedIncome > 0
+            ? `Emitido en mes $${summary.emittedIncome.toLocaleString("es-CL")}`
+            : "Según fecha de pago"}
           tone="success"
         />
         <DashboardMetricCard
@@ -139,9 +227,13 @@ export default async function FinancesPage({ searchParams }: PageProps) {
         />
         <DashboardMetricCard
           icon={<AlertCircle className="w-4 h-4" />}
-          label="Por Cobrar"
+          label="Por cobrar"
           value={`$${summary.pendingIncome.toLocaleString("es-CL")}`}
-          description="pagos pendientes"
+          description={
+            summary.overdueIncome > 0
+              ? `Vencimiento en el mes (pendientes + vencidos) · Vencidos $${summary.overdueIncome.toLocaleString("es-CL")}`
+              : "Cuotas con vencimiento en el mes aún no pagadas"
+          }
           tone="warning"
         />
         <DashboardMetricCard
@@ -155,8 +247,8 @@ export default async function FinancesPage({ searchParams }: PageProps) {
           }
           tone="info"
         />
-        {expenses.length > 0 && (() => {
-          const maxExp = expenses.slice().sort((a, b) => Number(b.amount) - Number(a.amount))[0]
+        {monthExpenses.length > 0 && (() => {
+          const maxExp = monthExpenses.slice().sort((a, b) => Number(b.amount) - Number(a.amount))[0]
           if (!maxExp) return null
           const CAT_LABEL: Record<string, string> = { rent: 'Arriendo', salary: 'Salarios', supplies: 'Insumos', maintenance: 'Mantención', marketing: 'Marketing', other: 'Otros' }
           return (
@@ -170,7 +262,7 @@ export default async function FinancesPage({ searchParams }: PageProps) {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-red-600">${Number(maxExp.amount).toLocaleString('es-CL')}</div>
-                <p className="text-xs text-muted-foreground truncate">{maxExp.description ?? CAT_LABEL[maxExp.category] ?? maxExp.category}</p>
+                <p className="text-xs text-muted-foreground truncate">{maxExp.concept ?? CAT_LABEL[maxExp.category] ?? maxExp.category}</p>
               </CardContent>
             </Card>
           )
@@ -240,6 +332,22 @@ export default async function FinancesPage({ searchParams }: PageProps) {
         </Card>
       )}
 
+      {summary.overdueIncome > 0 && (
+        <Card className="border-amber-200 bg-amber-50/80">
+          <CardContent className="py-3 flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm text-amber-950">
+              Hay <span className="font-semibold">${summary.overdueIncome.toLocaleString("es-CL")}</span> en cuotas vencidas con fecha de vencimiento este mes.
+            </p>
+            <Link
+              href="/dashboard/payments?status=overdue"
+              className="text-sm font-medium text-amber-900 underline underline-offset-2 hover:text-amber-950"
+            >
+              Ver en pagos
+            </Link>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Avg monthly expense KPI */}
       {chartData.length >= 2 && (() => {
         const months = chartData.filter((m) => m.expenses > 0)
@@ -268,8 +376,8 @@ export default async function FinancesPage({ searchParams }: PageProps) {
       })()}
 
       {/* Avg expense per category KPI */}
-      {expenses.length > 0 && (() => {
-        const byCat = expenses.reduce<Record<string, { sum: number; count: number }>>((acc, e) => {
+      {monthExpenses.length > 0 && (() => {
+        const byCat = monthExpenses.reduce<Record<string, { sum: number; count: number }>>((acc, e) => {
           if (!acc[e.category]) acc[e.category] = { sum: 0, count: 0 }
           acc[e.category].sum += Number(e.amount)
           acc[e.category].count++
@@ -482,14 +590,14 @@ export default async function FinancesPage({ searchParams }: PageProps) {
               ))}
             </CardContent>
           </Card>
-        {expenses.length > 0 && (
+        {monthExpenses.length > 0 && (
           <Card className="md:col-span-2">
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Top 3 egresos del mes</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
-                {expenses
+                {monthExpenses
                   .slice()
                   .sort((a, b) => Number(b.amount) - Number(a.amount))
                   .slice(0, 3)
@@ -522,55 +630,56 @@ export default async function FinancesPage({ searchParams }: PageProps) {
           pendingIncome={summary.pendingIncome}
           fixedMonthlyExpenses={(() => {
             const fixedCoaches = coaches
-              .filter((c) => c.salary_type === 'fixed' && c.salary_amount)
+              .filter((c) => c.salary_type === "fixed" && c.salary_amount)
               .reduce((s, c) => s + Number(c.salary_amount), 0)
-            const rentExpenses = expenses
-              .filter((e) => e.category === 'rent')
-              .reduce((s, e) => s + Number(e.amount), 0)
+            const rentExpenses = summary.byCategory.rent ?? 0
             return fixedCoaches + rentExpenses
           })()}
-          activeSubscriptions={0}
-          avgSubscriptionValue={0}
+          activeSubscriptions={subscriptionStats.active}
+          avgSubscriptionValue={avgSubscriptionValue}
         />
       )}
 
       {/* Expenses Tab */}
-      {tab === "expenses" && (
+      {tab === "expenses" && (() => {
+        const filterPresets = { amountMin, amountMax, dateFrom, dateTo }
+        const expensePageSize = 25
+        const totalPages = Math.max(1, Math.ceil(expensesTabTotal / expensePageSize))
+        const CAT_LABEL: Record<string, string> = {
+          rent: "Arriendo",
+          salary: "Salarios",
+          supplies: "Insumos",
+          maintenance: "Mantención",
+          marketing: "Marketing",
+          other: "Otros",
+        }
+        const cats = Object.keys(CAT_LABEL)
+        const CAT_COLOR: Record<string, string> = {
+          rent: "bg-blue-400",
+          salary: "bg-violet-400",
+          supplies: "bg-orange-400",
+          maintenance: "bg-yellow-400",
+          marketing: "bg-pink-400",
+          other: "bg-gray-400",
+        }
+        return (
         <div className="space-y-4">
-          {(() => {
-            const CAT_LABEL: Record<string, string> = { rent: 'Arriendo', salary: 'Salarios', supplies: 'Insumos', maintenance: 'Mantención', marketing: 'Marketing', other: 'Otros' }
-            const cats = Object.keys(CAT_LABEL)
-            return (
-              <div className="flex flex-wrap gap-2 items-center">
-                <span className="text-xs text-muted-foreground font-medium">Categoría:</span>
-                {(['', ...cats]).map((cat) => (
-                  <Link key={cat || '_all'} href={`/dashboard/finances?tab=expenses&month=${month}${cat ? `&category=${cat}` : ''}`}>
-                    <button className={`h-7 px-2.5 rounded-md border text-xs font-medium transition-colors ${
-                      (cat === '' && !category) || category === cat
-                        ? 'bg-primary text-primary-foreground border-primary'
-                        : 'bg-background border-input hover:bg-accent'
-                    }`}>{cat ? CAT_LABEL[cat] : 'Todas'}</button>
-                  </Link>
-                ))}
-              </div>
-            )
-          })()}
-          {expenses.length > 0 && (() => {
-            const totalAmt = expenses.reduce((s, e) => s + Number(e.amount), 0)
-            const byCat = expenses.reduce<Record<string, number>>((acc, e) => {
+          {expensesFilteredAll.length > 0 && (() => {
+            const totalAmt = expensesFilteredAll.reduce((s, e) => s + Number(e.amount), 0)
+            const byCat = expensesFilteredAll.reduce<Record<string, number>>((acc, e) => {
               acc[e.category] = (acc[e.category] ?? 0) + Number(e.amount)
               return acc
             }, {})
             const sorted = Object.entries(byCat).sort((a, b) => b[1] - a[1])
             const maxAmt = sorted[0]?.[1] ?? 1
-            const CAT_LABEL: Record<string, string> = { rent: 'Arriendo', salary: 'Salarios', supplies: 'Insumos', maintenance: 'Mantención', marketing: 'Marketing', other: 'Otros' }
-            const CAT_COLOR: Record<string, string> = { rent: 'bg-blue-400', salary: 'bg-violet-400', supplies: 'bg-orange-400', maintenance: 'bg-yellow-400', marketing: 'bg-pink-400', other: 'bg-gray-400' }
             return (
               <Card>
                 <CardContent className="pt-4 pb-3">
                   <p className="text-xs text-muted-foreground font-medium mb-3">
-                    Egresos por categoría · Total: <span className="text-foreground font-semibold">${totalAmt.toLocaleString('es-CL')}</span>
-                    {' · '}{expenses.length} egreso{expenses.length !== 1 ? 's' : ''}
+                    Egresos por categoría (filtros aplicados) · Total:{" "}
+                    <span className="text-foreground font-semibold">${totalAmt.toLocaleString("es-CL")}</span>
+                    {" · "}
+                    {expensesTabTotal} registro{expensesTabTotal !== 1 ? "s" : ""}
                   </p>
                   <div className="space-y-2">
                     {sorted.map(([cat, amt]) => (
@@ -578,12 +687,12 @@ export default async function FinancesPage({ searchParams }: PageProps) {
                         <span className="text-xs text-muted-foreground w-32 shrink-0">{CAT_LABEL[cat] ?? cat}</span>
                         <div className="flex-1 bg-muted rounded-full overflow-hidden h-3">
                           <div
-                            className={`h-3 rounded-full ${CAT_COLOR[cat] ?? 'bg-primary'} transition-all`}
+                            className={`h-3 rounded-full ${CAT_COLOR[cat] ?? "bg-primary"} transition-all`}
                             style={{ width: `${Math.max(2, Math.round((amt / maxAmt) * 100))}%` }}
                           />
                         </div>
                         <span className="text-xs font-medium w-28 text-right shrink-0">
-                          ${amt.toLocaleString('es-CL')} ({Math.round((amt / totalAmt) * 100)}%)
+                          ${amt.toLocaleString("es-CL")} ({Math.round((amt / totalAmt) * 100)}%)
                         </span>
                       </div>
                     ))}
@@ -594,18 +703,33 @@ export default async function FinancesPage({ searchParams }: PageProps) {
           })()}
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap gap-2 items-center">
-              {([["", "Todas"], ["rent", "Arriendo"], ["salary", "Salarios"], ["supplies", "Insumos"], ["maintenance", "Mantención"], ["marketing", "Marketing"], ["other", "Otros"]] as const).map(([val, lbl]) => (
-                <a key={val} href={`/dashboard/finances?tab=expenses&month=${month}${val ? `&category=${val}` : ''}${amountMin !== undefined ? `&amountMin=${amountMin}` : ''}${amountMax !== undefined ? `&amountMax=${amountMax}` : ''}`}>
-                  <button className={`h-8 px-3 rounded-md border text-xs font-medium transition-colors ${
-                    (val === '' && !category) || category === val
-                      ? 'bg-primary text-primary-foreground border-primary'
-                      : 'bg-background border-input hover:bg-accent'
-                  }`}>{lbl}</button>
-                </a>
+              <span className="text-xs text-muted-foreground font-medium">Categoría:</span>
+              {(["", ...cats] as const).map((cat) => (
+                <Link
+                  key={cat || "_all"}
+                  href={buildExpensesHref(month, {
+                    category: cat || undefined,
+                    ...filterPresets,
+                  })}
+                  className={`h-8 px-3 rounded-md border text-xs font-medium transition-colors inline-flex items-center ${
+                    (cat === "" && !category) || category === cat
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-background border-input hover:bg-accent"
+                  }`}
+                >
+                  {cat ? CAT_LABEL[cat] : "Todas"}
+                </Link>
               ))}
-              {(amountMin !== undefined || amountMax !== undefined) && (
-                <a href={`/dashboard/finances?tab=expenses&month=${month}${category ? `&category=${category}` : ''}`}
-                  className="text-xs text-muted-foreground hover:text-foreground flex items-center">✕ Limpiar monto</a>
+              {(amountMin !== undefined ||
+                amountMax !== undefined ||
+                dateFrom ||
+                dateTo) && (
+                <Link
+                  href={buildExpensesHref(month, { category: category || undefined })}
+                  className="text-xs text-muted-foreground hover:text-foreground"
+                >
+                  ✕ Limpiar fechas y montos
+                </Link>
               )}
             </div>
             <form method="get" action="/dashboard/finances" className="flex items-center gap-2 flex-wrap">
@@ -614,69 +738,166 @@ export default async function FinancesPage({ searchParams }: PageProps) {
               {category && <input type="hidden" name="category" value={category} />}
               <div className="flex flex-col gap-0.5">
                 <label className="text-xs text-muted-foreground">Desde</label>
-                <input type="date" name="dateFrom" defaultValue={dateFrom}
-                  className="h-8 px-2 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring w-32" />
+                <input
+                  type="date"
+                  name="dateFrom"
+                  defaultValue={dateFrom}
+                  className="h-8 px-2 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring w-32"
+                />
               </div>
               <div className="flex flex-col gap-0.5">
                 <label className="text-xs text-muted-foreground">Hasta</label>
-                <input type="date" name="dateTo" defaultValue={dateTo}
-                  className="h-8 px-2 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring w-32" />
+                <input
+                  type="date"
+                  name="dateTo"
+                  defaultValue={dateTo}
+                  className="h-8 px-2 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring w-32"
+                />
               </div>
               <div className="flex flex-col gap-0.5">
                 <label className="text-xs text-muted-foreground">Monto mín.</label>
-                <input type="number" name="amountMin" defaultValue={amountMin ?? ''} min={0} placeholder="0"
-                  className="h-8 px-2 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring w-24" />
+                <input
+                  type="number"
+                  name="amountMin"
+                  defaultValue={amountMin ?? ""}
+                  min={0}
+                  placeholder="0"
+                  className="h-8 px-2 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring w-24"
+                />
               </div>
               <div className="flex flex-col gap-0.5">
                 <label className="text-xs text-muted-foreground">Monto máx.</label>
-                <input type="number" name="amountMax" defaultValue={amountMax ?? ''} min={0} placeholder="∞"
-                  className="h-8 px-2 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring w-24" />
+                <input
+                  type="number"
+                  name="amountMax"
+                  defaultValue={amountMax ?? ""}
+                  min={0}
+                  placeholder="∞"
+                  className="h-8 px-2 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring w-24"
+                />
               </div>
-              <button type="submit" className="h-8 px-3 mt-4 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90">Filtrar</button>
+              <button
+                type="submit"
+                className="h-8 px-3 mt-4 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90"
+              >
+                Filtrar
+              </button>
             </form>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap items-center">
+              <ExportExpensesButton expenses={expensesFilteredAll} month={month} />
               <NewExpenseForm />
             </div>
           </div>
 
-          {expenses.length === 0 ? (
+          {expensesTabTotal === 0 ? (
             <Card>
               <CardContent className="py-12 text-center text-muted-foreground">
                 <TrendingDown className="w-10 h-10 mx-auto mb-2 opacity-40" />
-                <p>Sin egresos registrados este mes</p>
+                <p>
+                  {!category && !dateFrom && !dateTo && amountMin === undefined && amountMax === undefined
+                    ? "Sin egresos registrados este mes"
+                    : "Sin egresos que coincidan con los filtros"}
+                </p>
               </CardContent>
             </Card>
           ) : (
-            <div className="space-y-2">
-              {expenses.map((exp) => (
-                <Card key={exp.id}>
-                  <CardContent className="py-3">
-                    <div className="flex items-center gap-4">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-medium">{exp.concept}</span>
-                          <Badge variant="outline" className="text-xs">
-                            {CATEGORY_LABELS[exp.category] ?? exp.category}
-                          </Badge>
+            <>
+              <div className="space-y-2">
+                {expensesTabList.map((exp) => {
+                  const supName = supplierLabel(exp)
+                  const rawReceipt =
+                    typeof exp.receipt_url === "string" ? exp.receipt_url.trim() : ""
+                  const receiptUrl =
+                    rawReceipt &&
+                    (rawReceipt.startsWith("http") ||
+                      rawReceipt.startsWith("/"))
+                      ? rawReceipt
+                      : null
+                  return (
+                    <Card key={exp.id}>
+                      <CardContent className="py-3">
+                        <div className="flex items-center gap-4 flex-wrap">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-medium">{exp.concept}</span>
+                              <Badge variant="outline" className="text-xs">
+                                {CATEGORY_LABELS[exp.category] ?? exp.category}
+                              </Badge>
+                              {supName && (
+                                <Badge variant="secondary" className="text-xs">
+                                  Proveedor: {supName}
+                                </Badge>
+                              )}
+                            </div>
+                            <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground mt-0.5">
+                              <span>{new Date(exp.date).toLocaleDateString("es-CL")}</span>
+                              {exp.paid_to && <span>→ {exp.paid_to}</span>}
+                              {receiptUrl && (
+                                <a
+                                  href={receiptUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 text-primary hover:underline"
+                                >
+                                  <ExternalLink className="w-3 h-3" />
+                                  Comprobante
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                          <span className="font-bold text-red-600 shrink-0">
+                            −${Number(exp.amount).toLocaleString("es-CL")}
+                          </span>
+                          <EditExpenseButton expense={exp} />
+                          <DeleteExpenseButton expenseId={exp.id} />
                         </div>
-                        <div className="flex gap-3 text-xs text-muted-foreground mt-0.5">
-                          <span>{new Date(exp.date).toLocaleDateString("es-CL")}</span>
-                          {exp.paid_to && <span>→ {exp.paid_to}</span>}
-                        </div>
-                      </div>
-                      <span className="font-bold text-red-600 shrink-0">
-                        −${Number(exp.amount).toLocaleString("es-CL")}
-                      </span>
-                      <EditExpenseButton expense={exp} />
-                      <DeleteExpenseButton expenseId={exp.id} />
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                      </CardContent>
+                    </Card>
+                  )
+                })}
+              </div>
+              {totalPages > 1 && (
+                <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
+                  <span>
+                    Página {expensePage} de {totalPages} · {expensesTabTotal} movimientos
+                  </span>
+                  <div className="flex gap-2">
+                    {expensePage > 1 ? (
+                      <Link
+                        href={buildExpensesHref(month, {
+                          category: category || undefined,
+                          ...filterPresets,
+                          page: expensePage - 1,
+                        })}
+                        className="px-3 py-1.5 rounded-md border border-input bg-background hover:bg-accent text-foreground text-xs font-medium"
+                      >
+                        Anterior
+                      </Link>
+                    ) : (
+                      <span className="px-3 py-1.5 text-xs opacity-50">Anterior</span>
+                    )}
+                    {expensePage < totalPages ? (
+                      <Link
+                        href={buildExpensesHref(month, {
+                          category: category || undefined,
+                          ...filterPresets,
+                          page: expensePage + 1,
+                        })}
+                        className="px-3 py-1.5 rounded-md border border-input bg-background hover:bg-accent text-foreground text-xs font-medium"
+                      >
+                        Siguiente
+                      </Link>
+                    ) : (
+                      <span className="px-3 py-1.5 text-xs opacity-50">Siguiente</span>
+                    )}
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
-      )}
+        )
+      })()}
 
       {/* Suppliers Tab */}
       {tab === "suppliers" && (
@@ -791,7 +1012,7 @@ export default async function FinancesPage({ searchParams }: PageProps) {
                           <span>{SALARY_TYPE_LABELS[coach.salary_type]}{coach.salary_amount ? `: $${Number(coach.salary_amount).toLocaleString("es-CL")}` : ""}</span>
                           {(() => {
                             const curMonth = new Date().toISOString().slice(0, 7)
-                            const coachExpenses = expenses.filter((e) =>
+                            const coachExpenses = monthExpenses.filter((e) =>
                               e.paid_to && e.paid_to.toLowerCase().includes(coach.name.toLowerCase()) &&
                               e.date.startsWith(curMonth)
                             )
