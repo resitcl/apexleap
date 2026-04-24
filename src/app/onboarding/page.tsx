@@ -1,5 +1,6 @@
 import { auth } from "@clerk/nextjs/server"
 import { redirect } from "next/navigation"
+import { cookies } from "next/headers"
 import { checkUserHasClub } from "@/lib/actions/onboarding"
 import { OnboardingForm } from "@/components/onboarding/OnboardingForm"
 import { getPostAuthRedirectPath } from "@/lib/auth/post-auth"
@@ -7,10 +8,16 @@ import { SignOutButton } from "@clerk/nextjs"
 import Link from "next/link"
 import { Card, CardContent } from "@/components/ui/card"
 import { UserCircle } from "lucide-react"
+import { TENANT_ENTRY_SLUG_COOKIE } from "@/lib/constants"
 
 export default async function OnboardingPage() {
   const { userId } = await auth()
   if (!userId) redirect("/sign-in")
+
+  // If user arrived via a club slug (e.g. /:slug/signup), redirect to join flow
+  const cookieStore = await cookies()
+  const tenantSlug = cookieStore.get(TENANT_ENTRY_SLUG_COOKIE)?.value?.trim().toLowerCase()
+  if (tenantSlug) redirect(`/api/join/${tenantSlug}`)
 
   const hasClub = await checkUserHasClub()
   if (hasClub) redirect(await getPostAuthRedirectPath())

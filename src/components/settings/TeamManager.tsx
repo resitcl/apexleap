@@ -33,10 +33,14 @@ interface Props {
   clubSlug: string
 }
 
-const ROLES = [
+const INVITE_ROLES = [
   { value: 'admin',         label: 'Administrador',            hint: 'Gestión del club' },
   { value: 'admin_athlete', label: 'Administrador + Atleta',    hint: 'Gestión + participa como jugador' },
   { value: 'coach',         label: 'Entrenador',                hint: 'Solo rol de entrenador' },
+]
+
+const ALL_ROLES = [
+  ...INVITE_ROLES,
   { value: 'athlete',       label: 'Atleta',                    hint: 'Solo jugador/alumno' },
 ]
 
@@ -66,7 +70,7 @@ export function TeamManager({ members, invitations, clubSlug }: Props) {
   const [isPending, start] = useTransition()
 
   const [email, setEmail] = useState('')
-  const [role, setRole]   = useState<'admin' | 'admin_athlete' | 'coach' | 'athlete'>('admin')
+  const [role, setRole]   = useState<'admin' | 'admin_athlete' | 'coach'>('admin')
   const [copied, setCopied] = useState(false)
   const [working, setWorking] = useState<string | null>(null)
 
@@ -164,10 +168,10 @@ export function TeamManager({ members, invitations, clubSlug }: Props) {
               />
               <select
                 value={role}
-                onChange={e => setRole(e.target.value as 'admin' | 'admin_athlete' | 'coach' | 'athlete')}
+                onChange={e => setRole(e.target.value as 'admin' | 'admin_athlete' | 'coach')}
                 className="h-9 px-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
               >
-                {ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+                {INVITE_ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
               </select>
             </div>
             <Button type="submit" disabled={isPending} className="w-full gap-2">
@@ -233,7 +237,7 @@ export function TeamManager({ members, invitations, clubSlug }: Props) {
                       className="h-8 px-2 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring"
                       disabled={isPending}
                     >
-                      {ROLES.map((r) => (
+                      {ALL_ROLES.map((r) => (
                         <option key={r.value} value={r.value}>
                           {r.label}
                         </option>

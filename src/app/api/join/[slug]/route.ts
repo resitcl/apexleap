@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@clerk/nextjs/server'
+import { auth, clerkClient } from '@clerk/nextjs/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { CLUB_COOKIE } from '@/lib/constants'
+import { CLUB_COOKIE, TENANT_ENTRY_SLUG_COOKIE } from '@/lib/constants'
 
 export async function GET(
   request: NextRequest,
@@ -27,6 +27,35 @@ export async function GET(
     const u = new URL('/sign-in', request.url)
     u.searchParams.set('club', 'invalido')
     return NextResponse.redirect(u)
+  }
+
+  // Ensure user exists in Supabase (webhook may not have fired yet for new users)
+  const { data: existingUser } = await supabase
+    .from('users')
+    .select('clerk_id')
+    .eq('clerk_id', userId)
+    .maybeSingle()
+
+  if (!existingUser) {
+    try {
+      const clerk = await clerkClient()
+      const clerkUser = await clerk.users.getUser(userId)
+      const email = clerkUser.emailAddresses[0]?.emailAddress ?? null
+      const name = [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(' ') || email || userId
+      await supabase.from('users').upsert({
+        clerk_id: userId,
+        email,
+        name,
+        avatar_url: clerkUser.imageUrl ?? null,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'clerk_id' })
+    } catch {
+      // If Clerk call fails, insert a minimal user record so the FK succeeds
+      await supabase.from('users').upsert({
+        clerk_id: userId,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'clerk_id' })
+    }
   }
 
   // Check if user is already linked to this club
@@ -61,13 +90,14 @@ export async function GET(
   const role = existing?.role ?? 'athlete'
   const destination = role === 'athlete' ? '/dashboard/athlete' : '/dashboard'
 
-  // Set club cookie and redirect
+  // Set club cookie, clear tenant entry cookie, and redirect
   const response = NextResponse.redirect(new URL(destination, request.url))
   response.cookies.set(CLUB_COOKIE, club.id, {
     path: '/',
     maxAge: 60 * 60 * 24 * 30,
     sameSite: 'lax',
   })
+  response.cookies.set(TENANT_ENTRY_SLUG_COOKIE, '', { path: '/', maxAge: 0, sameSite: 'lax' })
 
   return response
 }
