@@ -2,6 +2,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { auth } from "@clerk/nextjs/server"
 import { createClient } from "@/lib/supabase/server"
+import { getClubId } from "@/lib/actions/club-context"
 import { Button } from "@/components/ui/button"
 import { ChevronLeft } from "lucide-react"
 import { ScheduleForm } from "@/components/calendar/ScheduleForm"
@@ -16,12 +17,15 @@ export default async function EditSchedulePage({ params }: PageProps) {
   if (!userId) notFound()
 
   const supabase = await createClient()
-  const { data: userClub } = await supabase
-    .from("user_clubs").select("club_id").eq("user_id", userId).eq("is_active", true).single()
-  if (!userClub) notFound()
+  let clubId: string
+  try {
+    clubId = await getClubId()
+  } catch {
+    notFound()
+  }
 
   const { data: schedule, error } = await supabase
-    .from("schedules").select("*").eq("id", id).eq("club_id", userClub.club_id).single()
+    .from("schedules").select("*").eq("id", id).eq("club_id", clubId).single()
   if (error || !schedule) notFound()
 
   return (

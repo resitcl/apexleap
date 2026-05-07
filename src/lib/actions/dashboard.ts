@@ -649,17 +649,7 @@ export async function getAthletePortal() {
   if (!userId) throw new Error('No autorizado')
 
   const supabase = createAdminClient()
-
-  const { data: userClub } = await supabase
-    .from('user_clubs')
-    .select('club_id')
-    .eq('user_id', userId)
-    .eq('is_active', true)
-    .limit(1)
-    .single()
-
-  if (!userClub) throw new Error('Club no encontrado')
-  const clubId = userClub.club_id as string
+  const clubId = await getClubId()
 
   // Use Clerk to get user email (consistent with enrollment)
   const clerk = await clerkClient()
@@ -673,11 +663,26 @@ export async function getAthletePortal() {
   const monthStart = new Date(today.getFullYear(), today.getMonth(), 1).toISOString()
   const todayDow = today.getDay()
 
-  const { data: athletesByEmail } = email
-    ? await supabase.from('athletes').select('id').eq('club_id', clubId).eq('email', email).is('archived_at', null).limit(1)
-    : { data: null }
+  const { data: byUserId } = await supabase
+    .from('athletes')
+    .select('id')
+    .eq('club_id', clubId)
+    .eq('user_id', userId)
+    .is('archived_at', null)
+    .limit(1)
 
-  const athleteId = athletesByEmail?.[0]?.id ?? null
+  let athleteId = byUserId?.[0]?.id ?? null
+
+  if (!athleteId && email) {
+    const { data: athletesByEmail } = await supabase
+      .from('athletes')
+      .select('id')
+      .eq('club_id', clubId)
+      .eq('email', email)
+      .is('archived_at', null)
+      .limit(1)
+    athleteId = athletesByEmail?.[0]?.id ?? null
+  }
 
   if (!athleteId) {
     const [attTodayRes, sessionsRes] = await Promise.all([

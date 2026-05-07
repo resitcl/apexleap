@@ -1,22 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { createClient } from '@/lib/supabase/server'
+import { getClubId } from '@/lib/actions/club-context'
 
 export async function POST(req: NextRequest) {
   try {
     const { userId } = await auth()
     if (!userId) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
-    const supabase = await createClient()
-    const { data: userClub } = await supabase
-      .from('user_clubs')
-      .select('club_id')
-      .eq('user_id', userId)
-      .eq('is_active', true)
-      .single()
-
-    if (!userClub) return NextResponse.json({ error: 'Club no encontrado' }, { status: 404 })
+    let clubId: string
+    try {
+      clubId = await getClubId()
+    } catch {
+      return NextResponse.json({ error: 'Club no encontrado' }, { status: 404 })
+    }
 
     const body = await req.json().catch(() => ({}))
     const scheduleId = body.scheduleId ?? null
@@ -26,7 +23,7 @@ export async function POST(req: NextRequest) {
 
     const admin = createAdminClient()
     const { error } = await admin.from('check_in_tokens').insert({
-      club_id: userClub.club_id,
+      club_id: clubId,
       token,
       schedule_id: scheduleId,
       expires_at: expiresAt,

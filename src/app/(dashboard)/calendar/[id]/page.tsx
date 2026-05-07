@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
+import { getClubId } from "@/lib/actions/club-context"
 import { auth } from "@clerk/nextjs/server"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -21,20 +22,18 @@ export default async function ScheduleDetailPage({ params }: PageProps) {
 
   const supabase = await createClient()
 
-  const { data: userClub } = await supabase
-    .from("user_clubs")
-    .select("club_id")
-    .eq("user_id", userId)
-    .eq("is_active", true)
-    .single()
-
-  if (!userClub) notFound()
+  let clubId: string
+  try {
+    clubId = await getClubId()
+  } catch {
+    notFound()
+  }
 
   const { data: schedule, error } = await supabase
     .from("schedules")
     .select("*, venues(id, name)")
     .eq("id", id)
-    .eq("club_id", userClub.club_id)
+    .eq("club_id", clubId)
     .single()
 
   if (error || !schedule) notFound()
@@ -46,7 +45,7 @@ export default async function ScheduleDetailPage({ params }: PageProps) {
     .from('attendance')
     .select('id', { count: 'exact', head: true })
     .eq('schedule_id', id)
-    .eq('club_id', userClub.club_id)
+    .eq('club_id', clubId)
     .gte('checked_in_at', thirtyDaysAgo.toISOString())
 
   const days = (schedule.day_of_week as number[]).map((d) => DAYS[d])
