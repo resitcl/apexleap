@@ -6,6 +6,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { z } from 'zod'
 import { getClubId, getClubInfo } from '@/lib/actions/club-context'
 import { sendInvitationEmail } from '@/lib/email'
+import { syncAdminAthletesForClub } from '@/lib/admin-athlete-sync'
 
 const athleteSchema = z.object({
   name: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
@@ -47,6 +48,15 @@ export async function getAthletes(params?: {
 }) {
   const clubId = await getClubId()
   const supabase = createAdminClient()
+
+  // Backfill: aseguramos que los miembros admin_athlete tengan registro en
+  // la tabla `athletes` para que aparezcan en la nómina de jugadores.
+  // Es idempotente y barato: si todos ya tienen registro, no inserta nada.
+  try {
+    await syncAdminAthletesForClub(clubId)
+  } catch (e) {
+    console.error('[getAthletes] syncAdminAthletesForClub failed:', e)
+  }
 
   const page = params?.page ?? 1
   const limit = params?.limit ?? 20

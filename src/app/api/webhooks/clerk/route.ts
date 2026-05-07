@@ -2,6 +2,7 @@ import { Webhook } from 'svix'
 import { headers } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { ensureAthleteRecordForUser } from '@/lib/admin-athlete-sync'
 
 type ClerkEvent = {
   type: string
@@ -83,6 +84,19 @@ export async function POST(req: Request) {
           .from('club_invitations')
           .update({ status: 'accepted', accepted_at: new Date().toISOString() })
           .eq('id', invitation.id)
+
+        // Si es admin+atleta, crear su perfil en `athletes` para que aparezca
+        // en la nómina de jugadores del club.
+        if (invitation.role === 'admin_athlete') {
+          await ensureAthleteRecordForUser({
+            clubId: invitation.club_id as string,
+            userId: id,
+            email,
+            name,
+          }).catch((err) => {
+            console.error('[webhook clerk] ensureAthleteRecordForUser failed:', err)
+          })
+        }
       }
     }
   }

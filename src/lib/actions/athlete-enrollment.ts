@@ -623,7 +623,7 @@ export async function reviewEnrollment(
     .eq('club_id', clubId)
     .maybeSingle()
 
-  if (!reviewer || !['admin', 'coach'].includes(reviewer.role)) {
+  if (!reviewer || !['admin', 'admin_athlete', 'coach'].includes(reviewer.role)) {
     throw new Error('No tienes permisos para aprobar solicitudes')
   }
 

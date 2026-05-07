@@ -4,6 +4,7 @@ import { auth, clerkClient } from '@clerk/nextjs/server'
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getClubId } from '@/lib/actions/club-context'
+import { ensureAthleteRecordForUser } from '@/lib/admin-athlete-sync'
 
 function clerkErrMsg(err: unknown): string {
   if (!err) return 'Error desconocido'
@@ -154,7 +155,41 @@ export async function updateTeamMemberRole(
 
     if (error) return { ok: false, error: error.message }
 
+    // Si el nuevo rol es admin+atleta, asegurar registro en `athletes`
+    // para que aparezca en la nómina de jugadores.
+    if (role === 'admin_athlete') {
+      const { data: userRow } = await supabase
+        .from('users')
+        .select('email, name')
+        .eq('clerk_id', clerkUserId)
+        .maybeSingle()
+
+      let email = (userRow?.email as string | null) ?? null
+      let name = (userRow?.name as string | null) ?? null
+
+      if (!email || !name) {
+        try {
+          const clerk = await clerkClient()
+          const u = await clerk.users.getUser(clerkUserId)
+          email = email ?? (u.emailAddresses?.[0]?.emailAddress ?? null)
+          name = name ?? ([u.firstName, u.lastName].filter(Boolean).join(' ') || email)
+        } catch {
+          /* fallback silencioso */
+        }
+      }
+
+      await ensureAthleteRecordForUser({
+        clubId,
+        userId: clerkUserId,
+        email,
+        name,
+      }).catch((err) => {
+        console.error('[updateTeamMemberRole] ensureAthleteRecordForUser failed:', err)
+      })
+    }
+
     revalidatePath('/dashboard/settings/team')
+    revalidatePath('/dashboard/athletes')
     return { ok: true }
   } catch (err: unknown) {
     return { ok: false, error: clerkErrMsg(err) }
