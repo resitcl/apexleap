@@ -69,6 +69,11 @@ const clerkMw = clerkMiddleware(async (auth, request) => {
 export default function middleware(request: NextRequest, event: NextFetchEvent) {
   const { pathname } = request.nextUrl
 
+  // Manifest PWA por slug (`/[slug]/manifest`): debe ser público para que el fetch del navegador no falle.
+  if (/^\/[^/]+\/manifest$/.test(pathname)) {
+    return NextResponse.next()
+  }
+
   if (BYPASS_CLERK_PREFIXES.some((p) => pathname.startsWith(p))) {
     return NextResponse.next()
   }

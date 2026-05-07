@@ -32,6 +32,35 @@ function translateAthleteError(msg: string): string {
   return msg
 }
 
+/** Evita filas duplicadas en UI si ya existían dos fichas (mismo email o mismo user_id). */
+function dedupeAthletesForDisplay<
+  T extends { id: string; user_id: string | null; email: string | null },
+>(rows: T[]): T[] {
+  const seenUid = new Set<string>()
+  const seenEmail = new Set<string>()
+  const ordered = [...rows].sort((a, b) => {
+    if (a.user_id && !b.user_id) return -1
+    if (!a.user_id && b.user_id) return 1
+    return 0
+  })
+  const out: T[] = []
+  for (const r of ordered) {
+    if (r.user_id) {
+      if (seenUid.has(r.user_id)) continue
+      seenUid.add(r.user_id)
+      out.push(r)
+      const e = r.email?.trim().toLowerCase()
+      if (e) seenEmail.add(e)
+      continue
+    }
+    const e = r.email?.trim().toLowerCase()
+    if (e && seenEmail.has(e)) continue
+    if (e) seenEmail.add(e)
+    out.push(r)
+  }
+  return out
+}
+
 export type AthleteInput = z.infer<typeof athleteSchema>
 
 
@@ -104,7 +133,7 @@ export async function getAthletes(params?: {
   const { data, error, count } = await query
 
   if (error) throw new Error(error.message)
-  return { athletes: data ?? [], total: count ?? 0 }
+  return { athletes: dedupeAthletesForDisplay(data ?? []), total: count ?? 0 }
 }
 
 export async function getAthleteById(id: string) {

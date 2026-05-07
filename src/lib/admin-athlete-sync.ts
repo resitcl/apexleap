@@ -22,16 +22,6 @@ export async function ensureAthleteRecordForUser(params: {
 
   const supabase = createAdminClient()
 
-  if (email) {
-    const { data: byEmail } = await supabase
-      .from('athletes')
-      .select('id')
-      .eq('club_id', clubId)
-      .eq('email', email)
-      .maybeSingle()
-    if (byEmail) return byEmail.id as string
-  }
-
   const { data: byUser } = await supabase
     .from('athletes')
     .select('id')
@@ -39,6 +29,24 @@ export async function ensureAthleteRecordForUser(params: {
     .eq('user_id', userId)
     .maybeSingle()
   if (byUser) return byUser.id as string
+
+  if (email) {
+    const normalized = email.trim().toLowerCase()
+    const { data: byEmailRows } = await supabase
+      .from('athletes')
+      .select('id, user_id')
+      .eq('club_id', clubId)
+      .ilike('email', normalized)
+      .limit(1)
+    const byEmail = byEmailRows?.[0]
+    if (byEmail) {
+      const prevUid = byEmail.user_id as string | null
+      if (!prevUid || prevUid === userId) {
+        await supabase.from('athletes').update({ user_id: userId, updated_at: new Date().toISOString() }).eq('id', byEmail.id as string)
+      }
+      return byEmail.id as string
+    }
+  }
 
   const finalName = (name && name.trim()) || email || 'Atleta'
 
@@ -90,19 +98,14 @@ export async function syncAdminAthletesForClub(clubId: string): Promise<number> 
   )
   if (userIds.length === 0) return 0
 
-  const { data: existing } = await supabase
+  const { data: linkedRows } = await supabase
     .from('athletes')
-    .select('user_id, email')
+    .select('user_id')
     .eq('club_id', clubId)
     .in('user_id', userIds)
 
   const linkedUserIds = new Set(
-    (existing ?? []).map((a) => a.user_id as string).filter(Boolean)
-  )
-  const linkedEmails = new Set(
-    (existing ?? [])
-      .map((a) => (a.email as string | null) ?? '')
-      .filter((e) => e.length > 0)
+    (linkedRows ?? []).map((a) => a.user_id as string).filter(Boolean)
   )
 
   const missing = userIds.filter((id) => !linkedUserIds.has(id))
@@ -121,7 +124,6 @@ export async function syncAdminAthletesForClub(clubId: string): Promise<number> 
     }
   }
 
-  // Completar info faltante desde Clerk
   const stillMissingClerkInfo = missing.filter((id) => !usersById[id])
   if (stillMissingClerkInfo.length > 0) {
     try {
@@ -141,34 +143,49 @@ export async function syncAdminAthletesForClub(clubId: string): Promise<number> 
     }
   }
 
-  const toInsert = missing
-    .map((userId) => {
-      const info = usersById[userId]
-      const email = info?.email ?? null
-      // Evitar choque con un atleta existente que comparta email
-      if (email && linkedEmails.has(email)) {
-        return null
+  let mergedOrCreated = 0
+
+  for (const userId of missing) {
+    const info = usersById[userId]
+    const rawEmail = info?.email?.trim() ?? ''
+    const emailNorm = rawEmail.toLowerCase()
+
+    if (emailNorm) {
+      const { data: sameEmail } = await supabase
+        .from('athletes')
+        .select('id, user_id')
+        .eq('club_id', clubId)
+        .ilike('email', emailNorm)
+        .limit(1)
+
+      const row = sameEmail?.[0]
+      if (row) {
+        const prevUid = row.user_id as string | null
+        if (!prevUid || prevUid === userId) {
+          const { error: upErr } = await supabase
+            .from('athletes')
+            .update({ user_id: userId, updated_at: new Date().toISOString() })
+            .eq('id', row.id as string)
+          if (!upErr) mergedOrCreated++
+        }
+        continue
       }
-      return {
-        club_id: clubId,
-        user_id: userId,
-        name: (info?.name && info.name.trim()) || email || 'Atleta',
-        email,
-        status: 'active' as const,
-        health_status: 'healthy' as const,
-        enrollment_status: 'approved' as const,
-        technical_meta: {},
-        performance_meta: {},
-      }
+    }
+
+    const { error: insErr } = await supabase.from('athletes').insert({
+      club_id: clubId,
+      user_id: userId,
+      name: (info?.name && info.name.trim()) || rawEmail || 'Atleta',
+      email: rawEmail || null,
+      status: 'active',
+      health_status: 'healthy',
+      enrollment_status: 'approved',
+      technical_meta: {},
+      performance_meta: {},
     })
-    .filter((row): row is NonNullable<typeof row> => row !== null)
-
-  if (toInsert.length === 0) return 0
-
-  const { error } = await supabase.from('athletes').insert(toInsert)
-  if (error) {
-    console.error('[syncAdminAthletesForClub] insert error:', error)
-    return 0
+    if (!insErr) mergedOrCreated++
+    else console.error('[syncAdminAthletesForClub] insert error:', insErr)
   }
-  return toInsert.length
+
+  return mergedOrCreated
 }
