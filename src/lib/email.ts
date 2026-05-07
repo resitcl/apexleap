@@ -9,7 +9,14 @@
 import { Resend } from 'resend'
 import { normalizeClubPrimary, primaryForegroundForHex } from '@/lib/club-branding'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+let resendClient: Resend | null = null
+
+function getResend(): Resend {
+  const key = process.env.RESEND_API_KEY
+  if (!key) throw new Error('RESEND_API_KEY no configurada')
+  if (!resendClient) resendClient = new Resend(key)
+  return resendClient
+}
 
 const FROM_EMAIL =
   process.env.RESEND_FROM_EMAIL ?? 'ApexLeap <onboarding@resend.dev>'
@@ -286,7 +293,7 @@ export async function sendInvitationEmail(opts: {
 
   try {
     const replyTo = resolveReplyTo(opts.replyTo)
-    const { data, error } = await resend.emails.send({
+    const { data, error } = await getResend().emails.send({
       from: FROM_EMAIL,
       to: opts.to,
       ...(replyTo ? { reply_to: replyTo } : {}),
@@ -332,7 +339,7 @@ export async function sendPaymentReminderEmail(opts: {
 
   try {
     const replyTo = resolveReplyTo(opts.replyTo)
-    const { data, error } = await resend.emails.send({
+    const { data, error } = await getResend().emails.send({
       from: FROM_EMAIL,
       to: opts.to,
       ...(replyTo ? { reply_to: replyTo } : {}),

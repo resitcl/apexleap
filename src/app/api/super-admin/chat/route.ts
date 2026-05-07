@@ -1,8 +1,7 @@
 import { auth } from '@clerk/nextjs/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import OpenAI from 'openai'
-
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+import { getOpenAI } from '@/lib/openai-client'
+import type OpenAI from 'openai'
 
 type SupabaseClient = ReturnType<typeof createAdminClient>
 
@@ -277,6 +276,8 @@ export async function POST(req: Request) {
       { status: 503 }
     )
   }
+
+  const openai = getOpenAI()
 
   const { message, history } = await req.json() as {
     message: string

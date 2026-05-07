@@ -1,7 +1,5 @@
 import { auth } from '@clerk/nextjs/server'
-import OpenAI from 'openai'
-
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+import { getOpenAI } from '@/lib/openai-client'
 
 export async function POST(req: Request) {
   const { userId } = await auth()
@@ -54,7 +52,7 @@ Responde SOLO con JSON válido en este formato exacto, sin explicaciones adicion
 }`
 
   try {
-    const response = await openai.chat.completions.create({
+    const response = await getOpenAI().chat.completions.create({
       model: 'gpt-4o',
       max_tokens: 2000,
       messages: [

@@ -1,9 +1,7 @@
 import { auth } from '@clerk/nextjs/server'
 import { getClubMembershipRole } from '@/lib/actions/club-context'
 import { createAdminClient } from '@/lib/supabase/admin'
-import OpenAI from 'openai'
-
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+import { getOpenAI } from '@/lib/openai-client'
 
 const PAGE_LABELS: Record<string, string> = {
   '/dashboard':              'Panel principal (resumen general del club)',
@@ -183,7 +181,7 @@ INSTRUCCIONES:
 - Si no tienes el dato exacto, dilo claramente
 - Respuestas breves (máx 200 palabras salvo que pidan resumen completo)`
 
-  const stream = await openai.chat.completions.create({
+  const stream = await getOpenAI().chat.completions.create({
     model: 'gpt-4o-mini',
     stream: true,
     messages: [

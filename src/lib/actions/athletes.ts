@@ -247,13 +247,13 @@ export async function sendClubInvitationEmail(
     const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://apexleap.vercel.app'
     const signupUrl = `${APP_URL}/${clubInfo.slug}/signup`
 
-    const { Resend } = await import('resend')
-    const { normalizeClubPrimary, primaryForegroundForHex } = await import('@/lib/club-branding')
-    const resend = new Resend(process.env.RESEND_API_KEY)
-
     if (!process.env.RESEND_API_KEY) {
       return { ok: false, error: 'RESEND_API_KEY no configurada en el servidor.' }
     }
+
+    const { Resend } = await import('resend')
+    const { normalizeClubPrimary, primaryForegroundForHex } = await import('@/lib/club-branding')
+    const resend = new Resend(process.env.RESEND_API_KEY)
 
     const brandBg = normalizeClubPrimary(clubInfo.primary_color)
     const brandFg = primaryForegroundForHex(brandBg)
