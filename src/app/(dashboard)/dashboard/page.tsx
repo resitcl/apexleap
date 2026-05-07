@@ -665,8 +665,8 @@ export default async function DashboardPage() {
                 { href: "/dashboard/athletes/new", label: `Nuevo ${vocab.athlete}`, icon: UserPlus, color: "bg-primary/10 text-primary hover:bg-primary/20" },
                 { href: "/dashboard/payments/new", label: "Registrar Pago", icon: CreditCard, color: "bg-cyan-400/10 text-cyan-400 hover:bg-cyan-400/20" },
                 { href: "/dashboard/attendance?tab=today", label: "Check-in", icon: QrCode, color: "bg-violet-400/10 text-violet-400 hover:bg-violet-400/20" },
-                { href: "/dashboard/documents/new", label: "Documento", icon: FileText, color: "bg-amber-400/10 text-amber-400 hover:bg-amber-400/20" },
-                { href: "/dashboard/competitions/new", label: vocab.competition, icon: Trophy, color: "bg-pink-400/10 text-pink-400 hover:bg-pink-400/20" },
+                { href: "/dashboard/documents", label: "Documento", icon: FileText, color: "bg-amber-400/10 text-amber-400 hover:bg-amber-400/20" },
+                { href: "/dashboard/competitions", label: vocab.competition, icon: Trophy, color: "bg-pink-400/10 text-pink-400 hover:bg-pink-400/20" },
                 { href: "/dashboard/settings", label: "Configuración", icon: Settings, color: "bg-muted text-muted-foreground hover:bg-muted/80" },
               ].map((item) => (
                 <Link key={item.href} href={item.href}>
