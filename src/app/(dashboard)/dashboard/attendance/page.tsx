@@ -63,6 +63,13 @@ export default async function AttendancePage({ searchParams }: PageProps) {
   }
 
   const validToday = todayRecords.filter((r) => r.is_valid).length
+  const presentTodayIds = Array.from(
+    new Set(
+      todayRecords
+        .map((r) => (r as { athlete_id?: string | null }).athlete_id)
+        .filter((id): id is string => typeof id === "string" && id.length > 0)
+    )
+  )
 
   return (
     <div className="space-y-6">
@@ -81,7 +88,7 @@ export default async function AttendancePage({ searchParams }: PageProps) {
         </div>
         <div className="flex gap-2">
           <BulkHistoricalAttendance athletes={athletes} schedules={schedules} />
-          <ManualCheckInButton athletes={athletes} />
+          <ManualCheckInButton athletes={athletes} presentTodayIds={presentTodayIds} />
         </div>
       </div>
 
