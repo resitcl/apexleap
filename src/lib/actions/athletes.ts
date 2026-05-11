@@ -6,7 +6,11 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { z } from 'zod'
 import { getClubId, getClubInfo } from '@/lib/actions/club-context'
 import { sendInvitationEmail } from '@/lib/email'
-import { syncAdminAthletesForClub, cleanupStaffOnlyAthletesForClub } from '@/lib/admin-athlete-sync'
+import {
+  syncAdminAthletesForClub,
+  cleanupStaffOnlyAthletesForClub,
+  archiveAthleteForUser,
+} from '@/lib/admin-athlete-sync'
 
 const athleteSchema = z.object({
   name: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
@@ -159,7 +163,39 @@ export async function getAthleteById(id: string) {
     .single()
 
   if (error) throw new Error(error.message)
-  return data
+
+  // Determinar el rol actual del usuario en el club (si la ficha está vinculada).
+  // Útil para mostrar al admin si el "jugador" pasó a staff (admin/coach).
+  let clubRole: 'admin' | 'admin_athlete' | 'coach' | 'athlete' | null = null
+  const linkedUserId = (data as { user_id?: string | null }).user_id ?? null
+
+  if (linkedUserId) {
+    const { data: membership } = await supabase
+      .from('user_clubs')
+      .select('role')
+      .eq('user_id', linkedUserId)
+      .eq('club_id', clubId)
+      .eq('is_active', true)
+      .maybeSingle()
+
+    if (membership?.role) {
+      clubRole = membership.role as typeof clubRole
+    }
+
+    // Si pasó a un rol staff sin jugador, archivamos la ficha al vuelo
+    // para que deje de aparecer en la nómina/asistencia. El banner del page
+    // se encarga de comunicar la situación.
+    const archivedAt = (data as { archived_at?: string | null }).archived_at ?? null
+    if (!archivedAt && (clubRole === 'admin' || clubRole === 'coach')) {
+      await archiveAthleteForUser({ clubId, userId: linkedUserId }).catch((e) => {
+        console.error('[getAthleteById] archiveAthleteForUser failed:', e)
+      })
+      ;(data as { archived_at?: string | null }).archived_at = new Date().toISOString()
+      ;(data as { status?: string }).status = 'inactive'
+    }
+  }
+
+  return { ...data, clubRole }
 }
 
 export async function createAthlete(input: AthleteInput) {

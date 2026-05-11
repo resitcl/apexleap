@@ -64,6 +64,14 @@ export default async function AthleteDetailPage({ params }: PageProps) {
   }>
 
   const archivedAt = (athlete as { archived_at?: string | null }).archived_at ?? null
+  const clubRole = (athlete as { clubRole?: 'admin' | 'admin_athlete' | 'coach' | 'athlete' | null }).clubRole ?? null
+  const isStaffOnly = clubRole === 'admin' || clubRole === 'coach'
+  const ROLE_LABEL: Record<NonNullable<typeof clubRole>, string> = {
+    admin: 'Administrador',
+    admin_athlete: 'Admin + jugador',
+    coach: 'Entrenador',
+    athlete: 'Jugador',
+  }
   const activeSub = subscriptions.find((s) => s.status === "active")
   const overduePayments = payments.filter((p) => p.status === "overdue")
   const attendanceRate = attendance.length > 0
@@ -72,7 +80,23 @@ export default async function AthleteDetailPage({ params }: PageProps) {
 
   return (
     <div className="max-w-5xl mx-auto space-y-4 pb-12 pt-1">
-      {archivedAt && (
+      {isStaffOnly && (
+        <div
+          role="alert"
+          className="rounded-xl border border-blue-500/30 bg-blue-500/10 px-4 py-3 text-sm"
+        >
+          <p className="font-bold text-blue-900 dark:text-blue-200">
+            Este usuario ahora es {ROLE_LABEL[clubRole!]}
+          </p>
+          <p className="mt-1 text-blue-900/85 dark:text-blue-100/85">
+            Su rol en el club ya no incluye jugador, por lo que esta ficha quedó archivada y no aparece en la nómina ni en la toma de asistencia.
+          </p>
+          <p className="mt-1 text-xs text-blue-800/80 dark:text-blue-100/70">
+            Para verlo y editarlo como staff, ve a <Link href="/dashboard/settings/team" className="underline font-medium">Equipo</Link>.
+          </p>
+        </div>
+      )}
+      {archivedAt && !isStaffOnly && (
         <div
           role="alert"
           className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm"
@@ -89,8 +113,25 @@ export default async function AthleteDetailPage({ params }: PageProps) {
       {/* ── GREETING ── */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-4xl sm:text-5xl font-black leading-[1.1] tracking-tighter">
-            Alumno: <span className="text-primary">{athlete.name.split(' ')[0]}.</span>
+          <h1 className="text-4xl sm:text-5xl font-black leading-[1.1] tracking-tighter flex items-center gap-3 flex-wrap">
+            <span>
+              {isStaffOnly ? `${ROLE_LABEL[clubRole!]}:` : 'Alumno:'}{' '}
+              <span className="text-primary">{athlete.name.split(' ')[0]}.</span>
+            </span>
+            {clubRole && (
+              <Badge
+                variant="outline"
+                className={`text-[11px] font-bold uppercase tracking-wider shrink-0 ${
+                  clubRole === 'admin' || clubRole === 'admin_athlete'
+                    ? 'border-blue-500/40 text-blue-700 dark:text-blue-300'
+                    : clubRole === 'coach'
+                      ? 'border-purple-500/40 text-purple-700 dark:text-purple-300'
+                      : 'border-border/50 text-muted-foreground'
+                }`}
+              >
+                {ROLE_LABEL[clubRole]}
+              </Badge>
+            )}
           </h1>
           <p className="text-[15px] text-muted-foreground/70 font-normal mt-2 leading-relaxed">
             {activeSub ? `Plan: ${activeSub.plans?.name ?? ''}` : 'Sin plan activo'}
