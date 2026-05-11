@@ -70,13 +70,16 @@ export default async function AttendancePage({ searchParams }: PageProps) {
   }
 
   const validToday = todayRecords.filter((r) => r.is_valid).length
-  const presentTodayIds = Array.from(
-    new Set(
-      todayRecords
-        .map((r) => (r as { athlete_id?: string | null }).athlete_id)
-        .filter((id): id is string => typeof id === "string" && id.length > 0)
-    )
-  )
+  /** Mapa `scheduleId -> athleteId[]` con quienes ya marcaron hoy en esa sesión.
+   *  Permite que el botón manual evalúe duplicados por (atleta, sesión), no por atleta global. */
+  const presentBySession = todayRecords.reduce<Record<string, string[]>>((acc, r) => {
+    const sid = (r as { schedule_id?: string | null }).schedule_id ?? ""
+    const aid = (r as { athlete_id?: string | null }).athlete_id ?? ""
+    if (!sid || !aid) return acc
+    if (!acc[sid]) acc[sid] = []
+    if (!acc[sid].includes(aid)) acc[sid].push(aid)
+    return acc
+  }, {})
 
   return (
     <div className="space-y-6">
@@ -95,7 +98,7 @@ export default async function AttendancePage({ searchParams }: PageProps) {
         </div>
         <div className="flex gap-2">
           <BulkHistoricalAttendance athletes={athletes} schedules={schedules} />
-          <ManualCheckInButton athletes={athletes} schedules={schedules} presentTodayIds={presentTodayIds} />
+          <ManualCheckInButton athletes={athletes} schedules={schedules} presentBySession={presentBySession} />
         </div>
       </div>
 

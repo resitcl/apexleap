@@ -1,9 +1,8 @@
 'use server'
 
-import { auth } from '@clerk/nextjs/server'
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { getClubId } from '@/lib/actions/club-context'
+import { getClubId, assertClubStaff } from '@/lib/actions/club-context'
 
 
 export async function getAttendanceToday(params?: { categoryId?: string }) {
@@ -96,6 +95,7 @@ export async function checkIn(params: {
   lat?: number
   lng?: number
 }) {
+  await assertClubStaff()
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
@@ -152,6 +152,7 @@ export async function checkIn(params: {
 }
 
 export async function justifyAttendance(params: { attendanceId: string; reason: string }) {
+  await assertClubStaff()
   const clubId = await getClubId()
   const supabase = createAdminClient()
   const { error } = await supabase
@@ -164,6 +165,7 @@ export async function justifyAttendance(params: { attendanceId: string; reason: 
 }
 
 export async function markAttendanceInvalid(params: { attendanceId: string }) {
+  await assertClubStaff()
   const clubId = await getClubId()
   const supabase = createAdminClient()
   const { error } = await supabase
@@ -180,6 +182,7 @@ export async function bulkCheckIn(params: {
   date: string
   scheduleId: string
 }) {
+  await assertClubStaff()
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
@@ -311,7 +314,7 @@ export async function getPastSessionsAttendance(params?: {
     records: Row[]
   }>()
 
-  for (const r of (data ?? []) as Row[]) {
+  for (const r of (data ?? []) as unknown as Row[]) {
     if (!r.schedule_id || !r.schedules) continue
     const dateKey = localDateKey(r.checked_in_at)
     const key = `${r.schedule_id}__${dateKey}`

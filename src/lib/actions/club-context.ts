@@ -92,6 +92,17 @@ export async function requireClubStaffPage() {
   if (role === 'athlete') redirect('/dashboard/athlete')
 }
 
+/**
+ * Throw si el usuario actual no es staff del club (admin, admin_athlete o coach).
+ * Pensado para server actions. No redirige; lanza para que el caller maneje el error.
+ */
+export async function assertClubStaff(): Promise<void> {
+  const role = await getClubMembershipRole()
+  if (role !== 'admin' && role !== 'admin_athlete' && role !== 'coach') {
+    throw new Error('No tienes permisos para realizar esta acción')
+  }
+}
+
 export async function getClubSportType(): Promise<string | null> {
   const clubId = await getClubId()
   const supabase = createAdminClient()

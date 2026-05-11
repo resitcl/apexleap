@@ -12,16 +12,20 @@ import { ClipboardCheck } from "lucide-react"
 interface Props {
   athletes: { id: string; name: string }[]
   schedules: { id: string; name: string }[]
-  presentTodayIds?: string[]
+  /** `scheduleId -> athleteIds[]` con quienes ya marcaron hoy en esa sesión. */
+  presentBySession?: Record<string, string[]>
 }
 
-export function ManualCheckInButton({ athletes, schedules, presentTodayIds = [] }: Props) {
+export function ManualCheckInButton({ athletes, schedules, presentBySession = {} }: Props) {
   const [open, setOpen] = useState(false)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [scheduleId, setScheduleId] = useState("")
   const [search, setSearch] = useState("")
   const [loading, setLoading] = useState(false)
-  const presentSet = useMemo(() => new Set(presentTodayIds), [presentTodayIds])
+  const presentSet = useMemo(
+    () => new Set(scheduleId ? (presentBySession[scheduleId] ?? []) : []),
+    [presentBySession, scheduleId]
+  )
   const filtered = useMemo(
     () => athletes.filter((a) => a.name.toLowerCase().includes(search.toLowerCase())),
     [athletes, search]

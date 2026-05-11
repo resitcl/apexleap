@@ -6,10 +6,8 @@ import { getMySubscriptionStatus } from "@/lib/actions/athlete-enrollment"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { getClubId } from "@/lib/actions/club-context"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { CheckCircle, XCircle, CalendarDays, TrendingUp, Flame, QrCode, Camera, ClipboardCheck } from "lucide-react"
-import Link from "next/link"
 import { AthleteSectionHeader } from "@/components/athlete/AthleteSectionHeader"
 
 export default async function AthleteAttendancePage() {
@@ -127,26 +125,23 @@ export default async function AthleteAttendancePage() {
         </Card>
       </div>
 
-      {/* QR Scan Button */}
-      <Link href="/dashboard/attendance/qr" className="block">
-        <div className="relative overflow-hidden rounded-2xl border border-primary/20 hover:border-primary/40 focus-visible:ring-1 focus-visible:ring-primary/40 transition-colors bg-card cursor-pointer group">
-          <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent z-0" />
-          <div className="p-6 sm:p-8 flex items-center justify-between relative z-10">
-            <div className="flex items-center gap-5">
-              <div className="w-14 h-14 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                <Camera className="w-6 h-6 text-primary" />
-              </div>
-              <div>
-                <p className="font-black text-lg tracking-tight uppercase leading-none">Escanear QR</p>
-                <p className="text-sm text-muted-foreground/80 font-medium mt-1">Abre la cámara para marcar tu asistencia en el club</p>
-              </div>
-            </div>
-            <div className="hidden sm:flex w-12 h-12 rounded-full border border-primary/20 bg-primary/5 items-center justify-center group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-              <QrCode className="w-5 h-5" />
-            </div>
+      {/* Cómo marcar asistencia */}
+      <div className="relative overflow-hidden rounded-2xl border border-primary/20 bg-card">
+        <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent z-0" />
+        <div className="p-6 sm:p-8 flex items-center gap-5 relative z-10">
+          <div className="w-14 h-14 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+            <QrCode className="w-6 h-6 text-primary" />
           </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-black text-lg tracking-tight uppercase leading-none">¿Cómo marcar asistencia?</p>
+            <p className="text-sm text-muted-foreground/80 font-medium mt-1">
+              Escanea el código QR físico del club con la <span className="font-semibold text-foreground">cámara de tu celular</span>.
+              Inicia sesión con tu cuenta y la asistencia queda registrada automáticamente.
+            </p>
+          </div>
+          <Camera className="hidden sm:block w-6 h-6 text-muted-foreground/60 shrink-0" />
         </div>
-      </Link>
+      </div>
 
       {/* Trend indicator */}
       {(validThisMonth > 0 || validPrevMonth > 0) && (
