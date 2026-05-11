@@ -75,6 +75,102 @@ export async function ensureAthleteRecordForUser(params: {
 }
 
 /**
+ * Archiva la ficha en `athletes` vinculada a un Clerk user dentro del club.
+ *
+ * Se llama cuando un miembro pasa de un rol con jugador (`athlete`, `admin_athlete`)
+ * a uno sin jugador (`admin`, `coach`), para que deje de aparecer en la nómina
+ * de jugadores, en la toma de asistencia y en estadísticas.
+ *
+ * Es idempotente: si no hay ficha vinculada al usuario, no hace nada.
+ * Solo afecta fichas con `athletes.user_id = userId` (no toca registros sin user_id
+ * que pudieran haberse creado por inscripción manual).
+ */
+export async function archiveAthleteForUser(params: {
+  clubId: string
+  userId: string
+}): Promise<{ archived: number }> {
+  const { clubId, userId } = params
+  if (!clubId || !userId) return { archived: 0 }
+
+  const supabase = createAdminClient()
+
+  const { data: rows } = await supabase
+    .from('athletes')
+    .select('id')
+    .eq('club_id', clubId)
+    .eq('user_id', userId)
+    .is('archived_at', null)
+
+  const ids = (rows ?? []).map((r) => r.id as string)
+  if (ids.length === 0) return { archived: 0 }
+
+  const { error } = await supabase
+    .from('athletes')
+    .update({
+      archived_at: new Date().toISOString(),
+      status: 'inactive',
+      updated_at: new Date().toISOString(),
+    })
+    .in('id', ids)
+
+  if (error) {
+    console.error('[archiveAthleteForUser] update error:', error)
+    return { archived: 0 }
+  }
+
+  return { archived: ids.length }
+}
+
+/**
+ * Backfill: archiva fichas de `athletes` que pertenezcan a miembros del club
+ * cuyo rol actual en `user_clubs` es `admin` o `coach` (sin jugador).
+ *
+ * Pensado para corregir datos previos al fix de `updateTeamMemberRole`/`linkUserToClub`
+ * y no requiere ejecución manual: se llama de forma idempotente al listar atletas.
+ */
+export async function cleanupStaffOnlyAthletesForClub(clubId: string): Promise<number> {
+  if (!clubId) return 0
+
+  const supabase = createAdminClient()
+
+  const { data: staffOnly } = await supabase
+    .from('user_clubs')
+    .select('user_id')
+    .eq('club_id', clubId)
+    .eq('is_active', true)
+    .in('role', ['admin', 'coach'])
+
+  const userIds = (staffOnly ?? []).map((m) => m.user_id as string).filter(Boolean)
+  if (userIds.length === 0) return 0
+
+  const { data: orphanRows } = await supabase
+    .from('athletes')
+    .select('id')
+    .eq('club_id', clubId)
+    .in('user_id', userIds)
+    .is('archived_at', null)
+
+  const ids = (orphanRows ?? []).map((r) => r.id as string)
+  if (ids.length === 0) return 0
+
+  const { error } = await supabase
+    .from('athletes')
+    .update({
+      archived_at: new Date().toISOString(),
+      status: 'inactive',
+      updated_at: new Date().toISOString(),
+    })
+    .in('id', ids)
+
+  if (error) {
+    console.error('[cleanupStaffOnlyAthletesForClub] update error:', error)
+    return 0
+  }
+
+  return ids.length
+}
+
+/**
  * Backfill: crea el registro en `athletes` para todos los miembros
  * `admin_athlete` activos del club que aún no lo tengan.
  * Pensada para corregir datos preexistentes sin necesidad de migración.

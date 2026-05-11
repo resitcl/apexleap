@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { ensureAthleteRecordForUser } from '@/lib/admin-athlete-sync'
+import { ensureAthleteRecordForUser, archiveAthleteForUser } from '@/lib/admin-athlete-sync'
 import { CLUB_COOKIE } from '@/lib/constants'
 
 // ─── Auth guard ────────────────────────────────────────────────────────────
@@ -236,7 +236,7 @@ export async function linkUserToClub(
     if (error) throw new Error(error.message)
   }
 
-  if (role === 'admin_athlete') {
+  if (role === 'admin_athlete' || role === 'athlete') {
     const { data: userRow } = await supabase
       .from('users')
       .select('email, name')
@@ -267,6 +267,13 @@ export async function linkUserToClub(
     })
 
     revalidatePath('/dashboard/athletes')
+  } else {
+    // Rol staff sin jugador → archivar ficha de atleta si existía.
+    await archiveAthleteForUser({ clubId, userId: clerkUserId }).catch((err) => {
+      console.error('[linkUserToClub] archiveAthleteForUser:', err)
+    })
+    revalidatePath('/dashboard/athletes')
+    revalidatePath('/dashboard/attendance')
   }
 
   revalidatePath(`/super-admin/clubs/${clubId}`)

@@ -4,7 +4,7 @@ import { auth, clerkClient } from '@clerk/nextjs/server'
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getClubId } from '@/lib/actions/club-context'
-import { ensureAthleteRecordForUser } from '@/lib/admin-athlete-sync'
+import { ensureAthleteRecordForUser, archiveAthleteForUser } from '@/lib/admin-athlete-sync'
 
 function clerkErrMsg(err: unknown): string {
   if (!err) return 'Error desconocido'
@@ -155,9 +155,8 @@ export async function updateTeamMemberRole(
 
     if (error) return { ok: false, error: error.message }
 
-    // Si el nuevo rol es admin+atleta, asegurar registro en `athletes`
-    // para que aparezca en la nómina de jugadores.
-    if (role === 'admin_athlete') {
+    // Si el nuevo rol es admin+atleta o atleta, asegurar registro en `athletes`.
+    if (role === 'admin_athlete' || role === 'athlete') {
       const { data: userRow } = await supabase
         .from('users')
         .select('email, name')
@@ -186,10 +185,17 @@ export async function updateTeamMemberRole(
       }).catch((err) => {
         console.error('[updateTeamMemberRole] ensureAthleteRecordForUser failed:', err)
       })
+    } else {
+      // El nuevo rol no incluye jugador (admin o coach): archivar la ficha del
+      // usuario para que no aparezca en la nómina, asistencia ni estadísticas.
+      await archiveAthleteForUser({ clubId, userId: clerkUserId }).catch((err) => {
+        console.error('[updateTeamMemberRole] archiveAthleteForUser failed:', err)
+      })
     }
 
     revalidatePath('/dashboard/settings/team')
     revalidatePath('/dashboard/athletes')
+    revalidatePath('/dashboard/attendance')
     return { ok: true }
   } catch (err: unknown) {
     return { ok: false, error: clerkErrMsg(err) }

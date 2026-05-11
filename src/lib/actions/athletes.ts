@@ -6,7 +6,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { z } from 'zod'
 import { getClubId, getClubInfo } from '@/lib/actions/club-context'
 import { sendInvitationEmail } from '@/lib/email'
-import { syncAdminAthletesForClub } from '@/lib/admin-athlete-sync'
+import { syncAdminAthletesForClub, cleanupStaffOnlyAthletesForClub } from '@/lib/admin-athlete-sync'
 
 const athleteSchema = z.object({
   name: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
@@ -78,13 +78,17 @@ export async function getAthletes(params?: {
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
-  // Backfill: aseguramos que los miembros admin_athlete tengan registro en
-  // la tabla `athletes` para que aparezcan en la nómina de jugadores.
-  // Es idempotente y barato: si todos ya tienen registro, no inserta nada.
+  // Backfill idempotente:
+  //  1) asegurar fichas `athletes` para miembros `admin_athlete` (aparezcan en nómina);
+  //  2) archivar fichas viejas de miembros que ahora son sólo `admin`/`coach`
+  //     (no deben aparecer en nómina, asistencia ni estadísticas).
   try {
-    await syncAdminAthletesForClub(clubId)
+    await Promise.all([
+      syncAdminAthletesForClub(clubId),
+      cleanupStaffOnlyAthletesForClub(clubId),
+    ])
   } catch (e) {
-    console.error('[getAthletes] syncAdminAthletesForClub failed:', e)
+    console.error('[getAthletes] backfill failed:', e)
   }
 
   const page = params?.page ?? 1
