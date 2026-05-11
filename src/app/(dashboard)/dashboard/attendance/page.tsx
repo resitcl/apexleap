@@ -1,7 +1,9 @@
 export const dynamic = "force-dynamic"
 
 import Link from "next/link"
-import { getAttendanceToday, getAttendanceHistory } from "@/lib/actions/attendance"
+import { getAttendanceToday, getAttendanceHistory, getPastSessionsAttendance } from "@/lib/actions/attendance"
+import { PastSessionsList } from "@/components/attendance/PastSessionsList"
+import type { SessionGroup } from "@/components/attendance/PastSessionsList"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -33,6 +35,7 @@ export default async function AttendancePage({ searchParams }: PageProps) {
 
   let todayRecords: Awaited<ReturnType<typeof getAttendanceToday>> = []
   let history: Awaited<ReturnType<typeof getAttendanceHistory>> = { records: [], total: 0 }
+  let sessionGroups: SessionGroup[] = []
   let athletes: Array<{ id: string; name: string; category_id?: string | null }> = []
   let schedules: Array<{ id: string; name: string }> = []
   let categories: Array<{ id: string; name: string; color: string | null }> = []
@@ -40,14 +43,18 @@ export default async function AttendancePage({ searchParams }: PageProps) {
   let error: string | null = null
 
   try {
-    const [today, hist, athletesResult, schedulesResult, catsData, venuesData] = await Promise.all([
+    const [today, hist, sessionsHist, athletesResult, schedulesResult, catsData, venuesData] = await Promise.all([
       getAttendanceToday({ categoryId: categoryId || undefined }),
       getAttendanceHistory({ from: from || undefined, to: to || undefined, days: 30, limit: 50, page, scheduleId: scheduleId || undefined, athleteId: athleteId || undefined, categoryId: categoryId || undefined }),
+      tab === 'sessions'
+        ? getPastSessionsAttendance({ from: from || undefined, to: to || undefined, days: 30, scheduleId: scheduleId || undefined })
+        : Promise.resolve([] as SessionGroup[]),
       getAthletes({ limit: 200 }),
       getSchedules(),
       getCategories(true).catch(() => []),
       getVenues().catch(() => []),
     ])
+    sessionGroups = sessionsHist as SessionGroup[]
     schedules = (schedulesResult as Array<{ id: string; name: string; is_active: boolean }>)
       .filter((s) => s.is_active)
       .map((s) => ({ id: s.id, name: s.name }))
@@ -88,7 +95,7 @@ export default async function AttendancePage({ searchParams }: PageProps) {
         </div>
         <div className="flex gap-2">
           <BulkHistoricalAttendance athletes={athletes} schedules={schedules} />
-          <ManualCheckInButton athletes={athletes} presentTodayIds={presentTodayIds} />
+          <ManualCheckInButton athletes={athletes} schedules={schedules} presentTodayIds={presentTodayIds} />
         </div>
       </div>
 
@@ -156,8 +163,9 @@ export default async function AttendancePage({ searchParams }: PageProps) {
       {/* Tabs */}
       <div className="flex gap-1 border-b border-border">
         {[
-          { key: "today",   label: "Hoy" },
-          { key: "history", label: "Historial" },
+          { key: "today",    label: "Hoy" },
+          { key: "sessions", label: "Por entrenamiento" },
+          { key: "history",  label: "Historial" },
         ].map((t) => (
           <Link key={t.key} href={`/dashboard/attendance?tab=${t.key}`}
             className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
@@ -238,6 +246,60 @@ export default async function AttendancePage({ searchParams }: PageProps) {
               )}
             </CardContent>
           </Card>
+        </div>
+      )}
+
+      {tab === "sessions" && (
+        <div className="space-y-4">
+          <form method="get" action="/dashboard/attendance" className="space-y-3">
+            <input type="hidden" name="tab" value="sessions" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-muted-foreground font-medium">Sesión</label>
+                <select name="scheduleId" defaultValue={scheduleId}
+                  className="h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring w-full">
+                  <option value="">Todas las sesiones</option>
+                  {schedules.map((s) => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-muted-foreground font-medium">Desde</label>
+                <input type="date" name="from" defaultValue={from}
+                  className="h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring w-full" />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-muted-foreground font-medium">Hasta</label>
+                <input type="date" name="to" defaultValue={to}
+                  className="h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring w-full" />
+              </div>
+              <div className="flex items-end gap-2">
+                <button type="submit"
+                  className="h-9 px-4 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
+                  Filtrar
+                </button>
+                {(from || to || scheduleId) && (
+                  <Link href="/dashboard/attendance?tab=sessions"
+                    className="text-xs text-muted-foreground hover:text-foreground underline">
+                    ✕ Limpiar
+                  </Link>
+                )}
+              </div>
+            </div>
+          </form>
+
+          {error ? (
+            <p className="text-sm text-destructive">{error}</p>
+          ) : (
+            <>
+              <p className="text-xs text-muted-foreground">
+                {sessionGroups.length} entrenamiento{sessionGroups.length === 1 ? '' : 's'} con asistencia registrada
+                {(from || to) ? ' en el rango seleccionado' : ' en los últimos 30 días'}
+              </p>
+              <PastSessionsList groups={sessionGroups} />
+            </>
+          )}
         </div>
       )}
 

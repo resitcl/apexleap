@@ -69,13 +69,17 @@ export function BulkHistoricalAttendance({ athletes, schedules }: Props) {
       toast.error('Selecciona una fecha')
       return
     }
+    if (!scheduleId) {
+      toast.error('Selecciona el entrenamiento/sesión')
+      return
+    }
 
     setLoading(true)
     try {
       const result = await bulkCheckIn({
         athleteIds: Array.from(selectedAthletes),
         date,
-        scheduleId: scheduleId || undefined,
+        scheduleId,
       })
       
       toast.success(`${result.count} asistencias registradas para ${date}`)
@@ -120,14 +124,15 @@ export function BulkHistoricalAttendance({ athletes, schedules }: Props) {
                 />
               </div>
               <div>
-                <Label htmlFor="hist-schedule">Sesión (opcional)</Label>
+                <Label htmlFor="hist-schedule">Entrenamiento/sesión *</Label>
                 <select
                   id="hist-schedule"
                   value={scheduleId}
                   onChange={(e) => setScheduleId(e.target.value)}
+                  required
                   className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 >
-                  <option value="">Sin sesión específica</option>
+                  <option value="">Seleccionar sesión...</option>
                   {schedules.map((s) => (
                     <option key={s.id} value={s.id}>{s.name}</option>
                   ))}
@@ -193,9 +198,9 @@ export function BulkHistoricalAttendance({ athletes, schedules }: Props) {
             <Button variant="outline" onClick={() => setOpen(false)} disabled={loading}>
               Cancelar
             </Button>
-            <Button 
-              onClick={handleSubmit} 
-              disabled={loading || selectedAthletes.size === 0}
+            <Button
+              onClick={handleSubmit}
+              disabled={loading || selectedAthletes.size === 0 || !scheduleId}
               className="gap-2"
             >
               {loading ? 'Registrando...' : `Registrar ${selectedAthletes.size} asistencia${selectedAthletes.size !== 1 ? 's' : ''}`}

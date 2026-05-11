@@ -11,12 +11,14 @@ import { ClipboardCheck } from "lucide-react"
 
 interface Props {
   athletes: { id: string; name: string }[]
+  schedules: { id: string; name: string }[]
   presentTodayIds?: string[]
 }
 
-export function ManualCheckInButton({ athletes, presentTodayIds = [] }: Props) {
+export function ManualCheckInButton({ athletes, schedules, presentTodayIds = [] }: Props) {
   const [open, setOpen] = useState(false)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [scheduleId, setScheduleId] = useState("")
   const [search, setSearch] = useState("")
   const [loading, setLoading] = useState(false)
   const presentSet = useMemo(() => new Set(presentTodayIds), [presentTodayIds])
@@ -26,6 +28,10 @@ export function ManualCheckInButton({ athletes, presentTodayIds = [] }: Props) {
   )
 
   async function handleSubmit() {
+    if (!scheduleId) {
+      toast.error("Selecciona un entrenamiento/sesión")
+      return
+    }
     const candidates = selectedIds.filter((id) => !presentSet.has(id))
     if (candidates.length === 0) {
       toast.error("Selecciona al menos un jugador pendiente")
@@ -33,7 +39,9 @@ export function ManualCheckInButton({ athletes, presentTodayIds = [] }: Props) {
     }
     setLoading(true)
     try {
-      const results = await Promise.allSettled(candidates.map((athleteId) => checkIn({ athleteId })))
+      const results = await Promise.allSettled(
+        candidates.map((athleteId) => checkIn({ athleteId, scheduleId }))
+      )
       const ok = results.filter((r) => r.status === "fulfilled").length
       const failed = results.length - ok
       if (ok > 0) {
@@ -44,6 +52,7 @@ export function ManualCheckInButton({ athletes, presentTodayIds = [] }: Props) {
       }
       setOpen(false)
       setSelectedIds([])
+      setScheduleId("")
       setSearch("")
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Error al registrar asistencia")
@@ -65,6 +74,16 @@ export function ManualCheckInButton({ athletes, presentTodayIds = [] }: Props) {
             <DialogTitle>Toma de Asistencia Manual</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-2">
+            <select
+              value={scheduleId}
+              onChange={(e) => setScheduleId(e.target.value)}
+              className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            >
+              <option value="">Seleccionar entrenamiento/sesión...</option>
+              {schedules.map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -101,7 +120,7 @@ export function ManualCheckInButton({ athletes, presentTodayIds = [] }: Props) {
             <Button variant="outline" onClick={() => setOpen(false)} disabled={loading}>
               Cancelar
             </Button>
-            <Button onClick={handleSubmit} disabled={loading || selectedIds.length === 0}>
+            <Button onClick={handleSubmit} disabled={loading || selectedIds.length === 0 || !scheduleId}>
               {loading ? "Registrando..." : `Registrar ${selectedIds.length}`}
             </Button>
           </DialogFooter>

@@ -32,9 +32,13 @@ export function ManualCheckInButton({ athleteId }: Props) {
   }, [open])
 
   async function handleCheckIn() {
+    if (!scheduleId) {
+      toast.error('Selecciona el entrenamiento/sesión')
+      return
+    }
     setLoading(true)
     try {
-      await checkIn({ athleteId, scheduleId: scheduleId || undefined })
+      await checkIn({ athleteId, scheduleId })
       toast.success('Asistencia registrada')
       setOpen(false)
     } catch (err) {
@@ -66,13 +70,14 @@ export function ManualCheckInButton({ athleteId }: Props) {
               Marca asistencia manual para hoy. Si el atleta ya registró asistencia hoy, la operación fallará.
             </p>
             <div className="space-y-1">
-              <Label>Sesión (opcional)</Label>
+              <Label>Entrenamiento/sesión *</Label>
               <select
                 value={scheduleId}
                 onChange={(e) => setScheduleId(e.target.value)}
+                required
                 className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
               >
-                <option value="">Sin sesión específica</option>
+                <option value="">Seleccionar sesión...</option>
                 {schedules.map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.name} — {s.start_time?.slice(0, 5)}
@@ -83,7 +88,7 @@ export function ManualCheckInButton({ athleteId }: Props) {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)} disabled={loading}>Cancelar</Button>
-            <Button onClick={handleCheckIn} disabled={loading}>
+            <Button onClick={handleCheckIn} disabled={loading || !scheduleId}>
               {loading ? 'Registrando...' : 'Confirmar asistencia'}
             </Button>
           </DialogFooter>

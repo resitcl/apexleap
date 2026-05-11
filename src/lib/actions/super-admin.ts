@@ -1,10 +1,11 @@
 'use server'
 
-import { auth } from '@clerk/nextjs/server'
+import { auth, clerkClient } from '@clerk/nextjs/server'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { ensureAthleteRecordForUser } from '@/lib/admin-athlete-sync'
 import { CLUB_COOKIE } from '@/lib/constants'
 
 // ─── Auth guard ────────────────────────────────────────────────────────────
@@ -207,7 +208,11 @@ export async function recordSaasBillingPayment(input: {
 }
 
 // ─── Link / unlink a user to a club ──────────────────────────────────────
-export async function linkUserToClub(clubId: string, clerkUserId: string, role: 'admin' | 'coach' | 'athlete' = 'admin') {
+export async function linkUserToClub(
+  clubId: string,
+  clerkUserId: string,
+  role: 'admin' | 'coach' | 'athlete' | 'admin_athlete' = 'admin'
+) {
   await requireSuperAdmin()
   const supabase = createAdminClient()
 
@@ -231,6 +236,39 @@ export async function linkUserToClub(clubId: string, clerkUserId: string, role: 
     if (error) throw new Error(error.message)
   }
 
+  if (role === 'admin_athlete') {
+    const { data: userRow } = await supabase
+      .from('users')
+      .select('email, name')
+      .eq('clerk_id', clerkUserId)
+      .maybeSingle()
+
+    let email = (userRow?.email as string | null) ?? null
+    let name = (userRow?.name as string | null) ?? null
+
+    if (!email || !name) {
+      try {
+        const clerk = await clerkClient()
+        const u = await clerk.users.getUser(clerkUserId)
+        email = email ?? (u.emailAddresses?.[0]?.emailAddress ?? null)
+        name = name ?? ([u.firstName, u.lastName].filter(Boolean).join(' ') || email)
+      } catch {
+        /* Clerk opcional si falla API */
+      }
+    }
+
+    await ensureAthleteRecordForUser({
+      clubId,
+      userId: clerkUserId,
+      email,
+      name,
+    }).catch((err) => {
+      console.error('[linkUserToClub] ensureAthleteRecordForUser:', err)
+    })
+
+    revalidatePath('/dashboard/athletes')
+  }
+
   revalidatePath(`/super-admin/clubs/${clubId}`)
   return { ok: true }
 }
@@ -249,6 +287,7 @@ export async function removeUserFromClub(clubId: string, clerkUserId: string) {
 }
 
 // ─── Super Admin: enter any club dashboard ──────────────────────────────────
+/** Fija `user_clubs.role` en `admin`. Para admin + jugador, vincular con `linkUserToClub(..., 'admin_athlete')`. */
 export async function superAdminEnterClub(clubId: string) {
   const { userId } = await auth()
   if (!userId) throw new Error('No autorizado')

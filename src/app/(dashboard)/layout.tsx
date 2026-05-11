@@ -35,6 +35,7 @@ import { DesktopNavItem } from "@/components/layouts/DesktopNavItem"
 import { ThemeToggle } from "@/components/layouts/ThemeToggle"
 import { getSidebarAlerts } from "@/lib/actions/alerts"
 import { NotificationBell } from "@/components/layouts/NotificationBell"
+import { ChileDateTimeHeader } from "@/components/layouts/ChileDateTimeHeader"
 import type { NotificationItem } from "@/components/layouts/NotificationBell"
 import { getClubSettings } from "@/lib/actions/settings"
 import { clubThemeBrandingVars, normalizeClubPrimary } from "@/lib/club-branding"
@@ -406,8 +407,14 @@ export default async function DashboardLayout({
 
           <div className="flex-1" />
 
-          {/* Notifications bell */}
-          <NotificationBell notifications={notificationItems} />
+          {/* Hora Chile (staff) — junto a notificaciones */}
+          {!isAthlete && (
+            <div className="flex items-center gap-2 md:gap-3 shrink-0">
+              <ChileDateTimeHeader />
+              <NotificationBell notifications={notificationItems} />
+            </div>
+          )}
+          {isAthlete && <NotificationBell notifications={notificationItems} />}
 
           {/* Divider */}
           <div className="w-px h-6 bg-border hidden md:block" />

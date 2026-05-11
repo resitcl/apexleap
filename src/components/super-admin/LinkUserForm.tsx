@@ -20,6 +20,7 @@ interface Props {
 
 const ROLES = [
   { value: 'admin',   label: 'Administrador' },
+  { value: 'admin_athlete', label: 'Admin + atleta' },
   { value: 'coach',   label: 'Entrenador' },
 ]
 
@@ -27,7 +28,7 @@ export function LinkUserForm({ clubId, clubSlug, users }: Props) {
   const router = useRouter()
   const [isPending, start] = useTransition()
   const [clerkId, setClerkId]   = useState('')
-  const [role, setRole]         = useState<'admin' | 'coach'>('admin')
+  const [role, setRole]         = useState<'admin' | 'admin_athlete' | 'coach'>('admin')
   const [error, setError]       = useState('')
   const [success, setSuccess]   = useState('')
   const [copied, setCopied]     = useState(false)
@@ -121,7 +122,7 @@ export function LinkUserForm({ clubId, clubSlug, users }: Props) {
             <div className="flex gap-2">
               <select
                 value={role}
-                onChange={(e) => setRole(e.target.value as 'admin' | 'coach')}
+                onChange={(e) => setRole(e.target.value as 'admin' | 'admin_athlete' | 'coach')}
                 className="h-9 px-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
               >
                 {ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
