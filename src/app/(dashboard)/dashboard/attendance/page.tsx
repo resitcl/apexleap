@@ -37,7 +37,7 @@ export default async function AttendancePage({ searchParams }: PageProps) {
   let history: Awaited<ReturnType<typeof getAttendanceHistory>> = { records: [], total: 0 }
   let sessionGroups: SessionGroup[] = []
   let athletes: Array<{ id: string; name: string; category_id?: string | null }> = []
-  let schedules: Array<{ id: string; name: string }> = []
+  let schedules: Array<{ id: string; name: string; start_time: string; end_time: string; day_of_week: number[] }> = []
   let categories: Array<{ id: string; name: string; color: string | null }> = []
   let venuesForQR: Array<{ id: string; name: string; address: string | null; qr_token: string | null; lat: number | null; lng: number | null; geofence_radius: number | null }> = []
   let error: string | null = null
@@ -55,9 +55,18 @@ export default async function AttendancePage({ searchParams }: PageProps) {
       getVenues().catch(() => []),
     ])
     sessionGroups = sessionsHist as SessionGroup[]
-    schedules = (schedulesResult as Array<{ id: string; name: string; is_active: boolean }>)
+    schedules = (schedulesResult as Array<{
+      id: string; name: string; is_active: boolean;
+      start_time: string; end_time: string; day_of_week: number[]
+    }>)
       .filter((s) => s.is_active)
-      .map((s) => ({ id: s.id, name: s.name }))
+      .map((s) => ({
+        id: s.id,
+        name: s.name,
+        start_time: s.start_time,
+        end_time: s.end_time,
+        day_of_week: Array.isArray(s.day_of_week) ? s.day_of_week : [],
+      }))
     todayRecords = today
     history = hist
     athletes = athletesResult.athletes.map((a) => ({ id: a.id, name: a.name, category_id: (a as { category_id?: string | null }).category_id ?? null }))
