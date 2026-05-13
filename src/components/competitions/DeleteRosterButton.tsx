@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import {
@@ -13,18 +14,21 @@ import { deleteRoster } from "@/lib/actions/rosters"
 
 interface Props {
   rosterId: string
-  competitionId: string
+  /** Si la nómina no pertenece a una competencia, omitir o pasar null. */
+  competitionId?: string | null
   rosterName: string
 }
 
 export function DeleteRosterButton({ rosterId, competitionId, rosterName }: Props) {
   const [loading, setLoading] = useState(false)
+  const router = useRouter()
 
   async function handleDelete() {
     setLoading(true)
     try {
-      await deleteRoster(rosterId, competitionId)
+      await deleteRoster(rosterId, competitionId ?? undefined)
       toast.success('Nómina eliminada')
+      router.refresh()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Error al eliminar')
     } finally {

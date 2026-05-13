@@ -3,7 +3,12 @@ export const dynamic = "force-dynamic"
 import Link from "next/link"
 import { redirect } from "next/navigation"
 import { checkUserHasClub } from "@/lib/actions/onboarding"
+import { getClubMembershipRole, isClubStaffRole } from "@/lib/actions/club-context"
+import { getCompetitions } from "@/lib/actions/competitions"
 import { getRostersHub } from "@/lib/actions/rosters"
+import { AddAthleteToRosterButton } from "@/components/competitions/AddAthleteToRosterButton"
+import { DeleteRosterButton } from "@/components/competitions/DeleteRosterButton"
+import { EditRosterHubButton, NewRosterHubButton } from "@/components/rosters/RosterHubDialogs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ClipboardList, Calendar, MapPin, Users, Trophy, ChevronRight } from "lucide-react"
@@ -21,6 +26,19 @@ export default async function RostersPage() {
     rosters = await getRostersHub()
   } catch { /* silent */ }
 
+  let isStaff = false
+  let competitionOptions: { id: string; name: string }[] = []
+  try {
+    const role = await getClubMembershipRole()
+    isStaff = isClubStaffRole(role)
+  } catch { /* silent */ }
+  if (isStaff) {
+    try {
+      const { competitions } = await getCompetitions({ limit: 80 })
+      competitionOptions = competitions.map((c) => ({ id: c.id, name: c.name }))
+    } catch { /* silent */ }
+  }
+
   const today = new Date().toISOString().split("T")[0]
 
   return (
@@ -34,12 +52,15 @@ export default async function RostersPage() {
           </h1>
           <p className="text-muted-foreground">Citaciones próximas con validación automática de semáforo</p>
         </div>
-        <Link href="/dashboard/competitions">
-          <Badge variant="outline" className="gap-1.5 py-1.5 px-3 cursor-pointer hover:bg-accent text-sm">
-            <Trophy className="w-3.5 h-3.5" />
-            Ver competencias
-          </Badge>
-        </Link>
+        <div className="flex items-center gap-2 flex-wrap">
+          {isStaff && <NewRosterHubButton competitions={competitionOptions} />}
+          <Link href="/dashboard/competitions">
+            <Badge variant="outline" className="gap-1.5 py-1.5 px-3 cursor-pointer hover:bg-accent text-sm">
+              <Trophy className="w-3.5 h-3.5" />
+              Ver competencias
+            </Badge>
+          </Link>
+        </div>
       </div>
 
       {/* Leyenda semáforo */}
@@ -55,11 +76,16 @@ export default async function RostersPage() {
             <ClipboardList className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-40" />
             <h3 className="font-semibold text-lg mb-1">Sin nóminas próximas</h3>
             <p className="text-muted-foreground text-sm mb-4">
-              Crea nóminas desde el detalle de cada competencia
+              {isStaff
+                ? "Crea una nómina aquí o desde el detalle de una competencia."
+                : "Cuando el club programe nóminas, aparecerán aquí. El staff puede crearlas desde competencias o desde esta vista."}
             </p>
-            <Link href="/dashboard/competitions">
-              <Badge variant="outline" className="cursor-pointer hover:bg-accent">Ir a Competencias</Badge>
-            </Link>
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              {isStaff && <NewRosterHubButton competitions={competitionOptions} />}
+              <Link href="/dashboard/competitions">
+                <Badge variant="outline" className="cursor-pointer hover:bg-accent">Ir a competencias</Badge>
+              </Link>
+            </div>
           </CardContent>
         </Card>
       ) : (
@@ -100,13 +126,56 @@ export default async function RostersPage() {
                         )}
                       </div>
                     </div>
-                    {roster.competition && (
-                      <Link href={`/dashboard/competitions/${roster.competition.id}`}>
-                        <Badge variant="ghost" className="gap-1 cursor-pointer hover:bg-accent text-xs">
-                          Ver detalle <ChevronRight className="w-3 h-3" />
-                        </Badge>
-                      </Link>
-                    )}
+                    <div className="flex flex-col items-end gap-2 shrink-0">
+                      {isStaff && (
+                        <div className="flex items-center gap-1 flex-wrap justify-end">
+                          <AddAthleteToRosterButton
+                            rosterId={roster.id}
+                            competitionId={roster.competition_id}
+                            rosterAthletes={roster.athletes.map(({ id, number, position, is_captain, athletes }) => ({
+                              id,
+                              number,
+                              position,
+                              is_captain,
+                              athletes,
+                            }))}
+                            rosterName={roster.name}
+                          />
+                          <EditRosterHubButton
+                            roster={{
+                              id: roster.id,
+                              name: roster.name,
+                              match_date: roster.match_date,
+                              opponent: roster.opponent,
+                              venue: roster.venue,
+                              competition_id: roster.competition_id,
+                              linked_match_id: roster.linked_match_id,
+                            }}
+                          />
+                          <DeleteRosterButton
+                            rosterId={roster.id}
+                            competitionId={roster.competition_id}
+                            rosterName={roster.name}
+                          />
+                        </div>
+                      )}
+                      <div className="flex items-center gap-2 flex-wrap justify-end">
+                        {roster.competition && (
+                          <Link href={`/dashboard/competitions/${roster.competition.id}`}>
+                            <Badge variant="ghost" className="gap-1 cursor-pointer hover:bg-accent text-xs">
+                              Ver competencia <ChevronRight className="w-3 h-3" />
+                            </Badge>
+                          </Link>
+                        )}
+                        {roster.linked_match_id && (
+                          <Link href={`/dashboard/matches/${roster.linked_match_id}`}>
+                            <Badge variant="ghost" className="gap-1 cursor-pointer hover:bg-accent text-xs">
+                              Ver partido <ChevronRight className="w-3 h-3" />
+                            </Badge>
+                          </Link>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </CardHeader>
 

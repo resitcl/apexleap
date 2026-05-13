@@ -41,7 +41,91 @@ export async function createRoster(params: {
   return data
 }
 
+/**
+ * Partidos programados citables en una nómina: sin `roster_id` o el partido ya vinculado a `rosterId` (edición).
+ */
+export async function getScheduledMatchesForRosterLinking(options?: { rosterId?: string | null }) {
+  await assertClubStaff()
+  const clubId = await getClubId()
+  const supabase = createAdminClient()
+
+  const { data: matches } = await supabase
+    .from('matches')
+    .select('id, opponent, match_date, location, roster_id, competition_id')
+    .eq('club_id', clubId)
+    .eq('status', 'scheduled')
+    .order('match_date', { ascending: true })
+    .limit(150)
+
+  let linkedId: string | null = null
+  if (options?.rosterId) {
+    const { data: row } = await supabase
+      .from('matches')
+      .select('id')
+      .eq('club_id', clubId)
+      .eq('roster_id', options.rosterId)
+      .maybeSingle()
+    linkedId = row?.id ?? null
+  }
+
+  return (matches ?? []).filter((m) => !m.roster_id || m.id === linkedId)
+}
+
+export async function updateRoster(params: {
+  rosterId: string
+  competitionId: string | null
+  name: string
+  matchDate: string
+  opponent?: string | null
+  venue?: string | null
+  /** Partido a vincular; vacío desvincula el partido anterior. */
+  matchId?: string | null
+}) {
+  await assertClubStaff()
+  const clubId = await getClubId()
+  const supabase = createAdminClient()
+
+  const { data: prevLink } = await supabase
+    .from('matches')
+    .select('id')
+    .eq('roster_id', params.rosterId)
+    .eq('club_id', clubId)
+    .maybeSingle()
+  const previousMatchId = prevLink?.id ?? null
+
+  await supabase.from('matches').update({ roster_id: null }).eq('roster_id', params.rosterId).eq('club_id', clubId)
+
+  const { error } = await supabase
+    .from('rosters')
+    .update({
+      name: params.name,
+      match_date: params.matchDate,
+      opponent: params.opponent ?? null,
+      venue: params.venue ?? null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', params.rosterId)
+    .eq('club_id', clubId)
+  if (error) throw new Error(error.message)
+
+  if (params.matchId) {
+    const { error: linkErr } = await supabase
+      .from('matches')
+      .update({ roster_id: params.rosterId })
+      .eq('id', params.matchId)
+      .eq('club_id', clubId)
+    if (linkErr) throw new Error(linkErr.message)
+  }
+
+  revalidateRosterRelatedPaths(params.competitionId, params.matchId ?? null)
+  if (previousMatchId && previousMatchId !== (params.matchId ?? null)) {
+    revalidatePath(`/dashboard/matches/${previousMatchId}`)
+  }
+  revalidatePath('/dashboard/rosters')
+}
+
 export async function deleteRoster(rosterId: string, competitionId?: string | null) {
+  await assertClubStaff()
   const clubId = await getClubId()
   const supabase = createAdminClient()
   const { error } = await supabase.from('rosters').delete()
@@ -207,7 +291,7 @@ export async function getRostersHub() {
     supabase
       .from('rosters')
       .select(`
-        id, name, match_date, opponent, venue,
+        id, name, match_date, opponent, venue, competition_id,
         competitions(id, name, type, status),
         roster_athletes(
           id, number, position, is_captain, status,
@@ -227,8 +311,21 @@ export async function getRostersHub() {
   ])
 
   const overdueIds = new Set((overdueRes.data ?? []).map((p) => p.athlete_id))
+  const rows = rostersRes.data ?? []
+  const rosterIds = rows.map((r) => r.id)
+  let linkedByRoster = new Map<string, string>()
+  if (rosterIds.length > 0) {
+    const { data: linkRows } = await supabase
+      .from('matches')
+      .select('id, roster_id')
+      .eq('club_id', clubId)
+      .in('roster_id', rosterIds)
+    for (const m of linkRows ?? []) {
+      if (m.roster_id && !linkedByRoster.has(m.roster_id)) linkedByRoster.set(m.roster_id, m.id)
+    }
+  }
 
-  return (rostersRes.data ?? []).map((r) => {
+  return rows.map((r) => {
     type RA = { id: string; number: number | null; position: string | null; is_captain: boolean; status: string; athletes: { id: string; name: string; health_status: string } | null }
     const athletes = (r.roster_athletes as unknown as RA[]) ?? []
     const withSem = athletes.map((ra) => {
@@ -247,6 +344,8 @@ export async function getRostersHub() {
       match_date: r.match_date as string,
       opponent: r.opponent as string | null,
       venue: r.venue as string | null,
+      competition_id: r.competition_id as string | null,
+      linked_match_id: linkedByRoster.get(r.id) ?? null,
       competition,
       athletes: withSem,
     }
