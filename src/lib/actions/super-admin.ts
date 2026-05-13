@@ -294,7 +294,11 @@ export async function removeUserFromClub(clubId: string, clerkUserId: string) {
 }
 
 // ─── Super Admin: enter any club dashboard ──────────────────────────────────
-/** Fija `user_clubs.role` en `admin`. Para admin + jugador, vincular con `linkUserToClub(..., 'admin_athlete')`. */
+/**
+ * Activa la membresía del super admin al club y setea el cookie de club actual.
+ * Si ya era miembro (p. ej. `admin_athlete`), **no modifica el rol** — antes un
+ * upsert forzaba `admin` y borraba Admin+Atleta sin querer.
+ */
 export async function superAdminEnterClub(clubId: string) {
   const { userId } = await auth()
   if (!userId) throw new Error('No autorizado')
@@ -302,15 +306,28 @@ export async function superAdminEnterClub(clubId: string) {
 
   const supabase = createAdminClient()
 
-  // Upsert: garantiza que la fila exista y esté activa antes de setear el cookie
-  const { error: upsertErr } = await supabase
+  const { data: existing } = await supabase
     .from('user_clubs')
-    .upsert(
-      { user_id: userId, club_id: clubId, role: 'admin', is_active: true },
-      { onConflict: 'user_id,club_id', ignoreDuplicates: false }
-    )
+    .select('id')
+    .eq('user_id', userId)
+    .eq('club_id', clubId)
+    .maybeSingle()
 
-  if (upsertErr) throw new Error(`No se pudo vincular al club: ${upsertErr.message}`)
+  if (existing) {
+    const { error: upErr } = await supabase
+      .from('user_clubs')
+      .update({ is_active: true })
+      .eq('id', existing.id)
+    if (upErr) throw new Error(`No se pudo activar la membresía al club: ${upErr.message}`)
+  } else {
+    const { error: insErr } = await supabase.from('user_clubs').insert({
+      user_id: userId,
+      club_id: clubId,
+      role: 'admin',
+      is_active: true,
+    })
+    if (insErr) throw new Error(`No se pudo vincular al club: ${insErr.message}`)
+  }
 
   const cookieStore = await cookies()
   cookieStore.set(CLUB_COOKIE, clubId, { path: '/', maxAge: 60 * 60 * 24 * 30, sameSite: 'lax' })

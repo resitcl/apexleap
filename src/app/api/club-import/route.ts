@@ -96,8 +96,23 @@ export async function POST(req: NextRequest) {
     const clubId = club.id
     log.push(`✅ Club creado: ${clubName} (${clubId})`)
 
-    // Link importing super admin as club admin
-    await supabase.from('user_clubs').upsert({ user_id: userId, club_id: clubId, role: 'admin', is_active: true }, { onConflict: 'user_id,club_id' })
+    // Vincular al usuario que importa (sin pisar rol si ya existiera la fila)
+    const { data: importerMembership } = await supabase
+      .from('user_clubs')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('club_id', clubId)
+      .maybeSingle()
+    if (importerMembership) {
+      await supabase.from('user_clubs').update({ is_active: true }).eq('id', importerMembership.id)
+    } else {
+      await supabase.from('user_clubs').insert({
+        user_id: userId,
+        club_id: clubId,
+        role: 'admin',
+        is_active: true,
+      })
+    }
     log.push(`✅ Usuario ${userId} vinculado como admin`)
 
     // ── 2. CATEGORIAS ────────────────────────────────────────────
