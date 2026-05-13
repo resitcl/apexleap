@@ -22,7 +22,7 @@ interface RosterAthlete {
 
 interface Props {
   rosterId: string
-  competitionId: string
+  competitionId: string | null
   rosterAthletes: RosterAthlete[]
   rosterName: string
 }
@@ -83,7 +83,7 @@ export function AddAthleteToRosterButton({ rosterId, competitionId, rosterAthlet
   async function handleRemove(rosterAthleteId: string) {
     setRemoving(rosterAthleteId)
     try {
-      await removeAthleteFromRoster({ rosterAthleteId, competitionId })
+      await removeAthleteFromRoster({ rosterAthleteId, competitionId, rosterId })
       toast.success('Atleta removido de la nómina')
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Error al remover')

@@ -1,23 +1,30 @@
 'use server'
 
-import { auth } from '@clerk/nextjs/server'
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { getClubId } from '@/lib/actions/club-context'
+import { getClubId, assertClubStaff } from '@/lib/actions/club-context'
 
+function revalidateRosterRelatedPaths(competitionId?: string | null, matchId?: string | null) {
+  const comp = competitionId?.trim() || null
+  if (comp) revalidatePath(`/dashboard/competitions/${comp}`)
+  revalidatePath('/dashboard/rosters')
+  revalidatePath('/dashboard/matches')
+  if (matchId) revalidatePath(`/dashboard/matches/${matchId}`)
+}
 
 export async function createRoster(params: {
-  competitionId: string
+  competitionId?: string | null
   name: string
   matchDate: string
   opponent?: string | null
   venue?: string | null
   matchId?: string | null
 }) {
+  await assertClubStaff()
   const clubId = await getClubId()
   const supabase = createAdminClient()
   const { data, error } = await supabase.from('rosters').insert({
-    competition_id: params.competitionId,
+    competition_id: params.competitionId ?? null,
     club_id: clubId,
     name: params.name,
     match_date: params.matchDate,
@@ -30,22 +37,25 @@ export async function createRoster(params: {
     await supabase.from('matches').update({ roster_id: data.id }).eq('id', params.matchId).eq('club_id', clubId)
   }
 
-  revalidatePath(`/dashboard/competitions/${params.competitionId}`)
+  revalidateRosterRelatedPaths(params.competitionId ?? null, params.matchId ?? null)
   return data
 }
 
-export async function deleteRoster(rosterId: string, competitionId: string) {
+export async function deleteRoster(rosterId: string, competitionId?: string | null) {
   const clubId = await getClubId()
   const supabase = createAdminClient()
   const { error } = await supabase.from('rosters').delete()
     .eq('id', rosterId).eq('club_id', clubId)
   if (error) throw new Error(error.message)
-  revalidatePath(`/dashboard/competitions/${competitionId}`)
+  const comp = competitionId?.trim() || null
+  if (comp) revalidatePath(`/dashboard/competitions/${comp}`)
+  revalidatePath('/dashboard/rosters')
+  revalidatePath('/dashboard/matches')
 }
 
 export async function addAthleteToRoster(params: {
   rosterId: string
-  competitionId: string
+  competitionId: string | null
   athleteId: string
   number?: number | null
   position?: string | null
@@ -85,18 +95,48 @@ export async function addAthleteToRoster(params: {
     status: 'confirmed',
   })
   if (error) throw new Error(error.message)
-  revalidatePath(`/dashboard/competitions/${params.competitionId}`)
+
+  const { data: linkedMatch } = await supabase
+    .from('matches')
+    .select('id')
+    .eq('roster_id', params.rosterId)
+    .eq('club_id', clubId)
+    .maybeSingle()
+  revalidateRosterRelatedPaths(params.competitionId, linkedMatch?.id ?? null)
 }
 
 export async function removeAthleteFromRoster(params: {
   rosterAthleteId: string
-  competitionId: string
+  competitionId: string | null
+  rosterId?: string | null
 }) {
-  await getClubId()
+  const clubId = await getClubId()
   const supabase = createAdminClient()
+
+  let rosterId = params.rosterId ?? null
+  if (!rosterId) {
+    const { data: row } = await supabase
+      .from('roster_athletes')
+      .select('roster_id')
+      .eq('id', params.rosterAthleteId)
+      .maybeSingle()
+    rosterId = row?.roster_id ?? null
+  }
+
   const { error } = await supabase.from('roster_athletes').delete().eq('id', params.rosterAthleteId)
   if (error) throw new Error(error.message)
-  revalidatePath(`/dashboard/competitions/${params.competitionId}`)
+
+  let matchId: string | null = null
+  if (rosterId) {
+    const { data: linkedMatch } = await supabase
+      .from('matches')
+      .select('id')
+      .eq('roster_id', rosterId)
+      .eq('club_id', clubId)
+      .maybeSingle()
+    matchId = linkedMatch?.id ?? null
+  }
+  revalidateRosterRelatedPaths(params.competitionId, matchId)
 }
 
 export async function updateRosterScore(params: {

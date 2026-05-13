@@ -1,9 +1,10 @@
 export const dynamic = "force-dynamic"
 
+import Link from "next/link"
 import { redirect } from "next/navigation"
 import { checkUserHasClub } from "@/lib/actions/onboarding"
 import { getMyMatches } from "@/lib/actions/athlete-enrollment"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Swords, Calendar, MapPin, Trophy, TrendingUp, TrendingDown, Minus } from "lucide-react"
 import { AthleteSectionHeader } from "@/components/athlete/AthleteSectionHeader"
@@ -118,7 +119,8 @@ export default async function AthleteMatchesPage() {
               <p className="text-sm font-medium text-muted-foreground/50 py-4">No hay partidos próximos programados.</p>
             ) : (
               upcomingMatches.map((m) => (
-                <Card key={m.id} className="rounded-2xl border-white/[0.04] bg-card hover:bg-muted/5 transition-colors overflow-hidden group shadow-sm">
+                <Link key={m.id} href={`/dashboard/matches/${m.id}`} className="block group/card">
+                <Card className="rounded-2xl border-white/[0.04] bg-card hover:bg-muted/5 transition-colors overflow-hidden group shadow-sm">
                   <div className="h-1 bg-gradient-to-r from-primary to-primary/30" />
                   <CardContent className="p-5 flex items-start gap-4">
                     <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 border border-primary/20">
@@ -151,6 +153,7 @@ export default async function AthleteMatchesPage() {
                     </div>
                   </CardContent>
                 </Card>
+                </Link>
               ))
             )}
           </div>
@@ -171,7 +174,8 @@ export default async function AthleteMatchesPage() {
                 const drew = hasScore && ourScore === theirScore
 
                 return (
-                  <Card key={m.id} className="rounded-2xl border-white/[0.04] bg-card overflow-hidden hover:border-white/[0.1] transition-colors shadow-sm">
+                  <Link key={m.id} href={`/dashboard/matches/${m.id}`} className="block group/card">
+                  <Card className="rounded-2xl border-white/[0.04] bg-card overflow-hidden hover:border-white/[0.1] transition-colors shadow-sm">
                     <CardContent className="p-4 flex items-center gap-4">
                       {/* Result indicator */}
                       <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border ${
@@ -209,6 +213,7 @@ export default async function AthleteMatchesPage() {
                       </div>
                     </CardContent>
                   </Card>
+                  </Link>
                 )
               })
             )}

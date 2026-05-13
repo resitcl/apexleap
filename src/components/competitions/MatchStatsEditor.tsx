@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { BarChart3, X, Loader2, Save, ChevronDown, ChevronUp, Sparkles, CheckCircle2, AlertCircle } from 'lucide-react'
 import { upsertPlayerStats, deleteMatch, updateMatch } from '@/lib/actions/matches'
 
@@ -87,7 +88,7 @@ interface MatchEvent {
 
 interface Props {
   match: Match
-  competitionId: string
+  competitionId: string | null
   sport: string | null
   athletes: Athlete[]
   initialEvents: MatchEvent[]
@@ -112,6 +113,7 @@ interface AIResult {
 }
 
 export function MatchStatsEditor({ match, competitionId, sport, athletes, initialEvents }: Props) {
+  const router = useRouter()
   const [open, setOpen]         = useState(false)
   const [tab, setTab]           = useState<'stats' | 'score'>('stats')
   const [stats, setStats]       = useState<StatsMap>(() => buildInitialStats(initialEvents))
@@ -236,6 +238,8 @@ export function MatchStatsEditor({ match, competitionId, sport, athletes, initia
       try {
         await deleteMatch(match.id, competitionId)
         setOpen(false)
+        router.push(competitionId ? `/dashboard/competitions/${competitionId}` : '/dashboard/matches')
+        router.refresh()
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Error al eliminar')
       }

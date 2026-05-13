@@ -85,16 +85,27 @@ export async function createMatch(input: {
   return match
 }
 
-export async function updateMatch(matchId: string, competitionId: string, input: {
-  opponent?: string
-  match_date?: string
-  location?: string
-  is_home?: boolean
-  home_score?: number | null
-  away_score?: number | null
-  status?: string
-  notes?: string
-}) {
+function revalidateMatchPaths(matchId: string, competitionId: string | null | undefined) {
+  const comp = competitionId?.trim() || null
+  if (comp) revalidatePath(`/dashboard/competitions/${comp}`)
+  revalidatePath('/dashboard/matches')
+  revalidatePath(`/dashboard/matches/${matchId}`)
+}
+
+export async function updateMatch(
+  matchId: string,
+  competitionId: string | null | undefined,
+  input: {
+    opponent?: string
+    match_date?: string
+    location?: string
+    is_home?: boolean
+    home_score?: number | null
+    away_score?: number | null
+    status?: string
+    notes?: string
+  }
+) {
   const clubId = await getClubId()
   const supabase = createAdminClient()
   const { data, error } = await supabase
@@ -105,11 +116,11 @@ export async function updateMatch(matchId: string, competitionId: string, input:
     .select()
     .single()
   if (error) throw new Error(translateError(error.message))
-  revalidatePath(`/dashboard/competitions/${competitionId}`)
+  revalidateMatchPaths(matchId, competitionId)
   return data
 }
 
-export async function deleteMatch(matchId: string, competitionId: string) {
+export async function deleteMatch(matchId: string, competitionId: string | null | undefined) {
   const clubId = await getClubId()
   const supabase = createAdminClient()
   const { error } = await supabase
@@ -118,7 +129,7 @@ export async function deleteMatch(matchId: string, competitionId: string) {
     .eq('id', matchId)
     .eq('club_id', clubId)
   if (error) throw new Error(translateError(error.message))
-  revalidatePath(`/dashboard/competitions/${competitionId}`)
+  revalidateMatchPaths(matchId, competitionId)
   return { deleted: true }
 }
 
@@ -152,12 +163,16 @@ export async function getMatchEvents(matchId: string) {
   return data ?? []
 }
 
-export async function upsertPlayerStats(matchId: string, competitionId: string, stats: Array<{
-  athlete_id: string
-  event_type: string
-  event_value: number
-  team?: string
-}>) {
+export async function upsertPlayerStats(
+  matchId: string,
+  competitionId: string | null | undefined,
+  stats: Array<{
+    athlete_id: string
+    event_type: string
+    event_value: number
+    team?: string
+  }>
+) {
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
@@ -165,7 +180,7 @@ export async function upsertPlayerStats(matchId: string, competitionId: string, 
   await supabase.from('match_events').delete().eq('match_id', matchId).eq('club_id', clubId)
 
   if (stats.length === 0) {
-    revalidatePath(`/dashboard/competitions/${competitionId}`)
+    revalidateMatchPaths(matchId, competitionId)
     return []
   }
 
@@ -182,7 +197,7 @@ export async function upsertPlayerStats(matchId: string, competitionId: string, 
 
   const { data, error } = await supabase.from('match_events').insert(rows).select()
   if (error) throw new Error(translateError(error.message))
-  revalidatePath(`/dashboard/competitions/${competitionId}`)
+  revalidateMatchPaths(matchId, competitionId)
   return data ?? []
 }
 

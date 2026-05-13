@@ -1,4 +1,4 @@
-import { auth } from '@clerk/nextjs/server'
+import { auth, clerkClient } from '@clerk/nextjs/server'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -101,6 +101,49 @@ export async function assertClubStaff(): Promise<void> {
   if (role !== 'admin' && role !== 'admin_athlete' && role !== 'coach') {
     throw new Error('No tienes permisos para realizar esta acción')
   }
+}
+
+export function isClubStaffRole(role: string): boolean {
+  return role === 'admin' || role === 'admin_athlete' || role === 'coach'
+}
+
+/**
+ * ID del perfil atleta vinculado al usuario actual en el club (por `user_id` o email).
+ * Útil para resaltar al jugador en convocatorias. No lanza si no hay perfil.
+ */
+export async function resolveCurrentAthleteIdInClub(): Promise<string | null> {
+  const { userId } = await auth()
+  if (!userId) return null
+  const supabase = createAdminClient()
+  const clubId = await getClubId()
+
+  const { data: byUserId } = await supabase
+    .from('athletes')
+    .select('id')
+    .eq('club_id', clubId)
+    .eq('user_id', userId)
+    .is('archived_at', null)
+    .limit(1)
+
+  if (byUserId?.[0]?.id) return String(byUserId[0].id)
+
+  const clerk = await clerkClient()
+  const user = await clerk.users.getUser(userId)
+  const email =
+    user.emailAddresses.find((e) => e.id === user.primaryEmailAddressId)?.emailAddress ??
+    user.emailAddresses[0]?.emailAddress ??
+    null
+  if (!email) return null
+
+  const { data } = await supabase
+    .from('athletes')
+    .select('id')
+    .eq('club_id', clubId)
+    .ilike('email', email)
+    .is('archived_at', null)
+    .maybeSingle()
+
+  return data?.id ? String(data.id) : null
 }
 
 export async function getClubSportType(): Promise<string | null> {

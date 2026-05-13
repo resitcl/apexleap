@@ -4,7 +4,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { auth } from "@clerk/nextjs/server"
 import { createAdminClient } from "@/lib/supabase/admin"
-import { getClubId } from "@/lib/actions/club-context"
+import { getClubId, getClubMembershipRole, isClubStaffRole, resolveCurrentAthleteIdInClub } from "@/lib/actions/club-context"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -12,6 +12,9 @@ import { ChevronLeft, Calendar, MapPin, Trophy, Swords, Users } from "lucide-rea
 import { getMatchEvents } from "@/lib/actions/matches"
 import { MatchStatsEditor } from "@/components/competitions/MatchStatsEditor"
 import { getClubSettings } from "@/lib/actions/settings"
+import { EditMatchDialog } from "@/components/matches/EditMatchDialog"
+import { DeleteMatchButton } from "@/components/matches/DeleteMatchButton"
+import { MatchRosterPanel, type MatchRosterData } from "@/components/matches/MatchRosterPanel"
 
 const STATUS_LABEL: Record<string, string> = {
   scheduled: "Programado",
@@ -42,6 +45,22 @@ export default async function MatchDetailPage({ params }: PageProps) {
       .single()
     if (matchErr || !match) notFound()
 
+    const membershipRole = await getClubMembershipRole()
+    const isStaff = isClubStaffRole(membershipRole)
+    const viewerAthleteId = await resolveCurrentAthleteIdInClub()
+
+    let rosterForPanel: MatchRosterData | null = null
+    if (match.roster_id) {
+      const { data: rData } = await admin
+        .from("rosters")
+        .select(
+          "id, name, match_date, opponent, venue, roster_athletes(id, number, position, is_captain, status, athletes(id, name))"
+        )
+        .eq("id", match.roster_id as string)
+        .single()
+      rosterForPanel = (rData as MatchRosterData | null) ?? null
+    }
+
     const [eventsResult, athletesResult, settingsResult] = await Promise.allSettled([
       getMatchEvents(id),
       admin.from("athletes").select("id, name").eq("club_id", clubId).eq("status", "active").order("name"),
@@ -70,13 +89,36 @@ export default async function MatchDetailPage({ params }: PageProps) {
     return (
       <div className="max-w-3xl mx-auto space-y-6">
         {/* Header */}
-        <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex items-center justify-between gap-3 flex-wrap w-full">
           <Link href={comp ? `/dashboard/competitions/${comp.id}` : "/dashboard/matches"}>
             <Button variant="ghost" size="sm" className="gap-2">
               <ChevronLeft className="w-4 h-4" />
               {comp ? comp.name : "Partidos"}
             </Button>
           </Link>
+          {isStaff && (
+            <div className="flex flex-wrap gap-2">
+              <EditMatchDialog
+                match={{
+                  id: match.id,
+                  competition_id: match.competition_id ?? null,
+                  opponent: match.opponent,
+                  match_date: match.match_date,
+                  location: match.location,
+                  is_home: match.is_home,
+                  home_score: match.home_score,
+                  away_score: match.away_score,
+                  status: match.status,
+                  notes: match.notes ?? null,
+                }}
+              />
+              <DeleteMatchButton
+                matchId={match.id}
+                competitionId={match.competition_id ?? null}
+                redirectTo="/dashboard/matches"
+              />
+            </div>
+          )}
         </div>
 
         {/* Main Card */}
@@ -152,7 +194,20 @@ export default async function MatchDetailPage({ params }: PageProps) {
           </CardContent>
         </Card>
 
-        {/* Stats Editor */}
+        <MatchRosterPanel
+          matchId={match.id}
+          matchStatus={match.status as string}
+          opponent={match.opponent as string | null}
+          matchDate={match.match_date as string}
+          location={match.location as string | null}
+          competitionId={match.competition_id as string | null}
+          competitionName={comp?.name ?? null}
+          roster={rosterForPanel}
+          isStaff={isStaff}
+          viewerAthleteId={viewerAthleteId}
+        />
+
+        {/* Stats Editor (solo staff) */}
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center justify-between mb-4">
@@ -160,14 +215,22 @@ export default async function MatchDetailPage({ params }: PageProps) {
                 <Users className="w-5 h-5" />
                 Estadísticas del partido
               </h2>
-              <MatchStatsEditor
-                match={match}
-                competitionId={comp?.id ?? ""}
-                sport={sportType}
-                athletes={athletes as { id: string; name: string }[]}
-                initialEvents={events as unknown as { athlete_id: string | null; event_type: string; event_value: number; athletes: { id: string; name: string } | null }[]}
-              />
+              {isStaff && (
+                <MatchStatsEditor
+                  match={match}
+                  competitionId={match.competition_id ?? null}
+                  sport={sportType}
+                  athletes={athletes as { id: string; name: string }[]}
+                  initialEvents={events as unknown as { athlete_id: string | null; event_type: string; event_value: number; athletes: { id: string; name: string } | null }[]}
+                />
+              )}
             </div>
+
+            {!isStaff && (
+              <p className="text-sm text-muted-foreground mb-4">
+                Las estadísticas las registra el cuerpo técnico. Aquí solo puedes consultar el detalle público del encuentro.
+              </p>
+            )}
 
             {events.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-6">
