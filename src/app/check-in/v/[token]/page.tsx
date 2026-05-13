@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useParams } from 'next/navigation'
 import { useAuth, SignIn } from '@clerk/nextjs'
+import { geolocationErrorMessage } from '@/lib/attendance/geolocationClient'
 
 type Step = 'loading' | 'need_login' | 'locating' | 'submitting' | 'success' | 'error'
 
@@ -26,7 +27,10 @@ export default function QRCheckInPage() {
 
     try {
       const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-        if (!navigator.geolocation) { reject(new Error('no-geo')); return }
+        if (!navigator.geolocation) {
+          reject(new Error('no-geo'))
+          return
+        }
         navigator.geolocation.getCurrentPosition(resolve, reject, {
           timeout: 10000,
           maximumAge: 0,
@@ -35,8 +39,10 @@ export default function QRCheckInPage() {
       })
       lat = position.coords.latitude
       lng = position.coords.longitude
-    } catch {
-      // Will be validated server-side — if venue has GPS, server will reject
+    } catch (err) {
+      setStep('error')
+      setMessage(geolocationErrorMessage(err))
+      return
     }
 
     setStep('submitting')
@@ -76,15 +82,16 @@ export default function QRCheckInPage() {
     }
   }, [qrToken])
 
-  // Auto-check-in when signed in
   useEffect(() => {
-    if (!isLoaded) return
-    if (!isSignedIn) {
-      setStep('need_login')
-      return
-    }
-    doCheckIn()
+    if (!isLoaded || !isSignedIn) return
+    const tid = window.setTimeout(() => {
+      void doCheckIn()
+    }, 0)
+    return () => window.clearTimeout(tid)
   }, [isLoaded, isSignedIn, doCheckIn])
+
+  const displayStep: Step =
+    !isLoaded ? 'loading' : !isSignedIn ? 'need_login' : step
 
   const currentTime = new Date().toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })
   const currentDate = new Date().toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long' })
@@ -92,21 +99,18 @@ export default function QRCheckInPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 flex items-center justify-center p-4">
       <div className="max-w-sm w-full text-center space-y-6">
-        {/* Logo */}
         <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center mx-auto shadow-lg">
           <span className="text-primary-foreground font-bold text-2xl">AL</span>
         </div>
 
-        {/* Loading */}
-        {step === 'loading' && (
+        {displayStep === 'loading' && (
           <div className="space-y-3">
             <div className="w-14 h-14 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
             <p className="text-muted-foreground">Cargando...</p>
           </div>
         )}
 
-        {/* Need Login */}
-        {step === 'need_login' && (
+        {displayStep === 'need_login' && (
           <div className="space-y-4">
             <div>
               <p className="text-xl font-bold">Check-in de Asistencia</p>
@@ -130,12 +134,11 @@ export default function QRCheckInPage() {
           </div>
         )}
 
-        {/* Locating / Submitting */}
-        {(step === 'locating' || step === 'submitting') && (
+        {(displayStep === 'locating' || displayStep === 'submitting') && (
           <div className="space-y-3">
             <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
             <p className="text-lg font-semibold">{message}</p>
-            {step === 'locating' && (
+            {displayStep === 'locating' && (
               <p className="text-sm text-muted-foreground">
                 Permite el acceso a tu ubicación cuando el navegador lo solicite
               </p>
@@ -143,8 +146,7 @@ export default function QRCheckInPage() {
           </div>
         )}
 
-        {/* Success */}
-        {step === 'success' && (
+        {displayStep === 'success' && (
           <div className="space-y-4">
             <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto">
               <svg className="w-14 h-14 text-green-600" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
@@ -164,8 +166,7 @@ export default function QRCheckInPage() {
           </div>
         )}
 
-        {/* Error */}
-        {step === 'error' && (
+        {displayStep === 'error' && (
           <div className="space-y-4">
             <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto">
               <svg className="w-12 h-12 text-red-600" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
@@ -175,6 +176,7 @@ export default function QRCheckInPage() {
             <p className="text-xl font-bold text-red-600">Error</p>
             <p className="text-muted-foreground text-sm">{message}</p>
             <button
+              type="button"
               onClick={doCheckIn}
               className="mt-2 px-6 py-2.5 bg-primary text-primary-foreground rounded-xl font-medium shadow-lg"
             >
@@ -183,7 +185,6 @@ export default function QRCheckInPage() {
           </div>
         )}
 
-        {/* Footer */}
         <p className="text-xs text-muted-foreground/40 pt-4">
           Powered by ApexLeap
         </p>

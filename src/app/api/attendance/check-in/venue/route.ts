@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import {
+  calendarDateInTimeZone,
+  haversineMeters,
+  venueRequiresGeofence,
+} from '@/lib/attendance/clubCheckIn'
 
 export async function POST(req: NextRequest) {
   try {
@@ -16,10 +21,9 @@ export async function POST(req: NextRequest) {
 
     const supabase = createAdminClient()
 
-    // Verify venue exists and get club_id
     const { data: venue } = await supabase
       .from('venues')
-      .select('id, club_id')
+      .select('id, club_id, lat, lng, geofence_radius')
       .eq('id', venueId)
       .eq('is_active', true)
       .single()
@@ -28,7 +32,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Sede no encontrada' }, { status: 404 })
     }
 
-    // Verify schedule exists and belongs to this venue
+    const { data: clubRow } = await supabase
+      .from('clubs')
+      .select('timezone')
+      .eq('id', venue.club_id)
+      .single()
+
+    const clubTimeZone = clubRow?.timezone ?? 'America/Santiago'
+
     const { data: schedule } = await supabase
       .from('schedules')
       .select('id, name, venue_id')
@@ -41,7 +52,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Sesión no encontrada o no corresponde a esta sede' }, { status: 404 })
     }
 
-    // Lookup athlete by document_number within this club
     const cleanDoc = documentNumber.replace(/[.-]/g, '').toLowerCase()
     const { data: athlete } = await supabase
       .from('athletes')
@@ -60,27 +70,48 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Tienes una lesión activa. Consulta con tu entrenador.' }, { status: 403 })
     }
 
-    // Check duplicate today for this schedule
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    const tomorrow = new Date(today)
-    tomorrow.setDate(tomorrow.getDate() + 1)
-
-    const { data: existing } = await supabase
-      .from('attendance')
-      .select('id')
-      .eq('athlete_id', athlete.id)
-      .eq('schedule_id', scheduleId)
-      .gte('checked_in_at', today.toISOString())
-      .lt('checked_in_at', tomorrow.toISOString())
-      .single()
-
-    if (existing) {
-      return NextResponse.json({ error: 'Ya registraste asistencia en esta sesión hoy', athleteName: athlete.name }, { status: 409 })
+    if (venueRequiresGeofence(venue)) {
+      const vLat = Number(venue.lat)
+      const vLng = Number(venue.lng)
+      const radius = Number(venue.geofence_radius)
+      if (lat == null || lng == null) {
+        return NextResponse.json(
+          { error: 'Debes permitir el acceso a tu ubicación para registrar asistencia en esta sede.' },
+          { status: 400 }
+        )
+      }
+      const distance = haversineMeters(lat, lng, vLat, vLng)
+      if (distance > radius) {
+        return NextResponse.json(
+          {
+            error: `Estás demasiado lejos de la sede (${Math.round(distance)}m). Debes estar dentro de ${radius}m.`,
+          },
+          { status: 403 }
+        )
+      }
     }
 
-    // Insert attendance record
-    await supabase.from('attendance').insert({
+    const todayLocal = calendarDateInTimeZone(new Date(), clubTimeZone)
+    const since = new Date(Date.now() - 40 * 60 * 60 * 1000).toISOString()
+    const { data: recentAttendance } = await supabase
+      .from('attendance')
+      .select('id, checked_in_at')
+      .eq('athlete_id', athlete.id)
+      .eq('schedule_id', scheduleId)
+      .gte('checked_in_at', since)
+
+    const existing = (recentAttendance ?? []).find(
+      (row) => calendarDateInTimeZone(new Date(row.checked_in_at), clubTimeZone) === todayLocal
+    )
+
+    if (existing) {
+      return NextResponse.json(
+        { error: 'Ya registraste asistencia en esta sesión hoy', athleteName: athlete.name },
+        { status: 409 }
+      )
+    }
+
+    const { error: insertError } = await supabase.from('attendance').insert({
       club_id: venue.club_id,
       athlete_id: athlete.id,
       schedule_id: scheduleId,
@@ -89,6 +120,11 @@ export async function POST(req: NextRequest) {
       check_in_lng: lng ?? null,
       is_valid: true,
     })
+
+    if (insertError) {
+      console.error('Venue check-in insert:', insertError)
+      return NextResponse.json({ error: 'No se pudo guardar la asistencia. Intenta de nuevo.' }, { status: 500 })
+    }
 
     return NextResponse.json({ success: true, athleteName: athlete.name })
   } catch (error) {

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
+import { geolocationErrorMessage } from '@/lib/attendance/geolocationClient'
 
 export default function VenueCheckInPage() {
   const params = useParams()
@@ -15,6 +16,7 @@ export default function VenueCheckInPage() {
   const [clubName, setClubName] = useState("")
   const [todaySessions, setTodaySessions] = useState<{ id: string; name: string; start_time: string; end_time: string }[]>([])
   const [selectedSession, setSelectedSession] = useState<string | null>(null)
+  const [requiresGeolocation, setRequiresGeolocation] = useState(false)
 
   // Fetch venue info and today's sessions
   useEffect(() => {
@@ -32,6 +34,7 @@ export default function VenueCheckInPage() {
         setVenueName(data.venueName)
         setClubName(data.clubName)
         setTodaySessions(data.sessions ?? [])
+        setRequiresGeolocation(Boolean(data.requiresGeolocation))
         
         // Auto-select if only one session
         if (data.sessions?.length === 1) {
@@ -68,8 +71,12 @@ export default function VenueCheckInPage() {
       })
       lat = position.coords.latitude
       lng = position.coords.longitude
-    } catch {
-      // proceed without GPS
+    } catch (err) {
+      if (requiresGeolocation) {
+        setStep("error")
+        setMessage(geolocationErrorMessage(err))
+        return
+      }
     }
 
     setStep("submitting")
