@@ -44,8 +44,7 @@ import { getSportVocab } from "@/lib/sport-vocab"
 import { isSuperAdmin } from "@/lib/actions/super-admin"
 import { AgreementGateWrapper } from "@/components/agreements/AgreementGateWrapper"
 import { ClubBrandingRoot } from "@/components/layouts/ClubBrandingRoot"
-import { canAccessClubAiChat, getClubInfo, getUserRole } from "@/lib/actions/club-context"
-import type { UserRole } from "@/lib/actions/club-context"
+import { canAccessClubAiChat, getClubInfo, getClubMembershipRole } from "@/lib/actions/club-context"
 
 export async function generateMetadata(): Promise<Metadata> {
   try {
@@ -72,7 +71,8 @@ export async function generateMetadata(): Promise<Metadata> {
   }
 }
 
-function buildAthleteNavGroups(v: ReturnType<typeof getSportVocab>, sportType: string | null) {
+/** Items del portal atleta (una sola fuente para menú atleta y sección «Como jugador» del admin+atleta). */
+function collectAthletePortalNavParts(v: ReturnType<typeof getSportVocab>, sportType: string | null) {
   const actividadItems = [
     { href: "/dashboard/athlete/schedule",    label: "Horarios",    icon: Calendar },
     ...(isMartialArtsAcademySport(sportType)
@@ -82,7 +82,6 @@ function buildAthleteNavGroups(v: ReturnType<typeof getSportVocab>, sportType: s
     { href: "/dashboard/athlete/content",     label: "Contenido",   icon: Library },
   ]
 
-  // Team-sport-only modules for athletes
   if (v.isTeamSport) {
     actividadItems.push(
       { href: "/dashboard/athlete/rosters",  label: "Mis Citaciones", icon: ClipboardList },
@@ -91,30 +90,48 @@ function buildAthleteNavGroups(v: ReturnType<typeof getSportVocab>, sportType: s
     )
   }
 
+  const entryItems = [
+    { href: "/dashboard/athlete",         label: "Mi Portal",    icon: User },
+    { href: "/dashboard/athlete/profile", label: "Mi Perfil",    icon: PenLine },
+  ]
+
+  const cuentaItems = [
+    { href: "/dashboard/athlete/payments",     label: "Mis Pagos",        icon: CreditCard },
+    { href: "/dashboard/athlete/subscription", label: "Mi Suscripción",   icon: Repeat2 },
+    { href: "/dashboard/athlete/documents",    label: "Mis Documentos",   icon: FileText },
+  ]
+
+  return { entryItems, actividadItems, cuentaItems }
+}
+
+function buildAthleteNavGroups(v: ReturnType<typeof getSportVocab>, sportType: string | null) {
+  const { entryItems, actividadItems, cuentaItems } = collectAthletePortalNavParts(v, sportType)
   return [
-    {
-      label: null,
-      items: [
-        { href: "/dashboard/athlete",         label: "Mi Portal",    icon: User },
-        { href: "/dashboard/athlete/profile", label: "Mi Perfil",    icon: PenLine },
-      ],
-    },
-    {
-      label: "Actividad",
-      items: actividadItems,
-    },
-    {
-      label: "Mi Cuenta",
-      items: [
-        { href: "/dashboard/athlete/payments",     label: "Mis Pagos",        icon: CreditCard },
-        { href: "/dashboard/athlete/subscription", label: "Mi Suscripción",   icon: Repeat2 },
-        { href: "/dashboard/athlete/documents",    label: "Mis Documentos",   icon: FileText },
-      ],
-    },
+    { label: null, items: entryItems },
+    { label: "Actividad", items: actividadItems },
+    { label: "Mi Cuenta", items: cuentaItems },
   ]
 }
 
-function buildNavGroups(v: ReturnType<typeof getSportVocab>) {
+/**
+ * Staff + jugador: mismo panel de gestión, pero con bloque explícito «Como jugador»
+ * (evita esconder el portal atleta bajo «Cuenta»).
+ */
+function buildAdminAthleteNavGroups(v: ReturnType<typeof getSportVocab>, sportType: string | null) {
+  const { entryItems, actividadItems, cuentaItems } = collectAthletePortalNavParts(v, sportType)
+  const comoJugadorItems = [...entryItems, ...actividadItems, ...cuentaItems]
+  const staffFromDeportivo = buildNavGroups(v, { accountHideMiPortal: true }).slice(1)
+  return [
+    {
+      label: null,
+      items: [{ href: "/dashboard", label: "Dashboard", icon: LayoutDashboard }],
+    },
+    { label: "Como jugador", items: comoJugadorItems },
+    ...staffFromDeportivo,
+  ]
+}
+
+function buildNavGroups(v: ReturnType<typeof getSportVocab>, options?: { accountHideMiPortal?: boolean }) {
   const deportivoItems = [
     { href: "/dashboard/athletes",    label: v.athletes,       icon: Users },
     { href: "/dashboard/attendance",  label: "Asistencia",     icon: ClipboardCheck },
@@ -171,7 +188,9 @@ function buildNavGroups(v: ReturnType<typeof getSportVocab>) {
     {
       label: "Cuenta",
       items: [
-        { href: "/dashboard/athlete",           label: "Mi Portal",      icon: User },
+        ...(options?.accountHideMiPortal
+          ? []
+          : [{ href: "/dashboard/athlete", label: "Mi Portal", icon: User }]),
         { href: "/dashboard/settings/team",   label: "Equipo",         icon: Users },
         { href: "/dashboard/settings/landing",label: "Landing page",   icon: Globe },
         { href: "/dashboard/settings",        label: "Configuración",  icon: Settings },
@@ -204,9 +223,12 @@ export default async function DashboardLayout({
   } catch { /* silent */ }
   try { superAdmin = await isSuperAdmin() } catch { /* silent */ }
 
-  let role: UserRole = 'admin'
-  try { role = await getUserRole() } catch { /* silent */ }
-  const isAthlete = role === 'athlete'
+  let membershipRole = 'admin'
+  try {
+    membershipRole = await getClubMembershipRole()
+  } catch { /* silent */ }
+  const isAthleteOnly = membershipRole === 'athlete'
+  const isAdminAthlete = membershipRole === 'admin_athlete'
 
   let showClubAiChat = false
   try {
@@ -216,7 +238,11 @@ export default async function DashboardLayout({
   }
 
   const vocab = getSportVocab(sportType)
-  const NAV_GROUPS = isAthlete ? buildAthleteNavGroups(vocab, sportType) : buildNavGroups(vocab)
+  const NAV_GROUPS = isAthleteOnly
+    ? buildAthleteNavGroups(vocab, sportType)
+    : isAdminAthlete
+      ? buildAdminAthleteNavGroups(vocab, sportType)
+      : buildNavGroups(vocab)
 
   const brandColor = normalizeClubPrimary(alerts.primaryColor)
   const brandCss = clubThemeBrandingVars(alerts.primaryColor, alerts.useBrandPrimaryForUi)
@@ -236,7 +262,7 @@ export default async function DashboardLayout({
   }
 
   /** Enlaces solo para staff; los atletas no deben ver rutas de administración en la campana. */
-  const notificationItems: NotificationItem[] = isAthlete
+  const notificationItems: NotificationItem[] = isAthleteOnly
     ? []
     : [
         ...(alerts.pendingEnrollments > 0 ? [{
@@ -326,7 +352,9 @@ export default async function DashboardLayout({
             )}
             <div className="min-w-0">
               <p className="font-bold text-[13px] leading-tight truncate">{alerts.clubName ?? 'ApexLeap'}</p>
-              <p className="text-[10px] text-muted-foreground/50 leading-tight font-medium uppercase tracking-wider">Performance Hub</p>
+              <p className="text-[10px] text-muted-foreground/50 leading-tight font-medium uppercase tracking-wider">
+                {isAdminAthlete ? 'Admin + jugador' : 'Performance Hub'}
+              </p>
             </div>
           </Link>
         </div>
@@ -408,13 +436,13 @@ export default async function DashboardLayout({
           <div className="flex-1" />
 
           {/* Hora Chile (staff) — junto a notificaciones */}
-          {!isAthlete && (
+          {!isAthleteOnly && (
             <div className="flex items-center gap-2 md:gap-3 shrink-0">
               <ChileDateTimeHeader />
               <NotificationBell notifications={notificationItems} />
             </div>
           )}
-          {isAthlete && <NotificationBell notifications={notificationItems} />}
+          {isAthleteOnly && <NotificationBell notifications={notificationItems} />}
 
           {/* Divider */}
           <div className="w-px h-6 bg-border hidden md:block" />

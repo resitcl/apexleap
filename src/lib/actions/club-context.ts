@@ -41,7 +41,8 @@ export async function getClubId(): Promise<string> {
   return data.club_id as string
 }
 
-export type UserRole = 'admin' | 'coach' | 'athlete'
+/** Rol en `user_clubs` (incluye admin que también entrena como jugador). */
+export type UserRole = 'admin' | 'admin_athlete' | 'coach' | 'athlete'
 
 /** Rol tal como está en `user_clubs.role` (incluye admin_athlete). */
 export async function getClubMembershipRole(): Promise<string> {
@@ -77,7 +78,11 @@ export async function getUserRole(): Promise<UserRole> {
     .eq('is_active', true)
     .single()
 
-  return (data?.role as UserRole) ?? 'athlete'
+  const raw = (data?.role as string) ?? 'athlete'
+  if (raw === 'admin' || raw === 'admin_athlete' || raw === 'coach' || raw === 'athlete') {
+    return raw
+  }
+  return 'athlete'
 }
 
 /** Rol de staff que puede usar el asistente IA del club (no atletas). */

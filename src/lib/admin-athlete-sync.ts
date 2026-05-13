@@ -2,13 +2,15 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { clerkClient } from '@clerk/nextjs/server'
 
 /**
- * Asegura que exista un registro en `athletes` para un usuario con rol
- * admin_athlete. Es idempotente: si ya existe (por email o user_id),
- * no crea nada. Devuelve el id del registro de atleta (existente o nuevo).
+ * Asegura que exista una ficha activa en `athletes` para un usuario con rol
+ * de jugador (p. ej. `admin_athlete`). Es idempotente.
+ *
+ * Si la ficha existía archivada (p. ej. el usuario fue `admin` y se archivó
+ * la fila), la reactiva para que vuelva a la nómina y a la toma de asistencia.
  *
  * Se usa cuando:
  *  - Se acepta una invitación con rol `admin_athlete` (webhook de Clerk).
- *  - Se cambia el rol de un miembro existente a `admin_athlete`.
+ *  - Se cambia el rol de un miembro existente a `admin_athlete` o `athlete`.
  */
 export async function ensureAthleteRecordForUser(params: {
   clubId: string
@@ -22,13 +24,33 @@ export async function ensureAthleteRecordForUser(params: {
 
   const supabase = createAdminClient()
 
-  const { data: byUser } = await supabase
+  // Preferir ficha activa; si sólo existe una archivada (p. ej. pasó de admin a admin+atleta),
+  // reactivarla para que vuelva a nómina y asistencia.
+  const { data: byUserRows } = await supabase
     .from('athletes')
-    .select('id')
+    .select('id, archived_at')
     .eq('club_id', clubId)
     .eq('user_id', userId)
-    .maybeSingle()
-  if (byUser) return byUser.id as string
+    .order('archived_at', { ascending: true, nullsFirst: true })
+    .limit(1)
+  const byUser = byUserRows?.[0] as { id: string; archived_at: string | null } | undefined
+  if (byUser) {
+    if (byUser.archived_at) {
+      const { error: unarchErr } = await supabase
+        .from('athletes')
+        .update({
+          archived_at: null,
+          status: 'active',
+          enrollment_status: 'approved',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', byUser.id)
+      if (unarchErr) {
+        console.error('[ensureAthleteRecordForUser] unarchive error:', unarchErr)
+      }
+    }
+    return byUser.id as string
+  }
 
   if (email) {
     const normalized = email.trim().toLowerCase()
@@ -42,7 +64,16 @@ export async function ensureAthleteRecordForUser(params: {
     if (byEmail) {
       const prevUid = byEmail.user_id as string | null
       if (!prevUid || prevUid === userId) {
-        await supabase.from('athletes').update({ user_id: userId, updated_at: new Date().toISOString() }).eq('id', byEmail.id as string)
+        await supabase
+          .from('athletes')
+          .update({
+            user_id: userId,
+            archived_at: null,
+            status: 'active',
+            enrollment_status: 'approved',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', byEmail.id as string)
       }
       return byEmail.id as string
     }
@@ -171,9 +202,9 @@ export async function cleanupStaffOnlyAthletesForClub(clubId: string): Promise<n
 }
 
 /**
- * Backfill: crea el registro en `athletes` para todos los miembros
- * `admin_athlete` activos del club que aún no lo tengan.
- * Pensada para corregir datos preexistentes sin necesidad de migración.
+ * Backfill: asegura una ficha `athletes` activa para cada miembro `admin_athlete`
+ * del club (crear, fusionar por email o reactivar si estaba archivada).
+ * Pensada para corregir datos preexistentes sin migración manual.
  */
 export async function syncAdminAthletesForClub(clubId: string): Promise<number> {
   if (!clubId) return 0
@@ -199,6 +230,7 @@ export async function syncAdminAthletesForClub(clubId: string): Promise<number> 
     .select('user_id')
     .eq('club_id', clubId)
     .in('user_id', userIds)
+    .is('archived_at', null)
 
   const linkedUserIds = new Set(
     (linkedRows ?? []).map((a) => a.user_id as string).filter(Boolean)
@@ -243,44 +275,13 @@ export async function syncAdminAthletesForClub(clubId: string): Promise<number> 
 
   for (const userId of missing) {
     const info = usersById[userId]
-    const rawEmail = info?.email?.trim() ?? ''
-    const emailNorm = rawEmail.toLowerCase()
-
-    if (emailNorm) {
-      const { data: sameEmail } = await supabase
-        .from('athletes')
-        .select('id, user_id')
-        .eq('club_id', clubId)
-        .ilike('email', emailNorm)
-        .limit(1)
-
-      const row = sameEmail?.[0]
-      if (row) {
-        const prevUid = row.user_id as string | null
-        if (!prevUid || prevUid === userId) {
-          const { error: upErr } = await supabase
-            .from('athletes')
-            .update({ user_id: userId, updated_at: new Date().toISOString() })
-            .eq('id', row.id as string)
-          if (!upErr) mergedOrCreated++
-        }
-        continue
-      }
-    }
-
-    const { error: insErr } = await supabase.from('athletes').insert({
-      club_id: clubId,
-      user_id: userId,
-      name: (info?.name && info.name.trim()) || rawEmail || 'Atleta',
-      email: rawEmail || null,
-      status: 'active',
-      health_status: 'healthy',
-      enrollment_status: 'approved',
-      technical_meta: {},
-      performance_meta: {},
+    const id = await ensureAthleteRecordForUser({
+      clubId,
+      userId,
+      email: info?.email ?? null,
+      name: info?.name ?? null,
     })
-    if (!insErr) mergedOrCreated++
-    else console.error('[syncAdminAthletesForClub] insert error:', insErr)
+    if (id) mergedOrCreated++
   }
 
   return mergedOrCreated

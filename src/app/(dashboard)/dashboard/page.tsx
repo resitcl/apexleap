@@ -216,6 +216,21 @@ export default async function DashboardPage() {
         </div>
       )}
 
+      {role === 'admin_athlete' && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 rounded-xl border border-violet-500/20 bg-violet-500/[0.06] text-sm">
+          <span className="font-semibold text-violet-800 dark:text-violet-200">
+            También entrenas como jugador
+          </span>
+          <span className="text-muted-foreground hidden sm:inline">·</span>
+          <Link
+            href="/dashboard/athlete"
+            className="font-bold text-violet-700 dark:text-violet-300 underline-offset-2 hover:underline"
+          >
+            Mi portal de atleta →
+          </Link>
+        </div>
+      )}
+
       {/* ── GREETING ── */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>

@@ -1,6 +1,6 @@
 import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
-import { getUserRole } from '@/lib/actions/club-context'
+import { getClubMembershipRole } from '@/lib/actions/club-context'
 import { getAthleteFinancialAccessState } from '@/lib/actions/athlete-enrollment'
 
 const ALLOWED_WHEN_HARD = new Set([
@@ -19,14 +19,31 @@ export default async function AthleteSectionLayout({
 }: {
   children: React.ReactNode
 }) {
-  let role: Awaited<ReturnType<typeof getUserRole>> = 'admin'
+  let role = 'admin'
   try {
-    role = await getUserRole()
+    role = await getClubMembershipRole()
   } catch {
     return <>{children}</>
   }
 
   if (role !== 'athlete') {
+    if (role === 'admin_athlete') {
+      return (
+        <>
+          <div
+            role="note"
+            className="mb-4 rounded-xl border border-violet-500/25 bg-violet-500/[0.07] px-4 py-3 text-sm text-foreground/90"
+          >
+            <p className="font-semibold text-violet-700 dark:text-violet-300">Administrador + jugador</p>
+            <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
+              En este portal ves tu actividad como atleta. Los bloqueos automáticos por mora o inscripción pendiente
+              no aplican a tu cuenta de staff; igual puedes revisar tus pagos y documentos aquí.
+            </p>
+          </div>
+          {children}
+        </>
+      )
+    }
     return <>{children}</>
   }
 
