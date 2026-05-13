@@ -9,8 +9,8 @@ import { Label } from '@/components/ui/label'
 import { CalendarPlus } from 'lucide-react'
 import { createEvent } from '@/lib/actions/events'
 
+/** Sin `tournament`: los torneos/partidos oficiales se gestionan en Campeonatos para evitar confusiones. */
 const EVENT_TYPES = [
-  { value: 'tournament', label: 'Torneo / Campeonato' },
   { value: 'seminar', label: 'Seminario' },
   { value: 'workshop', label: 'Taller / Workshop' },
   { value: 'meeting', label: 'Reunión de Equipo' },
@@ -19,7 +19,9 @@ const EVENT_TYPES = [
   { value: 'friendly', label: 'Encuentro Amistoso' },
   { value: 'exhibition', label: 'Exhibición' },
   { value: 'other', label: 'Otro' },
-]
+] as const
+
+const DEFAULT_EVENT_TYPE = EVENT_TYPES[0].value
 
 export function NewEventDialog() {
   const router = useRouter()
@@ -29,7 +31,7 @@ export function NewEventDialog() {
   const [form, setForm] = useState({
     name: '',
     description: '',
-    event_type: 'tournament',
+    event_type: DEFAULT_EVENT_TYPE,
     event_date: new Date().toISOString().split('T')[0],
     end_date: '',
     start_time: '',
@@ -64,7 +66,7 @@ export function NewEventDialog() {
       toast.success('Evento creado correctamente')
       setOpen(false)
       setForm({
-        name: '', description: '', event_type: 'tournament',
+        name: '', description: '', event_type: DEFAULT_EVENT_TYPE,
         event_date: new Date().toISOString().split('T')[0],
         end_date: '', start_time: '', end_time: '', location: '',
         is_visible_to_athletes: true,
@@ -94,7 +96,7 @@ export function NewEventDialog() {
                   <div>
                     <h2 className="text-lg font-semibold">Nuevo Evento</h2>
                     <p className="text-sm text-muted-foreground">
-                      Torneos, seminarios, reuniones y más. Visible para tus alumnos.
+                      Actividades del club (seminarios, reuniones, talleres…). Los partidos de competencia se crean en Campeonatos.
                     </p>
                   </div>
 
@@ -104,7 +106,7 @@ export function NewEventDialog() {
                       id="ev-name"
                       value={form.name}
                       onChange={(e) => handleChange('name', e.target.value)}
-                      placeholder="Ej: Torneo Nacional IBJJF 2026"
+                      placeholder="Ej: Seminario de técnica / Reunión de apoderados"
                     />
                   </div>
 

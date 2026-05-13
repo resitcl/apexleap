@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { CreateMatchRosterButton } from '@/components/matches/CreateMatchRosterButton'
 import { AddAthleteToRosterButton } from '@/components/competitions/AddAthleteToRosterButton'
+import { partitionRosterByStarter, isRosterTitular } from '@/lib/roster-partition'
 
 export type RosterAthleteRow = {
   id: string
@@ -12,6 +13,7 @@ export type RosterAthleteRow = {
   number: number | null
   position: string | null
   is_captain: boolean
+  is_starter?: boolean | null
   status: string
 }
 
@@ -43,6 +45,52 @@ type Props = {
   viewerAthleteId: string | null
 }
 
+function RosterAthleteListItem({
+  ra,
+  viewerAthleteId,
+}: {
+  ra: RosterAthleteRow
+  viewerAthleteId: string | null
+}) {
+  const isMe = viewerAthleteId != null && ra.athletes?.id === viewerAthleteId
+  const titular = isRosterTitular(ra.is_starter)
+  return (
+    <li
+      className={`flex flex-wrap items-center justify-between gap-2 px-3 py-2.5 text-sm ${
+        isMe ? 'bg-primary/5' : ''
+      }`}
+    >
+      <div className="flex items-center gap-2 min-w-0 flex-wrap">
+        {ra.number != null && (
+          <span className="text-xs font-bold bg-primary/10 text-primary px-1.5 py-0.5 rounded shrink-0">
+            #{ra.number}
+          </span>
+        )}
+        <span className={`font-medium truncate ${isMe ? 'text-primary' : ''}`}>
+          {ra.athletes?.name ?? '—'}
+          {isMe && (
+            <Badge variant="secondary" className="ml-2 text-[10px]">
+              Tú
+            </Badge>
+          )}
+        </span>
+        {ra.is_captain && (
+          <span className="text-xs font-semibold text-amber-600 shrink-0">© Cap.</span>
+        )}
+        <Badge variant={titular ? 'default' : 'secondary'} className="text-[10px] shrink-0 font-normal">
+          {titular ? 'Titular' : 'Suplente'}
+        </Badge>
+        {ra.position && (
+          <span className="text-xs text-muted-foreground truncate">· {ra.position}</span>
+        )}
+      </div>
+      <Badge variant="outline" className="text-[10px] shrink-0">
+        {RA_STATUS[ra.status] ?? ra.status}
+      </Badge>
+    </li>
+  )
+}
+
 export function MatchRosterPanel({
   matchId,
   matchStatus,
@@ -57,6 +105,10 @@ export function MatchRosterPanel({
 }: Props) {
   const athletes = roster?.roster_athletes ?? []
   const isNominated = viewerAthleteId != null && athletes.some((a) => a.athletes?.id === viewerAthleteId)
+  const myRow = viewerAthleteId != null ? athletes.find((a) => a.athletes?.id === viewerAthleteId) : undefined
+  const myTitular = myRow ? isRosterTitular(myRow.is_starter) : null
+
+  const { titulares, suplentes } = partitionRosterByStarter(athletes)
 
   return (
     <Card>
@@ -84,9 +136,16 @@ export function MatchRosterPanel({
             }`}
           >
             {isNominated ? (
-              <span className="flex items-center gap-2 font-medium">
-                <UserCheck className="size-4 shrink-0" />
-                Estás en la convocatoria de este partido.
+              <span className="flex flex-col gap-0.5 font-medium">
+                <span className="flex items-center gap-2">
+                  <UserCheck className="size-4 shrink-0" />
+                  Estás en la convocatoria de este partido.
+                </span>
+                {myTitular !== null && (
+                  <span className="text-xs font-normal opacity-90 pl-6">
+                    Rol asignado: <strong>{myTitular ? 'Titular' : 'Suplente / reserva'}</strong>
+                  </span>
+                )}
               </span>
             ) : (
               <span>No figuras en la convocatoria publicada para este encuentro.</span>
@@ -148,44 +207,28 @@ export function MatchRosterPanel({
                 />
               )}
             </div>
-            <ul className="divide-y rounded-lg border border-border/80">
-              {athletes.map((ra) => {
-                const isMe = viewerAthleteId != null && ra.athletes?.id === viewerAthleteId
-                return (
-                  <li
-                    key={ra.id}
-                    className={`flex flex-wrap items-center justify-between gap-2 px-3 py-2.5 text-sm ${
-                      isMe ? 'bg-primary/5' : ''
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      {ra.number != null && (
-                        <span className="text-xs font-bold bg-primary/10 text-primary px-1.5 py-0.5 rounded shrink-0">
-                          #{ra.number}
-                        </span>
-                      )}
-                      <span className={`font-medium truncate ${isMe ? 'text-primary' : ''}`}>
-                        {ra.athletes?.name ?? '—'}
-                        {isMe && (
-                          <Badge variant="secondary" className="ml-2 text-[10px]">
-                            Tú
-                          </Badge>
-                        )}
-                      </span>
-                      {ra.is_captain && (
-                        <span className="text-xs font-semibold text-amber-600 shrink-0">© Cap.</span>
-                      )}
-                      {ra.position && (
-                        <span className="text-xs text-muted-foreground truncate">· {ra.position}</span>
-                      )}
-                    </div>
-                    <Badge variant="outline" className="text-[10px] shrink-0">
-                      {RA_STATUS[ra.status] ?? ra.status}
-                    </Badge>
-                  </li>
-                )
-              })}
-            </ul>
+            <div className="space-y-3">
+              {titulares.length > 0 && (
+                <div>
+                  <p className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 mb-1 px-1">Titulares</p>
+                  <ul className="divide-y rounded-lg border border-border/80">
+                    {titulares.map((ra) => (
+                      <RosterAthleteListItem key={ra.id} ra={ra} viewerAthleteId={viewerAthleteId} />
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {suplentes.length > 0 && (
+                <div>
+                  <p className="text-[11px] font-semibold text-muted-foreground mb-1 px-1">Suplentes / reservas</p>
+                  <ul className="divide-y rounded-lg border border-border/80 border-dashed">
+                    {suplentes.map((ra) => (
+                      <RosterAthleteListItem key={ra.id} ra={ra} viewerAthleteId={viewerAthleteId} />
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
             {competitionName && (
               <p className="text-xs text-muted-foreground">
                 Competencia: <span className="font-medium text-foreground">{competitionName}</span>

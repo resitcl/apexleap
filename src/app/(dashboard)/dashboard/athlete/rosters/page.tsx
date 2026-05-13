@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ClipboardList, Calendar, MapPin, Trophy, Shirt, ExternalLink } from "lucide-react"
 import { AthleteSectionHeader } from "@/components/athlete/AthleteSectionHeader"
+import { isRosterTitular } from "@/lib/roster-partition"
 
 const TYPE_LABELS: Record<string, string> = {
   tournament: "Torneo", league: "Liga", friendly: "Amistoso", championship: "Campeonato",
@@ -113,6 +114,12 @@ export default async function AthleteRostersPage() {
                                 <p className="font-black text-xl tracking-tight leading-none text-foreground uppercase">{roster.name}</p>
                                 {isToday && <Badge className="text-[9px] uppercase font-black tracking-widest bg-primary text-primary-foreground px-2">Hoy</Badge>}
                                 {r.is_captain && <Badge className="text-[9px] uppercase font-black tracking-widest bg-amber-500 text-amber-950 px-2 pointer-events-none">© Capitán</Badge>}
+                                <Badge
+                                  variant={isRosterTitular(r.is_starter) ? "outline" : "secondary"}
+                                  className="text-[9px] uppercase font-black tracking-widest px-2 pointer-events-none"
+                                >
+                                  {isRosterTitular(r.is_starter) ? "Titular" : "Suplente"}
+                                </Badge>
                               </div>
 
                               <div className="flex items-center gap-4 mt-3 text-[10px] uppercase font-bold tracking-widest text-muted-foreground flex-wrap">
@@ -191,6 +198,9 @@ export default async function AthleteRostersPage() {
                               <div className="flex items-center gap-2">
                                 <p className="text-sm font-black tracking-tight uppercase truncate">{roster.name}</p>
                                 {r.is_captain && <span className="text-[10px] bg-amber-500 text-amber-950 px-1 py-0.5 rounded font-black tracking-widest">©</span>}
+                                {!isRosterTitular(r.is_starter) && (
+                                  <span className="text-[10px] bg-slate-600 text-white px-1 py-0.5 rounded font-black tracking-widest">SUB</span>
+                                )}
                               </div>
                               <p className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground/70 mt-1 truncate">
                                 {new Date(roster.match_date + "T12:00:00").toLocaleDateString("es-CL", { day: "numeric", month: "short" })}

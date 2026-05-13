@@ -20,6 +20,7 @@ import {
   ClipboardList,
 } from "lucide-react"
 import { AthleteSectionHeader } from "@/components/athlete/AthleteSectionHeader"
+import { isRosterTitular } from "@/lib/roster-partition"
 
 const TYPE_LABELS: Record<string, string> = {
   tournament: "Torneo", 
@@ -215,6 +216,12 @@ export default async function AthleteRosterDetailPage({ params }: PageProps) {
                   © Capitán
                 </Badge>
               )}
+              <Badge
+                variant={isRosterTitular(rosterData.is_starter) ? "default" : "secondary"}
+                className="font-semibold"
+              >
+                {isRosterTitular(rosterData.is_starter) ? "Titular" : "Suplente / reserva"}
+              </Badge>
             </div>
           </div>
 

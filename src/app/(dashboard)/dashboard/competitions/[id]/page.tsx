@@ -21,6 +21,7 @@ import { NewMatchButton } from "@/components/competitions/NewMatchButton"
 import { MatchStatsEditor } from "@/components/competitions/MatchStatsEditor"
 import { getMatches, getMatchEvents, getPlayerStatsForCompetition } from "@/lib/actions/matches"
 import { getClubSettings } from "@/lib/actions/settings"
+import { partitionRosterByStarter } from "@/lib/roster-partition"
 
 const TYPE_LABELS: Record<string, string> = {
   tournament: "Torneo", league: "Liga", friendly: "Amistoso", championship: "Campeonato",
@@ -74,7 +75,7 @@ export default async function CompetitionDetailPage({ params }: PageProps) {
 
   const { data: rosters } = await admin
     .from("rosters")
-    .select("*, roster_athletes(id, athletes(id, name), number, position, is_captain, status)")
+    .select("*, roster_athletes(id, athletes(id, name), number, position, is_captain, is_starter, status)")
     .eq("competition_id", id)
     .order("match_date", { ascending: false })
 
@@ -204,10 +205,11 @@ export default async function CompetitionDetailPage({ params }: PageProps) {
             {rosterList.map((roster) => {
               const athletes = (roster.roster_athletes as Array<{
                 id: string; number: number | null; position: string | null;
-                is_captain: boolean; status: string;
+                is_captain: boolean; is_starter?: boolean | null; status: string;
                 athletes: { id: string; name: string } | null
               }> ?? [])
               const confirmed = athletes.filter((a) => a.status === "confirmed").length
+              const { titulares, suplentes } = partitionRosterByStarter(athletes)
 
               return (
                 <Card key={roster.id}>
@@ -257,23 +259,49 @@ export default async function CompetitionDetailPage({ params }: PageProps) {
                     </div>
                   </CardHeader>
                   {athletes.length > 0 && (
-                    <CardContent className="pt-0">
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
-                        {athletes.map((ra) => (
-                          <div key={ra.id} className="flex items-center gap-2 text-sm">
-                            {ra.number && (
-                              <span className="w-6 h-6 rounded bg-primary/10 text-primary text-xs font-bold flex items-center justify-center shrink-0">
-                                {ra.number}
-                              </span>
-                            )}
-                            <Link href={`/dashboard/athletes/${ra.athletes?.id}`}
-                              className="truncate hover:underline">
-                              {ra.athletes?.name ?? "—"}
-                              {ra.is_captain && " ©"}
-                            </Link>
+                    <CardContent className="pt-0 space-y-4">
+                      {titulares.length > 0 && (
+                        <div className="space-y-1.5">
+                          <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">Titulares</p>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                            {titulares.map((ra) => (
+                              <div key={ra.id} className="flex items-center gap-2 text-sm">
+                                {ra.number && (
+                                  <span className="w-6 h-6 rounded bg-primary/10 text-primary text-xs font-bold flex items-center justify-center shrink-0">
+                                    {ra.number}
+                                  </span>
+                                )}
+                                <Link href={`/dashboard/athletes/${ra.athletes?.id}`}
+                                  className="truncate hover:underline">
+                                  {ra.athletes?.name ?? "—"}
+                                  {ra.is_captain && " ©"}
+                                </Link>
+                              </div>
+                            ))}
                           </div>
-                        ))}
-                      </div>
+                        </div>
+                      )}
+                      {suplentes.length > 0 && (
+                        <div className="space-y-1.5">
+                          <p className="text-xs font-semibold text-muted-foreground">Suplentes / reservas</p>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                            {suplentes.map((ra) => (
+                              <div key={ra.id} className="flex items-center gap-2 text-sm text-muted-foreground">
+                                {ra.number && (
+                                  <span className="w-6 h-6 rounded bg-muted text-muted-foreground text-xs font-bold flex items-center justify-center shrink-0">
+                                    {ra.number}
+                                  </span>
+                                )}
+                                <Link href={`/dashboard/athletes/${ra.athletes?.id}`}
+                                  className="truncate hover:underline hover:text-foreground">
+                                  {ra.athletes?.name ?? "—"}
+                                  {ra.is_captain && " ©"}
+                                </Link>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </CardContent>
                   )}
                 </Card>

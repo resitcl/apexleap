@@ -1,23 +1,31 @@
 'use client'
 
-import { useState, useEffect } from "react"
-import { toast } from "sonner"
-import { Button } from "@/components/ui/button"
-import { Label } from "@/components/ui/label"
+import { useState, useEffect, useMemo } from 'react'
+import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
+import { Button } from '@/components/ui/button'
+import { Label } from '@/components/ui/label'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-} from "@/components/ui/dialog"
-import { UserPlus, X } from "lucide-react"
-import { addAthleteToRoster, removeAthleteFromRoster, getAthletesSemaforo } from "@/lib/actions/rosters"
+} from '@/components/ui/dialog'
+import { UserPlus, X } from 'lucide-react'
+import {
+  addAthleteToRoster,
+  removeAthleteFromRoster,
+  getAthletesSemaforo,
+  updateRosterAthleteStarter,
+} from '@/lib/actions/rosters'
+import { partitionRosterByStarter, isRosterTitular } from '@/lib/roster-partition'
 
 type SemaforoAthlete = { id: string; name: string; health_status: string; semaforo: 'green' | 'yellow' | 'red'; jersey_number: number | null; category: string }
 
-interface RosterAthlete {
+export interface RosterAthlete {
   id: string
   athletes: { id: string; name: string } | null
   number: number | null
   position: string | null
   is_captain: boolean
+  is_starter?: boolean | null
 }
 
 interface Props {
@@ -28,16 +36,21 @@ interface Props {
 }
 
 export function AddAthleteToRosterButton({ rosterId, competitionId, rosterAthletes, rosterName }: Props) {
+  const router = useRouter()
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [removing, setRemoving] = useState<string | null>(null)
+  const [togglingStarter, setTogglingStarter] = useState<string | null>(null)
   const [athletes, setAthletes] = useState<SemaforoAthlete[]>([])
   const [form, setForm] = useState({
     athleteId: '',
     number: '',
     position: '',
     isCaptain: false,
+    isStarter: true,
   })
+
+  const { titulares, suplentes } = useMemo(() => partitionRosterByStarter(rosterAthletes), [rosterAthletes])
 
   const takenNumbers = new Set(rosterAthletes.map((ra) => ra.number).filter((n): n is number => n !== null))
 
@@ -58,6 +71,24 @@ export function AddAthleteToRosterButton({ rosterId, competitionId, rosterAthlet
     }).catch(() => {})
   }, [open, rosterAthletes])
 
+  async function handleToggleTitular(ra: RosterAthlete, checked: boolean) {
+    setTogglingStarter(ra.id)
+    try {
+      await updateRosterAthleteStarter({
+        rosterAthleteId: ra.id,
+        rosterId,
+        competitionId,
+        isStarter: checked,
+      })
+      toast.success(checked ? 'Titular' : 'Suplente / reserva')
+      router.refresh()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error al actualizar')
+    } finally {
+      setTogglingStarter(null)
+    }
+  }
+
   async function handleAdd() {
     if (!form.athleteId) { toast.error('Selecciona un atleta'); return }
     setLoading(true)
@@ -69,10 +100,12 @@ export function AddAthleteToRosterButton({ rosterId, competitionId, rosterAthlet
         number: form.number ? Number(form.number) : null,
         position: form.position || null,
         isCaptain: form.isCaptain,
+        isStarter: form.isStarter,
       })
       toast.success('Atleta agregado a la nómina')
-      setForm({ athleteId: '', number: '', position: '', isCaptain: false })
+      setForm({ athleteId: '', number: '', position: '', isCaptain: false, isStarter: true })
       setOpen(false)
+      router.refresh()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Error al agregar')
     } finally {
@@ -85,11 +118,51 @@ export function AddAthleteToRosterButton({ rosterId, competitionId, rosterAthlet
     try {
       await removeAthleteFromRoster({ rosterAthleteId, competitionId, rosterId })
       toast.success('Atleta removido de la nómina')
+      router.refresh()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Error al remover')
     } finally {
       setRemoving(null)
     }
+  }
+
+  function renderRosterRow(ra: RosterAthlete) {
+    const titular = isRosterTitular(ra.is_starter)
+    return (
+      <div key={ra.id} className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between text-sm bg-muted/50 rounded px-2.5 py-1.5">
+        <div className="flex items-center gap-2 flex-wrap min-w-0">
+          {ra.number && (
+            <span className="text-xs font-bold bg-primary/10 text-primary px-1.5 py-0.5 rounded">#{ra.number}</span>
+          )}
+          <span className="font-medium truncate">{ra.athletes?.name ?? '—'}</span>
+          {ra.position && <span className="text-muted-foreground text-xs">· {ra.position}</span>}
+          {ra.is_captain && <span className="text-xs font-bold text-yellow-600">© Cap.</span>}
+          <span className={`text-[10px] uppercase font-semibold px-1.5 py-0.5 rounded ${titular ? 'bg-emerald-500/15 text-emerald-800 dark:text-emerald-200' : 'bg-slate-500/15 text-muted-foreground'}`}>
+            {titular ? 'Titular' : 'Suplente'}
+          </span>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer whitespace-nowrap">
+            <input
+              type="checkbox"
+              checked={titular}
+              disabled={togglingStarter === ra.id}
+              onChange={(e) => handleToggleTitular(ra, e.target.checked)}
+              className="w-3.5 h-3.5 rounded border-input"
+            />
+            Titular
+          </label>
+          <Button
+            size="sm" variant="ghost"
+            className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+            disabled={removing === ra.id}
+            onClick={() => handleRemove(ra.id)}
+          >
+            <X className="w-3.5 h-3.5" />
+          </Button>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -106,36 +179,24 @@ export function AddAthleteToRosterButton({ rosterId, competitionId, rosterAthlet
           </DialogHeader>
 
           <div className="space-y-4 py-1 max-h-[70vh] overflow-y-auto pr-1">
-            {/* Current athletes */}
             {rosterAthletes.length > 0 && (
-              <div className="space-y-1">
+              <div className="space-y-3">
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Citados ({rosterAthletes.length})</p>
-                <div className="space-y-1">
-                  {rosterAthletes.map((ra) => (
-                    <div key={ra.id} className="flex items-center justify-between text-sm bg-muted/50 rounded px-2.5 py-1.5">
-                      <div className="flex items-center gap-2">
-                        {ra.number && (
-                          <span className="text-xs font-bold bg-primary/10 text-primary px-1.5 py-0.5 rounded">#{ra.number}</span>
-                        )}
-                        <span className="font-medium">{ra.athletes?.name ?? '—'}</span>
-                        {ra.position && <span className="text-muted-foreground text-xs">· {ra.position}</span>}
-                        {ra.is_captain && <span className="text-xs font-bold text-yellow-600">© Cap.</span>}
-                      </div>
-                      <Button
-                        size="sm" variant="ghost"
-                        className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
-                        disabled={removing === ra.id}
-                        onClick={() => handleRemove(ra.id)}
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
+                {titulares.length > 0 && (
+                  <div className="space-y-1">
+                    <p className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">Titulares</p>
+                    <div className="space-y-1">{titulares.map(renderRosterRow)}</div>
+                  </div>
+                )}
+                {suplentes.length > 0 && (
+                  <div className="space-y-1">
+                    <p className="text-[11px] font-semibold text-muted-foreground">Suplentes / reservas</p>
+                    <div className="space-y-1">{suplentes.map(renderRosterRow)}</div>
+                  </div>
+                )}
               </div>
             )}
 
-            {/* Add form */}
             <div className="border-t pt-3 space-y-3">
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Agregar atleta</p>
               <div className="space-y-1">
@@ -206,11 +267,20 @@ export function AddAthleteToRosterButton({ rosterId, competitionId, rosterAthlet
                 />
                 Capitán
               </label>
+              <label className="flex items-center gap-2 cursor-pointer text-sm">
+                <input
+                  type="checkbox"
+                  checked={form.isStarter}
+                  onChange={(e) => setForm((f) => ({ ...f, isStarter: e.target.checked }))}
+                  className="w-4 h-4 rounded"
+                />
+                Titular (desmarca para ingresar como suplente / reserva)
+              </label>
             </div>
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>Cerrar</Button>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cerrar</Button>
             <Button onClick={handleAdd} disabled={loading || !form.athleteId}>
               {loading ? 'Agregando...' : 'Agregar'}
             </Button>

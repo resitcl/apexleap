@@ -1099,7 +1099,7 @@ export async function getMyRosters() {
   const { data, error } = await supabase
     .from('roster_athletes')
     .select(`
-      id, number, position, is_captain, status,
+      id, number, position, is_captain, is_starter, status,
       rosters (
         id, name, match_date, opponent, venue, notes,
         competitions ( id, name, type )
@@ -1113,7 +1113,7 @@ export async function getMyRosters() {
 
   type RosterRow = {
     id: string; number: number | null; position: string | null
-    is_captain: boolean; status: string
+    is_captain: boolean; is_starter?: boolean | null; status: string
     rosters: {
       id: string; name: string; match_date: string
       opponent: string | null; venue: string | null; notes: string | null
@@ -1215,7 +1215,7 @@ export async function getMyRosterById(rosterId: string) {
   const { data, error } = await supabase
     .from('roster_athletes')
     .select(`
-      id, number, position, is_captain, status,
+      id, number, position, is_captain, is_starter, status,
       rosters (
         id, name, match_date, opponent, venue, notes,
         competitions ( id, name, type, status ),

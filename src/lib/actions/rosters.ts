@@ -144,6 +144,8 @@ export async function addAthleteToRoster(params: {
   number?: number | null
   position?: string | null
   isCaptain?: boolean
+  /** true = titular (defecto), false = suplente / reserva */
+  isStarter?: boolean
 }) {
   const clubId = await getClubId()
   const supabase = createAdminClient()
@@ -176,8 +178,50 @@ export async function addAthleteToRoster(params: {
     number: params.number ?? null,
     position: params.position ?? null,
     is_captain: params.isCaptain ?? false,
+    is_starter: params.isStarter !== false,
     status: 'confirmed',
   })
+  if (error) throw new Error(error.message)
+
+  const { data: linkedMatch } = await supabase
+    .from('matches')
+    .select('id')
+    .eq('roster_id', params.rosterId)
+    .eq('club_id', clubId)
+    .maybeSingle()
+  revalidateRosterRelatedPaths(params.competitionId, linkedMatch?.id ?? null)
+}
+
+export async function updateRosterAthleteStarter(params: {
+  rosterAthleteId: string
+  rosterId: string
+  competitionId: string | null
+  isStarter: boolean
+}) {
+  await assertClubStaff()
+  const clubId = await getClubId()
+  const supabase = createAdminClient()
+
+  const { data: roster } = await supabase
+    .from('rosters')
+    .select('id')
+    .eq('id', params.rosterId)
+    .eq('club_id', clubId)
+    .maybeSingle()
+  if (!roster) throw new Error('Nómina no encontrada')
+
+  const { data: row } = await supabase
+    .from('roster_athletes')
+    .select('id')
+    .eq('id', params.rosterAthleteId)
+    .eq('roster_id', params.rosterId)
+    .maybeSingle()
+  if (!row) throw new Error('Citación no encontrada')
+
+  const { error } = await supabase
+    .from('roster_athletes')
+    .update({ is_starter: params.isStarter })
+    .eq('id', params.rosterAthleteId)
   if (error) throw new Error(error.message)
 
   const { data: linkedMatch } = await supabase
@@ -294,7 +338,7 @@ export async function getRostersHub() {
         id, name, match_date, opponent, venue, competition_id,
         competitions(id, name, type, status),
         roster_athletes(
-          id, number, position, is_captain, status,
+          id, number, position, is_captain, is_starter, status,
           athletes(id, name, health_status)
         )
       `)
@@ -326,7 +370,7 @@ export async function getRostersHub() {
   }
 
   return rows.map((r) => {
-    type RA = { id: string; number: number | null; position: string | null; is_captain: boolean; status: string; athletes: { id: string; name: string; health_status: string } | null }
+    type RA = { id: string; number: number | null; position: string | null; is_captain: boolean; is_starter?: boolean | null; status: string; athletes: { id: string; name: string; health_status: string } | null }
     const athletes = (r.roster_athletes as unknown as RA[]) ?? []
     const withSem = athletes.map((ra) => {
       const a = ra.athletes

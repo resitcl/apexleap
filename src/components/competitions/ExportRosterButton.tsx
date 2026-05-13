@@ -2,11 +2,13 @@
 
 import { Button } from '@/components/ui/button'
 import { Download } from 'lucide-react'
+import { partitionRosterByStarter, isRosterTitular } from '@/lib/roster-partition'
 
 interface RosterAthlete {
   number: number | null
   position: string | null
   is_captain: boolean
+  is_starter?: boolean | null
   status: string
   athletes: { name: string } | null
 }
@@ -29,17 +31,29 @@ export function ExportRosterButton({ roster, competitionName }: { roster: Roster
     if (roster.opponent) lines.push(`"Rival";"${roster.opponent}"`)
     if (roster.venue) lines.push(`"Sede";"${roster.venue}"`)
     lines.push('')
-    lines.push('"N°";"Nombre";"Posición";"Capitán";"Estado"')
+    lines.push('"N°";"Nombre";"Posición";"Titular/Suplente";"Capitán";"Estado"')
 
     const athletes = roster.roster_athletes ?? []
-    for (const ra of athletes) {
-      lines.push([
-        `"${ra.number ?? ''}"`,
-        `"${ra.athletes?.name ?? '—'}"`,
-        `"${ra.position ?? '—'}"`,
-        `"${ra.is_captain ? 'Sí' : 'No'}"`,
-        `"${ra.status === 'confirmed' ? 'Confirmado' : ra.status === 'pending' ? 'Pendiente' : 'Descartado'}"`,
-      ].join(';'))
+    const { titulares, suplentes } = partitionRosterByStarter(athletes)
+    const pushRows = (list: RosterAthlete[]) => {
+      for (const ra of list) {
+        lines.push([
+          `"${ra.number ?? ''}"`,
+          `"${ra.athletes?.name ?? '—'}"`,
+          `"${ra.position ?? '—'}"`,
+          `"${isRosterTitular(ra.is_starter) ? 'Titular' : 'Suplente'}"`,
+          `"${ra.is_captain ? 'Sí' : 'No'}"`,
+          `"${ra.status === 'confirmed' ? 'Confirmado' : ra.status === 'pending' ? 'Pendiente' : 'Descartado'}"`,
+        ].join(';'))
+      }
+    }
+    if (titulares.length) {
+      lines.push('"--- Titulares ---"')
+      pushRows(titulares)
+    }
+    if (suplentes.length) {
+      lines.push('"--- Suplentes / reservas ---"')
+      pushRows(suplentes)
     }
 
     const csv = BOM + lines.join('\n')

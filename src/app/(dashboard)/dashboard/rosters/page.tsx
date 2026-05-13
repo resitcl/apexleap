@@ -9,6 +9,7 @@ import { getRostersHub } from "@/lib/actions/rosters"
 import { AddAthleteToRosterButton } from "@/components/competitions/AddAthleteToRosterButton"
 import { DeleteRosterButton } from "@/components/competitions/DeleteRosterButton"
 import { EditRosterHubButton, NewRosterHubButton } from "@/components/rosters/RosterHubDialogs"
+import { partitionRosterByStarter, isRosterTitular } from "@/lib/roster-partition"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ClipboardList, Calendar, MapPin, Users, Trophy, ChevronRight } from "lucide-react"
@@ -132,11 +133,12 @@ export default async function RostersPage() {
                           <AddAthleteToRosterButton
                             rosterId={roster.id}
                             competitionId={roster.competition_id}
-                            rosterAthletes={roster.athletes.map(({ id, number, position, is_captain, athletes }) => ({
+                            rosterAthletes={roster.athletes.map(({ id, number, position, is_captain, is_starter, athletes }) => ({
                               id,
                               number,
                               position,
                               is_captain,
+                              is_starter,
                               athletes,
                             }))}
                             rosterName={roster.name}
@@ -206,35 +208,55 @@ export default async function RostersPage() {
                       </div>
                     </div>
 
-                    {/* Lista de atletas */}
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-1.5">
-                      {roster.athletes
-                        .sort((a, b) => {
-                          const order = { red: 0, yellow: 1, green: 2 }
-                          return order[a.semaforo] - order[b.semaforo]
-                        })
-                        .map((ra) => {
-                          const dot = ra.semaforo === "red" ? "bg-red-500" : ra.semaforo === "yellow" ? "bg-yellow-400" : "bg-green-500"
-                          const textColor = ra.semaforo === "red" ? "text-red-700" : ""
-                          return (
-                            <Link key={ra.id} href={`/dashboard/athletes/${ra.athletes?.id}`}>
-                              <div className={`flex items-center gap-2 px-2.5 py-2 rounded-md border text-sm hover:bg-accent/50 transition-colors cursor-pointer ${ra.semaforo === "red" ? "border-red-200 bg-red-50/50" : ""}`}>
-                                {ra.number && (
-                                  <span className="w-5 h-5 rounded bg-primary/10 text-primary text-xs font-bold flex items-center justify-center shrink-0">
-                                    {ra.number}
-                                  </span>
-                                )}
-                                <span className={`w-2 h-2 rounded-full shrink-0 ${dot}`} />
-                                <span className={`text-xs truncate ${textColor}`}>
-                                  {ra.athletes?.name ?? "—"}
-                                  {ra.is_captain && " ©"}
+                    {(() => {
+                      const semOrder = { red: 0, yellow: 1, green: 2 } as const
+                      const sortSem = (list: typeof roster.athletes) =>
+                        [...list].sort((a, b) => semOrder[a.semaforo] - semOrder[b.semaforo])
+                      const { titulares, suplentes } = partitionRosterByStarter(roster.athletes)
+                      const titSorted = sortSem(titulares)
+                      const supSorted = sortSem(suplentes)
+                      const chip = (ra: (typeof roster.athletes)[0]) => {
+                        const dot = ra.semaforo === "red" ? "bg-red-500" : ra.semaforo === "yellow" ? "bg-yellow-400" : "bg-green-500"
+                        const textColor = ra.semaforo === "red" ? "text-red-700" : ""
+                        const titular = isRosterTitular(ra.is_starter)
+                        return (
+                          <Link key={ra.id} href={`/dashboard/athletes/${ra.athletes?.id}`}>
+                            <div className={`flex items-center gap-2 px-2.5 py-2 rounded-md border text-sm hover:bg-accent/50 transition-colors cursor-pointer ${ra.semaforo === "red" ? "border-red-200 bg-red-50/50" : ""}`}>
+                              {ra.number && (
+                                <span className="w-5 h-5 rounded bg-primary/10 text-primary text-xs font-bold flex items-center justify-center shrink-0">
+                                  {ra.number}
                                 </span>
-                                {ra.semaforo === "red" && <span className="ml-auto text-xs shrink-0">🔒</span>}
-                              </div>
-                            </Link>
-                          )
-                        })}
-                    </div>
+                              )}
+                              <span className={`w-2 h-2 rounded-full shrink-0 ${dot}`} />
+                              <span className={`text-xs truncate flex-1 min-w-0 ${textColor}`}>
+                                {ra.athletes?.name ?? "—"}
+                                {ra.is_captain && " ©"}
+                              </span>
+                              <span className={`text-[10px] font-semibold shrink-0 px-1 rounded ${titular ? "text-emerald-700 dark:text-emerald-300" : "text-muted-foreground"}`}>
+                                {titular ? "T" : "S"}
+                              </span>
+                              {ra.semaforo === "red" && <span className="text-xs shrink-0">🔒</span>}
+                            </div>
+                          </Link>
+                        )
+                      }
+                      return (
+                        <div className="space-y-3">
+                          {titSorted.length > 0 && (
+                            <div className="space-y-1.5">
+                              <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">Titulares</p>
+                              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-1.5">{titSorted.map(chip)}</div>
+                            </div>
+                          )}
+                          {supSorted.length > 0 && (
+                            <div className="space-y-1.5">
+                              <p className="text-xs font-semibold text-muted-foreground">Suplentes / reservas</p>
+                              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-1.5">{supSorted.map(chip)}</div>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })()}
                   </CardContent>
                 ) : (
                   <CardContent className="pt-0">

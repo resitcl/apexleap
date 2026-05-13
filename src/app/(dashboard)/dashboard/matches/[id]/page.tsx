@@ -54,7 +54,7 @@ export default async function MatchDetailPage({ params }: PageProps) {
       const { data: rData } = await admin
         .from("rosters")
         .select(
-          "id, name, match_date, opponent, venue, roster_athletes(id, number, position, is_captain, status, athletes(id, name))"
+          "id, name, match_date, opponent, venue, roster_athletes(id, number, position, is_captain, is_starter, status, athletes(id, name))"
         )
         .eq("id", match.roster_id as string)
         .single()
