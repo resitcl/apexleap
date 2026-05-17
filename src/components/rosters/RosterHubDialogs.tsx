@@ -22,6 +22,7 @@ type MatchOption = {
   id: string
   opponent: string | null
   match_date: string
+  match_time?: string | null
   location: string | null
 }
 
@@ -36,6 +37,7 @@ export function NewRosterHubButton({ competitions }: { competitions: HubCompetit
   const [form, setForm] = useState({
     name: '',
     matchDate: new Date().toISOString().split('T')[0],
+    matchTime: '',
     opponent: '',
     venue: '',
   })
@@ -54,6 +56,7 @@ export function NewRosterHubButton({ competitions }: { competitions: HubCompetit
             id: m.id,
             opponent: m.opponent,
             match_date: m.match_date,
+            match_time: (m as { match_time?: string | null }).match_time ?? null,
             location: m.location,
           })),
         ),
@@ -70,6 +73,7 @@ export function NewRosterHubButton({ competitions }: { competitions: HubCompetit
     setForm((p) => ({
       ...p,
       matchDate: m.match_date,
+      matchTime: m.match_time ? m.match_time.slice(0, 5) : '',
       opponent: m.opponent ?? '',
       venue: m.location ?? '',
     }))
@@ -90,6 +94,7 @@ export function NewRosterHubButton({ competitions }: { competitions: HubCompetit
         competitionId: competitionId || null,
         name: form.name,
         matchDate: form.matchDate,
+        matchTime: form.matchTime || null,
         opponent: form.opponent || null,
         venue: form.venue || null,
         matchId: selectedMatchId || null,
@@ -98,7 +103,7 @@ export function NewRosterHubButton({ competitions }: { competitions: HubCompetit
       setOpen(false)
       setSelectedMatchId('')
       setCompetitionId('')
-      setForm({ name: '', matchDate: new Date().toISOString().split('T')[0], opponent: '', venue: '' })
+      setForm({ name: '', matchDate: new Date().toISOString().split('T')[0], matchTime: '', opponent: '', venue: '' })
       router.refresh()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Error al crear nómina')
@@ -173,9 +178,15 @@ export function NewRosterHubButton({ competitions }: { competitions: HubCompetit
                 onChange={(e) => set('name', e.target.value)}
               />
             </div>
-            <div className="space-y-1">
-              <Label>Fecha del partido *</Label>
-              <Input type="date" value={form.matchDate} onChange={(e) => set('matchDate', e.target.value)} />
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <Label>Fecha del partido *</Label>
+                <Input type="date" value={form.matchDate} onChange={(e) => set('matchDate', e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <Label>Hora (opcional)</Label>
+                <Input type="time" value={form.matchTime} onChange={(e) => set('matchTime', e.target.value)} />
+              </div>
             </div>
             <div className="space-y-1">
               <Label>Rival</Label>
@@ -212,6 +223,7 @@ export type HubRosterForEdit = {
   id: string
   name: string
   match_date: string
+  match_time?: string | null
   opponent: string | null
   venue: string | null
   competition_id: string | null
@@ -228,6 +240,7 @@ export function EditRosterHubButton({ roster }: { roster: HubRosterForEdit }) {
   const [form, setForm] = useState({
     name: roster.name,
     matchDate: roster.match_date,
+    matchTime: roster.match_time ? roster.match_time.slice(0, 5) : '',
     opponent: roster.opponent ?? '',
     venue: roster.venue ?? '',
   })
@@ -241,6 +254,7 @@ export function EditRosterHubButton({ roster }: { roster: HubRosterForEdit }) {
     setForm({
       name: roster.name,
       matchDate: roster.match_date,
+      matchTime: roster.match_time ? roster.match_time.slice(0, 5) : '',
       opponent: roster.opponent ?? '',
       venue: roster.venue ?? '',
     })
@@ -253,6 +267,7 @@ export function EditRosterHubButton({ roster }: { roster: HubRosterForEdit }) {
             id: m.id,
             opponent: m.opponent,
             match_date: m.match_date,
+            match_time: (m as { match_time?: string | null }).match_time ?? null,
             location: m.location,
           })),
         ),
@@ -269,6 +284,7 @@ export function EditRosterHubButton({ roster }: { roster: HubRosterForEdit }) {
     setForm((p) => ({
       ...p,
       matchDate: m.match_date,
+      matchTime: m.match_time ? m.match_time.slice(0, 5) : '',
       opponent: m.opponent ?? '',
       venue: m.location ?? '',
     }))
@@ -290,6 +306,7 @@ export function EditRosterHubButton({ roster }: { roster: HubRosterForEdit }) {
         competitionId: roster.competition_id,
         name: form.name,
         matchDate: form.matchDate,
+        matchTime: form.matchTime || null,
         opponent: form.opponent || null,
         venue: form.venue || null,
         matchId: selectedMatchId || null,
@@ -344,9 +361,15 @@ export function EditRosterHubButton({ roster }: { roster: HubRosterForEdit }) {
               <Label>Nombre *</Label>
               <Input value={form.name} onChange={(e) => set('name', e.target.value)} />
             </div>
-            <div className="space-y-1">
-              <Label>Fecha del partido *</Label>
-              <Input type="date" value={form.matchDate} onChange={(e) => set('matchDate', e.target.value)} />
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <Label>Fecha del partido *</Label>
+                <Input type="date" value={form.matchDate} onChange={(e) => set('matchDate', e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <Label>Hora (opcional)</Label>
+                <Input type="time" value={form.matchTime} onChange={(e) => set('matchTime', e.target.value)} />
+              </div>
             </div>
             <div className="space-y-1">
               <Label>Rival</Label>

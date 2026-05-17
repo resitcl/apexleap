@@ -36,6 +36,7 @@ export async function createMatch(input: {
   category_id?: string | null
   opponent: string
   match_date: string
+  match_time?: string | null
   location?: string
   is_home?: boolean
   home_score?: number | null
@@ -46,10 +47,12 @@ export async function createMatch(input: {
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
+  const matchTime = input.match_time?.trim() ? input.match_time.trim() : null
+
   // 1. Create the match
   const { data: match, error } = await supabase
     .from('matches')
-    .insert({ ...input, club_id: clubId })
+    .insert({ ...input, match_time: matchTime, club_id: clubId })
     .select()
     .single()
   if (error) throw new Error(translateError(error.message))
@@ -63,6 +66,7 @@ export async function createMatch(input: {
       competition_id: input.competition_id ?? null,
       name:           rosterName,
       match_date:     input.match_date,
+      match_time:     matchTime,
       opponent:       input.opponent,
       venue:          input.location ?? null,
     })
@@ -82,7 +86,7 @@ export async function createMatch(input: {
     revalidatePath(`/dashboard/competitions/${input.competition_id}`)
   }
   revalidatePath('/dashboard/matches')
-  return match
+  return { ...match, roster_id: roster?.id ?? null }
 }
 
 function revalidateMatchPaths(matchId: string, competitionId: string | null | undefined) {
@@ -98,6 +102,7 @@ export async function updateMatch(
   input: {
     opponent?: string
     match_date?: string
+    match_time?: string | null
     location?: string
     is_home?: boolean
     home_score?: number | null
@@ -108,9 +113,13 @@ export async function updateMatch(
 ) {
   const clubId = await getClubId()
   const supabase = createAdminClient()
+  const payload: Record<string, unknown> = { ...input, updated_at: new Date().toISOString() }
+  if ('match_time' in input) {
+    payload.match_time = input.match_time?.trim() ? input.match_time.trim() : null
+  }
   const { data, error } = await supabase
     .from('matches')
-    .update({ ...input, updated_at: new Date().toISOString() })
+    .update(payload)
     .eq('id', matchId)
     .eq('club_id', clubId)
     .select()

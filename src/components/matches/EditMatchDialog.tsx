@@ -11,6 +11,7 @@ export type EditableMatchRow = {
   competition_id: string | null
   opponent: string | null
   match_date: string
+  match_time?: string | null
   location: string | null
   is_home: boolean
   home_score: number | null
@@ -27,6 +28,7 @@ export function EditMatchDialog({ match }: { match: EditableMatchRow }) {
   const [form, setForm] = useState({
     opponent: match.opponent ?? '',
     match_date: match.match_date,
+    match_time: match.match_time ? match.match_time.slice(0, 5) : '',
     location: match.location ?? '',
     is_home: match.is_home,
     home_score: match.home_score != null ? String(match.home_score) : '',
@@ -43,6 +45,7 @@ export function EditMatchDialog({ match }: { match: EditableMatchRow }) {
     setForm({
       opponent: match.opponent ?? '',
       match_date: match.match_date,
+      match_time: match.match_time ? match.match_time.slice(0, 5) : '',
       location: match.location ?? '',
       is_home: match.is_home,
       home_score: match.home_score != null ? String(match.home_score) : '',
@@ -65,6 +68,7 @@ export function EditMatchDialog({ match }: { match: EditableMatchRow }) {
         await updateMatch(match.id, match.competition_id, {
           opponent: form.opponent.trim(),
           match_date: form.match_date,
+          match_time: form.match_time || null,
           location: form.location || undefined,
           is_home: form.is_home,
           status: form.status,
@@ -124,14 +128,25 @@ export function EditMatchDialog({ match }: { match: EditableMatchRow }) {
                   className="mt-1 w-full h-9 px-3 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 />
               </div>
-              <div>
-                <label className="text-xs font-medium text-muted-foreground">Fecha</label>
-                <input
-                  type="date"
-                  value={form.match_date}
-                  onChange={(e) => set('match_date', e.target.value)}
-                  className="mt-1 w-full h-9 px-3 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground">Fecha</label>
+                  <input
+                    type="date"
+                    value={form.match_date}
+                    onChange={(e) => set('match_date', e.target.value)}
+                    className="mt-1 w-full h-9 px-3 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground">Hora (opcional)</label>
+                  <input
+                    type="time"
+                    value={form.match_time}
+                    onChange={(e) => set('match_time', e.target.value)}
+                    className="mt-1 w-full h-9 px-3 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                </div>
               </div>
               <div>
                 <label className="text-xs font-medium text-muted-foreground">Lugar</label>

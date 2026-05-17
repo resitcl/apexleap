@@ -104,6 +104,7 @@ export default async function MatchDetailPage({ params }: PageProps) {
                   competition_id: match.competition_id ?? null,
                   opponent: match.opponent,
                   match_date: match.match_date,
+                  match_time: (match as { match_time?: string | null }).match_time ?? null,
                   location: match.location,
                   is_home: match.is_home,
                   home_score: match.home_score,
@@ -160,6 +161,11 @@ export default async function MatchDetailPage({ params }: PageProps) {
                         month: "long",
                         year: "numeric",
                       })}
+                      {(match as { match_time?: string | null }).match_time && (
+                        <span className="ml-1 font-medium text-foreground">
+                          · {(match as { match_time: string }).match_time.slice(0, 5)} hrs
+                        </span>
+                      )}
                     </span>
                   </div>
                   <div className="flex items-center gap-4">
@@ -199,6 +205,7 @@ export default async function MatchDetailPage({ params }: PageProps) {
           matchStatus={match.status as string}
           opponent={match.opponent as string | null}
           matchDate={match.match_date as string}
+          matchTime={(match as { match_time?: string | null }).match_time ?? null}
           location={match.location as string | null}
           competitionId={match.competition_id as string | null}
           competitionName={comp?.name ?? null}

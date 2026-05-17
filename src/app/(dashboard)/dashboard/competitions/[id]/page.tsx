@@ -185,6 +185,7 @@ export default async function CompetitionDetailPage({ params }: PageProps) {
                 id: m.id,
                 opponent: m.opponent ?? null,
                 match_date: m.match_date,
+                match_time: (m as { match_time?: string | null }).match_time ?? null,
                 location: m.location ?? null,
               }))}
           />

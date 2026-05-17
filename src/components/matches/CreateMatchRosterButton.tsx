@@ -12,10 +12,11 @@ type Props = {
   competitionId: string | null
   opponent: string | null
   matchDate: string
+  matchTime?: string | null
   venue: string | null
 }
 
-export function CreateMatchRosterButton({ matchId, competitionId, opponent, matchDate, venue }: Props) {
+export function CreateMatchRosterButton({ matchId, competitionId, opponent, matchDate, matchTime, venue }: Props) {
   const router = useRouter()
   const [pending, start] = useTransition()
 
@@ -26,6 +27,7 @@ export function CreateMatchRosterButton({ matchId, competitionId, opponent, matc
           competitionId: competitionId ?? null,
           name: `Convocatoria vs ${opponent?.trim() || 'rival'}`,
           matchDate,
+          matchTime: matchTime ?? null,
           opponent: opponent ?? null,
           venue: venue ?? null,
           matchId,

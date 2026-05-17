@@ -35,7 +35,7 @@ export default async function CalendarPage({ searchParams }: PageProps) {
   let schedules: Awaited<ReturnType<typeof getSchedules>> = []
   let venues: { id: string; name: string }[] = []
   let competitions: { id: string; name: string; start_date: string; end_date: string | null; type: string; status: string }[] = []
-  let matches: { id: string; opponent: string | null; match_date: string; location: string | null; is_home: boolean; status: string; competitions: { id: string; name: string } | null }[] = []
+  let matches: { id: string; opponent: string | null; match_date: string; match_time: string | null; location: string | null; is_home: boolean; status: string; competitions: { id: string; name: string } | null }[] = []
   let error: string | null = null
 
   const todayStr = new Date().toISOString().split('T')[0]
@@ -71,6 +71,7 @@ export default async function CalendarPage({ searchParams }: PageProps) {
       id: m.id,
       opponent: m.opponent ?? null,
       match_date: m.match_date,
+      match_time: (m as { match_time?: string | null }).match_time ?? null,
       location: m.location ?? null,
       is_home: m.is_home,
       status: m.status,
@@ -97,7 +98,7 @@ export default async function CalendarPage({ searchParams }: PageProps) {
   // Unified upcoming events (competitions + matches + custom events) for the next 90 days
   type CalEvent =
     | { kind: 'competition'; id: string; name: string; date: string; endDate: string | null; type: string; status: string }
-    | { kind: 'match'; id: string; opponent: string; date: string; location: string | null; is_home: boolean; status: string; competitionName: string | null; competitionId: string | null }
+    | { kind: 'match'; id: string; opponent: string; date: string; time: string | null; location: string | null; is_home: boolean; status: string; competitionName: string | null; competitionId: string | null }
     | { kind: 'event'; id: string; name: string; date: string; location: string | null; event_type: string; start_time: string | null; end_time: string | null; description: string | null }
 
   const upcomingEvents: CalEvent[] = [
@@ -117,6 +118,7 @@ export default async function CalendarPage({ searchParams }: PageProps) {
       id: m.id,
       opponent: m.opponent ?? 'Rival',
       date: m.match_date,
+      time: m.match_time ? m.match_time.slice(0, 5) : null,
       location: m.location,
       is_home: m.is_home,
       status: m.status,
@@ -287,6 +289,7 @@ export default async function CalendarPage({ searchParams }: PageProps) {
                 id: ev.id,
                 opponent: ev.opponent,
                 date: ev.date,
+                time: ev.time,
                 location: ev.location,
                 is_home: ev.is_home,
                 competitionId: ev.competitionId,
@@ -556,7 +559,7 @@ export default async function CalendarPage({ searchParams }: PageProps) {
                         <div className="min-w-0 flex-1">
                           <p className="font-semibold text-sm truncate">vs. {ev.opponent}</p>
                           <p className={`text-xs mt-0.5 font-medium ${urgency}`}>
-                            {daysUntil === 0 ? 'Hoy' : daysUntil === 1 ? 'Mañana' : `En ${daysUntil} días`} · {dateLabel}
+                            {daysUntil === 0 ? 'Hoy' : daysUntil === 1 ? 'Mañana' : `En ${daysUntil} días`} · {dateLabel}{ev.time && <span> · {ev.time}</span>}
                           </p>
                           {ev.location && <p className="text-xs text-muted-foreground flex items-center gap-1"><MapPin className="w-3 h-3" />{ev.location}</p>}
                           {ev.competitionName && <p className="text-xs text-muted-foreground truncate">{ev.competitionName}</p>}

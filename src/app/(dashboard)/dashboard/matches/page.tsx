@@ -103,6 +103,9 @@ function MatchRow({ match, isStaff }: { match: Awaited<ReturnType<typeof getAllM
   const dateLabel = new Date(match.match_date + 'T12:00:00').toLocaleDateString('es-CL', {
     weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
   })
+  const timeLabel = (match as { match_time?: string | null }).match_time
+    ? (match as { match_time: string }).match_time.slice(0, 5)
+    : null
   const ourScore   = match.is_home ? match.home_score : match.away_score
   const theirScore = match.is_home ? match.away_score : match.home_score
   const hasScore   = ourScore !== null && theirScore !== null
@@ -117,6 +120,7 @@ function MatchRow({ match, isStaff }: { match: Awaited<ReturnType<typeof getAllM
     competition_id: match.competition_id ?? null,
     opponent: match.opponent,
     match_date: match.match_date,
+    match_time: (match as { match_time?: string | null }).match_time ?? null,
     location: match.location,
     is_home: match.is_home,
     home_score: match.home_score,
@@ -147,7 +151,7 @@ function MatchRow({ match, isStaff }: { match: Awaited<ReturnType<typeof getAllM
                   </Badge>
                 </div>
                 <div className="flex items-center gap-3 mt-0.5 text-xs text-muted-foreground flex-wrap">
-                  <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{dateLabel}</span>
+                  <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{dateLabel}{timeLabel && <span className="font-medium text-foreground/80"> · {timeLabel}</span>}</span>
                   {match.location && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{match.location}</span>}
                   {comp && <span className="flex items-center gap-1"><Trophy className="w-3 h-3 text-primary" />{comp.name}</span>}
                 </div>

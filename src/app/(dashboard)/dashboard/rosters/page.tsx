@@ -148,6 +148,7 @@ export default async function RostersPage() {
                               id: roster.id,
                               name: roster.name,
                               match_date: roster.match_date,
+                              match_time: roster.match_time ?? null,
                               opponent: roster.opponent,
                               venue: roster.venue,
                               competition_id: roster.competition_id,

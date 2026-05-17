@@ -37,6 +37,7 @@ type Props = {
   matchStatus: string
   opponent: string | null
   matchDate: string
+  matchTime?: string | null
   location: string | null
   competitionId: string | null
   competitionName: string | null
@@ -96,6 +97,7 @@ export function MatchRosterPanel({
   matchStatus,
   opponent,
   matchDate,
+  matchTime,
   location,
   competitionId,
   competitionName,
@@ -165,6 +167,7 @@ export function MatchRosterPanel({
                 competitionId={competitionId}
                 opponent={opponent}
                 matchDate={matchDate}
+                matchTime={matchTime ?? null}
                 venue={location}
               />
             )}

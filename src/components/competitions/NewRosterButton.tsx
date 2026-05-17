@@ -15,6 +15,7 @@ interface MatchOption {
   id: string
   opponent: string | null
   match_date: string
+  match_time?: string | null
   location: string | null
 }
 
@@ -30,6 +31,7 @@ export function NewRosterButton({ competitionId, matches = [] }: Props) {
   const [form, setForm] = useState({
     name: '',
     matchDate: new Date().toISOString().split('T')[0],
+    matchTime: '',
     opponent: '',
     venue: '',
   })
@@ -44,6 +46,7 @@ export function NewRosterButton({ competitionId, matches = [] }: Props) {
     setForm((p) => ({
       ...p,
       matchDate: m.match_date,
+      matchTime: m.match_time ? m.match_time.slice(0, 5) : '',
       opponent:  m.opponent ?? '',
       venue:     m.location ?? '',
     }))
@@ -58,6 +61,7 @@ export function NewRosterButton({ competitionId, matches = [] }: Props) {
         competitionId,
         name:     form.name,
         matchDate: form.matchDate,
+        matchTime: form.matchTime || null,
         opponent: form.opponent || null,
         venue:    form.venue || null,
         matchId:  selectedMatchId || null,
@@ -65,7 +69,7 @@ export function NewRosterButton({ competitionId, matches = [] }: Props) {
       toast.success('Nómina creada')
       setOpen(false)
       setSelectedMatchId('')
-      setForm({ name: '', matchDate: new Date().toISOString().split('T')[0], opponent: '', venue: '' })
+      setForm({ name: '', matchDate: new Date().toISOString().split('T')[0], matchTime: '', opponent: '', venue: '' })
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Error al crear nómina')
     } finally {
@@ -114,13 +118,23 @@ export function NewRosterButton({ competitionId, matches = [] }: Props) {
                 onChange={(e) => set('name', e.target.value)}
               />
             </div>
-            <div className="space-y-1">
-              <Label>Fecha del partido *</Label>
-              <Input
-                type="date"
-                value={form.matchDate}
-                onChange={(e) => set('matchDate', e.target.value)}
-              />
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <Label>Fecha del partido *</Label>
+                <Input
+                  type="date"
+                  value={form.matchDate}
+                  onChange={(e) => set('matchDate', e.target.value)}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label>Hora (opcional)</Label>
+                <Input
+                  type="time"
+                  value={form.matchTime}
+                  onChange={(e) => set('matchTime', e.target.value)}
+                />
+              </div>
             </div>
             <div className="space-y-1">
               <Label>Rival</Label>

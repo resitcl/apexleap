@@ -16,6 +16,7 @@ export async function createRoster(params: {
   competitionId?: string | null
   name: string
   matchDate: string
+  matchTime?: string | null
   opponent?: string | null
   venue?: string | null
   matchId?: string | null
@@ -23,11 +24,13 @@ export async function createRoster(params: {
   await assertClubStaff()
   const clubId = await getClubId()
   const supabase = createAdminClient()
+  const matchTime = params.matchTime?.trim() ? params.matchTime.trim() : null
   const { data, error } = await supabase.from('rosters').insert({
     competition_id: params.competitionId ?? null,
     club_id: clubId,
     name: params.name,
     match_date: params.matchDate,
+    match_time: matchTime,
     opponent: params.opponent ?? null,
     venue: params.venue ?? null,
   }).select().single()
@@ -51,7 +54,7 @@ export async function getScheduledMatchesForRosterLinking(options?: { rosterId?:
 
   const { data: matches } = await supabase
     .from('matches')
-    .select('id, opponent, match_date, location, roster_id, competition_id')
+    .select('id, opponent, match_date, match_time, location, roster_id, competition_id')
     .eq('club_id', clubId)
     .eq('status', 'scheduled')
     .order('match_date', { ascending: true })
@@ -76,6 +79,7 @@ export async function updateRoster(params: {
   competitionId: string | null
   name: string
   matchDate: string
+  matchTime?: string | null
   opponent?: string | null
   venue?: string | null
   /** Partido a vincular; vacío desvincula el partido anterior. */
@@ -100,6 +104,7 @@ export async function updateRoster(params: {
     .update({
       name: params.name,
       match_date: params.matchDate,
+      match_time: params.matchTime?.trim() ? params.matchTime.trim() : null,
       opponent: params.opponent ?? null,
       venue: params.venue ?? null,
       updated_at: new Date().toISOString(),
@@ -190,6 +195,57 @@ export async function addAthleteToRoster(params: {
     .eq('club_id', clubId)
     .maybeSingle()
   revalidateRosterRelatedPaths(params.competitionId, linkedMatch?.id ?? null)
+}
+
+export async function bulkAddAthletesToRoster(params: {
+  rosterId: string
+  competitionId: string | null
+  athletes: Array<{
+    athleteId: string
+    isStarter?: boolean
+    number?: number | null
+    isCaptain?: boolean
+  }>
+}) {
+  if (params.athletes.length === 0) return { inserted: 0 }
+  await assertClubStaff()
+  const clubId = await getClubId()
+  const supabase = createAdminClient()
+
+  const { data: roster } = await supabase
+    .from('rosters').select('id').eq('id', params.rosterId).eq('club_id', clubId).single()
+  if (!roster) throw new Error('Nómina no encontrada')
+
+  // Validate jersey number uniqueness within the incoming batch
+  const seenNumbers = new Set<number>()
+  for (const a of params.athletes) {
+    if (a.number != null) {
+      if (seenNumbers.has(a.number)) throw new Error(`Número de camiseta #${a.number} duplicado en la convocatoria`)
+      seenNumbers.add(a.number)
+    }
+  }
+
+  const rows = params.athletes.map((a) => ({
+    roster_id: params.rosterId,
+    athlete_id: a.athleteId,
+    number: a.number ?? null,
+    position: null,
+    is_captain: a.isCaptain ?? false,
+    is_starter: a.isStarter !== false,
+    status: 'confirmed',
+  }))
+
+  const { error } = await supabase.from('roster_athletes').insert(rows)
+  if (error) throw new Error(error.message)
+
+  const { data: linkedMatch } = await supabase
+    .from('matches')
+    .select('id')
+    .eq('roster_id', params.rosterId)
+    .eq('club_id', clubId)
+    .maybeSingle()
+  revalidateRosterRelatedPaths(params.competitionId, linkedMatch?.id ?? null)
+  return { inserted: rows.length }
 }
 
 export async function updateRosterAthleteStarter(params: {
@@ -335,7 +391,7 @@ export async function getRostersHub() {
     supabase
       .from('rosters')
       .select(`
-        id, name, match_date, opponent, venue, competition_id,
+        id, name, match_date, match_time, opponent, venue, competition_id,
         competitions(id, name, type, status),
         roster_athletes(
           id, number, position, is_captain, is_starter, status,
@@ -386,6 +442,7 @@ export async function getRostersHub() {
       id: r.id,
       name: r.name,
       match_date: r.match_date as string,
+      match_time: (r as { match_time?: string | null }).match_time ?? null,
       opponent: r.opponent as string | null,
       venue: r.venue as string | null,
       competition_id: r.competition_id as string | null,
