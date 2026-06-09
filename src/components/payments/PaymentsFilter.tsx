@@ -4,6 +4,83 @@ import { useRouter, useSearchParams, usePathname } from "next/navigation"
 import { useState } from "react"
 import { X, SlidersHorizontal, ChevronDown, ChevronUp } from "lucide-react"
 
+function getCurrentMonthRange() {
+  const now = new Date()
+  const y = now.getFullYear()
+  const m = String(now.getMonth() + 1).padStart(2, '0')
+  const start = `${y}-${m}-01`
+  const end = new Date(y, now.getMonth() + 1, 0).toISOString().split('T')[0]
+  return { start, end }
+}
+
+function MonthPresetButtons({
+  currentFrom,
+  currentTo,
+  currentPaidFrom,
+  currentPaidTo,
+  currentStatus,
+}: {
+  currentFrom?: string
+  currentTo?: string
+  currentPaidFrom?: string
+  currentPaidTo?: string
+  currentStatus?: string
+}) {
+  const router = useRouter()
+  const pathname = usePathname()
+  const sp = useSearchParams()
+  const { start, end } = getCurrentMonthRange()
+
+  function applyPreset(preset: 'due-month' | 'paid-month') {
+    const params = new URLSearchParams(sp.toString())
+    params.delete('page')
+    if (preset === 'due-month') {
+      params.set('from', start)
+      params.set('to', end)
+      params.delete('paidFrom')
+      params.delete('paidTo')
+      params.delete('status')
+    } else {
+      params.set('paidFrom', start)
+      params.set('paidTo', end)
+      params.delete('from')
+      params.delete('to')
+      params.set('status', 'paid')
+    }
+    router.push(`${pathname}?${params.toString()}`)
+  }
+
+  const dueMonthActive = currentFrom === start && currentTo === end && !currentPaidFrom && !currentPaidTo
+  const paidMonthActive = currentPaidFrom === start && currentPaidTo === end && currentStatus === 'paid'
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => applyPreset('due-month')}
+        className={`h-9 px-3 rounded-md border text-sm font-medium transition-colors ${
+          dueMonthActive
+            ? 'bg-amber-500 text-white border-amber-500'
+            : 'bg-background border-input text-muted-foreground hover:text-foreground'
+        }`}
+      >
+        Cuotas del mes
+      </button>
+      <button
+        type="button"
+        onClick={() => applyPreset('paid-month')}
+        className={`h-9 px-3 rounded-md border text-sm font-medium transition-colors ${
+          paidMonthActive
+            ? 'bg-emerald-500 text-white border-emerald-500'
+            : 'bg-background border-input text-muted-foreground hover:text-foreground'
+        }`}
+      >
+        Cobrados del mes
+      </button>
+    </>
+  )
+}
+
 const STATUS_OPTIONS = [
   { value: 'pending',   label: 'Pendiente', activeClass: 'bg-amber-500 text-white border-amber-500' },
   { value: 'paid',      label: 'Pagado',    activeClass: 'bg-emerald-500 text-white border-emerald-500' },
@@ -110,6 +187,17 @@ export function PaymentsFilter({
             {opt.label}
           </button>
         ))}
+
+        <div className="w-px h-6 bg-border" />
+
+        {/* Month presets */}
+        <MonthPresetButtons
+          currentFrom={currentFrom}
+          currentTo={currentTo}
+          currentPaidFrom={currentPaidFrom}
+          currentPaidTo={currentPaidTo}
+          currentStatus={currentStatus}
+        />
 
         <div className="w-px h-6 bg-border" />
 

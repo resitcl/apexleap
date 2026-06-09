@@ -250,6 +250,176 @@ export async function getPaymentMetrics(month?: string) {
   return metrics
 }
 
+export type MonthlyAthleteCollectionRow = {
+  athleteId: string
+  name: string
+  planName: string | null
+  amount: number
+  dueDate: string | null
+  paidAt: string | null
+  status: string | null
+  paymentId: string | null
+  paymentMethod: string | null
+  nextBillingDate: string | null
+}
+
+export type MonthlyAthleteCollectionStatus = {
+  month: string
+  monthLabel: string
+  paid: MonthlyAthleteCollectionRow[]
+  pending: MonthlyAthleteCollectionRow[]
+  notBilled: MonthlyAthleteCollectionRow[]
+  counts: {
+    paid: number
+    pending: number
+    notBilled: number
+    expected: number
+    activeSubscriptions: number
+  }
+}
+
+/**
+ * Vista atleta × mes: quién pagó la cuota del mes, quién está pendiente y quién aún no tiene fila emitida.
+ * Criterio: cuota del mes = pago con due_date en el mes calendario.
+ */
+export async function getMonthlyAthleteCollectionStatus(
+  monthIso?: string
+): Promise<MonthlyAthleteCollectionStatus> {
+  const clubId = await getClubId()
+  const supabase = createAdminClient()
+
+  const targetMonth = monthIso || new Date().toISOString().slice(0, 7)
+  const parts = targetMonth.split('-')
+  const y = Number(parts[0])
+  const mo = Number(parts[1])
+  const monthStart = `${y}-${String(mo).padStart(2, '0')}-01`
+  const monthEnd = new Date(y, mo, 0).toISOString().split('T')[0]
+  const monthLabel = new Date(`${monthStart}T12:00:00`).toLocaleDateString('es-CL', {
+    month: 'long',
+    year: 'numeric',
+  })
+
+  const [{ data: monthPayments }, { data: activeSubs }] = await Promise.all([
+    supabase
+      .from('payments')
+      .select(`
+        id, athlete_id, amount, status, due_date, paid_at, payment_method,
+        athletes (id, name, archived_at),
+        plans (name)
+      `)
+      .eq('club_id', clubId)
+      .gte('due_date', monthStart)
+      .lte('due_date', monthEnd)
+      .order('due_date', { ascending: true }),
+    supabase
+      .from('subscriptions')
+      .select(`
+        athlete_id, next_billing_date,
+        plans (name, price),
+        athletes (id, name, archived_at)
+      `)
+      .eq('club_id', clubId)
+      .eq('status', 'active'),
+  ])
+
+  const paid: MonthlyAthleteCollectionRow[] = []
+  const pending: MonthlyAthleteCollectionRow[] = []
+  const athletesWithDueInMonth = new Set<string>()
+
+  for (const p of monthPayments ?? []) {
+    const rawAth = p.athletes as { id: string; name: string; archived_at: string | null } | { id: string; name: string; archived_at: string | null }[] | null
+    const athlete = Array.isArray(rawAth) ? rawAth[0] : rawAth
+    if (!athlete || athlete.archived_at) continue
+
+    const athleteId = athlete.id ?? (p.athlete_id as string)
+    if (!athleteId) continue
+    athletesWithDueInMonth.add(athleteId)
+
+    const rawPlan = p.plans as { name: string } | { name: string }[] | null
+    const plan = Array.isArray(rawPlan) ? rawPlan[0] : rawPlan
+
+    const row: MonthlyAthleteCollectionRow = {
+      athleteId,
+      name: athlete.name,
+      planName: plan?.name ?? null,
+      amount: Number(p.amount),
+      dueDate: p.due_date,
+      paidAt: p.paid_at,
+      status: p.status,
+      paymentId: p.id,
+      paymentMethod: p.payment_method,
+      nextBillingDate: null,
+    }
+
+    if (p.status === 'paid') {
+      paid.push(row)
+    } else if (p.status === 'pending' || p.status === 'overdue') {
+      pending.push(row)
+    }
+  }
+
+  const notBilled: MonthlyAthleteCollectionRow[] = []
+  for (const sub of activeSubs ?? []) {
+    const rawAth = sub.athletes as { id: string; name: string; archived_at: string | null } | { id: string; name: string; archived_at: string | null }[] | null
+    const athlete = Array.isArray(rawAth) ? rawAth[0] : rawAth
+    if (!athlete || athlete.archived_at) continue
+
+    const athleteId = sub.athlete_id as string
+    if (!athleteId || athletesWithDueInMonth.has(athleteId)) continue
+
+    const nextBilling = sub.next_billing_date as string | null
+    if (!nextBilling || nextBilling < monthStart || nextBilling > monthEnd) continue
+
+    const rawPlan = sub.plans as { name: string; price: number } | { name: string; price: number }[] | null
+    const plan = Array.isArray(rawPlan) ? rawPlan[0] : rawPlan
+
+    notBilled.push({
+      athleteId,
+      name: athlete.name,
+      planName: plan?.name ?? null,
+      amount: Number(plan?.price ?? 0),
+      dueDate: nextBilling,
+      paidAt: null,
+      status: null,
+      paymentId: null,
+      paymentMethod: null,
+      nextBillingDate: nextBilling,
+    })
+  }
+
+  const sortByName = (a: MonthlyAthleteCollectionRow, b: MonthlyAthleteCollectionRow) =>
+    a.name.localeCompare(b.name, 'es')
+
+  paid.sort(sortByName)
+  pending.sort((a, b) => {
+    const statusOrder = (s: string | null) => (s === 'overdue' ? 0 : 1)
+    const diff = statusOrder(a.status) - statusOrder(b.status)
+    return diff !== 0 ? diff : sortByName(a, b)
+  })
+  notBilled.sort(sortByName)
+
+  const expected = paid.length + pending.length + notBilled.length
+
+  return {
+    month: targetMonth,
+    monthLabel,
+    paid,
+    pending,
+    notBilled,
+    counts: {
+      paid: paid.length,
+      pending: pending.length,
+      notBilled: notBilled.length,
+      expected,
+      activeSubscriptions: (activeSubs ?? []).filter((s) => {
+        const rawAth = s.athletes as { archived_at: string | null } | { archived_at: string | null }[] | null
+        const ath = Array.isArray(rawAth) ? rawAth[0] : rawAth
+        return !ath?.archived_at
+      }).length,
+    },
+  }
+}
+
 /**
  * Get athlete's subscription and payment status with period information.
  */

@@ -4,7 +4,8 @@ import { requireClubStaffPage } from "@/lib/actions/club-context"
 import Link from "next/link"
 import { Suspense } from "react"
 import { getPayments, getNextBillingDateByAthleteIds } from "@/lib/actions/payments"
-import { getPaymentMetrics } from "@/lib/actions/billing"
+import { getPaymentMetrics, getMonthlyAthleteCollectionStatus } from "@/lib/actions/billing"
+import { MonthlyCollectionPanel } from "@/components/payments/MonthlyCollectionPanel"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -64,20 +65,23 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
   let allPayments: Awaited<ReturnType<typeof getPayments>>["payments"] = []
   let total = 0
   let metrics: Awaited<ReturnType<typeof getPaymentMetrics>> | null = null
+  let monthlyCollection: Awaited<ReturnType<typeof getMonthlyAthleteCollectionStatus>> | null = null
   let error: string | null = null
   const currentMonthIso = new Date().toISOString().slice(0, 7)
   let nextBillingByAthlete: Record<string, string | null> = {}
 
   try {
-    const [result, allResult, metricsResult] = await Promise.all([
+    const [result, allResult, metricsResult, collectionResult] = await Promise.all([
       getPayments({ status: params.status, page, limit: 25, from: from || undefined, to: to || undefined, athleteId: athleteId || undefined, search: search || undefined, athleteName: athleteName || undefined, amountMin: amountMin ? Number(amountMin) : undefined, amountMax: amountMax ? Number(amountMax) : undefined, paymentMethod: paymentMethod || undefined, paidFrom: paidFrom || undefined, paidTo: paidTo || undefined }),
       getPayments({ status: params.status, from: from || undefined, to: to || undefined, athleteId: athleteId || undefined, search: search || undefined, athleteName: athleteName || undefined, amountMin: amountMin ? Number(amountMin) : undefined, amountMax: amountMax ? Number(amountMax) : undefined, paymentMethod: paymentMethod || undefined, paidFrom: paidFrom || undefined, paidTo: paidTo || undefined }),
       getPaymentMetrics(currentMonthIso),
+      getMonthlyAthleteCollectionStatus(currentMonthIso),
     ])
     payments = result.payments
     allPayments = allResult.payments
     total = result.total
     metrics = metricsResult
+    monthlyCollection = collectionResult
     nextBillingByAthlete = await getNextBillingDateByAthleteIds(result.payments.map((p) => p.athlete_id))
   } catch (e) {
     error = e instanceof Error ? e.message : 'Error al cargar pagos'
@@ -568,6 +572,11 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
           </Link>
         </div>
       </div>
+
+      {/* ═══════════ MONTHLY COLLECTION BY ATHLETE ═══════════ */}
+      {monthlyCollection && (
+        <MonthlyCollectionPanel data={monthlyCollection} />
+      )}
 
       {/* ═══════════ OPERATIONS HEADER ═══════════ */}
       <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
