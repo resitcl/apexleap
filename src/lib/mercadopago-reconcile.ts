@@ -45,7 +45,10 @@ export async function reconcileMercadoPagoPayment(args: {
   ourPaymentId: string
   mpPaymentId: string | null
 }): Promise<ReconcileResult> {
-  const { ourPaymentId, mpPaymentId } = args
+  const { ourPaymentId } = args
+  // MP puede mandar el string literal "null"/"undefined" como payment_id; tratarlo como ausente.
+  const rawMpId = (args.mpPaymentId ?? '').trim()
+  const mpPaymentId = rawMpId && rawMpId.toLowerCase() !== 'null' && rawMpId.toLowerCase() !== 'undefined' ? rawMpId : null
   const supabase = createAdminClient()
 
   if (!ourPaymentId?.trim()) return { ok: false, reason: 'missing_payment_ref' }

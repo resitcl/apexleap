@@ -13,11 +13,19 @@ function appBaseUrl(req: Request) {
   return `${u.protocol}//${u.host}`
 }
 
+// MercadoPago a veces redirige con los strings literales "null"/"undefined" en los params
+// (p.ej. cuando el pago se rechaza antes de crearse). Hay que tratarlos como ausentes.
+function cleanParam(value: string | null): string {
+  const v = (value ?? '').trim().toLowerCase()
+  return v === 'null' || v === 'undefined' ? '' : v
+}
+
 async function handleReturn(req: Request) {
   const url = new URL(req.url)
   const ourPaymentId = parsePaymentIdFromExternalReference(url.searchParams.get('external_reference'))
-  const mpPaymentId = url.searchParams.get('payment_id') || url.searchParams.get('collection_id')
-  const mpStatus = (url.searchParams.get('status') || url.searchParams.get('collection_status') || '').toLowerCase()
+  const rawPid = (url.searchParams.get('payment_id') || url.searchParams.get('collection_id') || '').trim()
+  const mpPaymentId = rawPid && rawPid.toLowerCase() !== 'null' && rawPid.toLowerCase() !== 'undefined' ? rawPid : null
+  const mpStatus = cleanParam(url.searchParams.get('status') || url.searchParams.get('collection_status'))
 
   const isRejected = (s: string) => s === 'rejected' || s === 'cancelled'
 
