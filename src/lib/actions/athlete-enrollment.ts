@@ -17,6 +17,7 @@ import {
   subscriptionRequiresPaymentConfirmation,
 } from '@/lib/payment-methods'
 import { createFlowPayment, resolveFlowConfigFromSettings } from '@/lib/flow'
+import { createMercadoPagoPreference, resolveMercadoPagoConfigFromSettings } from '@/lib/mercadopago'
 import { TRANSFER_RECEIPT_MAX_BYTES } from '@/lib/constants'
 import {
   ATHLETE_OVERDUE_HARD_BLOCK_DAYS,
@@ -1446,6 +1447,115 @@ export async function createFlowCheckoutForSelfPayment() {
     revalidatePath('/dashboard/payments')
 
     return { checkoutUrl: created.checkoutUrl }
+  } catch (e) {
+    await supabase.from('payments').delete().eq('id', payment.id).eq('club_id', clubId)
+    throw e
+  }
+}
+
+export async function createMercadoPagoCheckoutForSelfPayment() {
+  const { userId } = await auth()
+  if (!userId) throw new Error('No autorizado')
+
+  const clubId = await getClubId()
+  const supabase = createAdminClient()
+
+  const clerk = await clerkClient()
+  const user = await clerk.users.getUser(userId)
+  const email = user.emailAddresses[0]?.emailAddress ?? null
+  if (!email) throw new Error('No se encontró un email asociado a tu cuenta')
+
+  const { data: athlete } = await supabase
+    .from('athletes')
+    .select('id')
+    .eq('club_id', clubId)
+    .eq('email', email)
+    .maybeSingle()
+  if (!athlete) throw new Error('No se encontró tu perfil de atleta')
+
+  const { data: clubRow } = await supabase
+    .from('clubs')
+    .select('settings')
+    .eq('id', clubId)
+    .single()
+  const settings = (clubRow?.settings ?? {}) as Record<string, unknown>
+  const enabledIds = getEnabledPaymentMethodIdsFromClubSettings(settings)
+  assertPaymentMethodEnabled(enabledIds, 'mercadopago')
+
+  const mpConfig = resolveMercadoPagoConfigFromSettings(settings)
+  if (!mpConfig) {
+    throw new Error('MercadoPago no está configurado con Access Token. Configúralo en Configuración → Pagos.')
+  }
+
+  const { data: subscription } = await supabase
+    .from('subscriptions')
+    .select('id, plan_id, billing_anchor_day, plans(id, name, price, billing_cycle)')
+    .eq('club_id', clubId)
+    .eq('athlete_id', athlete.id)
+    .eq('status', 'active')
+    .maybeSingle()
+  if (!subscription) throw new Error('No se encontró una suscripción activa. Contacta al club.')
+
+  const plansData = subscription.plans as unknown
+  const plan = Array.isArray(plansData)
+    ? plansData[0]
+    : (plansData as { id: string; name: string; price: number; billing_cycle: string } | null)
+  if (!plan) throw new Error('No se encontró el plan asociado a tu suscripción')
+
+  const now = new Date()
+  const todayStr = now.toISOString().split('T')[0]
+  const cycle = plan.billing_cycle as BillingCycle
+  const anchorDay = subscription.billing_anchor_day ?? getBillingAnchorDay(now)
+  const { periodStart, periodEnd } = calculatePeriodStartForPayment(anchorDay, now, cycle)
+  const periodStartStr = periodStart.toISOString().split('T')[0]
+  const periodEndStr = periodEnd ? periodEnd.toISOString().split('T')[0] : null
+  const month = periodStart.toLocaleDateString('es-CL', { month: 'long', year: 'numeric' })
+  const concept = `${plan.name} – ${month}`
+
+  const { data: payment, error: paymentErr } = await supabase
+    .from('payments')
+    .insert({
+      club_id: clubId,
+      athlete_id: athlete.id,
+      plan_id: plan.id,
+      subscription_id: subscription.id,
+      concept,
+      amount: plan.price,
+      status: 'pending',
+      due_date: todayStr,
+      payment_method: 'mercadopago',
+      period_start: periodStartStr,
+      period_end: periodEndStr,
+    })
+    .select('id')
+    .single()
+  if (paymentErr || !payment) throw new Error('No se pudo crear el pago pendiente para MercadoPago')
+
+  const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || 'http://localhost:3000').replace(/\/$/, '')
+  const externalReference = `pay_${payment.id}`
+  try {
+    const pref = await createMercadoPagoPreference(mpConfig, {
+      externalReference,
+      title: concept,
+      amount: Number(plan.price),
+      payerEmail: email,
+      backUrl: `${baseUrl}/api/payments/mercadopago/return`,
+      notificationUrl: `${baseUrl}/api/webhooks/mercadopago?ext=${encodeURIComponent(externalReference)}`,
+    })
+
+    await supabase
+      .from('payments')
+      .update({
+        transaction_id: pref.id,
+        notes: `MercadoPago order: ${externalReference}`,
+      })
+      .eq('id', payment.id)
+      .eq('club_id', clubId)
+
+    revalidatePath('/dashboard/athlete/payments')
+    revalidatePath('/dashboard/payments')
+
+    return { initPoint: pref.initPoint }
   } catch (e) {
     await supabase.from('payments').delete().eq('id', payment.id).eq('club_id', clubId)
     throw e
