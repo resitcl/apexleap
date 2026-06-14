@@ -15,6 +15,7 @@ import {
   getEnabledPaymentMethodIdsFromClubSettings,
   assertPaymentMethodEnabled,
   subscriptionRequiresPaymentConfirmation,
+  ONLINE_GATEWAY_IDS,
 } from '@/lib/payment-methods'
 import { createFlowPayment, resolveFlowConfigFromSettings } from '@/lib/flow'
 import { createMercadoPagoPreference, resolveMercadoPagoConfigFromSettings } from '@/lib/mercadopago'
@@ -1343,6 +1344,26 @@ export async function submitSelfPayment(params: {
   return { success: true, isTransfer: params.paymentMethod === 'transfer' }
 }
 
+/**
+ * Marca como `failed` los pagos de pasarela (Flow/MercadoPago/…) que quedaron `pending`
+ * de intentos anteriores del mismo atleta. Evita que un checkout abandonado sin volver
+ * (pestaña cerrada, sin webhook) quede colgado como "pendiente de validación" para siempre.
+ * No toca pagos por transferencia/efectivo, que sí esperan confirmación del admin.
+ */
+async function supersedePendingGatewayPayments(
+  supabase: ReturnType<typeof createAdminClient>,
+  clubId: string,
+  athleteId: string,
+) {
+  await supabase
+    .from('payments')
+    .update({ status: 'failed', notes: 'Reemplazado por un nuevo intento de pago' })
+    .eq('club_id', clubId)
+    .eq('athlete_id', athleteId)
+    .eq('status', 'pending')
+    .in('payment_method', [...ONLINE_GATEWAY_IDS])
+}
+
 export async function createFlowCheckoutForSelfPayment() {
   const { userId } = await auth()
   if (!userId) throw new Error('No autorizado')
@@ -1401,6 +1422,9 @@ export async function createFlowCheckoutForSelfPayment() {
   const periodEndStr = periodEnd ? periodEnd.toISOString().split('T')[0] : null
   const month = periodStart.toLocaleDateString('es-CL', { month: 'long', year: 'numeric' })
   const concept = `${plan.name} – ${month}`
+
+  // Cierra intentos de pasarela previos abandonados antes de crear el nuevo.
+  await supersedePendingGatewayPayments(supabase, clubId, athlete.id)
 
   const { data: payment, error: paymentErr } = await supabase
     .from('payments')
@@ -1511,6 +1535,9 @@ export async function createMercadoPagoCheckoutForSelfPayment() {
   const periodEndStr = periodEnd ? periodEnd.toISOString().split('T')[0] : null
   const month = periodStart.toLocaleDateString('es-CL', { month: 'long', year: 'numeric' })
   const concept = `${plan.name} – ${month}`
+
+  // Cierra intentos de pasarela previos abandonados antes de crear el nuevo.
+  await supersedePendingGatewayPayments(supabase, clubId, athlete.id)
 
   const { data: payment, error: paymentErr } = await supabase
     .from('payments')
