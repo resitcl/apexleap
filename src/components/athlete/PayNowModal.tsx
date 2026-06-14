@@ -7,7 +7,7 @@ import {
   Clock, Loader2, ChevronRight,
   Banknote, Building2, Smartphone, Wallet, Landmark, MessageCircle,
 } from 'lucide-react'
-import { createFlowCheckoutForSelfPayment, submitSelfPayment, uploadTransferReceipt } from '@/lib/actions/athlete-enrollment'
+import { createFlowCheckoutForSelfPayment, createMercadoPagoCheckoutForSelfPayment, submitSelfPayment, uploadTransferReceipt } from '@/lib/actions/athlete-enrollment'
 import { toast } from 'sonner'
 import { buildWhatsAppTransferLink } from '@/lib/whatsapp-transfer'
 import { TRANSFER_RECEIPT_MAX_BYTES } from '@/lib/constants'
@@ -121,9 +121,18 @@ export function PayNowModal({ planName, planPrice, planCycle, bankInfo, enabledM
         return
       }
 
-      if (selectedMethod === 'mercadopago' && mercadopagoCheckoutUrl) {
-        await submitSelfPayment({ paymentMethod: selectedMethod })
-        window.location.href = mercadopagoCheckoutUrl
+      if (selectedMethod === 'mercadopago') {
+        try {
+          const mp = await createMercadoPagoCheckoutForSelfPayment()
+          if (!mp?.initPoint) throw new Error('No se pudo generar el checkout de MercadoPago.')
+          window.location.href = mp.initPoint
+          return
+        } catch (mpErr) {
+          // Fallback legacy: link de pago manual configurado en ajustes.
+          if (!mercadopagoCheckoutUrl) throw mpErr
+          await submitSelfPayment({ paymentMethod: selectedMethod })
+          window.location.href = mercadopagoCheckoutUrl
+        }
         return
       }
 

@@ -7,6 +7,8 @@ import { TENANT_ENTRY_SLUG_COOKIE } from '@/lib/constants'
 const BYPASS_CLERK_PREFIXES = [
   '/api/payments/flow',
   '/api/webhooks/flow',
+  '/api/payments/mercadopago',
+  '/api/webhooks/mercadopago',
 ]
 
 const isPublicRoute = createRouteMatcher([

@@ -17,6 +17,7 @@ import { getClubSettings } from "@/lib/actions/settings"
 import { getEnabledPaymentMethodIdsFromClubSettings } from "@/lib/payment-methods"
 import { AthleteSectionHeader } from "@/components/athlete/AthleteSectionHeader"
 import { FlowPaymentBanner } from "@/components/athlete/FlowPaymentBanner"
+import { MercadoPagoPaymentBanner } from "@/components/athlete/MercadoPagoPaymentBanner"
 
 const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   paid:      { label: "Pagado",    variant: "default" },
@@ -117,6 +118,7 @@ export default async function AthletePaymentsPage() {
       />
 
       <FlowPaymentBanner />
+      <MercadoPagoPaymentBanner />
 
       {/* Subscription status banner */}
       {sub && plan ? (

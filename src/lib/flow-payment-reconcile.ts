@@ -9,7 +9,7 @@ function parsePaymentIdFromCommerceOrder(value: unknown): string | null {
   return m?.[1] ?? null
 }
 
-async function activateSubscriptionForPaidPayment(
+export async function activateSubscriptionForPaidPayment(
   supabase: ReturnType<typeof createAdminClient>,
   clubId: string,
   payment: {
@@ -19,6 +19,7 @@ async function activateSubscriptionForPaidPayment(
     period_end?: string | null
   },
   paidAtDate: Date,
+  paymentMethod: string = 'flow',
 ) {
   if (!payment.plan_id || !payment.athlete_id) return
 
@@ -37,7 +38,7 @@ async function activateSubscriptionForPaidPayment(
   })
 
   const noAutoRenew = new Set<string>(['transfer', 'cash', 'manual', ...ONLINE_GATEWAY_IDS])
-  const autoRenew = !noAutoRenew.has('flow')
+  const autoRenew = !noAutoRenew.has(paymentMethod)
 
   await supabase
     .from('subscriptions')
@@ -53,7 +54,7 @@ async function activateSubscriptionForPaidPayment(
     status: 'active',
     start_date: startStr,
     end_date: endStr,
-    payment_method: 'flow',
+    payment_method: paymentMethod,
     auto_renew: autoRenew,
     billing_anchor_day: billingAnchorDay,
     current_period_start: startStr,
