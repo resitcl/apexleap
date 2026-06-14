@@ -20,6 +20,7 @@ import { PlatformTourWizard } from "@/components/athlete/PlatformTourWizard"
 import { EnrollmentRequestWizard, PendingApprovalScreen, RejectedScreen } from "@/components/athlete/EnrollmentRequestWizard"
 import { PendingAdminPaymentScreen } from "@/components/athlete/PendingAdminPaymentScreen"
 import { AthleteDashboardRankCard } from "@/components/athlete/AthleteDashboardRankCard"
+import { AthleteBillingAlertBanner } from "@/components/athlete/AthleteBillingAlertBanner"
 import { Button } from "@/components/ui/button"
 import {
   Calendar, AlertTriangle, Trophy, FileText,
@@ -191,6 +192,7 @@ export default async function AthletePage({ searchParams }: { searchParams?: Pro
   const activeSub = subscriptions.find((s) => s.status === "active")
   const pendingPayments = payments.filter((p) => p.status === "pending" || p.status === "overdue")
   const overduePayments = payments.filter((p) => p.status === "overdue")
+  const totalOverdue = overduePayments.reduce((sum, p) => sum + Number(p.amount), 0)
   const expiredDocs = documents.filter((d) => d.status === "expired" || (d.expiry_date && d.expiry_date < today.toISOString().split("T")[0]))
 
   const daysUntilExpiry = activeSub?.end_date
@@ -265,22 +267,12 @@ export default async function AthletePage({ searchParams }: { searchParams?: Pro
       </div>
 
       {/* ── ALERTS ── */}
-      {overduePayments.length > 0 && (
-        <Link href="/dashboard/athlete/payments" className="block group">
-          <div className="rounded-2xl bg-red-500/10 border border-red-500/20 p-4 flex items-center gap-4 hover:bg-red-500/[0.15] transition-colors">
-            <div className="w-9 h-9 rounded-xl bg-red-500/20 flex items-center justify-center shrink-0">
-              <AlertTriangle className="w-4 h-4 text-red-500" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-red-600 dark:text-red-400">
-                {overduePayments.length} pago{overduePayments.length > 1 ? 's' : ''} vencido{overduePayments.length > 1 ? 's' : ''}
-              </p>
-              <p className="text-xs text-red-500/70 font-medium">Regulariza tu situación para seguir entrenando</p>
-            </div>
-            <ChevronRight className="w-4 h-4 text-red-500/40 group-hover:translate-x-0.5 transition-transform shrink-0" />
-          </div>
-        </Link>
-      )}
+      <AthleteBillingAlertBanner
+        overdueCount={overduePayments.length}
+        totalOverdue={totalOverdue}
+        hasActiveSubscription={!!activeSub}
+        daysUntilExpiry={daysUntilExpiry}
+      />
       {expiredDocs.length > 0 && (
         <Link href="/dashboard/athlete/documents" className="block group">
           <div className="rounded-2xl bg-amber-500/10 border border-amber-500/20 p-4 flex items-center gap-4 hover:bg-amber-500/[0.15] transition-colors">
