@@ -118,3 +118,13 @@ export function flowStatusIsPaid(status: unknown): boolean {
   return false
 }
 
+/** Estado terminal de fracaso en Flow: 3 = rechazado, 4 = anulado. */
+export function flowStatusIsFailed(status: unknown): boolean {
+  if (typeof status === 'number') return status === 3 || status === 4
+  if (typeof status === 'string') {
+    const s = status.trim().toLowerCase()
+    return s === '3' || s === '4' || s === 'rejected' || s === 'rechazado' || s === 'canceled' || s === 'cancelled' || s === 'anulado'
+  }
+  return false
+}
+

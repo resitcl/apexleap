@@ -7,6 +7,7 @@ import { EditPaymentButton } from './EditPaymentButton'
 import { MarkAsPaidButton } from './MarkAsPaidButton'
 import { ConfirmTransferButton } from './ConfirmTransferButton'
 import { DeletePaymentButton } from './DeletePaymentButton'
+import { ONLINE_GATEWAY_IDS } from '@/lib/payment-methods'
 
 const STATUS_DOT: Record<string, string> = {
   paid: 'bg-emerald-400', pending: 'bg-amber-400', overdue: 'bg-red-500',
@@ -58,7 +59,9 @@ export function PaymentRowClient({ payment, athleteDebt, isDuplicate, nextBillin
   const athlete = payment.athletes
   const notes = payment.notes
   const hasReceipt = notes && /https?:\/\/[^\s]+/i.test(notes)
-  const isTransfer = payment.payment_method === 'transfer' || (notes && notes.toLowerCase().includes('comprobante'))
+  const isOnlineGateway = !!payment.payment_method && (ONLINE_GATEWAY_IDS as readonly string[]).includes(payment.payment_method)
+  // Las pasarelas (Flow/MercadoPago) se confirman solas; nunca son confirmación manual de transferencia.
+  const isTransfer = !isOnlineGateway && (payment.payment_method === 'transfer' || (notes && notes.toLowerCase().includes('comprobante')))
   const isPendingTransfer = (payment.status === 'pending' || payment.status === 'overdue') && (isTransfer || hasReceipt)
   const plan = payment.plans
 
@@ -177,7 +180,7 @@ export function PaymentRowClient({ payment, athleteDebt, isDuplicate, nextBillin
         {/* Actions */}
         <div className="flex items-center gap-1.5 justify-end" onClick={(e) => e.stopPropagation()}>
           <EditPaymentButton payment={payment} />
-          {(payment.status === 'pending' || payment.status === 'overdue') && (
+          {(payment.status === 'pending' || payment.status === 'overdue') && !isOnlineGateway && (
             isPendingTransfer ? (
               <ConfirmTransferButton payment={payment} />
             ) : (

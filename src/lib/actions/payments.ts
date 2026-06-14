@@ -276,12 +276,18 @@ export async function markAsPaid(id: string, method: string, paidAt?: string) {
   // Fetch payment before updating so we have athlete_id + plan_id
   const { data: payment, error: fetchError } = await supabase
     .from('payments')
-    .select('id, athlete_id, plan_id, period_start, period_end')
+    .select('id, athlete_id, plan_id, period_start, period_end, payment_method')
     .eq('id', id)
     .eq('club_id', clubId)
     .single()
 
   if (fetchError || !payment) throw new Error('Pago no encontrado')
+
+  // Los pagos por pasarela (Flow/MercadoPago/etc.) se confirman automáticamente vía
+  // webhook/return; no pueden marcarse manualmente desde el panel del admin.
+  if (payment.payment_method && (ONLINE_GATEWAY_IDS as readonly string[]).includes(payment.payment_method)) {
+    throw new Error('Los pagos por pasarela se confirman automáticamente y no pueden marcarse manualmente.')
+  }
 
   const paidAtDate = paidAt
     ? paidAt.includes('T')
@@ -501,16 +507,24 @@ export async function bulkMarkAsPaid(ids: string[], method = 'manual') {
   // Fetch affected payments so we can activate subscriptions
   const { data: payments, error: fetchError } = await supabase
     .from('payments')
-    .select('id, athlete_id, plan_id, period_start, period_end')
+    .select('id, athlete_id, plan_id, period_start, period_end, payment_method')
     .in('id', ids)
     .eq('club_id', clubId)
     .in('status', ['pending', 'overdue'])
 
   if (fetchError) throw new Error(fetchError.message)
 
+  // Las pasarelas (Flow/MercadoPago/etc.) se confirman automáticamente; se excluyen de la
+  // confirmación manual masiva.
+  const eligible = (payments ?? []).filter(
+    (p) => !p.payment_method || !(ONLINE_GATEWAY_IDS as readonly string[]).includes(p.payment_method),
+  )
+  const eligibleIds = eligible.map((p) => p.id)
+  if (eligibleIds.length === 0) return 0
+
   const paidAtDate = new Date()
 
-  // Update all payments in one query
+  // Update all eligible payments in one query
   const { error, count } = await supabase
     .from('payments')
     .update({
@@ -518,14 +532,14 @@ export async function bulkMarkAsPaid(ids: string[], method = 'manual') {
       paid_at: paidAtDate.toISOString(),
       payment_method: method,
     })
-    .in('id', ids)
+    .in('id', eligibleIds)
     .eq('club_id', clubId)
     .in('status', ['pending', 'overdue'])
 
   if (error) throw new Error(error.message)
 
   // Activate subscriptions for each payment that has a plan
-  const withPlan = (payments ?? []).filter((p) => p.plan_id)
+  const withPlan = eligible.filter((p) => p.plan_id)
   for (const p of withPlan) {
     await _activateSubscription(supabase, clubId, p, paidAtDate, method, {
       start: p.period_start as string | null | undefined,
