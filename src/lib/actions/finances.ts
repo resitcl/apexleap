@@ -4,7 +4,7 @@ import { auth } from '@clerk/nextjs/server'
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { z } from 'zod'
-import { getClubId, assertClubAdmin } from '@/lib/actions/club-context'
+import { getClubId, assertClubCapability } from '@/lib/actions/club-context'
 
 const expenseSchema = z.object({
   concept: z.string().min(2),
@@ -192,7 +192,7 @@ export async function getExpectedMonthIncome(monthIso: string) {
 }
 
 export async function createExpense(input: ExpenseInput) {
-  await assertClubAdmin()
+  await assertClubCapability('finances')
   const clubId = await getClubId()
   const { userId } = await auth()
   const parsed = expenseSchema.parse(input)
@@ -209,7 +209,7 @@ export async function createExpense(input: ExpenseInput) {
 }
 
 export async function updateExpense(id: string, input: Partial<ExpenseInput>) {
-  await assertClubAdmin()
+  await assertClubCapability('finances')
   const clubId = await getClubId()
   const supabase = createAdminClient()
   const safeUpdate = Object.fromEntries(Object.entries({ ...input }).filter(([, v]) => v !== undefined))
@@ -221,7 +221,7 @@ export async function updateExpense(id: string, input: Partial<ExpenseInput>) {
 }
 
 export async function deleteExpense(id: string) {
-  await assertClubAdmin()
+  await assertClubCapability('finances')
   const clubId = await getClubId()
   const supabase = createAdminClient()
   const { error } = await supabase.from('expenses').delete().eq('id', id).eq('club_id', clubId)
@@ -241,7 +241,7 @@ export async function getCoaches() {
 }
 
 export async function createCoach(input: CoachInput) {
-  await assertClubAdmin()
+  await assertClubCapability('finances')
   const clubId = await getClubId()
   const parsed = coachSchema.parse(input)
   const supabase = createAdminClient()
@@ -255,7 +255,7 @@ export async function createCoach(input: CoachInput) {
 }
 
 export async function updateCoach(id: string, input: Partial<CoachInput>) {
-  await assertClubAdmin()
+  await assertClubCapability('finances')
   const clubId = await getClubId()
   const supabase = createAdminClient()
   const safeUpdateCoach = Object.fromEntries(Object.entries({ ...input }).filter(([, v]) => v !== undefined))

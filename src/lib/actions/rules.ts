@@ -4,7 +4,7 @@ import { auth } from '@clerk/nextjs/server'
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { z } from 'zod'
-import { getClubId, assertClubAdmin } from '@/lib/actions/club-context'
+import { getClubId, assertClubCapability } from '@/lib/actions/club-context'
 
 const ruleSchema = z.object({
   name: z.string().min(2),
@@ -39,7 +39,7 @@ export async function getRules(filters?: { type?: string }) {
 }
 
 export async function createRule(input: RuleInput) {
-  await assertClubAdmin()
+  await assertClubCapability('rules')
   const clubId = await getClubId()
   const parsed = ruleSchema.parse(input)
   const supabase = createAdminClient()
@@ -56,7 +56,7 @@ export async function createRule(input: RuleInput) {
 }
 
 export async function updateRule(id: string, input: Partial<RuleInput>) {
-  await assertClubAdmin()
+  await assertClubCapability('rules')
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
@@ -75,7 +75,7 @@ export async function updateRule(id: string, input: Partial<RuleInput>) {
 }
 
 export async function toggleRule(id: string, is_active: boolean) {
-  await assertClubAdmin()
+  await assertClubCapability('rules')
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
@@ -136,7 +136,7 @@ export async function createRuleException(params: {
   reason: string
   expiresAt?: string | null
 }) {
-  await assertClubAdmin()
+  await assertClubCapability('rules')
   const { userId } = await auth()
   const clubId = await getClubId()
   const supabase = createAdminClient()
@@ -171,7 +171,7 @@ export async function getRuleExceptions(athleteId?: string) {
 }
 
 export async function deleteRuleException(id: string) {
-  await assertClubAdmin()
+  await assertClubCapability('rules')
   const clubId = await getClubId()
   const supabase = createAdminClient()
   const { error } = await supabase.from('rule_exceptions').delete().eq('id', id).eq('club_id', clubId)

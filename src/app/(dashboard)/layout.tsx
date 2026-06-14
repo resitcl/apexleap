@@ -44,7 +44,7 @@ import { getSportVocab } from "@/lib/sport-vocab"
 import { isSuperAdmin } from "@/lib/actions/super-admin"
 import { AgreementGateWrapper } from "@/components/agreements/AgreementGateWrapper"
 import { ClubBrandingRoot } from "@/components/layouts/ClubBrandingRoot"
-import { canAccessClubAiChat, getClubInfo, getClubMembershipRole } from "@/lib/actions/club-context"
+import { canAccessClubAiChat, getClubInfo, getClubMembershipRole, getCoachPermissions } from "@/lib/actions/club-context"
 
 export async function generateMetadata(): Promise<Metadata> {
   try {
@@ -229,6 +229,12 @@ export default async function DashboardLayout({
   } catch { /* silent */ }
   const isAthleteOnly = membershipRole === 'athlete'
   const isAdminAthlete = membershipRole === 'admin_athlete'
+  const isCoach = membershipRole === 'coach'
+
+  let coachPerms: Awaited<ReturnType<typeof getCoachPermissions>> | null = null
+  if (isCoach) {
+    try { coachPerms = await getCoachPermissions() } catch { /* silent */ }
+  }
 
   let showClubAiChat = false
   try {
@@ -238,11 +244,27 @@ export default async function DashboardLayout({
   }
 
   const vocab = getSportVocab(sportType)
-  const NAV_GROUPS = isAthleteOnly
+  let NAV_GROUPS = isAthleteOnly
     ? buildAthleteNavGroups(vocab, sportType)
     : isAdminAthlete
       ? buildAdminAthleteNavGroups(vocab, sportType)
       : buildNavGroups(vocab)
+
+  // El coach ve el menú de staff, pero ocultamos las secciones que el admin no le haya delegado.
+  if (isCoach && coachPerms) {
+    const perms = coachPerms
+    NAV_GROUPS = NAV_GROUPS
+      .filter((g) => g.label !== 'Finanzas' || perms.finances)
+      .map((g) => ({
+        ...g,
+        items: g.items.filter((it) => {
+          if (it.href === '/dashboard/rules') return perms.rules
+          if (it.href === '/dashboard/settings/team') return perms.team
+          if (it.href === '/dashboard/settings/landing') return perms.club_config
+          return true
+        }),
+      }))
+  }
 
   const brandColor = normalizeClubPrimary(alerts.primaryColor)
   const brandCss = clubThemeBrandingVars(alerts.primaryColor, alerts.useBrandPrimaryForUi)

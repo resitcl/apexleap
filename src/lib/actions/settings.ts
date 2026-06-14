@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { z } from 'zod'
 import { CLUB_LOGO_MAX_BYTES } from '@/lib/constants'
-import { getClubId, getClubMembershipRole, assertClubAdmin } from '@/lib/actions/club-context'
+import { getClubId, getClubMembershipRole, assertClubAdmin, assertClubCapability, type CoachPermissions } from '@/lib/actions/club-context'
 
 const clubSchema = z.object({
   name: z.string().min(2),
@@ -101,7 +101,7 @@ export async function uploadClubLogo(formData: FormData) {
 }
 
 export async function updateClubSettings(input: Partial<ClubInput>) {
-  await assertClubAdmin()
+  await assertClubCapability('club_config')
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
@@ -204,4 +204,36 @@ export async function deleteClub(confirmName: string) {
   if (error) throw new Error(error.message)
   revalidatePath('/')
   return { deleted: true }
+}
+
+/**
+ * Configura qué capacidades (normalmente solo-admin) puede ejercer un coach en este club.
+ * Solo un administrador del club puede cambiar estos permisos.
+ */
+export async function updateCoachPermissions(perms: CoachPermissions) {
+  await assertClubAdmin()
+  const clubId = await getClubId()
+  const supabase = createAdminClient()
+
+  const { data: club } = await supabase.from('clubs').select('settings').eq('id', clubId).single()
+  const current = (club?.settings ?? {}) as Record<string, unknown>
+  const updated = {
+    ...current,
+    coach_permissions: {
+      finances: !!perms.finances,
+      rules: !!perms.rules,
+      club_config: !!perms.club_config,
+      team: !!perms.team,
+    },
+  }
+
+  const { error } = await supabase
+    .from('clubs')
+    .update({ settings: updated, updated_at: new Date().toISOString() })
+    .eq('id', clubId)
+  if (error) throw new Error(error.message)
+
+  revalidatePath('/dashboard/settings')
+  revalidatePath('/dashboard', 'layout')
+  return { ok: true as const }
 }

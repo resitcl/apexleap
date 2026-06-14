@@ -128,6 +128,40 @@ export function isClubAdminRole(role: string): boolean {
   return role === 'admin' || role === 'admin_athlete'
 }
 
+/** Capacidades que el admin del club puede delegar a los coaches. */
+export type CoachCapability = 'finances' | 'rules' | 'club_config' | 'team'
+
+export const COACH_CAPABILITIES: CoachCapability[] = ['finances', 'rules', 'club_config', 'team']
+
+export type CoachPermissions = Record<CoachCapability, boolean>
+
+/** Lee los permisos de coach del club actual (clubs.settings.coach_permissions). Default: todo en false. */
+export async function getCoachPermissions(): Promise<CoachPermissions> {
+  const clubId = await getClubId()
+  const supabase = createAdminClient()
+  const { data } = await supabase.from('clubs').select('settings').eq('id', clubId).single()
+  const settings = (data?.settings ?? {}) as Record<string, unknown>
+  const raw = (settings.coach_permissions ?? {}) as Record<string, unknown>
+  const out = {} as CoachPermissions
+  for (const cap of COACH_CAPABILITIES) out[cap] = raw[cap] === true
+  return out
+}
+
+/**
+ * Autoriza una acción que por defecto es solo-admin pero que el admin del club puede
+ * delegar a coaches por capacidad. Admin/admin_athlete siempre pasan; coach pasa solo
+ * si el club habilitó esa capacidad en `clubs.settings.coach_permissions`.
+ */
+export async function assertClubCapability(cap: CoachCapability): Promise<void> {
+  const role = await getClubMembershipRole()
+  if (role === 'admin' || role === 'admin_athlete') return
+  if (role === 'coach') {
+    const perms = await getCoachPermissions()
+    if (perms[cap]) return
+  }
+  throw new Error('No tienes permisos para realizar esta acción')
+}
+
 /**
  * ID del perfil atleta vinculado al usuario actual en el club (por `user_id` o email).
  * Útil para resaltar al jugador en convocatorias. No lanza si no hay perfil.
