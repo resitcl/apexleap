@@ -20,6 +20,12 @@ export async function POST(req: Request) {
     return Response.json({ error: 'Imagen y lista de jugadores requeridas.' }, { status: 400 })
   }
 
+  // Límite de tamaño de la imagen (~8 MB de base64) para evitar abuso de costo/DoS contra OpenAI.
+  const MAX_IMAGE_BASE64_LEN = 8 * 1024 * 1024
+  if (typeof imageBase64 !== 'string' || imageBase64.length > MAX_IMAGE_BASE64_LEN) {
+    return Response.json({ error: 'Imagen inválida o demasiado grande.' }, { status: 413 })
+  }
+
   const athleteList = athletes.map((a) => `- ${a.name}`).join('\n')
   const statList    = statCols.map((s) => `${s.abbr} (${s.label})`).join(', ')
 

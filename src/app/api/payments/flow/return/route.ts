@@ -29,13 +29,12 @@ async function handleReturn(req: Request) {
     } catch { /* use empty token */ }
   }
 
-  // Flow redirige al usuario aquí después de pagar.
-  // Confiamos en este retorno como fuente de confirmación (trustWebhook)
-  // porque el usuario viene directamente del checkout de Flow.
+  // Flow redirige al usuario aquí después de pagar. La confirmación real se obtiene
+  // consultando getStatus de Flow dentro de reconcile (fuente de verdad), no del retorno.
   let flowState: 'paid' | 'pending' | 'failed' = 'pending'
   let reason = 'unknown'
   try {
-    const result = await reconcileFlowPaymentByToken(token, { trustWebhook: true })
+    const result = await reconcileFlowPaymentByToken(token)
     const paid = Boolean(result && 'paid' in result && result.paid)
     if (paid) {
       flowState = 'paid'

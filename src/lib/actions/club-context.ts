@@ -113,6 +113,22 @@ export function isClubStaffRole(role: string): boolean {
 }
 
 /**
+ * Throw si el usuario actual no es administrador del club (admin o admin_athlete).
+ * Más restrictivo que `assertClubStaff` — excluye a `coach`. Pensado para acciones
+ * financieras, de configuración del club, de equipo y de gobernanza (reglas).
+ */
+export async function assertClubAdmin(): Promise<void> {
+  const role = await getClubMembershipRole()
+  if (role !== 'admin' && role !== 'admin_athlete') {
+    throw new Error('Solo administradores pueden realizar esta acción')
+  }
+}
+
+export function isClubAdminRole(role: string): boolean {
+  return role === 'admin' || role === 'admin_athlete'
+}
+
+/**
  * ID del perfil atleta vinculado al usuario actual en el club (por `user_id` o email).
  * Útil para resaltar al jugador en convocatorias. No lanza si no hay perfil.
  */

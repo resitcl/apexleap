@@ -45,6 +45,29 @@ function signFlowParams(secretKey: string, params: Record<string, string>): stri
   return crypto.createHmac('sha256', secretKey).update(raw).digest('hex')
 }
 
+/**
+ * Verifica la firma HMAC (`s`) de un callback de Flow recomputándola sobre el resto de
+ * parámetros y comparándola en tiempo constante. Devuelve false si falta `s` o no coincide.
+ */
+export function verifyFlowSignature(secretKey: string, params: Record<string, string>): boolean {
+  const provided = params.s
+  if (typeof provided !== 'string' || provided.length === 0) return false
+  const rest: Record<string, string> = {}
+  for (const [k, v] of Object.entries(params)) {
+    if (k === 's') continue
+    rest[k] = v
+  }
+  const expected = signFlowParams(secretKey, rest)
+  try {
+    const a = Buffer.from(expected, 'hex')
+    const b = Buffer.from(provided, 'hex')
+    if (a.length !== b.length) return false
+    return crypto.timingSafeEqual(a, b)
+  } catch {
+    return false
+  }
+}
+
 async function postFlow(config: FlowConfig, path: string, params: Record<string, string>): Promise<FlowAnyResponse> {
   const payload = { ...params, apiKey: config.apiKey }
   const signature = signFlowParams(config.secretKey, payload)

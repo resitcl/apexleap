@@ -3,7 +3,7 @@
 import { auth, clerkClient } from '@clerk/nextjs/server'
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { getClubId } from '@/lib/actions/club-context'
+import { getClubId, assertClubAdmin } from '@/lib/actions/club-context'
 import { ensureAthleteRecordForUser, archiveAthleteForUser } from '@/lib/admin-athlete-sync'
 
 function clerkErrMsg(err: unknown): string {
@@ -25,6 +25,7 @@ export async function inviteUserToClub(
   role: 'admin' | 'admin_athlete' | 'coach' | 'athlete'
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
+    await assertClubAdmin()
     const { userId } = await auth()
     if (!userId) return { ok: false, error: 'No autorizado' }
 
@@ -75,6 +76,7 @@ export async function inviteUserToClub(
 
 export async function revokeInvitation(invitationId: string): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
+    await assertClubAdmin()
     const { userId } = await auth()
     if (!userId) return { ok: false, error: 'No autorizado' }
 
@@ -103,6 +105,7 @@ export async function revokeInvitation(invitationId: string): Promise<{ ok: true
 
 export async function removeTeamMember(clerkUserId: string): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
+    await assertClubAdmin()
     const { userId } = await auth()
     if (!userId) return { ok: false, error: 'No autorizado' }
     if (userId === clerkUserId) return { ok: false, error: 'No puedes removerte a ti mismo' }

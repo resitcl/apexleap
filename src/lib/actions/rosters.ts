@@ -152,12 +152,18 @@ export async function addAthleteToRoster(params: {
   /** true = titular (defecto), false = suplente / reserva */
   isStarter?: boolean
 }) {
+  await assertClubStaff()
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
   const { data: roster } = await supabase
     .from('rosters').select('id').eq('id', params.rosterId).eq('club_id', clubId).single()
   if (!roster) throw new Error('Nómina no encontrada')
+
+  // roster_athletes no tiene club_id: validar que el atleta pertenece al club del usuario.
+  const { data: athleteInClub } = await supabase
+    .from('athletes').select('id').eq('id', params.athleteId).eq('club_id', clubId).maybeSingle()
+  if (!athleteInClub) throw new Error('Atleta no encontrado en este club')
 
   const { data: existing } = await supabase
     .from('roster_athletes').select('id').eq('roster_id', params.rosterId).eq('athlete_id', params.athleteId).single()
@@ -215,6 +221,15 @@ export async function bulkAddAthletesToRoster(params: {
   const { data: roster } = await supabase
     .from('rosters').select('id').eq('id', params.rosterId).eq('club_id', clubId).single()
   if (!roster) throw new Error('Nómina no encontrada')
+
+  // roster_athletes no tiene club_id: validar que todos los atletas pertenecen al club.
+  const athleteIds = params.athletes.map((a) => a.athleteId)
+  const { data: clubAthletes } = await supabase
+    .from('athletes').select('id').eq('club_id', clubId).in('id', athleteIds)
+  const validAthleteIds = new Set((clubAthletes ?? []).map((a) => a.id))
+  if (athleteIds.some((id) => !validAthleteIds.has(id))) {
+    throw new Error('Uno o más atletas no pertenecen a este club')
+  }
 
   // Validate jersey number uniqueness within the incoming batch
   const seenNumbers = new Set<number>()
@@ -294,20 +309,32 @@ export async function removeAthleteFromRoster(params: {
   competitionId: string | null
   rosterId?: string | null
 }) {
+  await assertClubStaff()
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
-  let rosterId = params.rosterId ?? null
-  if (!rosterId) {
-    const { data: row } = await supabase
-      .from('roster_athletes')
-      .select('roster_id')
-      .eq('id', params.rosterAthleteId)
-      .maybeSingle()
-    rosterId = row?.roster_id ?? null
-  }
+  // roster_athletes no tiene club_id: resolver la nómina padre desde la fila a borrar y
+  // verificar que pertenece al club del usuario antes de eliminar (evita IDOR cross-tenant).
+  const { data: rowToDelete } = await supabase
+    .from('roster_athletes')
+    .select('roster_id')
+    .eq('id', params.rosterAthleteId)
+    .maybeSingle()
+  const rosterId = rowToDelete?.roster_id ?? null
+  if (!rosterId) throw new Error('Citación no encontrada')
 
-  const { error } = await supabase.from('roster_athletes').delete().eq('id', params.rosterAthleteId)
+  const { data: ownRoster } = await supabase
+    .from('rosters')
+    .select('id')
+    .eq('id', rosterId)
+    .eq('club_id', clubId)
+    .maybeSingle()
+  if (!ownRoster) throw new Error('No autorizado')
+
+  const { error } = await supabase
+    .from('roster_athletes')
+    .delete()
+    .eq('id', params.rosterAthleteId)
   if (error) throw new Error(error.message)
 
   let matchId: string | null = null
@@ -330,6 +357,7 @@ export async function updateRosterScore(params: {
   awayScore: number
   status: 'upcoming' | 'live' | 'finished'
 }) {
+  await assertClubStaff()
   const clubId = await getClubId()
   const supabase = createAdminClient()
   const scoreData = JSON.stringify({ home: params.homeScore, away: params.awayScore, status: params.status, updatedAt: new Date().toISOString() })

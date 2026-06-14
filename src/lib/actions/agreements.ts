@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { getClubId } from '@/lib/actions/club-context'
+import { getClubId, assertClubStaff } from '@/lib/actions/club-context'
 import { createGestdocClient } from '@/lib/gestdoc/client'
 
 // Types
@@ -89,6 +89,7 @@ export async function createAgreementTemplate(params: {
   is_required_for_enrollment?: boolean
   valid_months?: number | null
 }) {
+  await assertClubStaff()
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
@@ -121,6 +122,7 @@ export async function updateAgreementTemplate(
     valid_months: number | null
   }>
 ) {
+  await assertClubStaff()
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
@@ -307,6 +309,7 @@ export async function createAthleteAgreement(params: {
   templateId: string
   variables?: Record<string, string>
 }) {
+  await assertClubStaff()
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
@@ -404,6 +407,7 @@ export async function updateAgreementStatus(
   status: AthleteAgreement['status'],
   extra?: Partial<AthleteAgreement>
 ) {
+  await assertClubStaff()
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
@@ -423,6 +427,7 @@ export async function updateAgreementStatus(
 // ============ GESTDOC INTEGRATION ============
 
 export async function sendAgreementToGestdoc(agreementId: string, bpmnId?: string) {
+  await assertClubStaff()
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
@@ -505,6 +510,7 @@ export async function sendAgreementToGestdoc(agreementId: string, bpmnId?: strin
 }
 
 export async function checkGestdocProcessStatus(agreementId: string) {
+  await assertClubStaff()
   const clubId = await getClubId()
   const supabase = createAdminClient()
 

@@ -3,7 +3,7 @@
 import { auth } from '@clerk/nextjs/server'
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { getClubId } from '@/lib/actions/club-context'
+import { getClubId, assertClubStaff } from '@/lib/actions/club-context'
 
 function translateError(msg: string): string {
   if (msg.includes("schema cache")) return "Tabla de partidos no encontrada. Contacta al administrador."
@@ -44,6 +44,7 @@ export async function createMatch(input: {
   status?: string
   notes?: string
 }) {
+  await assertClubStaff()
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
@@ -111,6 +112,7 @@ export async function updateMatch(
     notes?: string
   }
 ) {
+  await assertClubStaff()
   const clubId = await getClubId()
   const supabase = createAdminClient()
   const payload: Record<string, unknown> = { ...input, updated_at: new Date().toISOString() }
@@ -130,6 +132,7 @@ export async function updateMatch(
 }
 
 export async function deleteMatch(matchId: string, competitionId: string | null | undefined) {
+  await assertClubStaff()
   const clubId = await getClubId()
   const supabase = createAdminClient()
   const { error } = await supabase
@@ -182,6 +185,7 @@ export async function upsertPlayerStats(
     team?: string
   }>
 ) {
+  await assertClubStaff()
   const clubId = await getClubId()
   const supabase = createAdminClient()
 

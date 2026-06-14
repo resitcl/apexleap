@@ -4,7 +4,7 @@ import { auth } from '@clerk/nextjs/server'
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { z } from 'zod'
-import { getClubId } from '@/lib/actions/club-context'
+import { getClubId, assertClubStaff } from '@/lib/actions/club-context'
 
 const venueSchema = z.object({
   name: z.string().min(2),
@@ -33,6 +33,7 @@ export async function getVenues() {
 }
 
 export async function createVenue(input: VenueInput) {
+  await assertClubStaff()
   const clubId = await getClubId()
   const parsed = venueSchema.parse(input)
   const supabase = createAdminClient()
@@ -45,6 +46,7 @@ export async function createVenue(input: VenueInput) {
 }
 
 export async function updateVenue(id: string, input: Partial<VenueInput>) {
+  await assertClubStaff()
   const clubId = await getClubId()
   const supabase = createAdminClient()
   const safeUpdate = Object.fromEntries(
@@ -59,6 +61,7 @@ export async function updateVenue(id: string, input: Partial<VenueInput>) {
 }
 
 export async function deleteVenue(id: string) {
+  await assertClubStaff()
   const clubId = await getClubId()
   const supabase = createAdminClient()
   const { error } = await supabase.from('venues').delete().eq('id', id).eq('club_id', clubId)

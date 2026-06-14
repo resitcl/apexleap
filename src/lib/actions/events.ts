@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { z } from 'zod'
-import { getClubId } from '@/lib/actions/club-context'
+import { getClubId, assertClubStaff } from '@/lib/actions/club-context'
 
 const eventSchema = z.object({
   name: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
@@ -54,6 +54,7 @@ export async function getEventById(id: string) {
 }
 
 export async function createEvent(input: EventInput) {
+  await assertClubStaff()
   const clubId = await getClubId()
   const parsed = eventSchema.parse(input)
   const supabase = createAdminClient()
@@ -70,6 +71,7 @@ export async function createEvent(input: EventInput) {
 }
 
 export async function updateEvent(id: string, input: EventInput) {
+  await assertClubStaff()
   const clubId = await getClubId()
   const parsed = eventSchema.parse(input)
   const supabase = createAdminClient()
@@ -88,6 +90,7 @@ export async function updateEvent(id: string, input: EventInput) {
 }
 
 export async function deleteEvent(id: string) {
+  await assertClubStaff()
   const clubId = await getClubId()
   const supabase = createAdminClient()
 

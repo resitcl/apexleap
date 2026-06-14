@@ -4,7 +4,7 @@ import { auth } from '@clerk/nextjs/server'
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { z } from 'zod'
-import { getClubId } from '@/lib/actions/club-context'
+import { getClubId, assertClubStaff } from '@/lib/actions/club-context'
 
 const competitionSchema = z.object({
   name: z.string().min(2),
@@ -46,6 +46,7 @@ export async function getCompetitions(params?: { status?: string; search?: strin
 }
 
 export async function createCompetition(input: CompetitionInput) {
+  await assertClubStaff()
   const clubId = await getClubId()
   const parsed = competitionSchema.parse(input)
   const supabase = createAdminClient()
@@ -57,6 +58,7 @@ export async function createCompetition(input: CompetitionInput) {
 }
 
 export async function updateCompetition(id: string, input: Partial<CompetitionInput>) {
+  await assertClubStaff()
   const clubId = await getClubId()
   const supabase = createAdminClient()
   const safeUpdate = Object.fromEntries(Object.entries({ ...input }).filter(([, v]) => v !== undefined))
@@ -69,6 +71,7 @@ export async function updateCompetition(id: string, input: Partial<CompetitionIn
 }
 
 export async function updateCompetitionStatus(id: string, status: CompetitionInput['status']) {
+  await assertClubStaff()
   const clubId = await getClubId()
   const supabase = createAdminClient()
   const { error } = await supabase
@@ -80,6 +83,7 @@ export async function updateCompetitionStatus(id: string, status: CompetitionInp
 }
 
 export async function deleteCompetition(id: string) {
+  await assertClubStaff()
   const clubId = await getClubId()
   const supabase = createAdminClient()
   const { error } = await supabase

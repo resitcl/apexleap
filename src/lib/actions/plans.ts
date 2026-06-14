@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { z } from 'zod'
-import { getClubId } from '@/lib/actions/club-context'
+import { getClubId, assertClubAdmin } from '@/lib/actions/club-context'
 
 const optionalPositiveInt = z.preprocess(
   (value) => value === '' || value == null ? null : value,
@@ -57,6 +57,7 @@ export async function getPlanById(id: string) {
 }
 
 export async function createPlan(input: PlanInput) {
+  await assertClubAdmin()
   const clubId = await getClubId()
   const parsed = planSchema.parse(input)
   const supabase = createAdminClient()
@@ -73,6 +74,7 @@ export async function createPlan(input: PlanInput) {
 }
 
 export async function updatePlan(id: string, input: Partial<PlanInput>) {
+  await assertClubAdmin()
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
@@ -92,6 +94,7 @@ export async function updatePlan(id: string, input: Partial<PlanInput>) {
 }
 
 export async function deletePlan(id: string) {
+  await assertClubAdmin()
   const clubId = await getClubId()
   const supabase = createAdminClient()
 

@@ -9,7 +9,7 @@ import { auth } from '@clerk/nextjs/server'
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { z } from 'zod'
-import { getClubId } from '@/lib/actions/club-context'
+import { getClubId, assertClubStaff } from '@/lib/actions/club-context'
 import { addOneDayIso, weekOfMonthFromDate, weekOfMonthRange } from '@/lib/media-archive'
 
 const mediaSchema = z.object({
@@ -317,6 +317,7 @@ export async function getRecentMediaByCategory(category: string, limit = 8) {
 }
 
 export async function createMediaItem(input: MediaInput) {
+  await assertClubStaff()
   const clubId = await getClubId()
   const { userId } = await auth()
   const parsed = mediaSchema.parse(input)
@@ -400,6 +401,7 @@ export async function createMediaItem(input: MediaInput) {
 }
 
 export async function deleteMediaItem(id: string) {
+  await assertClubStaff()
   const clubId = await getClubId()
   const supabase = createAdminClient()
   const { error } = await supabase
@@ -410,6 +412,7 @@ export async function deleteMediaItem(id: string) {
 
 export async function toggleMediaLandingFeatured(id: string, featured: boolean): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
+    await assertClubStaff()
     const clubId = await getClubId()
     const supabase = createAdminClient()
     const { error } = await supabase
@@ -456,6 +459,7 @@ export async function getMediaStats() {
  * Update media item
  */
 export async function updateMediaItem(id: string, input: Partial<MediaInput>) {
+  await assertClubStaff()
   const clubId = await getClubId()
   const supabase = createAdminClient()
   
@@ -478,6 +482,7 @@ export async function updateMediaItem(id: string, input: Partial<MediaInput>) {
  */
 export async function toggleMediaFeatured(id: string): Promise<{ ok: true; featured: boolean } | { ok: false; error: string }> {
   try {
+    await assertClubStaff()
     const clubId = await getClubId()
     const supabase = createAdminClient()
     

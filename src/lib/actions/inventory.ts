@@ -4,7 +4,7 @@ import { auth } from '@clerk/nextjs/server'
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { z } from 'zod'
-import { getClubId } from '@/lib/actions/club-context'
+import { getClubId, assertClubStaff } from '@/lib/actions/club-context'
 
 const itemSchema = z.object({
   name: z.string().min(2),
@@ -48,6 +48,7 @@ export async function getInventoryItems(filters?: { category?: string; condition
 }
 
 export async function createInventoryItem(input: ItemInput) {
+  await assertClubStaff()
   const clubId = await getClubId()
   const parsed = itemSchema.parse(input)
   const supabase = createAdminClient()
@@ -59,6 +60,7 @@ export async function createInventoryItem(input: ItemInput) {
 }
 
 export async function updateInventoryItem(id: string, input: Partial<ItemInput>) {
+  await assertClubStaff()
   const clubId = await getClubId()
   const supabase = createAdminClient()
   const safeUpdate = Object.fromEntries(
@@ -74,6 +76,7 @@ export async function updateInventoryItem(id: string, input: Partial<ItemInput>)
 }
 
 export async function deleteInventoryItem(id: string) {
+  await assertClubStaff()
   const clubId = await getClubId()
   const supabase = createAdminClient()
   const { error } = await supabase

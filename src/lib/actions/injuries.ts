@@ -4,7 +4,7 @@ import { auth } from '@clerk/nextjs/server'
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { z } from 'zod'
-import { getClubId } from '@/lib/actions/club-context'
+import { getClubId, assertClubStaff } from '@/lib/actions/club-context'
 
 const injurySchema = z.object({
   athlete_id: z.string().uuid(),
@@ -20,6 +20,7 @@ export type InjuryInput = z.infer<typeof injurySchema>
 
 
 export async function createInjury(input: InjuryInput) {
+  await assertClubStaff()
   const clubId = await getClubId()
   const parsed = injurySchema.parse(input)
   const supabase = createAdminClient()
@@ -44,6 +45,7 @@ export async function createInjury(input: InjuryInput) {
 }
 
 export async function resolveInjury(injuryId: string, athleteId: string) {
+  await assertClubStaff()
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
