@@ -3,7 +3,7 @@
 import { auth } from '@clerk/nextjs/server'
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { getClubId } from '@/lib/actions/club-context'
+import { getClubId, assertClubStaff } from '@/lib/actions/club-context'
 import { z } from 'zod'
 
 const docSchema = z.object({
@@ -33,6 +33,7 @@ export async function getDocuments(filters?: { category?: string; athleteId?: st
 }
 
 export async function createDocument(input: DocInput) {
+  await assertClubStaff()
   const clubId = await getClubId()
   const { userId } = await auth()
   const parsed = docSchema.parse(input)
@@ -48,6 +49,7 @@ export async function createDocument(input: DocInput) {
 }
 
 export async function updateDocument(id: string, input: { name?: string; category?: string; expiry_date?: string | null; status?: string; notes?: string | null }) {
+  await assertClubStaff()
   const clubId = await getClubId()
   const supabase = createAdminClient()
   const safeUpdate = Object.fromEntries(Object.entries({ ...input }).filter(([, v]) => v !== undefined))
@@ -59,6 +61,7 @@ export async function updateDocument(id: string, input: { name?: string; categor
 }
 
 export async function assignDocumentAthlete(id: string, athleteId: string | null) {
+  await assertClubStaff()
   const clubId = await getClubId()
   const supabase = createAdminClient()
   const { error } = await supabase.from('documents')
@@ -69,6 +72,7 @@ export async function assignDocumentAthlete(id: string, athleteId: string | null
 }
 
 export async function updateDocumentStatus(id: string, status: 'pending' | 'approved' | 'expired' | 'rejected') {
+  await assertClubStaff()
   const clubId = await getClubId()
   const supabase = createAdminClient()
   const { error } = await supabase.from('documents')
@@ -79,6 +83,7 @@ export async function updateDocumentStatus(id: string, status: 'pending' | 'appr
 }
 
 export async function deleteDocument(id: string) {
+  await assertClubStaff()
   const clubId = await getClubId()
   const supabase = createAdminClient()
   const { error } = await supabase.from('documents').delete().eq('id', id).eq('club_id', clubId)

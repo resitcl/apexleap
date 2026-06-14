@@ -4,7 +4,7 @@ import { auth } from '@clerk/nextjs/server'
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { z } from 'zod'
-import { getClubId } from '@/lib/actions/club-context'
+import { getClubId, assertClubStaff } from '@/lib/actions/club-context'
 
 const categorySchema = z.object({
   name:        z.string().min(1, 'El nombre es obligatorio'),
@@ -34,6 +34,7 @@ export async function getCategories(activeOnly = false) {
 }
 
 export async function createCategory(input: CategoryInput) {
+  await assertClubStaff()
   const clubId = await getClubId()
   const parsed = categorySchema.parse(input)
   const supabase = createAdminClient()
@@ -47,6 +48,7 @@ export async function createCategory(input: CategoryInput) {
 }
 
 export async function updateCategory(id: string, input: Partial<CategoryInput>) {
+  await assertClubStaff()
   const clubId = await getClubId()
   const supabase = createAdminClient()
   const { error } = await supabase
@@ -58,6 +60,7 @@ export async function updateCategory(id: string, input: Partial<CategoryInput>) 
 }
 
 export async function deleteCategory(id: string) {
+  await assertClubStaff()
   const clubId = await getClubId()
   const supabase = createAdminClient()
   const { error } = await supabase

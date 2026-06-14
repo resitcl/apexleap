@@ -1,11 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { getClubId } from '@/lib/actions/club-context'
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ agreementId: string }> }
 ) {
   const { agreementId } = await params
+
+  // Requiere usuario autenticado y limita el acuerdo al club del usuario (evita IDOR cross-tenant).
+  let clubId: string
+  try {
+    clubId = await getClubId()
+  } catch {
+    return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  }
+
   const supabase = createAdminClient()
 
   const { data: agreement, error } = await supabase
@@ -29,6 +39,7 @@ export async function GET(
       )
     `)
     .eq('id', agreementId)
+    .eq('club_id', clubId)
     .single()
 
   if (error || !agreement) {

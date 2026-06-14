@@ -48,6 +48,16 @@ export async function POST(req: NextRequest) {
     const file = formData.get('file') as File | null
     if (!file) return NextResponse.json({ error: 'No se recibió archivo' }, { status: 400 })
 
+    // Límites de subida: evita DoS por memoria y abuso del parser xlsx.
+    const MAX_IMPORT_BYTES = 5 * 1024 * 1024 // 5 MB
+    if (file.size === 0) return NextResponse.json({ error: 'Archivo vacío' }, { status: 400 })
+    if (file.size > MAX_IMPORT_BYTES) {
+      return NextResponse.json({ error: 'El archivo supera el límite de 5 MB' }, { status: 413 })
+    }
+    if (!/\.(xlsx|xls)$/.test((file.name || '').toLowerCase())) {
+      return NextResponse.json({ error: 'Formato no soportado. Usa un archivo .xlsx' }, { status: 415 })
+    }
+
     const buffer = Buffer.from(await file.arrayBuffer())
     const wb = XLSX.read(buffer, { type: 'buffer' })
 

@@ -3,20 +3,20 @@ import { reconcileFlowPaymentByToken } from '@/lib/flow-payment-reconcile'
 
 export async function POST(req: Request) {
   try {
-    let token = ''
+    const params: Record<string, string> = {}
     const contentType = req.headers.get('content-type') || ''
     if (contentType.includes('application/x-www-form-urlencoded') || contentType.includes('multipart/form-data')) {
       const form = await req.formData()
-      token = String(form.get('token') ?? '')
+      for (const [k, v] of form.entries()) params[k] = String(v)
     } else {
       const body = (await req.json().catch(() => ({}))) as Record<string, unknown>
-      token = typeof body.token === 'string' ? body.token : ''
+      for (const [k, v] of Object.entries(body)) params[k] = String(v)
     }
-    if (!token) {
-      const url = new URL(req.url)
-      token = url.searchParams.get('token') ?? ''
-    }
-    await reconcileFlowPaymentByToken(token, { trustWebhook: true })
+    const url = new URL(req.url)
+    url.searchParams.forEach((v, k) => { if (!(k in params)) params[k] = v })
+    const token = params.token ?? ''
+    // Pasa todos los parámetros (incl. la firma `s`) para verificar el origen Flow.
+    await reconcileFlowPaymentByToken(token, { webhookParams: params })
     return NextResponse.json({ ok: true })
   } catch {
     return NextResponse.json({ ok: true })
@@ -26,8 +26,10 @@ export async function POST(req: Request) {
 export async function GET(req: Request) {
   try {
     const url = new URL(req.url)
-    const token = url.searchParams.get('token') ?? ''
-    await reconcileFlowPaymentByToken(token, { trustWebhook: true })
+    const params: Record<string, string> = {}
+    url.searchParams.forEach((v, k) => { params[k] = v })
+    const token = params.token ?? ''
+    await reconcileFlowPaymentByToken(token, { webhookParams: params })
     return NextResponse.json({ ok: true })
   } catch {
     return NextResponse.json({ ok: true })

@@ -4,7 +4,7 @@ import { auth } from '@clerk/nextjs/server'
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { z } from 'zod'
-import { getClubId, getClubInfo } from '@/lib/actions/club-context'
+import { getClubId, getClubInfo, assertClubStaff } from '@/lib/actions/club-context'
 import { sendInvitationEmail } from '@/lib/email'
 import {
   syncAdminAthletesForClub,
@@ -199,6 +199,7 @@ export async function getAthleteById(id: string) {
 }
 
 export async function createAthlete(input: AthleteInput) {
+  await assertClubStaff()
   const clubId = await getClubId()
   const parsed = athleteSchema.parse(input)
   const supabase = createAdminClient()
@@ -237,6 +238,7 @@ export async function createAthlete(input: AthleteInput) {
 }
 
 export async function updateAthlete(id: string, input: Partial<AthleteInput>) {
+  await assertClubStaff()
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
@@ -258,6 +260,7 @@ export async function updateAthlete(id: string, input: Partial<AthleteInput>) {
 
 /** Quita al alumno del club sin borrar pagos ni historial contable (marca archived_at). */
 export async function archiveAthlete(id: string) {
+  await assertClubStaff()
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
@@ -281,10 +284,12 @@ export async function archiveAthlete(id: string) {
 
 /** @deprecated Usa archiveAthlete: conserva pagos y reportes. */
 export async function deleteAthlete(id: string) {
+  await assertClubStaff()
   return archiveAthlete(id)
 }
 
 export async function bulkUpdateAthleteStatus(ids: string[], status: 'active' | 'inactive' | 'suspended') {
+  await assertClubStaff()
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
@@ -307,6 +312,7 @@ export async function sendClubInvitationEmail(
   email: string
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
+    await assertClubStaff()
     const z_email = email.toLowerCase().trim()
     if (!z_email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(z_email)) {
       return { ok: false, error: 'Email inválido.' }
@@ -407,6 +413,7 @@ export async function sendAthleteInvitation(
   athleteId: string
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
+    await assertClubStaff()
     const clubId = await getClubId()
     const supabase = createAdminClient()
 

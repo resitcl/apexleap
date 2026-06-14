@@ -1,7 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { subscriptionPeriodFieldsForPlan, type BillingCycle } from '@/lib/billing-utils'
 import { ONLINE_GATEWAY_IDS } from '@/lib/payment-methods'
-import { getFlowPaymentStatus, flowStatusIsPaid, resolveFlowConfigFromSettings } from '@/lib/flow'
+import { getFlowPaymentStatus, flowStatusIsPaid, resolveFlowConfigFromSettings, verifyFlowSignature } from '@/lib/flow'
 
 function parsePaymentIdFromCommerceOrder(value: unknown): string | null {
   if (typeof value !== 'string') return null
@@ -112,8 +112,11 @@ async function markPaymentAsPaid(
 }
 
 type ReconcileOpts = {
-  /** When true, mark as paid even if getStatus API is unavailable (webhook source) */
-  trustWebhook?: boolean
+  /**
+   * Parámetros crudos del callback de Flow (incluyendo la firma `s`). Cuando se proveen,
+   * se verifica la firma HMAC contra el secret_key del club antes de reconciliar.
+   */
+  webhookParams?: Record<string, string>
 }
 
 export async function reconcileFlowPaymentByToken(token: string, opts?: ReconcileOpts) {
@@ -122,7 +125,7 @@ export async function reconcileFlowPaymentByToken(token: string, opts?: Reconcil
 
   const { data: byToken } = await supabase
     .from('payments')
-    .select('id, club_id, athlete_id, plan_id, status, period_start, period_end')
+    .select('id, club_id, athlete_id, plan_id, status, amount, period_start, period_end')
     .eq('transaction_id', token.trim())
     .maybeSingle()
 
@@ -140,7 +143,14 @@ export async function reconcileFlowPaymentByToken(token: string, opts?: Reconcil
   const flowConfig = resolveFlowConfigFromSettings((clubRow?.settings ?? {}) as Record<string, unknown>)
   if (!flowConfig) return { ok: false as const, reason: 'flow_not_configured' }
 
-  // Try to verify with Flow API
+  // Defensa en profundidad: si esto viene del webhook de confirmación de Flow, verificar su firma HMAC.
+  if (opts?.webhookParams && typeof opts.webhookParams.s === 'string' && opts.webhookParams.s.length > 0) {
+    if (!verifyFlowSignature(flowConfig.secretKey, opts.webhookParams)) {
+      return { ok: false as const, reason: 'invalid_signature' }
+    }
+  }
+
+  // Fuente de verdad: getStatus de Flow (server-to-server, autenticado y firmado con el secret_key).
   let statusResponse: Record<string, unknown> = {}
   let paid = false
   let apiAvailable = true
@@ -156,7 +166,7 @@ export async function reconcileFlowPaymentByToken(token: string, opts?: Reconcil
     if (paymentIdFromOrder && paymentIdFromOrder !== payment.id) {
       const { data: byOrder } = await supabase
         .from('payments')
-        .select('id, club_id, athlete_id, plan_id, status, period_start, period_end')
+        .select('id, club_id, athlete_id, plan_id, status, amount, period_start, period_end')
         .eq('id', paymentIdFromOrder)
         .eq('club_id', payment.club_id)
         .maybeSingle()
@@ -165,15 +175,23 @@ export async function reconcileFlowPaymentByToken(token: string, opts?: Reconcil
     if (payment.status === 'paid') {
       return { ok: true as const, paid: true as const, alreadyPaid: true as const }
     }
+
+    // Verificar que el monto efectivamente cobrado coincide con el monto esperado del pago (CLP, entero).
+    const expectedAmount = Number((payment as { amount?: unknown }).amount)
+    const chargedAmount = Number(statusResponse.amount)
+    if (
+      Number.isFinite(expectedAmount) &&
+      Number.isFinite(chargedAmount) &&
+      Math.round(chargedAmount) < Math.round(expectedAmount)
+    ) {
+      return { ok: false as const, reason: 'amount_mismatch', expected: expectedAmount, charged: chargedAmount }
+    }
+
     return markPaymentAsPaid(supabase, payment, token.trim(), 'verified_by_api')
   }
 
-  // Flow API says not paid, or API is unavailable
-  if (!apiAvailable && opts?.trustWebhook) {
-    return markPaymentAsPaid(supabase, payment, token.trim(), 'trusted_webhook')
-  }
-
-  // Check if DB was updated by another process
+  // Flow dice que no está pagado, o la API no estaba disponible. NUNCA se marca como pagado
+  // sin un estado verificado por getStatus (se eliminó el fallback de "confiar en el webhook").
   const { data: fallback } = await supabase
     .from('payments')
     .select('status')

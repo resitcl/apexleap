@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { z } from 'zod'
-import { getClubId } from '@/lib/actions/club-context'
+import { getClubId, assertClubAdmin } from '@/lib/actions/club-context'
 import {
   subscriptionPeriodFieldsForPlan,
   calculateNextPeriodStart,
@@ -230,6 +230,7 @@ export async function getPaymentSummary() {
 // ─────────────────────────────────────────────────────────────
 
 export async function createPayment(input: PaymentInput) {
+  await assertClubAdmin()
   const clubId = await getClubId()
   const parsed = paymentSchema.parse(input)
   const supabase = createAdminClient()
@@ -268,6 +269,7 @@ export async function createPayment(input: PaymentInput) {
  * Previously this only updated the payment status — subscription was never touched.
  */
 export async function markAsPaid(id: string, method: string, paidAt?: string) {
+  await assertClubAdmin()
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
@@ -337,6 +339,7 @@ export async function updatePayment(id: string, input: {
   period_start?: string | null
   period_end?: string | null
 }) {
+  await assertClubAdmin()
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
@@ -412,6 +415,7 @@ export async function updatePaymentStatus(
   id: string,
   status: 'pending' | 'paid' | 'overdue' | 'failed' | 'cancelled',
 ) {
+  await assertClubAdmin()
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
@@ -429,6 +433,7 @@ export async function updatePaymentStatus(
 }
 
 export async function deletePayment(id: string) {
+  await assertClubAdmin()
   const clubId = await getClubId()
   const supabase = createAdminClient()
   const { error } = await supabase
@@ -442,6 +447,7 @@ export async function deletePayment(id: string) {
  * The payment_method is forced to 'transfer'.
  */
 export async function confirmTransferPayment(paymentId: string, paidAt?: string) {
+  await assertClubAdmin()
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
@@ -488,6 +494,7 @@ export async function confirmTransferPayment(paymentId: string, paidAt?: string)
  * For each payment linked to a plan, also activates the subscription.
  */
 export async function bulkMarkAsPaid(ids: string[], method = 'manual') {
+  await assertClubAdmin()
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
@@ -542,6 +549,7 @@ export async function bulkMarkAsPaid(ids: string[], method = 'manual') {
  * Returns the number of payments updated.
  */
 export async function syncOverduePayments() {
+  await assertClubAdmin()
   const clubId = await getClubId()
   const supabase = createAdminClient()
 

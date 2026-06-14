@@ -20,6 +20,8 @@ export async function GET(req: Request) {
   }
 
   const supabase = createAdminClient()
+  // Esta ruta es pública (prefijo /api/payments). No exponer diagnóstico interno en producción.
+  const exposeDiag = process.env.NODE_ENV !== 'production'
   const diag: Record<string, unknown> = { tokenParam, paymentIdParam }
 
   // Step 1: Find payment by token OR payment_id
@@ -61,11 +63,11 @@ export async function GET(req: Request) {
   diag.resolvedToken = token
 
   if (!payment) {
-    return NextResponse.json({ ok: false, state: 'failed', reason: 'payment_not_found', diag })
+    return NextResponse.json({ ok: false, state: 'failed', reason: 'payment_not_found', diag: exposeDiag ? diag : undefined })
   }
 
   if (payment.status === 'paid') {
-    return NextResponse.json({ ok: true, state: 'paid', reason: 'already_paid_in_db', diag })
+    return NextResponse.json({ ok: true, state: 'paid', reason: 'already_paid_in_db', diag: exposeDiag ? diag : undefined })
   }
 
   // Step 2: Load Flow config
@@ -83,7 +85,7 @@ export async function GET(req: Request) {
   diag.step2_hasSecretKey = !!flowConfig?.secretKey
 
   if (!flowConfig) {
-    return NextResponse.json({ ok: false, state: 'failed', reason: 'flow_not_configured', diag })
+    return NextResponse.json({ ok: false, state: 'failed', reason: 'flow_not_configured', diag: exposeDiag ? diag : undefined })
   }
 
   // Step 3: Call Flow getStatus API
@@ -101,14 +103,14 @@ export async function GET(req: Request) {
   diag.step3_statusType = flowResponse?.status !== undefined ? typeof flowResponse.status : null
   diag.step3_isPaid = flowResponse ? flowStatusIsPaid(flowResponse.status) : null
 
-  // Step 4: Try to reconcile (with trustWebhook so it works even if API is down)
+  // Step 4: Reconcile usando getStatus de Flow como fuente de verdad (sin fallback de confianza).
   const flowSaysPaid = flowResponse ? flowStatusIsPaid(flowResponse.status) : false
   diag.step4_flowSaysPaid = flowSaysPaid
   diag.step4_flowApiDown = !!flowError
 
-  diag.step4_action = 'reconciling_with_trust'
+  diag.step4_action = 'reconciling'
   try {
-    const result = await reconcileFlowPaymentByToken(token, { trustWebhook: true })
+    const result = await reconcileFlowPaymentByToken(token)
     diag.step4_reconcileResult = result
   } catch (e) {
     diag.step4_reconcileError = e instanceof Error ? e.message : String(e)
@@ -140,6 +142,6 @@ export async function GET(req: Request) {
     ok: true,
     state,
     reason: `db_${finalStatus ?? 'unknown'}`,
-    diag,
+    diag: exposeDiag ? diag : undefined,
   })
 }

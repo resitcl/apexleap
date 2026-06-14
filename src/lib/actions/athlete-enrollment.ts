@@ -1074,15 +1074,11 @@ async function getMyAthleteId(): Promise<{ athleteId: string; clubId: string }> 
   const clerk = await clerkClient()
   const user = await clerk.users.getUser(userId)
   const email = user.emailAddresses[0]?.emailAddress ?? null
-  
-  console.log("[DEBUG getMyAthleteId] userId:", userId, "email:", email, "clubId:", clubId)
-  
+
   if (!email) throw new Error('No se encontró email')
   const { data } = await supabase
     .from('athletes').select('id, email, name').eq('club_id', clubId).eq('email', email).maybeSingle()
-  
-  console.log("[DEBUG getMyAthleteId] athlete lookup result:", data)
-  
+
   if (!data) throw new Error('Perfil de atleta no encontrado')
   return { athleteId: data.id, clubId }
 }

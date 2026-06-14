@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { z } from 'zod'
 import { CLUB_LOGO_MAX_BYTES } from '@/lib/constants'
-import { getClubId, getClubMembershipRole } from '@/lib/actions/club-context'
+import { getClubId, getClubMembershipRole, assertClubAdmin } from '@/lib/actions/club-context'
 
 const clubSchema = z.object({
   name: z.string().min(2),
@@ -101,6 +101,7 @@ export async function uploadClubLogo(formData: FormData) {
 }
 
 export async function updateClubSettings(input: Partial<ClubInput>) {
+  await assertClubAdmin()
   const clubId = await getClubId()
   const supabase = createAdminClient()
 

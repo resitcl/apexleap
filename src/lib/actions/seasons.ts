@@ -4,7 +4,7 @@ import { auth } from '@clerk/nextjs/server'
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { z } from 'zod'
-import { getClubId } from '@/lib/actions/club-context'
+import { getClubId, assertClubStaff } from '@/lib/actions/club-context'
 
 const seasonSchema = z.object({
   name:        z.string().min(2),
@@ -50,6 +50,7 @@ export async function getActiveSeason() {
 // ─── CRUD ─────────────────────────────────────────────────────
 
 export async function createSeason(input: SeasonInput) {
+  await assertClubStaff()
   const clubId = await getClubId()
   const parsed = seasonSchema.parse(input)
   const supabase = createAdminClient()
@@ -65,6 +66,7 @@ export async function createSeason(input: SeasonInput) {
 }
 
 export async function updateSeason(id: string, input: Partial<SeasonInput>) {
+  await assertClubStaff()
   const clubId = await getClubId()
   const supabase = createAdminClient()
   const { error } = await supabase
@@ -79,6 +81,7 @@ export async function updateSeason(id: string, input: Partial<SeasonInput>) {
 }
 
 export async function deleteSeason(id: string) {
+  await assertClubStaff()
   const clubId = await getClubId()
   const supabase = createAdminClient()
   // Check not active
@@ -91,6 +94,7 @@ export async function deleteSeason(id: string) {
 }
 
 export async function setActiveSeason(id: string) {
+  await assertClubStaff()
   const clubId = await getClubId()
   const supabase = createAdminClient()
   // Deactivate all, then activate selected
