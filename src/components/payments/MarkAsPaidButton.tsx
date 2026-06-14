@@ -10,12 +10,12 @@ import { Label } from "@/components/ui/label"
 import { markAsPaid } from "@/lib/actions/payments"
 import { CheckCircle } from "lucide-react"
 
+// Solo métodos de confirmación manual. Las pasarelas (Flow/MercadoPago/Webpay)
+// se confirman automáticamente vía webhook, no se registran a mano.
 const METHODS = [
   { value: 'cash', label: 'Efectivo' },
   { value: 'transfer', label: 'Transferencia' },
-  { value: 'webpay', label: 'Webpay' },
-  { value: 'flow', label: 'Flow' },
-  { value: 'mercadopago', label: 'MercadoPago' },
+  { value: 'other', label: 'Otro' },
 ]
 
 interface Props {

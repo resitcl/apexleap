@@ -5,6 +5,7 @@ import Link from "next/link"
 import { Suspense } from "react"
 import { getPayments, getNextBillingDateByAthleteIds } from "@/lib/actions/payments"
 import { getPaymentMetrics, getMonthlyAthleteCollectionStatus } from "@/lib/actions/billing"
+import { ONLINE_GATEWAY_IDS } from "@/lib/payment-methods"
 import { MonthlyCollectionPanel } from "@/components/payments/MonthlyCollectionPanel"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -651,7 +652,8 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
               const isDuplicate = dupKeys.has(`${athlete?.id ?? payment.athlete_id ?? ''}|${payment.due_date?.slice(0, 7) ?? ''}`)
               const notes = (payment as { notes?: string | null }).notes
               const hasReceipt = notes && /https?:\/\/[^\s]+/i.test(notes)
-              const isTransfer = payment.payment_method === 'transfer' || (notes && notes.toLowerCase().includes('comprobante'))
+              const isOnlineGateway = !!payment.payment_method && (ONLINE_GATEWAY_IDS as readonly string[]).includes(payment.payment_method)
+              const isTransfer = !isOnlineGateway && (payment.payment_method === 'transfer' || (notes && notes.toLowerCase().includes('comprobante')))
               const isPendingTransfer = (payment.status === 'pending' || payment.status === 'overdue') && (isTransfer || hasReceipt)
 
               const cfg = STATUS_CONFIG[payment.status] ?? { label: payment.status, variant: 'outline' as const, dot: 'bg-muted-foreground/40' }
@@ -771,7 +773,7 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
                   {/* Actions */}
                   <div className="flex items-center gap-1.5 justify-end">
                     <EditPaymentButton payment={payment} />
-                    {(payment.status === 'pending' || payment.status === 'overdue') && (
+                    {(payment.status === 'pending' || payment.status === 'overdue') && !isOnlineGateway && (
                       <MarkAsPaidButton paymentId={payment.id} />
                     )}
                     <DeletePaymentButton paymentId={payment.id} />

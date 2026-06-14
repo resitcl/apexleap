@@ -1,5 +1,9 @@
 import { NextResponse } from 'next/server'
-import { reconcileMercadoPagoPayment, parsePaymentIdFromExternalReference } from '@/lib/mercadopago-reconcile'
+import {
+  reconcileMercadoPagoPayment,
+  parsePaymentIdFromExternalReference,
+  markMercadoPagoPaymentFailedIfPending,
+} from '@/lib/mercadopago-reconcile'
 import { createAdminClient } from '@/lib/supabase/admin'
 
 function appBaseUrl(req: Request) {
@@ -15,8 +19,12 @@ async function handleReturn(req: Request) {
   const mpPaymentId = url.searchParams.get('payment_id') || url.searchParams.get('collection_id')
   const mpStatus = (url.searchParams.get('status') || url.searchParams.get('collection_status') || '').toLowerCase()
 
+  const isRejected = (s: string) => s === 'rejected' || s === 'cancelled'
+
   let state: 'paid' | 'pending' | 'failed' = 'pending'
   let reason = 'unknown'
+  // Estado autoritativo de MP vía getPayment (solo cuando hay payment_id y la API responde).
+  let verifiedStatus = ''
 
   if (ourPaymentId) {
     try {
@@ -25,22 +33,18 @@ async function handleReturn(req: Request) {
         state = 'paid'
         reason = 'reconciled_paid'
       } else if (!result.ok) {
+        // Error de reconciliación (config faltante, mismatch de monto/referencia): no
+        // auto-fallar; queda para investigación manual.
         reason = result.reason
-        if (mpStatus === 'rejected' || mpStatus === 'cancelled') state = 'failed'
       } else {
-        if (mpStatus === 'rejected' || mpStatus === 'cancelled') {
-          state = 'failed'
-          reason = `mp_${mpStatus}`
-        } else {
-          state = 'pending'
-          reason = result.status ? `mp_${result.status}` : 'awaiting_confirmation'
-        }
+        verifiedStatus = typeof result.status === 'string' ? result.status : ''
+        reason = verifiedStatus ? `mp_${verifiedStatus}` : 'awaiting_confirmation'
       }
     } catch {
       reason = 'reconcile_exception'
     }
 
-    // Verificación final desde BD (por si el webhook confirmó en paralelo).
+    // Verificación final desde BD (por si el webhook confirmó/falló en paralelo).
     if (state !== 'paid') {
       try {
         const supabase = createAdminClient()
@@ -48,12 +52,26 @@ async function handleReturn(req: Request) {
         if (p?.status === 'paid') {
           state = 'paid'
           reason = 'db_paid'
+        } else if (p?.status === 'failed' || p?.status === 'cancelled') {
+          state = 'failed'
+          reason = `db_${p.status}`
         }
       } catch {
         /* mantener estado calculado */
       }
     }
-  } else if (mpStatus === 'rejected' || mpStatus === 'cancelled') {
+
+    // Marcar fracaso solo ante señal negativa clara; NUNCA por caída de la API ni mientras
+    // el pago siga en proceso (entonces lo resolverá el webhook).
+    if (state === 'pending') {
+      const abandoned = !mpPaymentId && (mpStatus === '' || mpStatus === 'null')
+      if (isRejected(verifiedStatus) || isRejected(mpStatus) || abandoned) {
+        if (abandoned && (reason === 'awaiting_confirmation' || reason === 'unknown')) reason = 'abandoned'
+        await markMercadoPagoPaymentFailedIfPending(ourPaymentId, reason)
+        state = 'failed'
+      }
+    }
+  } else if (isRejected(mpStatus)) {
     state = 'failed'
     reason = `mp_${mpStatus}`
   }

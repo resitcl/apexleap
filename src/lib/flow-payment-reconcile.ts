@@ -202,5 +202,19 @@ export async function reconcileFlowPaymentByToken(token: string, opts?: Reconcil
     return { ok: true as const, paid: true as const, alreadyPaid: true as const }
   }
 
-  return { ok: true as const, paid: false as const, apiAvailable }
+  return { ok: true as const, paid: false as const, apiAvailable, status: statusResponse.status }
+}
+
+/**
+ * Marca como `failed` un pago de Flow rechazado/anulado, solo si sigue `pending`.
+ * Nunca pisa un pago `paid`/`overdue` (el guard de status evita carreras con el webhook).
+ */
+export async function markFlowPaymentFailedIfPending(token: string, reason: string): Promise<void> {
+  if (!token?.trim()) return
+  const supabase = createAdminClient()
+  await supabase
+    .from('payments')
+    .update({ status: 'failed', notes: `Flow: pago no completado (${reason})` })
+    .eq('transaction_id', token.trim())
+    .eq('status', 'pending')
 }

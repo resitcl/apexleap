@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Plus, DollarSign, Clock, AlertTriangle } from "lucide-react"
 import { PaymentsFilter } from "@/components/payments/PaymentsFilter"
 import { MarkAsPaidButton } from "@/components/payments/MarkAsPaidButton"
+import { ONLINE_GATEWAY_IDS } from "@/lib/payment-methods"
 
 interface PageProps {
   searchParams: Promise<{ status?: string; page?: string }>
@@ -163,7 +164,8 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
                         ${Number(payment.amount).toLocaleString('es-CL')}
                       </span>
                       <Badge variant={cfg.variant}>{cfg.label}</Badge>
-                      {payment.status === 'pending' || payment.status === 'overdue' ? (
+                      {(payment.status === 'pending' || payment.status === 'overdue') &&
+                      !(payment.payment_method && (ONLINE_GATEWAY_IDS as readonly string[]).includes(payment.payment_method)) ? (
                         <MarkAsPaidButton paymentId={payment.id} />
                       ) : null}
                     </div>

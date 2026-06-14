@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
-import { reconcileFlowPaymentByToken } from '@/lib/flow-payment-reconcile'
+import { reconcileFlowPaymentByToken, markFlowPaymentFailedIfPending } from '@/lib/flow-payment-reconcile'
+import { flowStatusIsFailed } from '@/lib/flow'
 import { createAdminClient } from '@/lib/supabase/admin'
 
 function appBaseUrl(req: Request) {
@@ -33,6 +34,7 @@ async function handleReturn(req: Request) {
   // consultando getStatus de Flow dentro de reconcile (fuente de verdad), no del retorno.
   let flowState: 'paid' | 'pending' | 'failed' = 'pending'
   let reason = 'unknown'
+  let terminalFail = false
   try {
     const result = await reconcileFlowPaymentByToken(token)
     const paid = Boolean(result && 'paid' in result && result.paid)
@@ -41,6 +43,10 @@ async function handleReturn(req: Request) {
       reason = 'reconciled_paid'
     } else if (result && 'reason' in result && typeof result.reason === 'string') {
       reason = result.reason
+    } else if (result && 'status' in result && flowStatusIsFailed(result.status)) {
+      // Flow confirma rechazo/anulación (status 3/4) → fracaso terminal.
+      terminalFail = true
+      reason = `flow_${String(result.status)}`
     }
   } catch {
     reason = 'reconcile_exception'
@@ -68,6 +74,12 @@ async function handleReturn(req: Request) {
     } catch {
       // mantenemos estado calculado
     }
+  }
+
+  // Persistir el fracaso para que no quede "pendiente de validación" en el panel del admin.
+  if (token && flowState !== 'paid' && terminalFail) {
+    await markFlowPaymentFailedIfPending(token, reason)
+    flowState = 'failed'
   }
 
   const target = new URL('/dashboard/athlete/payments', appBaseUrl(req))

@@ -19,6 +19,23 @@ type ReconcileResult =
   | { ok: false; reason: string; expected?: number; charged?: number }
 
 /**
+ * Marca como `failed` un pago de MercadoPago abandonado/rechazado, solo si sigue `pending`.
+ * Nunca pisa un pago `paid`/`overdue` (el guard de status evita carreras con el webhook).
+ */
+export async function markMercadoPagoPaymentFailedIfPending(
+  ourPaymentId: string,
+  reason: string,
+): Promise<void> {
+  if (!ourPaymentId?.trim()) return
+  const supabase = createAdminClient()
+  await supabase
+    .from('payments')
+    .update({ status: 'failed', notes: `MercadoPago: pago no completado (${reason})` })
+    .eq('id', ourPaymentId.trim())
+    .eq('status', 'pending')
+}
+
+/**
  * Reconcilia un pago de MercadoPago contra nuestra BD.
  * - `ourPaymentId`: id del pago propio (de external_reference `pay_<id>`, embebido en back_url/notification_url).
  * - `mpPaymentId`: id del pago en MercadoPago (de `payment_id`/`data.id`). Fuente de verdad vía getPayment.
