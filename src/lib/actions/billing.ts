@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { getClubId, assertClubAdmin } from '@/lib/actions/club-context'
+import { getClubId, assertClubCapability } from '@/lib/actions/club-context'
 import { getExpectedMonthIncome } from '@/lib/actions/finances'
 import { auth } from '@clerk/nextjs/server'
 import {
@@ -490,7 +490,7 @@ export async function generateCatchUpPayments(
     fromDate?: string // Start generating from this date
   }
 ) {
-  await assertClubAdmin()
+  await assertClubCapability('finances')
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
@@ -606,7 +606,7 @@ export async function generateCatchUpPayments(
  * Waive (forgive) a payment - marks it as waived so it doesn't count as overdue.
  */
 export async function waivePayment(paymentId: string, reason?: string) {
-  await assertClubAdmin()
+  await assertClubCapability('finances')
   const { userId } = await auth()
   if (!userId) throw new Error('No autorizado')
 
@@ -636,7 +636,7 @@ export async function waivePayment(paymentId: string, reason?: string) {
  * Bulk waive multiple payments (e.g., forgive all overdue for fresh start).
  */
 export async function bulkWaivePayments(paymentIds: string[], reason?: string) {
-  await assertClubAdmin()
+  await assertClubCapability('finances')
   const { userId } = await auth()
   if (!userId) throw new Error('No autorizado')
 
@@ -675,7 +675,7 @@ export async function adjustSubscriptionDates(
     billingAnchorDay?: number
   }
 ) {
-  await assertClubAdmin()
+  await assertClubCapability('finances')
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
@@ -714,7 +714,7 @@ export async function createPaymentWithPeriod(params: {
   paidAt?: string
   paymentMethod?: string
 }) {
-  await assertClubAdmin()
+  await assertClubCapability('finances')
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
@@ -756,7 +756,7 @@ export async function markPaymentAsPaidWithPeriod(
     paidAt?: string
   }
 ) {
-  await assertClubAdmin()
+  await assertClubCapability('finances')
   const clubId = await getClubId()
   const supabase = createAdminClient()
 

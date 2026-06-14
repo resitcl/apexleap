@@ -4,7 +4,7 @@ import { auth } from '@clerk/nextjs/server'
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { z } from 'zod'
-import { getClubId, assertClubAdmin } from '@/lib/actions/club-context'
+import { getClubId, assertClubCapability } from '@/lib/actions/club-context'
 const supplierSchema = z.object({
   name:           z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
   rut:            z.string().optional().nullable(),
@@ -41,7 +41,7 @@ export async function getSuppliers(params?: { search?: string; category?: string
 }
 
 export async function createSupplier(input: SupplierInput) {
-  await assertClubAdmin()
+  await assertClubCapability('finances')
   const clubId = await getClubId()
   const parsed = supplierSchema.parse(input)
   const supabase = createAdminClient()
@@ -58,7 +58,7 @@ export async function createSupplier(input: SupplierInput) {
 }
 
 export async function updateSupplier(id: string, input: Partial<SupplierInput>) {
-  await assertClubAdmin()
+  await assertClubCapability('finances')
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
@@ -74,7 +74,7 @@ export async function updateSupplier(id: string, input: Partial<SupplierInput>) 
 }
 
 export async function deleteSupplier(id: string) {
-  await assertClubAdmin()
+  await assertClubCapability('finances')
   const clubId = await getClubId()
   const supabase = createAdminClient()
 

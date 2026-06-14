@@ -4,7 +4,7 @@ import { auth } from '@clerk/nextjs/server'
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { z } from 'zod'
-import { getClubId, assertClubAdmin } from '@/lib/actions/club-context'
+import { getClubId, assertClubCapability } from '@/lib/actions/club-context'
 
 const subscriptionSchema = z.object({
   athlete_id: z.string().uuid(),
@@ -62,7 +62,7 @@ export async function getSubscriptions(params?: {
 }
 
 export async function createSubscription(input: SubscriptionInput) {
-  await assertClubAdmin()
+  await assertClubCapability('finances')
   const clubId = await getClubId()
   const parsed = subscriptionSchema.parse(input)
   const supabase = createAdminClient()
@@ -89,7 +89,7 @@ export async function createSubscription(input: SubscriptionInput) {
 }
 
 export async function renewSubscription(id: string) {
-  await assertClubAdmin()
+  await assertClubCapability('finances')
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
@@ -136,7 +136,7 @@ export async function updateSubscriptionStatus(
   id: string,
   status: 'active' | 'paused' | 'cancelled' | 'expired'
 ) {
-  await assertClubAdmin()
+  await assertClubCapability('finances')
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
@@ -158,7 +158,7 @@ export async function updateSubscriptionDates(
   id: string,
   input: { end_date?: string | null; current_period_end?: string | null }
 ) {
-  await assertClubAdmin()
+  await assertClubCapability('finances')
   const clubId = await getClubId()
   const supabase = createAdminClient()
 

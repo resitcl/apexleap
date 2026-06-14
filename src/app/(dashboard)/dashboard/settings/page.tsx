@@ -3,13 +3,14 @@ export const dynamic = "force-dynamic"
 import Link from "next/link"
 import { redirect } from "next/navigation"
 import { getClubSettings } from "@/lib/actions/settings"
-import { getClubMembershipRole } from "@/lib/actions/club-context"
+import { getClubMembershipRole, getCoachPermissions } from "@/lib/actions/club-context"
 import { getCategories } from "@/lib/actions/categories"
 import { ClubSettingsForm } from "@/components/settings/ClubSettingsForm"
 import { DeleteClubButton } from "@/components/settings/DeleteClubButton"
 import { CategoriesManager } from "@/components/settings/CategoriesManager"
 import { BankInfoForm } from "@/components/settings/BankInfoForm"
-import { Settings, AlertTriangle, Calendar, CreditCard, Tag, Cog, ChevronRight } from "lucide-react"
+import { CoachPermissionsForm } from "@/components/settings/CoachPermissionsForm"
+import { Settings, AlertTriangle, Calendar, CreditCard, Tag, Cog, ChevronRight, ShieldCheck } from "lucide-react"
 import {
   DashboardPage,
   DashboardPageHeader,
@@ -31,11 +32,15 @@ export default async function SettingsPage({ searchParams }: PageProps) {
 
   const canManagePayments = membership === "admin" || membership === "admin_athlete"
   const canManageDanger = membership === "admin"
+  const canManageCoachPerms = membership === "admin" || membership === "admin_athlete"
 
   if (tab === "payments" && !canManagePayments) {
     redirect("/dashboard/settings?tab=general")
   }
   if (tab === "danger" && !canManageDanger) {
+    redirect("/dashboard/settings?tab=general")
+  }
+  if (tab === "coaches" && !canManageCoachPerms) {
     redirect("/dashboard/settings?tab=general")
   }
 
@@ -52,6 +57,10 @@ export default async function SettingsPage({ searchParams }: PageProps) {
   try {
     categories = await getCategories()
   } catch { /* silent */ }
+
+  let coachPerms = { finances: false, rules: false, club_config: false, team: false }
+  try { coachPerms = await getCoachPermissions() } catch { /* silent */ }
+  const canEditGeneral = membership === "admin" || membership === "admin_athlete" || coachPerms.club_config
 
   if (error) {
     return (
@@ -77,6 +86,9 @@ export default async function SettingsPage({ searchParams }: PageProps) {
       : []),
     { key: "categories", label: "Categorías", icon: <Tag className="w-4 h-4" /> },
     { key: "seasons", label: "Temporadas", icon: <Calendar className="w-4 h-4" />, href: "/dashboard/settings/seasons" },
+    ...(canManageCoachPerms
+      ? [{ key: "coaches", label: "Permisos", icon: <ShieldCheck className="w-4 h-4" /> }]
+      : []),
     ...(canManageDanger
       ? [{ key: "danger", label: "Zona de Peligro", icon: <AlertTriangle className="w-4 h-4" />, danger: true }]
       : []),
@@ -118,7 +130,13 @@ export default async function SettingsPage({ searchParams }: PageProps) {
           title="Información General"
           description="Nombre, logo, deporte y configuración básica del club."
         >
-          <ClubSettingsForm defaultValues={club ?? undefined} />
+          {canEditGeneral ? (
+            <ClubSettingsForm defaultValues={club ?? undefined} />
+          ) : (
+            <p className="text-sm text-muted-foreground/80 py-4">
+              Solo los administradores pueden editar la información general del club.
+            </p>
+          )}
         </DashboardSectionCard>
       )}
 
@@ -166,6 +184,16 @@ export default async function SettingsPage({ searchParams }: PageProps) {
               Ir a Temporadas <ChevronRight className="w-4 h-4" />
             </Link>
           </div>
+        </DashboardSectionCard>
+      )}
+
+      {tab === "coaches" && (
+        <DashboardSectionCard
+          icon={<ShieldCheck className="w-5 h-5" />}
+          title="Permisos de Entrenadores"
+          description="Decide qué pueden gestionar los coaches de tu club. Por defecto solo los administradores acceden a finanzas y configuración."
+        >
+          <CoachPermissionsForm initial={coachPerms} />
         </DashboardSectionCard>
       )}
 

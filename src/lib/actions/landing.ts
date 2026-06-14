@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { getClubId, assertClubAdmin } from '@/lib/actions/club-context'
+import { getClubId, assertClubCapability } from '@/lib/actions/club-context'
 import { z } from 'zod'
 
 const CLUB_LANDING_FIELDS = [
@@ -49,7 +49,7 @@ export async function getLandingSettings() {
 
 export async function updateLandingSettings(input: LandingInput): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
-    await assertClubAdmin()
+    await assertClubCapability('club_config')
     const clubId = await getClubId()
     const parsed = landingSchema.parse(input)
     const supabase = createAdminClient()
