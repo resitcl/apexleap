@@ -9,6 +9,10 @@ import {
   calculateNextPeriodStart,
   getBillingAnchorDay,
   calculatePeriodStartForPayment,
+  dayOfMonthFromYmd,
+  parseYmd,
+  todayYmd,
+  ymdFromDate,
   type BillingCycle,
 } from '@/lib/billing-utils'
 import {
@@ -17,6 +21,7 @@ import {
   subscriptionRequiresPaymentConfirmation,
   ONLINE_GATEWAY_IDS,
 } from '@/lib/payment-methods'
+import { cancelPriorSubscriptions } from '@/lib/subscription-activation'
 import { createFlowPayment, resolveFlowConfigFromSettings } from '@/lib/flow'
 import { createMercadoPagoPreference, resolveMercadoPagoConfigFromSettings } from '@/lib/mercadopago'
 import { TRANSFER_RECEIPT_MAX_BYTES } from '@/lib/constants'
@@ -846,28 +851,17 @@ export async function enrollWithPayment(
     athlete = created
   }
 
-  // Cancel existing active subscriptions
-  await supabase
-    .from('subscriptions')
-    .update({ status: 'cancelled' })
-    .eq('club_id', clubId)
-    .eq('athlete_id', athlete.id)
-    .eq('status', 'active')
+  // Cancel existing active or pending_payment subscriptions
+  await cancelPriorSubscriptions(supabase, clubId, athlete.id)
 
-  // Calculate dates
   const startDate = new Date()
-  const startStr = startDate.toISOString().split('T')[0]
-
-  const CYCLE_DAYS: Record<string, number> = {
-    monthly: 30, quarterly: 90, semiannual: 180, annual: 365, single: 0,
-  }
-  const days = CYCLE_DAYS[plan.billing_cycle] ?? 30
-  let endStr: string | null = null
-  if (days > 0) {
-    const endDate = new Date(startDate)
-    endDate.setDate(endDate.getDate() + days)
-    endStr = endDate.toISOString().split('T')[0]
-  }
+  const startStr = todayYmd()
+  const cycle = plan.billing_cycle as BillingCycle
+  const periodEnd = calculatePeriodEnd(startDate, cycle)
+  const endStr = periodEnd ? ymdFromDate(periodEnd) : null
+  const anchorDay = getBillingAnchorDay(startDate)
+  const nextStart = calculateNextPeriodStart(startDate, cycle)
+  const nextBillingStr = nextStart ? ymdFromDate(nextStart) : null
 
   // Hasta integrar cobro online end-to-end, todos los medios requieren confirmación del admin
   const isTransfer = paymentMethod === 'transfer'
@@ -892,6 +886,10 @@ export async function enrollWithPayment(
       end_date: endStr,
       payment_method: paymentMethod,
       auto_renew: subStatus === 'active',
+      billing_anchor_day: anchorDay,
+      current_period_start: startStr,
+      current_period_end: endStr,
+      next_billing_date: nextBillingStr,
     })
 
   if (subErr) throw new Error('Error al crear la suscripción: ' + subErr.message)
@@ -923,6 +921,8 @@ export async function enrollWithPayment(
         due_date: startStr,
         payment_method: paymentMethod,
         notes,
+        period_start: startStr,
+        period_end: endStr,
       })
   }
 
@@ -1277,7 +1277,7 @@ export async function submitSelfPayment(params: {
   // Get active subscription + plan (including billing anchor day for period calc)
   const { data: subscription } = await supabase
     .from('subscriptions')
-    .select('id, plan_id, billing_anchor_day, plans(id, name, price, billing_cycle)')
+    .select('id, plan_id, billing_anchor_day, current_period_start, plans(id, name, price, billing_cycle)')
     .eq('club_id', clubId)
     .eq('athlete_id', athlete.id)
     .eq('status', 'active')
@@ -1293,14 +1293,16 @@ export async function submitSelfPayment(params: {
   if (!plan) throw new Error('No se encontró el plan asociado a tu suscripción')
 
   const today = new Date()
-  const todayStr = today.toISOString().split('T')[0]
+  const todayStr = todayYmd()
   const cycle = plan.billing_cycle as BillingCycle
 
-  // Determine the billing period this payment covers
+  const refStart = subscription.current_period_start
+    ? parseYmd(subscription.current_period_start as string)
+    : null
   const anchorDay = subscription.billing_anchor_day ?? getBillingAnchorDay(today)
-  const { periodStart, periodEnd } = calculatePeriodStartForPayment(anchorDay, today, cycle)
-  const periodStartStr = periodStart.toISOString().split('T')[0]
-  const periodEndStr = periodEnd ? periodEnd.toISOString().split('T')[0] : null
+  const { periodStart, periodEnd } = calculatePeriodStartForPayment(anchorDay, today, cycle, refStart)
+  const periodStartStr = ymdFromDate(periodStart)
+  const periodEndStr = periodEnd ? ymdFromDate(periodEnd) : null
 
   const month = periodStart.toLocaleDateString('es-CL', { month: 'long', year: 'numeric' })
   const concept = params.concept || `${plan.name} – ${month}`
@@ -1360,7 +1362,7 @@ async function supersedePendingGatewayPayments(
     .update({ status: 'failed', notes: 'Reemplazado por un nuevo intento de pago' })
     .eq('club_id', clubId)
     .eq('athlete_id', athleteId)
-    .eq('status', 'pending')
+    .in('status', ['pending', 'overdue'])
     .in('payment_method', [...ONLINE_GATEWAY_IDS])
 }
 
@@ -1400,7 +1402,7 @@ export async function createFlowCheckoutForSelfPayment() {
 
   const { data: subscription } = await supabase
     .from('subscriptions')
-    .select('id, plan_id, billing_anchor_day, plans(id, name, price, billing_cycle)')
+    .select('id, plan_id, billing_anchor_day, current_period_start, plans(id, name, price, billing_cycle)')
     .eq('club_id', clubId)
     .eq('athlete_id', athlete.id)
     .eq('status', 'active')
@@ -1414,12 +1416,15 @@ export async function createFlowCheckoutForSelfPayment() {
   if (!plan) throw new Error('No se encontró el plan asociado a tu suscripción')
 
   const now = new Date()
-  const todayStr = now.toISOString().split('T')[0]
+  const todayStr = todayYmd()
   const cycle = plan.billing_cycle as BillingCycle
+  const refStart = subscription.current_period_start
+    ? parseYmd(subscription.current_period_start as string)
+    : null
   const anchorDay = subscription.billing_anchor_day ?? getBillingAnchorDay(now)
-  const { periodStart, periodEnd } = calculatePeriodStartForPayment(anchorDay, now, cycle)
-  const periodStartStr = periodStart.toISOString().split('T')[0]
-  const periodEndStr = periodEnd ? periodEnd.toISOString().split('T')[0] : null
+  const { periodStart, periodEnd } = calculatePeriodStartForPayment(anchorDay, now, cycle, refStart)
+  const periodStartStr = ymdFromDate(periodStart)
+  const periodEndStr = periodEnd ? ymdFromDate(periodEnd) : null
   const month = periodStart.toLocaleDateString('es-CL', { month: 'long', year: 'numeric' })
   const concept = `${plan.name} – ${month}`
 
@@ -1513,7 +1518,7 @@ export async function createMercadoPagoCheckoutForSelfPayment() {
 
   const { data: subscription } = await supabase
     .from('subscriptions')
-    .select('id, plan_id, billing_anchor_day, plans(id, name, price, billing_cycle)')
+    .select('id, plan_id, billing_anchor_day, current_period_start, plans(id, name, price, billing_cycle)')
     .eq('club_id', clubId)
     .eq('athlete_id', athlete.id)
     .eq('status', 'active')
@@ -1527,12 +1532,15 @@ export async function createMercadoPagoCheckoutForSelfPayment() {
   if (!plan) throw new Error('No se encontró el plan asociado a tu suscripción')
 
   const now = new Date()
-  const todayStr = now.toISOString().split('T')[0]
+  const todayStr = todayYmd()
   const cycle = plan.billing_cycle as BillingCycle
+  const refStart = subscription.current_period_start
+    ? parseYmd(subscription.current_period_start as string)
+    : null
   const anchorDay = subscription.billing_anchor_day ?? getBillingAnchorDay(now)
-  const { periodStart, periodEnd } = calculatePeriodStartForPayment(anchorDay, now, cycle)
-  const periodStartStr = periodStart.toISOString().split('T')[0]
-  const periodEndStr = periodEnd ? periodEnd.toISOString().split('T')[0] : null
+  const { periodStart, periodEnd } = calculatePeriodStartForPayment(anchorDay, now, cycle, refStart)
+  const periodStartStr = ymdFromDate(periodStart)
+  const periodEndStr = periodEnd ? ymdFromDate(periodEnd) : null
   const month = periodStart.toLocaleDateString('es-CL', { month: 'long', year: 'numeric' })
   const concept = `${plan.name} – ${month}`
 

@@ -5,11 +5,12 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { z } from 'zod'
 import { getClubId, assertClubCapability } from '@/lib/actions/club-context'
 import {
-  subscriptionPeriodFieldsForPlan,
   calculateNextPeriodStart,
+  todayYmd,
   type BillingCycle,
 } from '@/lib/billing-utils'
 import { ONLINE_GATEWAY_IDS } from '@/lib/payment-methods'
+import { activateSubscriptionForPaidPayment } from '@/lib/subscription-activation'
 
 const paymentSchema = z.object({
   athlete_id: z.string().uuid('Alumno inválido'),
@@ -25,80 +26,6 @@ const paymentSchema = z.object({
 })
 
 export type PaymentInput = z.infer<typeof paymentSchema>
-
-// ─────────────────────────────────────────────────────────────
-// Private helper: activate/renew subscription when a payment is
-// confirmed as paid. Used by markAsPaid, bulkMarkAsPaid,
-// confirmTransferPayment and createPayment to stay consistent.
-// ─────────────────────────────────────────────────────────────
-async function _activateSubscription(
-  supabase: ReturnType<typeof createAdminClient>,
-  clubId: string,
-  payment: { athlete_id: string; plan_id: string | null },
-  paidAtDate: Date,
-  paymentMethod: string,
-  period?: { start?: string | null; end?: string | null },
-) {
-  if (!payment.plan_id || !payment.athlete_id) return
-
-  const { data: plan } = await supabase
-    .from('plans')
-    .select('billing_cycle')
-    .eq('id', payment.plan_id)
-    .single()
-
-  if (!plan) return
-
-  const cycle = plan.billing_cycle as BillingCycle
-  const { startStr, endStr, nextBillingStr, billingAnchorDay } = subscriptionPeriodFieldsForPlan(cycle, {
-    periodStart: period?.start,
-    periodEnd: period?.end,
-    paidAt: paidAtDate,
-  })
-
-  // Sin pasarela con cargo recurrente real, transfer/efectivo/manual y gateways quedan sin auto-renovación
-  const noAutoRenew = new Set<string>(['transfer', 'cash', 'manual', ...ONLINE_GATEWAY_IDS])
-  const autoRenew = paymentMethod ? !noAutoRenew.has(paymentMethod) : false
-
-  // Cancel any pending_payment subscriptions for this athlete
-  await supabase
-    .from('subscriptions')
-    .update({ status: 'cancelled' })
-    .eq('club_id', clubId)
-    .eq('athlete_id', payment.athlete_id)
-    .eq('status', 'pending_payment')
-
-  // Cancel any active subscriptions for this athlete
-  await supabase
-    .from('subscriptions')
-    .update({ status: 'cancelled' })
-    .eq('club_id', clubId)
-    .eq('athlete_id', payment.athlete_id)
-    .eq('status', 'active')
-
-  // Create new active subscription with full period metadata
-  await supabase.from('subscriptions').insert({
-    club_id: clubId,
-    athlete_id: payment.athlete_id,
-    plan_id: payment.plan_id,
-    status: 'active',
-    start_date: startStr,
-    end_date: endStr,
-    payment_method: paymentMethod,
-    auto_renew: autoRenew,
-    billing_anchor_day: billingAnchorDay,
-    current_period_start: startStr,
-    current_period_end: endStr,
-    next_billing_date: nextBillingStr,
-  })
-
-  // Ensure athlete is marked active
-  await supabase
-    .from('athletes')
-    .update({ status: 'active' })
-    .eq('id', payment.athlete_id)
-    .eq('club_id', clubId)
-}
 
 // ─────────────────────────────────────────────────────────────
 // Queries
@@ -246,7 +173,7 @@ export async function createPayment(input: PaymentInput) {
   // Auto-create subscription if payment is created as paid and linked to a plan
   if (parsed.status === 'paid' && parsed.plan_id) {
     const paidAtDate = parsed.paid_at ? new Date(parsed.paid_at) : new Date()
-    await _activateSubscription(
+    await activateSubscriptionForPaidPayment(
       supabase,
       clubId,
       { athlete_id: parsed.athlete_id, plan_id: parsed.plan_id },
@@ -311,10 +238,7 @@ export async function markAsPaid(id: string, method: string, paidAt?: string) {
 
   // Activate subscription using the same logic as confirmTransferPayment
   if (payment.plan_id) {
-    await _activateSubscription(supabase, clubId, payment, paidAtDate, method, {
-      start: payment.period_start as string | null | undefined,
-      end: payment.period_end as string | null | undefined,
-    })
+    await activateSubscriptionForPaidPayment(supabase, clubId, payment, paidAtDate, method)
     revalidatePath('/dashboard/subscriptions')
     revalidatePath('/dashboard/athletes')
     revalidatePath(`/dashboard/athletes/${payment.athlete_id}`)
@@ -420,7 +344,12 @@ export async function updatePayment(id: string, input: {
 export async function updatePaymentStatus(
   id: string,
   status: 'pending' | 'paid' | 'overdue' | 'failed' | 'cancelled',
+  method = 'manual',
 ) {
+  if (status === 'paid') {
+    return markAsPaid(id, method)
+  }
+
   await assertClubCapability('finances')
   const clubId = await getClubId()
   const supabase = createAdminClient()
@@ -442,6 +371,18 @@ export async function deletePayment(id: string) {
   await assertClubCapability('finances')
   const clubId = await getClubId()
   const supabase = createAdminClient()
+
+  const { data: existing } = await supabase
+    .from('payments')
+    .select('status')
+    .eq('id', id)
+    .eq('club_id', clubId)
+    .maybeSingle()
+
+  if (existing?.status === 'paid') {
+    throw new Error('No se puede eliminar un pago ya confirmado como pagado.')
+  }
+
   const { error } = await supabase
     .from('payments').delete().eq('id', id).eq('club_id', clubId)
   if (error) throw new Error(error.message)
@@ -481,10 +422,7 @@ export async function confirmTransferPayment(paymentId: string, paidAt?: string)
   if (updateError) throw new Error(updateError.message)
 
   if (payment.plan_id && payment.athlete_id) {
-    await _activateSubscription(supabase, clubId, payment, paidAtDate, 'transfer', {
-      start: payment.period_start as string | null | undefined,
-      end: payment.period_end as string | null | undefined,
-    })
+    await activateSubscriptionForPaidPayment(supabase, clubId, payment, paidAtDate, 'transfer')
     revalidatePath('/dashboard/subscriptions')
     revalidatePath('/dashboard/athletes')
     revalidatePath(`/dashboard/athletes/${payment.athlete_id}`)
@@ -541,10 +479,7 @@ export async function bulkMarkAsPaid(ids: string[], method = 'manual') {
   // Activate subscriptions for each payment that has a plan
   const withPlan = eligible.filter((p) => p.plan_id)
   for (const p of withPlan) {
-    await _activateSubscription(supabase, clubId, p, paidAtDate, method, {
-      start: p.period_start as string | null | undefined,
-      end: p.period_end as string | null | undefined,
-    })
+    await activateSubscriptionForPaidPayment(supabase, clubId, p, paidAtDate, method)
   }
 
   if (withPlan.length > 0) {
@@ -567,14 +502,16 @@ export async function syncOverduePayments() {
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
-  const today = new Date().toISOString().split('T')[0]
+  const today = todayYmd()
 
+  const gatewayFilter = ONLINE_GATEWAY_IDS.join(',')
   const { error, count } = await supabase
     .from('payments')
     .update({ status: 'overdue' })
     .eq('club_id', clubId)
     .eq('status', 'pending')
     .lt('due_date', today)
+    .or(`payment_method.is.null,payment_method.not.in.(${gatewayFilter})`)
 
   if (error) throw new Error(error.message)
 

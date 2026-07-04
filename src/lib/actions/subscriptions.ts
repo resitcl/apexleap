@@ -5,6 +5,15 @@ import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { z } from 'zod'
 import { getClubId, assertClubCapability } from '@/lib/actions/club-context'
+import {
+  calculatePeriodEnd,
+  calculateNextPeriodStart,
+  getBillingAnchorDay,
+  todayYmd,
+  ymdFromDate,
+  type BillingCycle,
+} from '@/lib/billing-utils'
+import { cancelPriorSubscriptions } from '@/lib/subscription-activation'
 
 const subscriptionSchema = z.object({
   athlete_id: z.string().uuid(),
@@ -37,9 +46,13 @@ export async function getSubscriptions(params?: {
   const from = (page - 1) * limit
   const to = from + limit - 1
 
+  const athleteSelect = params?.search
+    ? 'athletes!inner(id, name, email, photo_url, health_status, status)'
+    : 'athletes(id, name, email, photo_url, health_status, status)'
+
   let query = supabase
     .from('subscriptions')
-    .select('*, athletes(id, name, email, photo_url, health_status, status), plans(id, name, price, billing_cycle), payments(id, paid_at, status, amount)', { count: 'exact' })
+    .select(`*, ${athleteSelect}, plans(id, name, price, billing_cycle), payments(id, paid_at, status, amount)`, { count: 'exact' })
     .eq('club_id', clubId)
     .order('created_at', { ascending: false })
     .range(from, to)
@@ -67,13 +80,7 @@ export async function createSubscription(input: SubscriptionInput) {
   const parsed = subscriptionSchema.parse(input)
   const supabase = createAdminClient()
 
-  // Deactivate any existing active subscription for this athlete
-  await supabase
-    .from('subscriptions')
-    .update({ status: 'cancelled' })
-    .eq('club_id', clubId)
-    .eq('athlete_id', parsed.athlete_id)
-    .eq('status', 'active')
+  await cancelPriorSubscriptions(supabase, clubId, parsed.athlete_id)
 
   const { data, error } = await supabase
     .from('subscriptions')
@@ -100,20 +107,17 @@ export async function renewSubscription(id: string) {
   if (fetchErr || !existing) throw new Error('Suscripción no encontrada')
 
   const startDate = new Date()
-  const startStr = startDate.toISOString().split('T')[0]
+  const startStr = todayYmd()
   const plansData = existing.plans as unknown as { billing_cycle: string } | null
-  const billingCycle = plansData?.billing_cycle ?? 'monthly'
+  const billingCycle = (plansData?.billing_cycle ?? 'monthly') as BillingCycle
 
-  const CYCLE_DAYS: Record<string, number> = {
-    monthly: 30, quarterly: 90, semiannual: 180, annual: 365, single: 0,
-  }
-  const days = CYCLE_DAYS[billingCycle] ?? 30
-  let endStr: string | null = null
-  if (days > 0) {
-    const endDate = new Date(startDate)
-    endDate.setDate(endDate.getDate() + days)
-    endStr = endDate.toISOString().split('T')[0]
-  }
+  const periodEnd = calculatePeriodEnd(startDate, billingCycle)
+  const endStr = periodEnd ? ymdFromDate(periodEnd) : null
+  const anchorDay = getBillingAnchorDay(startDate)
+  const nextStart = calculateNextPeriodStart(startDate, billingCycle)
+  const nextBillingStr = nextStart ? ymdFromDate(nextStart) : null
+
+  await cancelPriorSubscriptions(supabase, clubId, existing.athlete_id, id)
 
   const { data, error } = await supabase.from('subscriptions').insert({
     club_id: clubId,
@@ -124,6 +128,10 @@ export async function renewSubscription(id: string) {
     end_date: endStr,
     payment_method: existing.payment_method,
     auto_renew: existing.auto_renew,
+    billing_anchor_day: anchorDay,
+    current_period_start: startStr,
+    current_period_end: endStr,
+    next_billing_date: nextBillingStr,
   }).select().single()
 
   if (error) throw new Error(error.message)
@@ -194,16 +202,21 @@ export async function getSubscriptionStats() {
 
   const { data, error } = await supabase
     .from('subscriptions')
-    .select('status, plans(price, billing_cycle)')
+    .select('status, athlete_id, plans(price, billing_cycle)')
     .eq('club_id', clubId)
 
   if (error) throw new Error(error.message)
 
   const stats = { active: 0, paused: 0, cancelled: 0, expired: 0, mrr: 0 }
+  const mrrAthletes = new Set<string>()
   for (const s of data ?? []) {
     const st = s.status as keyof typeof stats
     if (st in stats) (stats[st] as number)++
     if (s.status === 'active') {
+      const athleteId = s.athlete_id as string
+      if (!athleteId || mrrAthletes.has(athleteId)) continue
+      mrrAthletes.add(athleteId)
+
       const planRaw = s.plans as unknown
       const plan = planRaw as { price: number; billing_cycle: string } | null
       if (plan) {

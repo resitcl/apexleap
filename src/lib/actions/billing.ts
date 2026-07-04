@@ -10,6 +10,8 @@ import {
   calculateNextPeriodStart,
   generateOverduePeriods,
   CYCLE_MONTHS,
+  dayOfMonthFromYmd,
+  todayYmd,
   type BillingCycle,
 } from '@/lib/billing-utils'
 
@@ -518,7 +520,7 @@ export async function generateCatchUpPayments(
   }
 
   const billingCycle = plan.billing_cycle as BillingCycle
-  const billingAnchorDay = subscription.billing_anchor_day || new Date(subscription.start_date).getDate()
+  const billingAnchorDay = subscription.billing_anchor_day || dayOfMonthFromYmd(subscription.start_date)
 
   // Find the last paid period
   const { data: lastPaidPayment } = await supabase

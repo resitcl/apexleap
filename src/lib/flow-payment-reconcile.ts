@@ -1,7 +1,10 @@
 import { createAdminClient } from '@/lib/supabase/admin'
-import { subscriptionPeriodFieldsForPlan, type BillingCycle } from '@/lib/billing-utils'
-import { ONLINE_GATEWAY_IDS } from '@/lib/payment-methods'
 import { getFlowPaymentStatus, flowStatusIsPaid, resolveFlowConfigFromSettings, verifyFlowSignature } from '@/lib/flow'
+import {
+  activateSubscriptionForPaidPayment,
+  markPaymentPaidIdempotent,
+  persistAmountMismatch,
+} from '@/lib/subscription-activation'
 
 function parsePaymentIdFromCommerceOrder(value: unknown): string | null {
   if (typeof value !== 'string') return null
@@ -9,65 +12,10 @@ function parsePaymentIdFromCommerceOrder(value: unknown): string | null {
   return m?.[1] ?? null
 }
 
-export async function activateSubscriptionForPaidPayment(
-  supabase: ReturnType<typeof createAdminClient>,
-  clubId: string,
-  payment: {
-    athlete_id: string
-    plan_id: string | null
-    period_start?: string | null
-    period_end?: string | null
-  },
-  paidAtDate: Date,
-  paymentMethod: string = 'flow',
-) {
-  if (!payment.plan_id || !payment.athlete_id) return
-
-  const { data: plan } = await supabase
-    .from('plans')
-    .select('billing_cycle')
-    .eq('id', payment.plan_id)
-    .single()
-  if (!plan) return
-
-  const cycle = plan.billing_cycle as BillingCycle
-  const { startStr, endStr, nextBillingStr, billingAnchorDay } = subscriptionPeriodFieldsForPlan(cycle, {
-    periodStart: payment.period_start,
-    periodEnd: payment.period_end,
-    paidAt: paidAtDate,
-  })
-
-  const noAutoRenew = new Set<string>(['transfer', 'cash', 'manual', ...ONLINE_GATEWAY_IDS])
-  const autoRenew = !noAutoRenew.has(paymentMethod)
-
-  await supabase
-    .from('subscriptions')
-    .update({ status: 'cancelled' })
-    .eq('club_id', clubId)
-    .eq('athlete_id', payment.athlete_id)
-    .in('status', ['pending_payment', 'active'])
-
-  await supabase.from('subscriptions').insert({
-    club_id: clubId,
-    athlete_id: payment.athlete_id,
-    plan_id: payment.plan_id,
-    status: 'active',
-    start_date: startStr,
-    end_date: endStr,
-    payment_method: paymentMethod,
-    auto_renew: autoRenew,
-    billing_anchor_day: billingAnchorDay,
-    current_period_start: startStr,
-    current_period_end: endStr,
-    next_billing_date: nextBillingStr,
-  })
-
-  await supabase
-    .from('athletes')
-    .update({ status: 'active' })
-    .eq('id', payment.athlete_id)
-    .eq('club_id', clubId)
-}
+type ReconcileResult =
+  | { ok: true; paid: true; alreadyPaid?: true; paymentId?: string }
+  | { ok: true; paid: false; apiAvailable?: boolean; status?: unknown }
+  | { ok: false; reason: string; expected?: number; charged?: number; internalError?: boolean }
 
 async function markPaymentAsPaid(
   supabase: ReturnType<typeof createAdminClient>,
@@ -81,48 +29,51 @@ async function markPaymentAsPaid(
   },
   token: string,
   source: string,
-) {
+): Promise<ReconcileResult> {
   const paidAt = new Date().toISOString()
-  const { error } = await supabase
-    .from('payments')
-    .update({
-      status: 'paid',
+  try {
+    const result = await markPaymentPaidIdempotent(supabase, payment.id, payment.club_id, {
       paid_at: paidAt,
       payment_method: 'flow',
       transaction_id: token,
       notes: `Flow token: ${token} (${source})`,
     })
-    .eq('id', payment.id)
-    .eq('club_id', payment.club_id)
-  if (error) return { ok: false as const, reason: 'update_failed', error: error.message }
 
-  const { data: withPeriods } = await supabase
-    .from('payments')
-    .select('athlete_id, plan_id, period_start, period_end')
-    .eq('id', payment.id)
-    .eq('club_id', payment.club_id)
-    .single()
+    if (result.won) {
+      await activateSubscriptionForPaidPayment(
+        supabase,
+        payment.club_id,
+        result.payment,
+        new Date(paidAt),
+        'flow',
+      )
+      return { ok: true, paid: true, paymentId: payment.id }
+    }
 
-  await activateSubscriptionForPaidPayment(
-    supabase,
-    payment.club_id,
-    withPeriods ?? payment,
-    new Date(paidAt),
-  )
-  return { ok: true as const, paid: true as const, paymentId: payment.id }
+    if (result.alreadyPaid) {
+      return { ok: true, paid: true, alreadyPaid: true, paymentId: payment.id }
+    }
+
+    return { ok: false, reason: 'update_failed', internalError: true }
+  } catch (e) {
+    return {
+      ok: false,
+      reason: 'update_failed',
+      internalError: true,
+    }
+  }
 }
 
 type ReconcileOpts = {
-  /**
-   * Parámetros crudos del callback de Flow (incluyendo la firma `s`). Cuando se proveen,
-   * se verifica la firma HMAC contra el secret_key del club antes de reconciliar.
-   */
+  /** Parámetros del callback de Flow (incl. firma `s`). Obligatorio en webhooks. */
   webhookParams?: Record<string, string>
+  /** Si true, exige firma HMAC válida (webhook de confirmación). */
+  requireSignature?: boolean
 }
 
-export async function reconcileFlowPaymentByToken(token: string, opts?: ReconcileOpts) {
+export async function reconcileFlowPaymentByToken(token: string, opts?: ReconcileOpts): Promise<ReconcileResult> {
   const supabase = createAdminClient()
-  if (!token?.trim()) return { ok: false as const, reason: 'missing_token' }
+  if (!token?.trim()) return { ok: false, reason: 'missing_token' }
 
   const { data: byToken } = await supabase
     .from('payments')
@@ -131,9 +82,9 @@ export async function reconcileFlowPaymentByToken(token: string, opts?: Reconcil
     .maybeSingle()
 
   let payment = byToken
-  if (!payment) return { ok: false as const, reason: 'payment_not_found' }
+  if (!payment) return { ok: false, reason: 'payment_not_found' }
   if (payment.status === 'paid') {
-    return { ok: true as const, paid: true as const, alreadyPaid: true as const }
+    return { ok: true, paid: true, alreadyPaid: true }
   }
 
   const { data: clubRow } = await supabase
@@ -142,16 +93,14 @@ export async function reconcileFlowPaymentByToken(token: string, opts?: Reconcil
     .eq('id', payment.club_id)
     .single()
   const flowConfig = resolveFlowConfigFromSettings((clubRow?.settings ?? {}) as Record<string, unknown>)
-  if (!flowConfig) return { ok: false as const, reason: 'flow_not_configured' }
+  if (!flowConfig) return { ok: false, reason: 'flow_not_configured' }
 
-  // Defensa en profundidad: si esto viene del webhook de confirmación de Flow, verificar su firma HMAC.
-  if (opts?.webhookParams && typeof opts.webhookParams.s === 'string' && opts.webhookParams.s.length > 0) {
-    if (!verifyFlowSignature(flowConfig.secretKey, opts.webhookParams)) {
-      return { ok: false as const, reason: 'invalid_signature' }
+  if (opts?.requireSignature || opts?.webhookParams) {
+    if (!opts.webhookParams?.s || !verifyFlowSignature(flowConfig.secretKey, opts.webhookParams)) {
+      return { ok: false, reason: 'invalid_signature' }
     }
   }
 
-  // Fuente de verdad: getStatus de Flow (server-to-server, autenticado y firmado con el secret_key).
   let statusResponse: Record<string, unknown> = {}
   let paid = false
   let apiAvailable = true
@@ -174,10 +123,9 @@ export async function reconcileFlowPaymentByToken(token: string, opts?: Reconcil
       if (byOrder) payment = byOrder
     }
     if (payment.status === 'paid') {
-      return { ok: true as const, paid: true as const, alreadyPaid: true as const }
+      return { ok: true, paid: true, alreadyPaid: true }
     }
 
-    // Verificar que el monto efectivamente cobrado coincide con el monto esperado del pago (CLP, entero).
     const expectedAmount = Number((payment as { amount?: unknown }).amount)
     const chargedAmount = Number(statusResponse.amount)
     if (
@@ -185,29 +133,30 @@ export async function reconcileFlowPaymentByToken(token: string, opts?: Reconcil
       Number.isFinite(chargedAmount) &&
       Math.round(chargedAmount) < Math.round(expectedAmount)
     ) {
-      return { ok: false as const, reason: 'amount_mismatch', expected: expectedAmount, charged: chargedAmount }
+      await persistAmountMismatch(supabase, payment.id, payment.club_id, expectedAmount, chargedAmount, 'Flow')
+      return { ok: false, reason: 'amount_mismatch', expected: expectedAmount, charged: chargedAmount }
     }
 
     return markPaymentAsPaid(supabase, payment, token.trim(), 'verified_by_api')
   }
 
-  // Flow dice que no está pagado, o la API no estaba disponible. NUNCA se marca como pagado
-  // sin un estado verificado por getStatus (se eliminó el fallback de "confiar en el webhook").
   const { data: fallback } = await supabase
     .from('payments')
     .select('status')
     .eq('transaction_id', token.trim())
     .maybeSingle()
   if (fallback?.status === 'paid') {
-    return { ok: true as const, paid: true as const, alreadyPaid: true as const }
+    return { ok: true, paid: true, alreadyPaid: true }
   }
 
-  return { ok: true as const, paid: false as const, apiAvailable, status: statusResponse.status }
+  return { ok: true, paid: false, apiAvailable, status: statusResponse.status }
 }
 
+/** Re-export para compatibilidad con imports existentes. */
+export { activateSubscriptionForPaidPayment } from '@/lib/subscription-activation'
+
 /**
- * Marca como `failed` un pago de Flow rechazado/anulado, solo si sigue `pending`.
- * Nunca pisa un pago `paid`/`overdue` (el guard de status evita carreras con el webhook).
+ * Marca como `failed` un pago de Flow rechazado/anulado si sigue pendiente o vencido.
  */
 export async function markFlowPaymentFailedIfPending(token: string, reason: string): Promise<void> {
   if (!token?.trim()) return
@@ -216,5 +165,5 @@ export async function markFlowPaymentFailedIfPending(token: string, reason: stri
     .from('payments')
     .update({ status: 'failed', notes: `Flow: pago no completado (${reason})` })
     .eq('transaction_id', token.trim())
-    .eq('status', 'pending')
+    .in('status', ['pending', 'overdue'])
 }
