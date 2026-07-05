@@ -6,7 +6,11 @@ import { z } from 'zod'
 import { getClubId, assertClubCapability } from '@/lib/actions/club-context'
 import {
   calculateNextPeriodStart,
+  calculatePeriodStartForPayment,
+  getBillingAnchorDay,
+  parseYmd,
   todayYmd,
+  ymdFromDate,
   type BillingCycle,
 } from '@/lib/billing-utils'
 import { ONLINE_GATEWAY_IDS } from '@/lib/payment-methods'
@@ -162,13 +166,33 @@ export async function createPayment(input: PaymentInput) {
   const parsed = paymentSchema.parse(input)
   const supabase = createAdminClient()
 
+  // Si el pago está ligado a un plan, derivar el período para alinear la facturación y que el
+  // índice único (club_id, athlete_id, plan_id, period_start) prevenga pagos duplicados del
+  // mismo período (antes quedaba period_start NULL y el índice no cubría los pagos manuales).
+  let periodStart: string | null = null
+  let periodEnd: string | null = null
+  if (parsed.plan_id) {
+    const { data: plan } = await supabase
+      .from('plans').select('billing_cycle').eq('id', parsed.plan_id).eq('club_id', clubId).maybeSingle()
+    const cycle = ((plan?.billing_cycle as string) ?? 'monthly') as BillingCycle
+    const ref = parseYmd(parsed.due_date)
+    const { periodStart: ps, periodEnd: pe } = calculatePeriodStartForPayment(getBillingAnchorDay(ref), ref, cycle)
+    periodStart = ymdFromDate(ps)
+    periodEnd = pe ? ymdFromDate(pe) : null
+  }
+
   const { data, error } = await supabase
     .from('payments')
-    .insert({ ...parsed, club_id: clubId })
+    .insert({ ...parsed, club_id: clubId, period_start: periodStart, period_end: periodEnd })
     .select()
     .single()
 
-  if (error) throw new Error(error.message)
+  if (error) {
+    if (error.code === '23505' || error.message.includes('idx_payments_unique_period')) {
+      throw new Error('Ya existe un pago registrado para ese alumno y plan en ese período.')
+    }
+    throw new Error(error.message)
+  }
 
   // Auto-create subscription if payment is created as paid and linked to a plan
   if (parsed.status === 'paid' && parsed.plan_id) {
@@ -176,7 +200,7 @@ export async function createPayment(input: PaymentInput) {
     await activateSubscriptionForPaidPayment(
       supabase,
       clubId,
-      { athlete_id: parsed.athlete_id, plan_id: parsed.plan_id },
+      { athlete_id: parsed.athlete_id, plan_id: parsed.plan_id, period_start: periodStart, period_end: periodEnd },
       paidAtDate,
       parsed.payment_method ?? 'manual',
     )

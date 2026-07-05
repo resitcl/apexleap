@@ -211,6 +211,8 @@ export async function createAthlete(input: AthleteInput) {
       ...parsed,
       club_id: clubId,
       email: parsed.email || null,
+      // Fecha vacía → NULL (columna DATE): insertar '' lanza un error crudo de Postgres.
+      birth_date: parsed.birth_date?.trim() || null,
     })
     .select()
     .single()
@@ -244,6 +246,8 @@ export async function updateAthlete(id: string, input: Partial<AthleteInput>) {
   const supabase = createAdminClient()
 
   const safeUpdate = Object.fromEntries(Object.entries({ ...input }).filter(([, v]) => v !== undefined))
+  // Fecha de nacimiento vacía → NULL (columna DATE), no '' (error de Postgres).
+  if (safeUpdate.birth_date === '') safeUpdate.birth_date = null
   const { data, error } = await supabase
     .from('athletes')
     .update(safeUpdate)
@@ -298,15 +302,17 @@ export async function bulkUpdateAthleteStatus(ids: string[], status: 'active' | 
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('athletes')
     .update({ status })
     .in('id', ids)
     .eq('club_id', clubId)
+    .is('archived_at', null)
+    .select('id')
 
   if (error) throw new Error(error.message)
   revalidatePath('/dashboard/athletes')
-  return { updated: ids.length }
+  return { updated: data?.length ?? 0 }
 }
 
 /**
