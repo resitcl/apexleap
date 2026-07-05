@@ -101,7 +101,7 @@ export function ConfirmTransferButton({ payment, open: controlledOpen, onOpenCha
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Vencimiento</span>
-                <span className="font-medium">{new Date(payment.due_date).toLocaleDateString('es-CL')}</span>
+                <span className="font-medium">{new Date(`${payment.due_date}T12:00:00`).toLocaleDateString('es-CL')}</span>
               </div>
             </div>
 

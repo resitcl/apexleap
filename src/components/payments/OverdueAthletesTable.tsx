@@ -45,36 +45,19 @@ function formatCurrency(amount: number): string {
 }
 
 function daysSince(date: string): number {
-  const dueDate = new Date(date)
+  // `date` es una columna DATE ('YYYY-MM-DD'); anclar a mediodía local evita que el
+  // parseo UTC la corra un día hacia atrás por la tarde/noche en zonas UTC-negativas.
+  const dueDate = new Date(`${date}T12:00:00`)
   const today = new Date()
   return Math.floor((today.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24))
 }
 
 export function OverdueAthletesTable({ athletes: initialAthletes }: Props) {
   const [athletes, setAthletes] = useState(initialAthletes)
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState<string | null>(null)
   const [waiveDialogOpen, setWaiveDialogOpen] = useState(false)
   const [waiveReason, setWaiveReason] = useState("")
   const [athleteToWaive, setAthleteToWaive] = useState<OverdueAthlete | null>(null)
-
-  const toggleSelect = (id: string) => {
-    const newSet = new Set(selectedIds)
-    if (newSet.has(id)) {
-      newSet.delete(id)
-    } else {
-      newSet.add(id)
-    }
-    setSelectedIds(newSet)
-  }
-
-  const selectAll = () => {
-    if (selectedIds.size === athletes.length) {
-      setSelectedIds(new Set())
-    } else {
-      setSelectedIds(new Set(athletes.map(a => a.athlete.id)))
-    }
-  }
 
   async function handleGenerateCatchUp(athleteId: string) {
     setLoading(athleteId)
@@ -143,27 +126,12 @@ export function OverdueAthletesTable({ athletes: initialAthletes }: Props) {
                 {athletes.length} atletas · {totalOverduePayments} pagos vencidos · {formatCurrency(totalOverdueAmount)} total
               </CardDescription>
             </div>
-            {selectedIds.size > 0 && (
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">{selectedIds.size} seleccionados</span>
-                <Button size="sm" variant="outline" className="gap-1" disabled>
-                  <Mail className="w-4 h-4" />
-                  Enviar recordatorio
-                </Button>
-              </div>
-            )}
           </div>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
             {/* Header row */}
             <div className="flex items-center gap-3 py-2 border-b text-xs text-muted-foreground uppercase">
-              <input 
-                type="checkbox"
-                checked={selectedIds.size === athletes.length}
-                onChange={selectAll}
-                className="shrink-0 h-4 w-4 rounded border-gray-300"
-              />
               <div className="flex-1 grid grid-cols-5 gap-3">
                 <span>Atleta</span>
                 <span>Contacto</span>
@@ -181,18 +149,10 @@ export function OverdueAthletesTable({ athletes: initialAthletes }: Props) {
                 : "text-yellow-700 bg-yellow-100"
 
               return (
-                <div 
-                  key={item.athlete.id} 
-                  className={`flex items-center gap-3 py-3 border-b last:border-0 ${
-                    selectedIds.has(item.athlete.id) ? 'bg-muted/30' : ''
-                  }`}
+                <div
+                  key={item.athlete.id}
+                  className="flex items-center gap-3 py-3 border-b last:border-0"
                 >
-                  <input 
-                    type="checkbox"
-                    checked={selectedIds.has(item.athlete.id)}
-                    onChange={() => toggleSelect(item.athlete.id)}
-                    className="shrink-0 h-4 w-4 rounded border-gray-300"
-                  />
                   <div className="flex-1 grid grid-cols-5 gap-3 items-center">
                     {/* Athlete info */}
                     <div className="flex items-center gap-2">
@@ -237,7 +197,7 @@ export function OverdueAthletesTable({ athletes: initialAthletes }: Props) {
                     <div className="text-center">
                       <span className="text-lg font-bold text-destructive">{item.payments.length}</span>
                       <p className="text-xs text-muted-foreground">
-                        desde {new Date(item.oldestDueDate).toLocaleDateString('es-CL', { month: 'short', day: 'numeric' })}
+                        desde {new Date(`${item.oldestDueDate}T12:00:00`).toLocaleDateString('es-CL', { month: 'short', day: 'numeric' })}
                       </p>
                     </div>
 

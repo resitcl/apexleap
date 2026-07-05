@@ -41,7 +41,7 @@ export function ExportAthleteButton({ athlete, payments, attendance }: Props) {
       lines.push('"PAGOS"')
       lines.push('"Concepto";"Monto";"Estado";"Vencimiento"')
       for (const p of payments) {
-        lines.push(`"${p.concept}";"${p.amount}";"${p.status}";"${new Date(p.due_date).toLocaleDateString('es-CL')}"`)
+        lines.push(`"${p.concept}";"${p.amount}";"${p.status}";"${new Date(`${p.due_date}T12:00:00`).toLocaleDateString('es-CL')}"`)
       }
     }
 
