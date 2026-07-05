@@ -262,7 +262,7 @@ export function PayNowModal({ planName, planPrice, planCycle, bankInfo, enabledM
               {selectedMethod === 'transfer' && (
                 <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-5 space-y-4">
                   <p className="text-[10px] font-black uppercase tracking-widest text-amber-500">
-                    Datos para trasferencia
+                    Datos para transferencia
                   </p>
                   {bankInfo ? (
                     <div className="space-y-2">
@@ -416,8 +416,9 @@ export function PayNowModal({ planName, planPrice, planCycle, bankInfo, enabledM
                 </div>
               )}
 
-              {/* Other methods: info notice */}
-              {selectedMethod && selectedMethod !== 'transfer' && (
+              {/* Other methods: info notice (solo métodos que requieren validación manual del admin;
+                  Flow/MercadoPago redirigen a la pasarela y se acreditan automáticamente). */}
+              {selectedMethod && selectedMethod !== 'transfer' && selectedMethod !== 'flow' && selectedMethod !== 'mercadopago' && (
                 <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-4 flex items-start gap-3">
                   <Clock className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" />
                   <p className="text-xs text-blue-300/80 font-medium">
