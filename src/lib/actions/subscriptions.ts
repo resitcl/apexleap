@@ -9,6 +9,7 @@ import {
   calculatePeriodEnd,
   calculateNextPeriodStart,
   getBillingAnchorDay,
+  parseYmd,
   todayYmd,
   ymdFromDate,
   type BillingCycle,
@@ -80,11 +81,36 @@ export async function createSubscription(input: SubscriptionInput) {
   const parsed = subscriptionSchema.parse(input)
   const supabase = createAdminClient()
 
+  // Poblar las anclas de facturación server-side (igual que renewSubscription). Sin ellas
+  // el motor de cron ignora la suscripción (no genera cuotas ni la expira nunca).
+  const { data: plan } = await supabase
+    .from('plans')
+    .select('billing_cycle')
+    .eq('id', parsed.plan_id)
+    .eq('club_id', clubId)
+    .single()
+  const cycle = ((plan?.billing_cycle as string) ?? 'monthly') as BillingCycle
+
+  const startDate = parseYmd(parsed.start_date)
+  const periodEnd = calculatePeriodEnd(startDate, cycle)
+  const endStr = parsed.end_date || (periodEnd ? ymdFromDate(periodEnd) : null)
+  const anchorDay = getBillingAnchorDay(startDate)
+  const nextStart = calculateNextPeriodStart(startDate, cycle)
+  const nextBillingStr = nextStart ? ymdFromDate(nextStart) : null
+
   await cancelPriorSubscriptions(supabase, clubId, parsed.athlete_id)
 
   const { data, error } = await supabase
     .from('subscriptions')
-    .insert({ ...parsed, club_id: clubId })
+    .insert({
+      ...parsed,
+      club_id: clubId,
+      end_date: endStr,
+      billing_anchor_day: anchorDay,
+      current_period_start: parsed.start_date,
+      current_period_end: endStr,
+      next_billing_date: nextBillingStr,
+    })
     .select('*, athletes(id, name), plans(id, name, price, billing_cycle)')
     .single()
 

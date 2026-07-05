@@ -141,10 +141,22 @@ export async function generateDuePaymentsForClub(clubId: string): Promise<number
   return created
 }
 
-/** Expira suscripciones activas cuyo periodo actual ya terminó. */
+/** Días de gracia tras el fin de período antes de expirar (coherente con determineSubscriptionStatus). */
+const EXPIRY_GRACE_DAYS = 3
+
+/**
+ * Expira suscripciones activas cuyo período terminó hace más de EXPIRY_GRACE_DAYS.
+ * La ventana de gracia es clave: sin ella el cron expiraba el mismo día que emitía la nueva
+ * cuota (next_billing_date = current_period_end + 1), dejando al atleta al día sin una
+ * suscripción `active` y por tanto bloqueado de pagar por self-service. Con gracia, la
+ * suscripción sigue `active` durante la gracia para que pueda renovar.
+ */
 export async function expireSubscriptionsForClub(clubId: string): Promise<number> {
   const supabase = createAdminClient()
-  const today = todayYmd()
+
+  const graceCutoff = new Date()
+  graceCutoff.setDate(graceCutoff.getDate() - EXPIRY_GRACE_DAYS)
+  const cutoff = ymdFromDate(graceCutoff)
 
   const { count, error } = await supabase
     .from('subscriptions')
@@ -152,7 +164,7 @@ export async function expireSubscriptionsForClub(clubId: string): Promise<number
     .eq('club_id', clubId)
     .eq('status', 'active')
     .not('current_period_end', 'is', null)
-    .lt('current_period_end', today)
+    .lt('current_period_end', cutoff)
 
   if (error) throw new Error(error.message)
   return count ?? 0
