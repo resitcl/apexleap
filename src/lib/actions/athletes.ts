@@ -11,6 +11,7 @@ import {
   cleanupStaffOnlyAthletesForClub,
   archiveAthleteForUser,
 } from '@/lib/admin-athlete-sync'
+import { cancelPriorSubscriptions } from '@/lib/subscription-activation'
 
 const athleteSchema = z.object({
   name: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
@@ -102,7 +103,7 @@ export async function getAthletes(params?: {
 
   let query = supabase
     .from('athletes')
-    .select('*, subscriptions(id, status, plan_id, plans(name)), payments(id, status, paid_at, payment_method), attendance(id, checked_in_at), documents(id, expiry_date)', { count: 'exact' })
+    .select('*, subscriptions(id, status, plan_id, plans(name)), payments(id, status, paid_at, payment_method, amount, due_date), attendance(id, checked_in_at), documents(id, expiry_date)', { count: 'exact' })
     .eq('club_id', clubId)
     .is('archived_at', null)
     .order(
@@ -275,6 +276,10 @@ export async function archiveAthlete(id: string) {
     .is('archived_at', null)
 
   if (error) throw new Error(error.message)
+
+  // Cancelar la suscripción para que el cron de facturación no siga emitiendo cuotas ni
+  // acumulando mora sobre un alumno que ya salió del club.
+  await cancelPriorSubscriptions(supabase, clubId, id)
 
   revalidatePath('/dashboard/athletes')
   revalidatePath(`/dashboard/athletes/${id}`)

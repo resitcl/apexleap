@@ -66,7 +66,7 @@ export async function activateSubscriptionForPaidPayment(
 
   await cancelPriorSubscriptions(supabase, clubId, payment.athlete_id)
 
-  await supabase.from('subscriptions').insert({
+  const { error: insertErr } = await supabase.from('subscriptions').insert({
     club_id: clubId,
     athlete_id: payment.athlete_id,
     plan_id: payment.plan_id,
@@ -80,6 +80,27 @@ export async function activateSubscriptionForPaidPayment(
     current_period_end: endStr,
     next_billing_date: nextBillingStr,
   })
+
+  // Un pago confirmado NUNCA debe quedar sin suscripción activa. Si el INSERT falla (p.ej.
+  // 23505 del índice one-active-per-athlete por una confirmación concurrente), verificar que
+  // realmente exista una suscripción activa; si no, registrar para revisión (no lanzar: el
+  // pago ya está pagado y no queremos romper el flujo del webhook).
+  if (insertErr) {
+    const { data: activeNow } = await supabase
+      .from('subscriptions')
+      .select('id')
+      .eq('club_id', clubId)
+      .eq('athlete_id', payment.athlete_id)
+      .eq('status', 'active')
+      .maybeSingle()
+    if (!activeNow) {
+      console.error(
+        '[activateSubscriptionForPaidPayment] pago confirmado sin suscripción activa resultante:',
+        insertErr.message,
+        { clubId, athleteId: payment.athlete_id, planId: payment.plan_id },
+      )
+    }
+  }
 
   await supabase
     .from('athletes')
