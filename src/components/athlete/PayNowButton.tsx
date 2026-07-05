@@ -68,7 +68,7 @@ export function PayNowButton({ planName, planPrice, planCycle, hasOverdue, hasPe
                 ? 'Regulariza tu cuenta para mantener acceso al club'
                 : hasPending
                   ? 'Tu comprobante está siendo revisado por el administrador'
-                  : `${planName} · $${planPrice.toLocaleString('es-CL')} / ${planCycle}`}
+                  : `${planName} · $${planPrice.toLocaleString('es-CL')} / ${({ monthly: 'mes', quarterly: 'trimestre', semiannual: 'semestre', annual: 'año', single: 'pago único' } as Record<string, string>)[planCycle] ?? planCycle}`}
             </p>
           </div>
         </div>

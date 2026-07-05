@@ -2,7 +2,7 @@
 
 import { useSearchParams, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { CheckCircle2, XCircle, X } from 'lucide-react'
+import { CheckCircle2, XCircle, X, Clock } from 'lucide-react'
 
 export function MercadoPagoPaymentBanner() {
   const searchParams = useSearchParams()
@@ -97,7 +97,7 @@ export function MercadoPagoPaymentBanner() {
         {paid ? (
           <CheckCircle2 className="w-6 h-6 text-emerald-500" />
         ) : pending ? (
-          <CheckCircle2 className="w-6 h-6 text-amber-500" />
+          <Clock className="w-6 h-6 text-amber-500" />
         ) : (
           <XCircle className="w-6 h-6 text-destructive" />
         )}
