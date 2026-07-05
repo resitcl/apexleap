@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import {
@@ -25,6 +26,7 @@ const ACTIONS: { status: Status; label: string; icon: React.ReactNode; show: Sta
 
 export function SubscriptionStatusButton({ subscriptionId, currentStatus }: Props) {
   const [loading, setLoading] = useState(false)
+  const router = useRouter()
   const available = ACTIONS.filter((a) => a.show.includes(currentStatus))
   if (available.length === 0) return null
 
@@ -33,6 +35,7 @@ export function SubscriptionStatusButton({ subscriptionId, currentStatus }: Prop
     try {
       await updateSubscriptionStatus(subscriptionId, status)
       toast.success("Suscripción actualizada")
+      router.refresh()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Error al actualizar")
     } finally {

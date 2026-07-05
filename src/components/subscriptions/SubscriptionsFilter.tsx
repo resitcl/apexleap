@@ -15,10 +15,11 @@ const STATUS_OPTIONS: { value: string | null; label: string; activeClass: string
 const METHOD_LABELS: Record<string, string> = {
   cash: 'Efectivo',
   transfer: 'Transferencia',
-  card: 'Tarjeta',
   webpay: 'Webpay',
   mercadopago: 'MercadoPago',
   flow: 'Flow',
+  khipu: 'Khipu',
+  other: 'Otro',
 }
 
 interface Props {

@@ -59,39 +59,27 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
 
   try {
     const filterParams = { status: params.status, planId: planId || undefined, search: search || undefined, expiringIn: expiring ? Number(expiring) : undefined }
-    const [result, allResult, statsResult, plansResult, athletesResult] = await Promise.all([
-      getSubscriptions({ ...filterParams, page, limit: 25 }),
+    const [allResult, statsResult, plansResult, athletesResult] = await Promise.all([
       getSubscriptions({ ...filterParams, page: 1, limit: 1000 }),
       getSubscriptionStats(),
       getPlans(),
       getAthletes({ limit: 500 }),
     ])
-    let sList = result.subscriptions
-    let aList  = allResult.subscriptions
-    if (method) {
-      sList = sList.filter((s) => s.payment_method === method)
-      aList  = aList.filter((s) => s.payment_method === method)
-    }
-    if (priceMin !== undefined) {
-      const f = (s: typeof sList[number]) => { const p = (s.plans as { price?: number } | null)?.price ?? 0; return p >= priceMin }
-      sList = sList.filter(f); aList = aList.filter(f)
-    }
-    if (priceMax !== undefined) {
-      const f = (s: typeof sList[number]) => { const p = (s.plans as { price?: number } | null)?.price ?? 0; return p <= priceMax }
-      sList = sList.filter(f); aList = aList.filter(f)
-    }
-    if (startFrom) { sList = sList.filter((s) => s.start_date >= startFrom); aList = aList.filter((s) => s.start_date >= startFrom) }
-    if (startTo)   { sList = sList.filter((s) => s.start_date <= startTo);   aList = aList.filter((s) => s.start_date <= startTo)   }
+    // Los filtros que no viven en el backend (método, precio, fecha, orden) se aplican sobre el
+    // conjunto completo y luego se pagina, para que filtros/orden/paginación sean consistentes
+    // con el total real y no solo con la página visible.
+    let aList = allResult.subscriptions
+    if (method) aList = aList.filter((s) => s.payment_method === method)
+    if (priceMin !== undefined) aList = aList.filter((s) => (((s.plans as { price?: number } | null)?.price ?? 0) >= priceMin))
+    if (priceMax !== undefined) aList = aList.filter((s) => (((s.plans as { price?: number } | null)?.price ?? 0) <= priceMax))
+    if (startFrom) aList = aList.filter((s) => s.start_date >= startFrom)
+    if (startTo)   aList = aList.filter((s) => s.start_date <= startTo)
     if (sortBy === 'expiring') {
-      sList = sList.slice().sort((a, b) => {
-        const dA = a.end_date ?? '9999-12-31'
-        const dB = b.end_date ?? '9999-12-31'
-        return dA.localeCompare(dB)
-      })
+      aList = aList.slice().sort((a, b) => (a.end_date ?? '9999-12-31').localeCompare(b.end_date ?? '9999-12-31'))
     }
-    subs = sList
     allSubs = aList
-    total = result.total
+    total = aList.length
+    subs = aList.slice((page - 1) * 25, page * 25)
     stats = statsResult
     plans = plansResult.map((p) => ({ id: p.id, name: p.name }))
     const activeAthleteIds = new Set(athletesResult.athletes.filter((a) => a.status === 'active').map((a) => a.id))
@@ -137,6 +125,8 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
     const s = new URLSearchParams(o).toString()
     return s ? `?${s}` : ''
   }
+
+  const hasActiveFilters = !!(params.status || planId || search || expiring || method || sortBy || priceMinStr || priceMaxStr || startFrom || startTo)
 
   return (
     <DashboardPage>
@@ -346,15 +336,15 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
           </CardContent>
         </Card>
         {(() => {
-          const base = stats.active + stats.cancelled
+          const base = stats.active + stats.cancelled + stats.expired
           if (base < 2) return null
           const rate = Math.round((stats.active / base) * 100)
           return (
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <div className="flex items-center gap-1">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Tasa Renovación</CardTitle>
-                  <InfoTooltip text="% de suscripciones vencidas que fueron renovadas. 70%+ indica buen nivel de retención." />
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Tasa Retención</CardTitle>
+                  <InfoTooltip text="Suscripciones activas sobre el total histórico (activas + canceladas + expiradas). Aproximación de retención; no mide la renovación real de las vencidas." />
                 </div>
                 <TrendingUp className="h-4 w-4 text-violet-500" />
               </CardHeader>
@@ -467,11 +457,23 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
         <Card>
           <CardContent className="py-16 text-center">
             <Users className="w-12 h-12 mx-auto mb-2 text-muted-foreground opacity-40" />
-            <h3 className="font-semibold text-lg mb-1">Sin suscripciones</h3>
-            <p className="text-muted-foreground mb-4">Asigna un plan a tus alumnos</p>
-            <Link href="/dashboard/subscriptions/new">
-              <Button>Asignar Plan</Button>
-            </Link>
+            {hasActiveFilters ? (
+              <>
+                <h3 className="font-semibold text-lg mb-1">Sin resultados</h3>
+                <p className="text-muted-foreground mb-4">Ninguna suscripción coincide con los filtros aplicados.</p>
+                <Link href="/dashboard/subscriptions">
+                  <Button variant="outline">Limpiar filtros</Button>
+                </Link>
+              </>
+            ) : (
+              <>
+                <h3 className="font-semibold text-lg mb-1">Sin suscripciones</h3>
+                <p className="text-muted-foreground mb-4">Asigna un plan a tus alumnos</p>
+                <Link href="/dashboard/subscriptions/new">
+                  <Button>Asignar Plan</Button>
+                </Link>
+              </>
+            )}
           </CardContent>
         </Card>
       ) : (
@@ -544,7 +546,7 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
                           Desde {new Date(sub.start_date).toLocaleDateString("es-CL")}
                           {sub.status === 'active' && (() => {
                             const days = Math.floor((today.getTime() - new Date(sub.start_date).getTime()) / 86400000)
-                            return days > 0 ? <span className="ml-1 text-primary font-medium">({days}d activa)</span> : null
+                            return days > 0 ? <span className="ml-1 text-muted-foreground">({days}d activa)</span> : null
                           })()}
                         </span>
                         {sub.end_date && <span>Hasta {new Date(sub.end_date).toLocaleDateString("es-CL")}</span>}
@@ -573,7 +575,7 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
                             </span>
                           </span>
                         )}
-                        <Badge variant={cfg.variant}>{cfg.label}</Badge>
+                        <Badge variant={isExpired ? 'outline' : cfg.variant}>{isExpired ? 'Vencida' : cfg.label}</Badge>
                       </div>
                       <div className="flex items-center gap-1.5 flex-wrap justify-end">
                         <EditSubscriptionValidityButton

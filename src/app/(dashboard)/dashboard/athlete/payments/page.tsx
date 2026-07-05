@@ -133,7 +133,7 @@ export default async function AthletePaymentsPage() {
                 <div>
                   <div className="flex items-center gap-3 flex-wrap">
                     <p className="font-black text-xl tracking-tight leading-none">{plan.name}</p>
-                    <Badge className={`text-[10px] uppercase font-black tracking-widest px-2 py-0.5 ${daysLeft !== null && daysLeft <= 7 ? "bg-orange-500 text-white" : "bg-primary text-primary-foreground"}`}>Activa</Badge>
+                    <Badge className={`text-[10px] uppercase font-black tracking-widest px-2 py-0.5 ${daysLeft !== null && daysLeft <= 0 ? "bg-destructive text-white" : daysLeft !== null && daysLeft <= 7 ? "bg-orange-500 text-white" : "bg-primary text-primary-foreground"}`}>{daysLeft !== null && daysLeft <= 0 ? "Vencida" : "Activa"}</Badge>
                   </div>
                   <p className="text-xs uppercase font-bold tracking-widest text-muted-foreground/80 mt-2">
                     ${plan.price.toLocaleString('es-CL')} <span className="text-muted-foreground/40 mx-1">/</span> {BILLING_LABEL[plan.billing_cycle] ?? plan.billing_cycle}
