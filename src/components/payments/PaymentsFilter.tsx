@@ -92,10 +92,11 @@ const STATUS_OPTIONS = [
 const METHOD_OPTIONS = [
   { value: 'cash',        label: 'Efectivo' },
   { value: 'transfer',    label: 'Transferencia' },
-  { value: 'card',        label: 'Tarjeta' },
   { value: 'webpay',      label: 'Webpay' },
   { value: 'mercadopago', label: 'MercadoPago' },
   { value: 'flow',        label: 'Flow' },
+  { value: 'khipu',       label: 'Khipu' },
+  { value: 'other',       label: 'Otro' },
 ]
 
 interface Props {
