@@ -64,7 +64,7 @@ export async function getMySubscriptionStatus() {
   // Find athlete by Clerk email
   const clerk = await clerkClient()
   const user = await clerk.users.getUser(userId)
-  const email = user.emailAddresses[0]?.emailAddress ?? null
+  const email = (user.emailAddresses[0]?.emailAddress ?? '').trim().toLowerCase() || null
   if (!email) return { hasAthleteProfile: false, hasActiveSubscription: false, athlete: null, subscription: null }
 
   const { data: athlete } = await supabase
@@ -105,7 +105,7 @@ export async function enrollInPlan(planId: string) {
   // Get Clerk user info
   const clerk = await clerkClient()
   const user = await clerk.users.getUser(userId)
-  const email = user.emailAddresses[0]?.emailAddress ?? null
+  const email = (user.emailAddresses[0]?.emailAddress ?? '').trim().toLowerCase() || null
   const fullName = [user.firstName, user.lastName].filter(Boolean).join(' ') || email || 'Atleta'
 
   if (!email) throw new Error('No se encontró un email asociado a tu cuenta')
@@ -228,7 +228,7 @@ export async function getOnboardingData(): Promise<OnboardingData> {
   // Clerk user info
   const clerk = await clerkClient()
   const user = await clerk.users.getUser(userId)
-  const email = user.emailAddresses[0]?.emailAddress ?? null
+  const email = (user.emailAddresses[0]?.emailAddress ?? '').trim().toLowerCase() || null
   const fullName = [user.firstName, user.lastName].filter(Boolean).join(' ') || ''
   const photoUrl = user.imageUrl ?? null
 
@@ -379,7 +379,7 @@ export async function getAthleteFinancialAccessState(): Promise<AthleteFinancial
 
   const clerk = await clerkClient()
   const user = await clerk.users.getUser(userId)
-  const email = user.emailAddresses[0]?.emailAddress ?? null
+  const email = (user.emailAddresses[0]?.emailAddress ?? '').trim().toLowerCase() || null
   if (!email) return empty
 
   const { data: athlete } = await supabase
@@ -475,7 +475,7 @@ export async function saveAthleteProfile(profile: {
 
   const clerk = await clerkClient()
   const user = await clerk.users.getUser(userId)
-  const email = user.emailAddresses[0]?.emailAddress ?? null
+  const email = (user.emailAddresses[0]?.emailAddress ?? '').trim().toLowerCase() || null
   if (!email) throw new Error('No se encontró un email asociado a tu cuenta')
 
   // Find or create athlete
@@ -548,7 +548,7 @@ export async function requestEnrollment(profile: {
 
   const clerk = await clerkClient()
   const user = await clerk.users.getUser(userId)
-  const email = user.emailAddresses[0]?.emailAddress ?? null
+  const email = (user.emailAddresses[0]?.emailAddress ?? '').trim().toLowerCase() || null
   if (!email) throw new Error('No se encontró un email asociado a tu cuenta')
 
   // Check if athlete already exists
@@ -799,7 +799,7 @@ export async function enrollWithPayment(
 
   const clerk = await clerkClient()
   const user = await clerk.users.getUser(userId)
-  const email = user.emailAddresses[0]?.emailAddress ?? null
+  const email = (user.emailAddresses[0]?.emailAddress ?? '').trim().toLowerCase() || null
   const fullName = [user.firstName, user.lastName].filter(Boolean).join(' ') || email || 'Atleta'
   if (!email) throw new Error('No se encontró un email asociado a tu cuenta')
 
@@ -992,7 +992,7 @@ export async function saveAthleteProfileSelf(profile: {
 
   const clerk = await clerkClient()
   const user = await clerk.users.getUser(userId)
-  const email = user.emailAddresses[0]?.emailAddress ?? null
+  const email = (user.emailAddresses[0]?.emailAddress ?? '').trim().toLowerCase() || null
   if (!email) throw new Error('No se encontró email asociado a tu cuenta')
 
   const { data: athlete } = await supabase
@@ -1035,7 +1035,7 @@ export async function markTourCompleted() {
 
   const clerk = await clerkClient()
   const user = await clerk.users.getUser(userId)
-  const email = user.emailAddresses[0]?.emailAddress ?? null
+  const email = (user.emailAddresses[0]?.emailAddress ?? '').trim().toLowerCase() || null
   if (!email) throw new Error('No se encontró email')
 
   const { data: athlete } = await supabase
@@ -1075,7 +1075,7 @@ async function getMyAthleteId(): Promise<{ athleteId: string; clubId: string }> 
   const supabase = createAdminClient()
   const clerk = await clerkClient()
   const user = await clerk.users.getUser(userId)
-  const email = user.emailAddresses[0]?.emailAddress ?? null
+  const email = (user.emailAddresses[0]?.emailAddress ?? '').trim().toLowerCase() || null
 
   if (!email) throw new Error('No se encontró email')
   const { data } = await supabase
@@ -1251,7 +1251,7 @@ export async function submitSelfPayment(params: {
 
   const clerk = await clerkClient()
   const user = await clerk.users.getUser(userId)
-  const email = user.emailAddresses[0]?.emailAddress ?? null
+  const email = (user.emailAddresses[0]?.emailAddress ?? '').trim().toLowerCase() || null
   if (!email) throw new Error('No se encontró un email asociado a tu cuenta')
 
   // Get athlete
@@ -1375,7 +1375,7 @@ export async function createFlowCheckoutForSelfPayment() {
 
   const clerk = await clerkClient()
   const user = await clerk.users.getUser(userId)
-  const email = user.emailAddresses[0]?.emailAddress ?? null
+  const email = (user.emailAddresses[0]?.emailAddress ?? '').trim().toLowerCase() || null
   if (!email) throw new Error('No se encontró un email asociado a tu cuenta')
 
   const { data: athlete } = await supabase
@@ -1491,7 +1491,7 @@ export async function createMercadoPagoCheckoutForSelfPayment() {
 
   const clerk = await clerkClient()
   const user = await clerk.users.getUser(userId)
-  const email = user.emailAddresses[0]?.emailAddress ?? null
+  const email = (user.emailAddresses[0]?.emailAddress ?? '').trim().toLowerCase() || null
   if (!email) throw new Error('No se encontró un email asociado a tu cuenta')
 
   const { data: athlete } = await supabase

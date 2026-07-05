@@ -210,7 +210,7 @@ export async function createAthlete(input: AthleteInput) {
     .insert({
       ...parsed,
       club_id: clubId,
-      email: parsed.email || null,
+      email: parsed.email?.trim().toLowerCase() || null,
       // Fecha vacía → NULL (columna DATE): insertar '' lanza un error crudo de Postgres.
       birth_date: parsed.birth_date?.trim() || null,
     })

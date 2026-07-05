@@ -384,10 +384,14 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
         })()}
         {(() => {
           const curMonth = new Date().toISOString().slice(0, 7)
-          const cancelledThisMonth = allSubs.filter((s) =>
-            s.status === 'cancelled' &&
-            (s as { updated_at?: string }).updated_at?.startsWith(curMonth)
-          ).length
+          const cancelledThisMonth = allSubs.filter((s) => {
+            if (s.status !== 'cancelled') return false
+            // Preferir cancelled_at (columna dedicada, migración 036); fallback a updated_at
+            // mientras no esté poblada, para no romper el número antes de aplicar la migración.
+            const when = (s as { cancelled_at?: string | null }).cancelled_at
+              ?? (s as { updated_at?: string }).updated_at
+            return when?.startsWith(curMonth) ?? false
+          }).length
           if (cancelledThisMonth === 0) return null
           const churnRate = stats.active + cancelledThisMonth > 0
             ? Math.round((cancelledThisMonth / (stats.active + cancelledThisMonth)) * 100)
