@@ -39,6 +39,7 @@ export interface PaymentSettings {
   mercadopago: GatewayConfig
   khipu: GatewayConfig
   cash_instructions: string
+  billing_policy: 'accumulate' | 'suspend'
 }
 
 /* ── Gateway definitions ────────────────────────────────────────────────── */
@@ -91,6 +92,7 @@ function toState(v?: Partial<PaymentSettings> | null): PaymentSettings {
     mercadopago: { ...EMPTY_GW, ...v?.mercadopago },
     khipu: { ...EMPTY_GW, ...v?.khipu },
     cash_instructions: v?.cash_instructions ?? '',
+    billing_policy: v?.billing_policy === 'accumulate' ? 'accumulate' : 'suspend',
   }
 }
 
@@ -155,6 +157,43 @@ export function BankInfoForm({ defaultValues }: Props) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+
+      {/* ── Política de cuotas impagas ───────────────────────────────── */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Política de cuotas impagas</CardTitle>
+          <CardDescription>
+            Define qué pasa cuando un alumno deja de pagar. No afecta el bloqueo de acceso (un moroso
+            siempre queda bloqueado hasta regularizar); solo decide si se sigue generando deuda.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid sm:grid-cols-2 gap-3">
+            {[
+              { id: 'suspend', title: 'No acumular', desc: 'Se corta y se deja de facturar tras la cuota impaga. Para volver, el alumno paga el mes actual.' },
+              { id: 'accumulate', title: 'Acumular', desc: 'La deuda mensual se sigue generando mes a mes hasta que el alumno pague o se cancele.' },
+            ].map((opt) => {
+              const active = form.billing_policy === opt.id
+              return (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => setForm((p) => ({ ...p, billing_policy: opt.id as 'accumulate' | 'suspend' }))}
+                  className={`text-left rounded-xl border p-4 transition-colors ${active ? 'border-primary bg-primary/5' : 'border-input hover:bg-muted/40'}`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className={`flex h-4 w-4 items-center justify-center rounded-full border ${active ? 'border-primary' : 'border-muted-foreground/40'}`}>
+                      {active && <span className="h-2 w-2 rounded-full bg-primary" />}
+                    </span>
+                    <span className="text-sm font-bold">{opt.title}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground leading-relaxed">{opt.desc}</p>
+                </button>
+              )
+            })}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* ── Enabled Methods Overview ─────────────────────────────────── */}
       <Card>
