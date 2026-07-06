@@ -4,10 +4,12 @@ import {
   calculatePeriodEnd,
   calculatePeriodStartForPayment,
   getBillingAnchorDay,
+  getBillingPolicyFromSettings,
   todayYmd,
   ymdFromDate,
   parseYmd,
   type BillingCycle,
+  type BillingPolicy,
 } from '@/lib/billing-utils'
 import { ONLINE_GATEWAY_IDS } from '@/lib/payment-methods'
 
@@ -58,7 +60,10 @@ export async function failStaleGatewayPaymentsForClub(clubId: string): Promise<n
 }
 
 /** Genera cuotas pendientes para suscripciones cuyo next_billing_date ya llegó. */
-export async function generateDuePaymentsForClub(clubId: string): Promise<number> {
+export async function generateDuePaymentsForClub(
+  clubId: string,
+  policy: BillingPolicy = 'suspend',
+): Promise<number> {
   const supabase = createAdminClient()
   const today = todayYmd()
   let created = 0
@@ -84,6 +89,20 @@ export async function generateDuePaymentsForClub(clubId: string): Promise<number
       ? plansData[0]
       : (plansData as { id: string; name: string; price: number; billing_cycle: string } | null)
     if (!plan || !plan.price) continue
+
+    // Política "No acumular": si ya hay una cuota vencida de este plan sin pagar, no generamos
+    // la del período siguiente (se corta la acumulación; el alumno queda con la cuota vencida y
+    // bloqueado hasta regularizar). En "Acumular" se genera igual y la deuda se apila.
+    if (policy === 'suspend') {
+      const { count: overdueForPlan } = await supabase
+        .from('payments')
+        .select('id', { count: 'exact', head: true })
+        .eq('club_id', clubId)
+        .eq('athlete_id', sub.athlete_id)
+        .eq('plan_id', plan.id)
+        .eq('status', 'overdue')
+      if ((overdueForPlan ?? 0) > 0) continue
+    }
 
     const periodStartStr = nextBilling.slice(0, 10)
     const cycle = plan.billing_cycle as BillingCycle
@@ -228,11 +247,17 @@ export async function backfillMissingBillingAnchorsForClub(clubId: string): Prom
 }
 
 export async function runBillingCronForClub(clubId: string): Promise<Omit<CronResult, 'clubsProcessed'>> {
+  const supabase = createAdminClient()
+  const { data: clubRow } = await supabase.from('clubs').select('settings').eq('id', clubId).single()
+  const policy = getBillingPolicyFromSettings((clubRow?.settings ?? {}) as Record<string, unknown>)
+
   await backfillMissingBillingAnchorsForClub(clubId)
-  const paymentsGenerated = await generateDuePaymentsForClub(clubId)
+  const paymentsGenerated = await generateDuePaymentsForClub(clubId, policy)
   const overdueSynced = await syncOverduePaymentsForClub(clubId)
   const gatewayFailed = await failStaleGatewayPaymentsForClub(clubId)
-  const subscriptionsExpired = await expireSubscriptionsForClub(clubId)
+  // "Acumular": nunca vencer por impago (la sub sigue activa acumulando deuda).
+  // "No acumular": vencer normal tras la gracia → deja de facturar.
+  const subscriptionsExpired = policy === 'accumulate' ? 0 : await expireSubscriptionsForClub(clubId)
   return { paymentsGenerated, overdueSynced, gatewayFailed, subscriptionsExpired }
 }
 

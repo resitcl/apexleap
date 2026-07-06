@@ -5,6 +5,22 @@
 
 export type BillingCycle = 'monthly' | 'quarterly' | 'semiannual' | 'annual' | 'single'
 
+export type BillingPolicy = 'accumulate' | 'suspend'
+
+/**
+ * Política de cuotas impagas del club (clubs.settings.payment_settings.billing_policy).
+ * - 'suspend' (default): NO acumula. Tras la cuota impaga se deja de facturar y la suscripción
+ *   vence; el alumno paga el mes actual para volver.
+ * - 'accumulate': la deuda mensual se sigue generando mes a mes hasta pagar o cancelar.
+ * No afecta el bloqueo de acceso (un moroso queda bloqueado en cualquier política).
+ */
+export function getBillingPolicyFromSettings(
+  settings: Record<string, unknown> | null | undefined,
+): BillingPolicy {
+  const ps = (settings?.payment_settings ?? null) as { billing_policy?: unknown } | null
+  return ps?.billing_policy === 'accumulate' ? 'accumulate' : 'suspend'
+}
+
 export const CYCLE_MONTHS: Record<BillingCycle, number> = {
   monthly: 1,
   quarterly: 3,

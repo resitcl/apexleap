@@ -150,6 +150,7 @@ export async function updatePaymentSettings(paymentSettings: {
   mercadopago: { enabled: boolean; sandbox: boolean; api_key: string; secret_key: string; commerce_code: string; checkout_url?: string }
   khipu: { enabled: boolean; sandbox: boolean; api_key: string; secret_key: string; commerce_code: string; checkout_url?: string }
   cash_instructions: string
+  billing_policy?: 'accumulate' | 'suspend'
 }) {
   const membership = await getClubMembershipRole()
   if (membership !== 'admin' && membership !== 'admin_athlete') {
