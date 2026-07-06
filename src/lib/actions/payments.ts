@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { z } from 'zod'
-import { getClubId, assertClubCapability } from '@/lib/actions/club-context'
+import { getClubId, assertClubCapability, getClubMembershipRole } from '@/lib/actions/club-context'
 import {
   calculateNextPeriodStart,
   calculatePeriodStartForPayment,
@@ -542,4 +542,30 @@ export async function syncOverduePayments() {
   revalidatePath('/dashboard/payments')
   revalidatePath('/dashboard/athlete/payments')
   return count ?? 0
+}
+
+/**
+ * Genera una URL firmada (temporal) para ver un comprobante de transferencia del bucket PRIVADO
+ * `payment-receipts`. Solo admins del club, y solo para comprobantes que pertenecen a su club
+ * (la ruta empieza con `<clubId>/`). Acepta rutas nuevas o URLs públicas legacy (extrae la ruta).
+ */
+export async function getReceiptSignedUrl(ref: string): Promise<string | null> {
+  const role = await getClubMembershipRole()
+  if (role !== 'admin' && role !== 'admin_athlete') return null
+
+  const clubId = await getClubId()
+  const supabase = createAdminClient()
+
+  let path = (ref ?? '').trim()
+  const marker = '/payment-receipts/'
+  const idx = path.indexOf(marker)
+  if (idx >= 0) path = path.slice(idx + marker.length) // URL pública legacy → ruta interna
+  path = path.split('?')[0] // descarta querystring (URLs firmadas/públicas)
+  if (!path || !path.startsWith(`${clubId}/`)) return null // aislamiento por club
+
+  const { data, error } = await supabase.storage
+    .from('payment-receipts')
+    .createSignedUrl(path, 60 * 10) // 10 minutos
+  if (error || !data) return null
+  return data.signedUrl
 }

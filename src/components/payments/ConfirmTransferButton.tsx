@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { CheckCircle, ExternalLink, ImageIcon } from "lucide-react"
-import { confirmTransferPayment } from "@/lib/actions/payments"
+import { confirmTransferPayment, getReceiptSignedUrl } from "@/lib/actions/payments"
 
 interface Props {
   payment: {
@@ -27,10 +27,13 @@ interface Props {
   hideButton?: boolean
 }
 
-function extractReceiptUrl(notes: string | null): string | null {
+function extractReceiptRef(notes: string | null): string | null {
   if (!notes) return null
-  const match = notes.match(/https?:\/\/[^\s]+/i)
-  return match ? match[0] : null
+  // Formato nuevo: "Comprobante: <ruta>". Legacy: una URL http suelta.
+  const marked = notes.match(/Comprobante:\s*(\S+)/i)
+  if (marked) return marked[1]
+  const url = notes.match(/https?:\/\/[^\s]+/i)
+  return url ? url[0] : null
 }
 
 export function ConfirmTransferButton({ payment, open: controlledOpen, onOpenChange, hideButton }: Props) {
@@ -39,7 +42,23 @@ export function ConfirmTransferButton({ payment, open: controlledOpen, onOpenCha
   const [paidAt, setPaidAt] = useState(() => new Date().toISOString().split('T')[0])
   const [loading, setLoading] = useState(false)
 
-  const receiptUrl = extractReceiptUrl(payment.notes)
+  const receiptRef = extractReceiptRef(payment.notes)
+  const [receiptUrl, setReceiptUrl] = useState<string | null>(null)
+  const [receiptLoading, setReceiptLoading] = useState(false)
+
+  // El comprobante vive en un bucket PRIVADO: pedimos una URL firmada temporal al abrir el diálogo.
+  useEffect(() => {
+    if (!open || !receiptRef) return
+    let cancelled = false
+    setReceiptLoading(true)
+    setReceiptUrl(null)
+    getReceiptSignedUrl(receiptRef)
+      .then((url) => { if (!cancelled) setReceiptUrl(url) })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setReceiptLoading(false) })
+    return () => { cancelled = true }
+  }, [open, receiptRef])
+
   const athleteName = payment.athletes?.name ?? 'Atleta'
   const planName = payment.plans?.name ?? payment.concept
 
@@ -106,29 +125,37 @@ export function ConfirmTransferButton({ payment, open: controlledOpen, onOpenCha
             </div>
 
             {/* Receipt image */}
-            {receiptUrl ? (
+            {receiptRef ? (
               <div className="space-y-2">
                 <Label className="flex items-center gap-2">
                   <ImageIcon className="w-4 h-4" />
                   Comprobante de Transferencia
                 </Label>
-                <div className="relative rounded-lg overflow-hidden border bg-muted/30">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={receiptUrl}
-                    alt="Comprobante de transferencia"
-                    className="w-full max-h-64 object-contain"
-                  />
+                <div className="relative rounded-lg overflow-hidden border bg-muted/30 min-h-[8rem] flex items-center justify-center">
+                  {receiptLoading ? (
+                    <span className="text-xs text-muted-foreground py-10">Cargando comprobante…</span>
+                  ) : receiptUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={receiptUrl}
+                      alt="Comprobante de transferencia"
+                      className="w-full max-h-64 object-contain"
+                    />
+                  ) : (
+                    <span className="text-xs text-muted-foreground py-10">No se pudo cargar el comprobante.</span>
+                  )}
                 </div>
-                <a
-                  href={receiptUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
-                >
-                  <ExternalLink className="w-3 h-3" />
-                  Abrir imagen en nueva pestaña
-                </a>
+                {receiptUrl && (
+                  <a
+                    href={receiptUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                  >
+                    <ExternalLink className="w-3 h-3" />
+                    Abrir imagen en nueva pestaña
+                  </a>
+                )}
               </div>
             ) : (
               <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-lg p-4 text-center">

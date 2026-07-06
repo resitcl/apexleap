@@ -129,7 +129,7 @@ export function AthleteOnboardingWizard({ data, sportConfig: _sportConfig }: Pro
         const formData = new FormData()
         formData.append('file', receiptFile)
         const uploadResult = await uploadTransferReceipt(formData)
-        receiptUrl = uploadResult.url
+        receiptUrl = uploadResult.path
         transferSource = 'upload'
       }
 

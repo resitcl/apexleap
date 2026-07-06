@@ -962,6 +962,7 @@ export async function uploadTransferReceipt(formData: FormData) {
 
   const file = formData.get('file') as File | null
   if (!file) throw new Error('No se adjuntó ningún archivo')
+  if (!file.type.startsWith('image/')) throw new Error('El comprobante debe ser una imagen')
   if (file.size > TRANSFER_RECEIPT_MAX_BYTES) {
     throw new Error(
       `La imagen supera el máximo permitido (${Math.round(TRANSFER_RECEIPT_MAX_BYTES / (1024 * 1024))} MB). Reduce el tamaño o comprueba la foto.`
@@ -971,9 +972,12 @@ export async function uploadTransferReceipt(formData: FormData) {
   const ext = file.name.split('.').pop() ?? 'jpg'
   const path = `${clubId}/receipts/${userId}-${Date.now()}.${ext}`
 
-  // Ensure bucket exists (idempotent)
+  // Bucket PRIVADO: los comprobantes bancarios son datos sensibles y no deben ser accesibles por
+  // URL pública adivinable. El admin genera una URL firmada on-demand para verlos.
+  // Nota: si el bucket ya existía como público, hay que cambiarlo a privado en Supabase
+  // (Storage → payment-receipts → Make private); createBucket no altera uno existente.
   await supabase.storage.createBucket('payment-receipts', {
-    public: true,
+    public: false,
     fileSizeLimit: TRANSFER_RECEIPT_MAX_BYTES,
   })
 
@@ -983,11 +987,8 @@ export async function uploadTransferReceipt(formData: FormData) {
 
   if (error) throw new Error('Error al subir comprobante: ' + error.message)
 
-  const { data: urlData } = supabase.storage
-    .from('payment-receipts')
-    .getPublicUrl(path)
-
-  return { url: urlData.publicUrl }
+  // Se devuelve/guarda la RUTA dentro del bucket (no una URL pública).
+  return { path }
 }
 
 /**

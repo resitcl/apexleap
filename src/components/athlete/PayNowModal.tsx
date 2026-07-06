@@ -153,7 +153,7 @@ export function PayNowModal({ planName, planPrice, planCycle, bankInfo, enabledM
         const formData = new FormData()
         formData.append('file', receiptFile)
         const uploaded = await uploadTransferReceipt(formData)
-        receiptUrl = uploaded.url
+        receiptUrl = uploaded.path
         transferReceiptSource = 'upload'
       }
 
