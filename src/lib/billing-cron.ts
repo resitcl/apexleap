@@ -2,6 +2,8 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import {
   calculateNextPeriodStart,
   calculatePeriodEnd,
+  calculatePeriodStartForPayment,
+  getBillingAnchorDay,
   todayYmd,
   ymdFromDate,
   parseYmd,
@@ -170,7 +172,63 @@ export async function expireSubscriptionsForClub(clubId: string): Promise<number
   return count ?? 0
 }
 
+/**
+ * Saneo de anclas de facturación. Las suscripciones activas con `next_billing_date = NULL`
+ * (creadas antes de que createSubscription poblara las anclas) eran INVISIBLES para el cron:
+ * nunca se generaba su cuota → el atleta aparecía "al día" sin pagar hace meses. Aquí les
+ * asignamos anclas apuntando al PERÍODO ACTUAL (no retroactivo: no se inventan meses viejos),
+ * para que generateDuePaymentsForClub las empiece a facturar desde este mes en adelante.
+ * Idempotente: tras la primera corrida ya no quedan subs en NULL.
+ */
+export async function backfillMissingBillingAnchorsForClub(clubId: string): Promise<number> {
+  const supabase = createAdminClient()
+  let fixed = 0
+
+  const { data: subs } = await supabase
+    .from('subscriptions')
+    .select('id, athlete_id, start_date, billing_anchor_day, current_period_start, plans (billing_cycle, price)')
+    .eq('club_id', clubId)
+    .eq('status', 'active')
+    .is('next_billing_date', null)
+
+  const now = new Date()
+  for (const sub of subs ?? []) {
+    const plansData = sub.plans as unknown
+    const plan = Array.isArray(plansData)
+      ? plansData[0]
+      : (plansData as { billing_cycle: string; price: number } | null)
+    if (!plan || !plan.price) continue // plan gratis o sin plan: no se factura
+
+    const cycle = plan.billing_cycle as BillingCycle
+    if (cycle === 'single') continue // pago único: no es recurrente, no lleva next_billing_date
+
+    const refDate = sub.start_date ? parseYmd(sub.start_date as string) : now
+    const anchorDay = sub.billing_anchor_day ?? getBillingAnchorDay(refDate)
+    const refStart = sub.current_period_start ? parseYmd(sub.current_period_start as string) : null
+    const { periodStart, periodEnd } = calculatePeriodStartForPayment(anchorDay, now, cycle, refStart)
+    const periodStartStr = ymdFromDate(periodStart)
+    const periodEndStr = periodEnd ? ymdFromDate(periodEnd) : null
+
+    const { error } = await supabase
+      .from('subscriptions')
+      .update({
+        billing_anchor_day: anchorDay,
+        current_period_start: periodStartStr,
+        current_period_end: periodEndStr,
+        // next_billing_date = inicio del período actual → generateDuePayments emite la cuota de
+        // este período en la misma corrida (y luego avanza al siguiente mes).
+        next_billing_date: periodStartStr,
+      })
+      .eq('id', sub.id)
+      .eq('club_id', clubId)
+    if (!error) fixed++
+  }
+
+  return fixed
+}
+
 export async function runBillingCronForClub(clubId: string): Promise<Omit<CronResult, 'clubsProcessed'>> {
+  await backfillMissingBillingAnchorsForClub(clubId)
   const paymentsGenerated = await generateDuePaymentsForClub(clubId)
   const overdueSynced = await syncOverduePaymentsForClub(clubId)
   const gatewayFailed = await failStaleGatewayPaymentsForClub(clubId)
