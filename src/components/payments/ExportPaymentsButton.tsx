@@ -48,7 +48,7 @@ export function ExportPaymentsButton({ payments, filename = 'pagos' }: Props) {
         Number(p.amount).toFixed(2),
         STATUS_LABELS[p.status] ?? p.status,
         p.payment_method ? (METHOD_LABELS[p.payment_method] ?? p.payment_method) : '',
-        p.due_date ? new Date(p.due_date).toLocaleDateString('es-CL') : '',
+        p.due_date ? new Date(`${p.due_date}T12:00:00`).toLocaleDateString('es-CL') : '',
         p.paid_at ? new Date(p.paid_at).toLocaleDateString('es-CL') : '',
         new Date(p.created_at).toLocaleDateString('es-CL'),
       ])

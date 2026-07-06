@@ -488,7 +488,7 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
             const cfg = STATUS_CONFIG[sub.status] ?? STATUS_CONFIG.cancelled
 
             const daysLeft = sub.end_date && sub.status === 'active'
-              ? Math.ceil((new Date(sub.end_date).getTime() - today.getTime()) / 86400000)
+              ? Math.ceil((new Date(`${sub.end_date}T12:00:00`).getTime() - today.getTime()) / 86400000)
               : null
             const expiringSoon = daysLeft !== null && daysLeft >= 0 && daysLeft <= 7
             const isExpired   = daysLeft !== null && daysLeft < 0
@@ -547,13 +547,13 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
                           return <span className="text-green-600 font-medium">🔥 {streak} meses seguidos</span>
                         })()}
                         <span>
-                          Desde {new Date(sub.start_date).toLocaleDateString("es-CL")}
+                          Desde {new Date(`${sub.start_date}T12:00:00`).toLocaleDateString("es-CL")}
                           {sub.status === 'active' && (() => {
-                            const days = Math.floor((today.getTime() - new Date(sub.start_date).getTime()) / 86400000)
+                            const days = Math.floor((today.getTime() - new Date(`${sub.start_date}T12:00:00`).getTime()) / 86400000)
                             return days > 0 ? <span className="ml-1 text-muted-foreground">({days}d activa)</span> : null
                           })()}
                         </span>
-                        {sub.end_date && <span>Hasta {new Date(sub.end_date).toLocaleDateString("es-CL")}</span>}
+                        {sub.end_date && <span>Hasta {new Date(`${sub.end_date}T12:00:00`).toLocaleDateString("es-CL")}</span>}
                         {daysLeft !== null && daysLeft >= 0 && (
                           <span className={expiringSoon ? 'text-yellow-600 font-medium' : 'text-muted-foreground'}>
                             {expiringSoon && <AlertTriangle className="w-3 h-3 inline mr-0.5" />}
@@ -564,7 +564,7 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
                         {sub.auto_renew && <span className="text-green-600">↺ Auto-renovación</span>}
                         {sub.auto_renew && sub.end_date && sub.status === 'active' && daysLeft !== null && daysLeft >= 0 && (
                           <span className="text-blue-600 font-medium">
-                            Próximo cobro: {new Date(sub.end_date).toLocaleDateString('es-CL')}
+                            Próximo cobro: {new Date(`${sub.end_date}T12:00:00`).toLocaleDateString('es-CL')}
                           </span>
                         )}
                       </div>

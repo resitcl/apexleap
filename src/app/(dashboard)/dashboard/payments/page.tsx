@@ -764,7 +764,7 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
                       {isDuplicate && <span className="text-[9px] bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded font-bold">DUP</span>}
                     </div>
                     {payment.status === 'overdue' && (() => {
-                      const days = Math.floor((Date.now() - new Date(payment.due_date).getTime()) / 86400000)
+                      const days = Math.floor((Date.now() - new Date(`${payment.due_date}T12:00:00`).getTime()) / 86400000)
                       if (days <= 0) return null
                       return <p className="text-[10px] text-destructive font-bold pl-4">{days}d mora</p>
                     })()}
