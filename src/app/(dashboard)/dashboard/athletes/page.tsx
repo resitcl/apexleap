@@ -550,7 +550,7 @@ export default async function AthletesPage({ searchParams }: PageProps) {
           {/* Table Rows */}
           <div className="divide-y divide-border">
             {athletes.map((athlete) => {
-              const subs = athlete.subscriptions as Array<{ status: string; plans: { name: string; price?: number; billing_cycle?: string } | null }> | null ?? []
+              const subs = athlete.subscriptions as Array<{ status: string; current_period_end?: string | null; next_billing_date?: string | null; plans: { name: string; price?: number; billing_cycle?: string } | null }> | null ?? []
               const activeSub    = subs.find((s) => s.status === 'active')
               const expiredSub   = subs.find((s) => s.status === 'expired')
               const pausedSub    = subs.find((s) => s.status === 'paused')
@@ -563,6 +563,11 @@ export default async function AthletesPage({ searchParams }: PageProps) {
               const lastPaid = pmts
                 .filter((p) => p.status === 'paid' && p.paid_at)
                 .sort((a, b) => new Date(b.paid_at!).getTime() - new Date(a.paid_at!).getTime())[0]
+              // "Al día" honesto: solo si el período actual está cubierto (el próximo cobro es
+              // futuro). Sin esto, un alumno sin cuotas generadas (anclas NULL) aparecía "Al día"
+              // aunque no pague hace meses.
+              const nextBilling = activeSub?.next_billing_date ?? null
+              const periodCovered = !!nextBilling && nextBilling > today
 
               const catId = (athlete as { category_id?: string | null }).category_id
               const cat = categories.find((c) => c.id === catId)
@@ -679,16 +684,30 @@ export default async function AthletesPage({ searchParams }: PageProps) {
                             <p className="text-[11px] text-muted-foreground/50 font-medium">Esperando</p>
                           </div>
                         </>
-                      ) : lastPaid ? (
+                      ) : activeSub && periodCovered ? (
                         <>
                           <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/15 text-primary shrink-0">
                             <CheckCircle2 className="w-4 h-4" />
                           </span>
                           <div className="min-w-0">
-                            <p className="text-[13px] font-bold text-primary leading-none mb-1">Pagado</p>
-                            <p className="text-[11px] text-muted-foreground/50 font-medium">Al día</p>
+                            <p className="text-[13px] font-bold text-primary leading-none mb-1">Al día</p>
+                            <p className="text-[11px] text-muted-foreground/50 font-medium">
+                              Hasta {new Date(`${nextBilling}T12:00:00`).toLocaleDateString('es-CL', { day: 'numeric', month: 'short' })}
+                            </p>
                           </div>
                         </>
+                      ) : activeSub ? (
+                        <>
+                          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-400/15 text-amber-400 shrink-0">
+                            <Clock className="w-4 h-4" />
+                          </span>
+                          <div className="min-w-0">
+                            <p className="text-[13px] font-bold text-amber-400 leading-none mb-1">Por cobrar</p>
+                            <p className="text-[11px] text-muted-foreground/50 font-medium">Cuota del mes</p>
+                          </div>
+                        </>
+                      ) : lastPaid ? (
+                        <span className="text-xs text-muted-foreground/40 font-medium">Sin plan activo</span>
                       ) : (
                         <span className="text-xs text-muted-foreground/40 font-medium">Sin registros</span>
                       )}
