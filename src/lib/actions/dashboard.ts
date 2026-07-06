@@ -651,10 +651,12 @@ export async function getAthletePortal() {
   const supabase = createAdminClient()
   const clubId = await getClubId()
 
-  // Use Clerk to get user email (consistent with enrollment)
+  // Use Clerk to get user email (normalizado igual que el resto de lookups: sin esto, un email
+  // con mayúsculas distintas a athletes.email hacía que el home no encontrara el perfil aunque
+  // la navegación sí lo encontrara — "no veo mi perfil pero aparezco en el club").
   const clerk = await clerkClient()
   const user = await clerk.users.getUser(userId)
-  const email = user.emailAddresses[0]?.emailAddress ?? null
+  const email = (user.emailAddresses[0]?.emailAddress ?? '').trim().toLowerCase() || null
 
   const today = new Date()
   today.setHours(0, 0, 0, 0)
