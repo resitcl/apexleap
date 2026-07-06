@@ -1366,6 +1366,83 @@ async function supersedePendingGatewayPayments(
     .in('payment_method', [...ONLINE_GATEWAY_IDS])
 }
 
+/**
+ * Reutiliza la cuota pendiente/vencida del mismo período (si ya existe) para el checkout de
+ * pasarela, en lugar de insertar una duplicada que chocaría con el índice único
+ * `idx_payments_unique_period` (p. ej. la cuota de inscripción que crea enrollInPlan).
+ * Devuelve el id del pago y si fue creado en esta llamada, para poder revertirlo si la
+ * pasarela falla sin borrar una cuota preexistente del atleta.
+ */
+async function ensureSelfPayPayment(
+  supabase: ReturnType<typeof createAdminClient>,
+  params: {
+    clubId: string
+    athleteId: string
+    planId: string
+    subscriptionId: string
+    concept: string
+    amount: number
+    dueDate: string
+    method: 'flow' | 'mercadopago'
+    periodStartStr: string | null
+    periodEndStr: string | null
+  },
+): Promise<{ id: string; created: boolean }> {
+  const { clubId, athleteId, planId, subscriptionId, concept, amount, dueDate, method, periodStartStr, periodEndStr } = params
+
+  if (periodStartStr) {
+    const { data: existing } = await supabase
+      .from('payments')
+      .select('id')
+      .eq('club_id', clubId)
+      .eq('athlete_id', athleteId)
+      .eq('plan_id', planId)
+      .eq('period_start', periodStartStr)
+      .in('status', ['pending', 'overdue'])
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle()
+
+    if (existing) {
+      const { error: updErr } = await supabase
+        .from('payments')
+        .update({
+          subscription_id: subscriptionId,
+          concept,
+          amount,
+          status: 'pending',
+          due_date: dueDate,
+          payment_method: method,
+          period_end: periodEndStr,
+        })
+        .eq('id', existing.id)
+        .eq('club_id', clubId)
+      if (updErr) throw new Error('No se pudo preparar el pago pendiente para la pasarela')
+      return { id: existing.id, created: false }
+    }
+  }
+
+  const { data: payment, error: paymentErr } = await supabase
+    .from('payments')
+    .insert({
+      club_id: clubId,
+      athlete_id: athleteId,
+      plan_id: planId,
+      subscription_id: subscriptionId,
+      concept,
+      amount,
+      status: 'pending',
+      due_date: dueDate,
+      payment_method: method,
+      period_start: periodStartStr,
+      period_end: periodEndStr,
+    })
+    .select('id')
+    .single()
+  if (paymentErr || !payment) throw new Error('No se pudo crear el pago pendiente para la pasarela')
+  return { id: payment.id, created: true }
+}
+
 export async function createFlowCheckoutForSelfPayment() {
   const { userId } = await auth()
   if (!userId) throw new Error('No autorizado')
@@ -1431,27 +1508,21 @@ export async function createFlowCheckoutForSelfPayment() {
   // Cierra intentos de pasarela previos abandonados antes de crear el nuevo.
   await supersedePendingGatewayPayments(supabase, clubId, athlete.id)
 
-  const { data: payment, error: paymentErr } = await supabase
-    .from('payments')
-    .insert({
-      club_id: clubId,
-      athlete_id: athlete.id,
-      plan_id: plan.id,
-      subscription_id: subscription.id,
-      concept,
-      amount: plan.price,
-      status: 'pending',
-      due_date: todayStr,
-      payment_method: 'flow',
-      period_start: periodStartStr,
-      period_end: periodEndStr,
-    })
-    .select('id')
-    .single()
-  if (paymentErr || !payment) throw new Error('No se pudo crear el pago pendiente para Flow')
+  const { id: paymentId, created: createdPayment } = await ensureSelfPayPayment(supabase, {
+    clubId,
+    athleteId: athlete.id,
+    planId: plan.id,
+    subscriptionId: subscription.id,
+    concept,
+    amount: Number(plan.price),
+    dueDate: todayStr,
+    method: 'flow',
+    periodStartStr,
+    periodEndStr,
+  })
 
   const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || 'http://localhost:3000').replace(/\/$/, '')
-  const commerceOrder = `pay_${payment.id}`
+  const commerceOrder = `pay_${paymentId}`
   try {
     const created = await createFlowPayment(flowConfig, {
       commerceOrder,
@@ -1469,7 +1540,7 @@ export async function createFlowCheckoutForSelfPayment() {
         transaction_id: created.token,
         notes: `Flow order: ${commerceOrder}`,
       })
-      .eq('id', payment.id)
+      .eq('id', paymentId)
       .eq('club_id', clubId)
 
     revalidatePath('/dashboard/athlete/payments')
@@ -1477,7 +1548,9 @@ export async function createFlowCheckoutForSelfPayment() {
 
     return { checkoutUrl: created.checkoutUrl }
   } catch (e) {
-    await supabase.from('payments').delete().eq('id', payment.id).eq('club_id', clubId)
+    if (createdPayment) {
+      await supabase.from('payments').delete().eq('id', paymentId).eq('club_id', clubId)
+    }
     throw e
   }
 }
@@ -1547,27 +1620,21 @@ export async function createMercadoPagoCheckoutForSelfPayment() {
   // Cierra intentos de pasarela previos abandonados antes de crear el nuevo.
   await supersedePendingGatewayPayments(supabase, clubId, athlete.id)
 
-  const { data: payment, error: paymentErr } = await supabase
-    .from('payments')
-    .insert({
-      club_id: clubId,
-      athlete_id: athlete.id,
-      plan_id: plan.id,
-      subscription_id: subscription.id,
-      concept,
-      amount: plan.price,
-      status: 'pending',
-      due_date: todayStr,
-      payment_method: 'mercadopago',
-      period_start: periodStartStr,
-      period_end: periodEndStr,
-    })
-    .select('id')
-    .single()
-  if (paymentErr || !payment) throw new Error('No se pudo crear el pago pendiente para MercadoPago')
+  const { id: paymentId, created: createdPayment } = await ensureSelfPayPayment(supabase, {
+    clubId,
+    athleteId: athlete.id,
+    planId: plan.id,
+    subscriptionId: subscription.id,
+    concept,
+    amount: Number(plan.price),
+    dueDate: todayStr,
+    method: 'mercadopago',
+    periodStartStr,
+    periodEndStr,
+  })
 
   const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || 'http://localhost:3000').replace(/\/$/, '')
-  const externalReference = `pay_${payment.id}`
+  const externalReference = `pay_${paymentId}`
   try {
     const pref = await createMercadoPagoPreference(mpConfig, {
       externalReference,
@@ -1584,7 +1651,7 @@ export async function createMercadoPagoCheckoutForSelfPayment() {
         transaction_id: pref.id,
         notes: `MercadoPago order: ${externalReference}`,
       })
-      .eq('id', payment.id)
+      .eq('id', paymentId)
       .eq('club_id', clubId)
 
     revalidatePath('/dashboard/athlete/payments')
@@ -1592,7 +1659,9 @@ export async function createMercadoPagoCheckoutForSelfPayment() {
 
     return { initPoint: pref.initPoint }
   } catch (e) {
-    await supabase.from('payments').delete().eq('id', payment.id).eq('club_id', clubId)
+    if (createdPayment) {
+      await supabase.from('payments').delete().eq('id', paymentId).eq('club_id', clubId)
+    }
     throw e
   }
 }
