@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getClubId, assertClubCapability } from '@/lib/actions/club-context'
 import { getExpectedMonthIncome } from '@/lib/actions/finances'
-import { auth } from '@clerk/nextjs/server'
+import { auth, clerkClient } from '@clerk/nextjs/server'
 import {
   calculatePeriodEnd,
   calculateNextPeriodStart,
@@ -428,6 +428,22 @@ export async function getMonthlyAthleteCollectionStatus(
 export async function getAthletePaymentStatus(athleteId: string) {
   const clubId = await getClubId()
   const supabase = createAdminClient()
+
+  // Verificar pertenencia: esta action recibe `athleteId`, así que sin este check un atleta
+  // podría leer el estado financiero de OTRO atleta del mismo club (IDOR). Solo el propio dueño.
+  const { userId } = await auth()
+  if (!userId) throw new Error('No autorizado')
+  const clerk = await clerkClient()
+  const caller = await clerk.users.getUser(userId)
+  const callerEmail = (caller.emailAddresses[0]?.emailAddress ?? '').trim().toLowerCase()
+  const { data: self } = await supabase
+    .from('athletes')
+    .select('id')
+    .eq('club_id', clubId)
+    .eq('email', callerEmail)
+    .is('archived_at', null)
+    .maybeSingle()
+  if (!self || self.id !== athleteId) throw new Error('No autorizado')
 
   // Get active subscription
   const { data: subscription } = await supabase

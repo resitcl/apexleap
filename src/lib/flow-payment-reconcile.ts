@@ -128,13 +128,17 @@ export async function reconcileFlowPaymentByToken(token: string, opts?: Reconcil
 
     const expectedAmount = Number((payment as { amount?: unknown }).amount)
     const chargedAmount = Number(statusResponse.amount)
-    if (
-      Number.isFinite(expectedAmount) &&
-      Number.isFinite(chargedAmount) &&
-      Math.round(chargedAmount) < Math.round(expectedAmount)
-    ) {
-      await persistAmountMismatch(supabase, payment.id, payment.club_id, expectedAmount, chargedAmount, 'Flow')
-      return { ok: false, reason: 'amount_mismatch', expected: expectedAmount, charged: chargedAmount }
+    if (Number.isFinite(expectedAmount) && Number.isFinite(chargedAmount)) {
+      const diff = Math.round(chargedAmount) - Math.round(expectedAmount)
+      if (diff < -1) {
+        // Pagó de MENOS: no acreditar y registrar la discrepancia.
+        await persistAmountMismatch(supabase, payment.id, payment.club_id, expectedAmount, chargedAmount, 'Flow')
+        return { ok: false, reason: 'amount_mismatch', expected: expectedAmount, charged: chargedAmount }
+      }
+      if (diff > 1) {
+        // Pagó de MÁS: se acredita igual (no penalizar al atleta) pero se registra para revisión del club.
+        await persistAmountMismatch(supabase, payment.id, payment.club_id, expectedAmount, chargedAmount, 'Flow')
+      }
     }
 
     return markPaymentAsPaid(supabase, payment, token.trim(), 'verified_by_api')

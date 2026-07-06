@@ -72,6 +72,7 @@ export async function getMySubscriptionStatus() {
     .select('id, name, email, health_status, status')
     .eq('club_id', clubId)
     .eq('email', email)
+    .is('archived_at', null)
     .maybeSingle()
 
   if (!athlete) return { hasAthleteProfile: false, hasActiveSubscription: false, athlete: null, subscription: null }
@@ -156,14 +157,14 @@ export async function enrollInPlan(planId: string) {
 
   // Calculate period dates using proper month-based billing
   const startDate = new Date()
-  const startStr = startDate.toISOString().split('T')[0]
+  const startStr = todayYmd()
   const cycle = plan.billing_cycle as BillingCycle
 
   const periodEnd = calculatePeriodEnd(startDate, cycle)
-  const endStr = periodEnd ? periodEnd.toISOString().split('T')[0] : null
+  const endStr = periodEnd ? ymdFromDate(periodEnd) : null
   const anchorDay = getBillingAnchorDay(startDate)
   const nextStart = calculateNextPeriodStart(startDate, cycle)
-  const nextBillingStr = nextStart ? nextStart.toISOString().split('T')[0] : null
+  const nextBillingStr = nextStart ? ymdFromDate(nextStart) : null
 
   // Create subscription (active immediately — athlete gains access while first payment is pending)
   const { error: subErr } = await supabase
@@ -184,21 +185,37 @@ export async function enrollInPlan(planId: string) {
 
   if (subErr) throw new Error('Error al crear la suscripción: ' + subErr.message)
 
-  // Create initial payment record (pending) with period tracking
+  // Cuota de inscripción (pending) — idempotente: no duplicar si ya existe una cuota viva del
+  // período (evita chocar con idx_payments_unique_period ante doble inscripción del mismo plan/mes,
+  // que antes dejaba la suscripción creada a medias + crash sin error boundary).
   if (plan.price > 0) {
-    await supabase
+    const { data: existingPay } = await supabase
       .from('payments')
-      .insert({
-        club_id: clubId,
-        athlete_id: athlete.id,
-        plan_id: plan.id,
-        concept: `Inscripción – ${plan.name}`,
-        amount: plan.price,
-        status: 'pending',
-        due_date: startStr,
-        period_start: startStr,
-        period_end: endStr,
-      })
+      .select('id')
+      .eq('club_id', clubId)
+      .eq('athlete_id', athlete.id)
+      .eq('plan_id', plan.id)
+      .eq('period_start', startStr)
+      .in('status', ['pending', 'overdue', 'paid'])
+      .maybeSingle()
+    if (!existingPay) {
+      const { error: payErr } = await supabase
+        .from('payments')
+        .insert({
+          club_id: clubId,
+          athlete_id: athlete.id,
+          plan_id: plan.id,
+          concept: `Inscripción – ${plan.name}`,
+          amount: plan.price,
+          status: 'pending',
+          due_date: startStr,
+          period_start: startStr,
+          period_end: endStr,
+        })
+      if (payErr && payErr.code !== '23505') {
+        console.error('[enrollInPlan] no se pudo crear la cuota de inscripción:', payErr.message)
+      }
+    }
   }
 
   revalidatePath('/dashboard/athlete')
@@ -1079,7 +1096,7 @@ async function getMyAthleteId(): Promise<{ athleteId: string; clubId: string }> 
 
   if (!email) throw new Error('No se encontró email')
   const { data } = await supabase
-    .from('athletes').select('id, email, name').eq('club_id', clubId).eq('email', email).maybeSingle()
+    .from('athletes').select('id, email, name').eq('club_id', clubId).eq('email', email).is('archived_at', null).maybeSingle()
 
   if (!data) throw new Error('Perfil de atleta no encontrado')
   return { athleteId: data.id, clubId }
@@ -1092,20 +1109,19 @@ export async function getMyRosters() {
   const { athleteId, clubId } = await getMyAthleteId()
   const supabase = createAdminClient()
 
-  console.log("[DEBUG getMyRosters] athleteId:", athleteId, "clubId:", clubId)
-
+  // rosters!inner + filtro por club_id: `roster_athletes` no tiene club_id, así que el
+  // aislamiento multi-tenant se garantiza exigiendo que el roster pertenezca al club activo.
   const { data, error } = await supabase
     .from('roster_athletes')
     .select(`
       id, number, position, is_captain, is_starter, status,
-      rosters (
+      rosters!inner (
         id, name, match_date, opponent, venue, notes,
         competitions ( id, name, type )
       )
     `)
     .eq('athlete_id', athleteId)
-
-  console.log("[DEBUG getMyRosters] query result:", { data: data?.length ?? 0, error: error?.message })
+    .eq('rosters.club_id', clubId)
 
   if (error) throw new Error(error.message)
 
@@ -1131,11 +1147,12 @@ export async function getMyMatches() {
   const { athleteId, clubId } = await getMyAthleteId()
   const supabase = createAdminClient()
 
-  // Get roster IDs this athlete belongs to
+  // Get roster IDs this athlete belongs to (scoped al club vía rosters!inner)
   const { data: rosterRows } = await supabase
     .from('roster_athletes')
-    .select('roster_id')
+    .select('roster_id, rosters!inner(club_id)')
     .eq('athlete_id', athleteId)
+    .eq('rosters.club_id', clubId)
 
   const rosterIds = (rosterRows ?? []).map((r) => r.roster_id).filter(Boolean)
   if (rosterIds.length === 0) return []
@@ -1214,7 +1231,7 @@ export async function getMyRosterById(rosterId: string) {
     .from('roster_athletes')
     .select(`
       id, number, position, is_captain, is_starter, status,
-      rosters (
+      rosters!inner (
         id, name, match_date, opponent, venue, notes,
         competitions ( id, name, type, status ),
         matches ( id, home_score, away_score, status, is_home )
@@ -1222,6 +1239,7 @@ export async function getMyRosterById(rosterId: string) {
     `)
     .eq('roster_id', rosterId)
     .eq('athlete_id', athleteId)
+    .eq('rosters.club_id', clubId)
     .single()
 
   if (error) throw new Error(error.message)
