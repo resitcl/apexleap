@@ -11,6 +11,9 @@ import { createFlowCheckoutForSelfPayment, createMercadoPagoCheckoutForSelfPayme
 import { toast } from 'sonner'
 import { buildWhatsAppTransferLink } from '@/lib/whatsapp-transfer'
 import { TRANSFER_RECEIPT_MAX_BYTES } from '@/lib/constants'
+import { MercadoPagoLogo } from '@/components/brand/MercadoPagoLogo'
+
+type BrandLogo = React.ComponentType<{ className?: string }>
 
 interface PayNowModalProps {
   planName: string
@@ -37,11 +40,17 @@ const BILLING_LABEL: Record<string, string> = {
   monthly: 'mes', quarterly: 'trimestre', semiannual: 'semestre', annual: 'año', single: 'pago único',
 }
 
-const PAYMENT_METHODS = [
+const PAYMENT_METHODS: {
+  id: string
+  label: string
+  icon: BrandLogo
+  description: string
+  logo?: BrandLogo
+}[] = [
   { id: 'transfer',     label: 'Transferencia Bancaria', icon: Building2,   description: 'Transfiere y adjunta tu comprobante' },
   { id: 'cash',         label: 'Efectivo',               icon: Banknote,    description: 'Pago presencial en el club' },
   { id: 'webpay',       label: 'Webpay',                 icon: CreditCard,  description: 'Transbank — tarjeta de crédito/débito' },
-  { id: 'mercadopago',  label: 'MercadoPago',            icon: Wallet,      description: 'Tarjeta o saldo MercadoPago' },
+  { id: 'mercadopago',  label: 'MercadoPago',            icon: Wallet,      description: 'Tarjeta o saldo MercadoPago', logo: MercadoPagoLogo },
   { id: 'flow',         label: 'Flow',                   icon: Smartphone,  description: 'Pago online con Flow.cl' },
   { id: 'khipu',        label: 'Khipu',                  icon: Landmark,      description: 'Transferencia bancaria instantánea' },
 ]
@@ -229,6 +238,7 @@ export function PayNowModal({ planName, planPrice, planCycle, bankInfo, enabledM
                 )}
                 {visibleMethods.map((pm) => {
                   const Icon = pm.icon
+                  const Logo = pm.logo
                   const isSelected = selectedMethod === pm.id
                   return (
                     <button
@@ -242,9 +252,13 @@ export function PayNowModal({ planName, planPrice, planCycle, bankInfo, enabledM
                       }`}
                     >
                       <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                        isSelected ? 'bg-primary/20' : 'bg-white/5'
+                        Logo ? 'bg-white' : isSelected ? 'bg-primary/20' : 'bg-white/5'
                       }`}>
-                        <Icon className={`w-5 h-5 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`} />
+                        {Logo ? (
+                          <Logo className="w-8 h-8" />
+                        ) : (
+                          <Icon className={`w-5 h-5 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`} />
+                        )}
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className={`text-sm font-bold ${isSelected ? 'text-foreground' : 'text-foreground/80'}`}>
