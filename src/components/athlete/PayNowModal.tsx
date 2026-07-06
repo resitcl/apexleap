@@ -255,7 +255,7 @@ export function PayNowModal({ planName, planPrice, planCycle, bankInfo, enabledM
                         Logo ? 'bg-white' : isSelected ? 'bg-primary/20' : 'bg-white/5'
                       }`}>
                         {Logo ? (
-                          <Logo className="w-7 h-7" />
+                          <Logo className="w-8 h-8" />
                         ) : (
                           <Icon className={`w-5 h-5 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`} />
                         )}
