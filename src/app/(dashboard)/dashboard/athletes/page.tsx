@@ -720,15 +720,6 @@ export default async function AthletesPage({ searchParams }: PageProps) {
                           ${debt >= 1000 ? `${Math.round(debt / 1000)}k` : debt.toLocaleString('es-CL')}
                         </span>
                       )}
-                      {(() => {
-                        const att = athlete.attendance as Array<{ checked_in_at: string }> | null ?? []
-                        const lastCheck = att.map(r => r.checked_in_at).sort().at(-1)
-                        const isInactive = athlete.status === 'active' && (!lastCheck || lastCheck < thirtyDaysAgoISO)
-                        if (isInactive) return (
-                          <span className="text-[9px] font-bold bg-amber-400 text-black px-2 py-1 rounded-full">⚠ inactivo</span>
-                        )
-                        return null
-                      })()}
                       <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border bg-muted text-muted-foreground transition-all group-hover:bg-muted/80 group-hover:text-foreground">
                         <ArrowRight className="w-4 h-4" />
                       </span>
