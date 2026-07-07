@@ -12,7 +12,7 @@ import {
   archiveAthleteForUser,
 } from '@/lib/admin-athlete-sync'
 import { cancelPriorSubscriptions } from '@/lib/subscription-activation'
-import { calculatePeriodStartForPayment, ymdFromDate, type BillingCycle } from '@/lib/billing-utils'
+import { calculatePeriodStartForPayment, getBillingAnchorDay, ymdFromDate, type BillingCycle } from '@/lib/billing-utils'
 
 const athleteSchema = z.object({
   name: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
@@ -539,4 +539,82 @@ export async function setAthleteBillingDay(athleteId: string, day: number): Prom
   revalidatePath(`/dashboard/athletes/${athleteId}`)
   revalidatePath('/dashboard/athletes')
   return { hasActiveSub: true, anchorDay, nextBilling: periodEndStr, cycle }
+}
+
+/**
+ * Suspende temporalmente a un alumno (p. ej. lesión, pausa de entrenamiento): pasa a estado
+ * 'suspended' y PAUSA su facturación (la suscripción activa pasa a 'paused', que el cron ignora).
+ * No borra deuda existente; solo deja de generar cuotas nuevas mientras esté suspendido.
+ */
+export async function suspendAthlete(id: string): Promise<void> {
+  await assertClubStaff()
+  const clubId = await getClubId()
+  const supabase = createAdminClient()
+
+  await supabase
+    .from('subscriptions')
+    .update({ status: 'paused' })
+    .eq('club_id', clubId)
+    .eq('athlete_id', id)
+    .eq('status', 'active')
+
+  const { error } = await supabase
+    .from('athletes')
+    .update({ status: 'suspended' })
+    .eq('id', id)
+    .eq('club_id', clubId)
+  if (error) throw new Error(error.message)
+
+  revalidatePath(`/dashboard/athletes/${id}`)
+  revalidatePath('/dashboard/athletes')
+}
+
+/**
+ * Reactiva a un alumno suspendido: vuelve a 'active' y reanuda su suscripción pausada,
+ * realineando el ciclo desde el período actual (sin cobrar el tiempo que estuvo suspendido).
+ */
+export async function reactivateAthlete(id: string): Promise<void> {
+  await assertClubStaff()
+  const clubId = await getClubId()
+  const supabase = createAdminClient()
+
+  const { data: paused } = await supabase
+    .from('subscriptions')
+    .select('id, billing_anchor_day, plans(billing_cycle)')
+    .eq('club_id', clubId)
+    .eq('athlete_id', id)
+    .eq('status', 'paused')
+    .order('start_date', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (paused) {
+    const plansData = paused.plans as unknown
+    const plan = Array.isArray(plansData) ? plansData[0] : (plansData as { billing_cycle: string } | null)
+    const cycle = (plan?.billing_cycle ?? 'monthly') as BillingCycle
+    const now = new Date()
+    const anchorDay = (paused.billing_anchor_day as number | null) ?? getBillingAnchorDay(now)
+    const { periodStart, periodEnd } = calculatePeriodStartForPayment(anchorDay, now, cycle, null)
+    await supabase
+      .from('subscriptions')
+      .update({
+        status: 'active',
+        billing_anchor_day: anchorDay,
+        current_period_start: ymdFromDate(periodStart),
+        current_period_end: periodEnd ? ymdFromDate(periodEnd) : null,
+        next_billing_date: periodEnd ? ymdFromDate(periodEnd) : null,
+      })
+      .eq('id', paused.id)
+      .eq('club_id', clubId)
+  }
+
+  const { error } = await supabase
+    .from('athletes')
+    .update({ status: 'active' })
+    .eq('id', id)
+    .eq('club_id', clubId)
+  if (error) throw new Error(error.message)
+
+  revalidatePath(`/dashboard/athletes/${id}`)
+  revalidatePath('/dashboard/athletes')
 }
