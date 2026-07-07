@@ -241,6 +241,7 @@ export async function createAthlete(input: AthleteInput) {
         replyTo: clubInfo.email,
         subjectOverride: tpl.subject,
         introOverride: tpl.intro,
+        buttonOverride: tpl.button ?? undefined,
       }).catch((err) =>
         console.error('[athletes] Error inesperado al enviar invitación:', err)
       )
@@ -456,6 +457,10 @@ export async function sendAthleteInvitation(
     // de la plantilla de bienvenida del club.
     const welcomeTpl = getAutoTemplate(clubInfo.settings, 'welcome')
     const vars = { nombre: athlete.name, club: clubInfo.name }
+    const btnUrl = renderTemplateVars(welcomeTpl.buttonUrl, vars).trim()
+    const buttonOverride = btnUrl
+      ? { text: renderTemplateVars(welcomeTpl.buttonText, vars).trim() || 'Ver más', url: btnUrl }
+      : undefined
 
     const result = await sendInvitationEmail({
       to: athlete.email,
@@ -467,6 +472,7 @@ export async function sendAthleteInvitation(
       replyTo: clubInfo.email,
       subjectOverride: renderTemplateVars(welcomeTpl.subject, vars),
       introOverride: renderTemplateVars(welcomeTpl.body, vars),
+      buttonOverride,
     })
 
     if (!result.success) return { ok: false, error: result.error ?? 'No se pudo enviar el correo.' }

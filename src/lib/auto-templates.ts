@@ -20,6 +20,10 @@ export type AutoTemplate = {
   body: string
   /** Si está desactivada, ese correo automático no se envía. */
   enabled: boolean
+  /** Texto del botón (CTA). Vacío → se usa el texto por defecto del correo. Admite variables. */
+  buttonText: string
+  /** URL del botón (CTA). Vacío → se usa el botón por defecto (portal del alumno). Admite variables. */
+  buttonUrl: string
 }
 
 export const AUTO_TEMPLATE_KEYS: AutoTemplateKey[] = [
@@ -92,6 +96,8 @@ export function getAutoTemplate(
     subject: typeof saved.subject === "string" && saved.subject.trim() ? saved.subject : def.subject,
     body: typeof saved.body === "string" && saved.body.trim() ? saved.body : def.body,
     enabled: saved.enabled !== false, // por defecto activado
+    buttonText: typeof saved.buttonText === "string" ? saved.buttonText : "",
+    buttonUrl: typeof saved.buttonUrl === "string" ? saved.buttonUrl : "",
   }
 }
 
@@ -108,11 +114,17 @@ export function resolveAutoEmail(
   settings: Record<string, unknown> | null | undefined,
   key: AutoTemplateKey,
   vars: Record<string, string | number | undefined>,
-): { subject: string; intro: string } | null {
+): { subject: string; intro: string; button: { text: string; url: string } | null } | null {
   const tpl = getAutoTemplate(settings, key)
   if (!tpl.enabled) return null
+  // Botón personalizado solo si el club definió una URL; el texto cae a "Ver más" si va vacío.
+  const url = renderTemplateVars(tpl.buttonUrl, vars).trim()
+  const button = url
+    ? { text: renderTemplateVars(tpl.buttonText, vars).trim() || "Ver más", url }
+    : null
   return {
     subject: renderTemplateVars(tpl.subject, vars),
     intro: renderTemplateVars(tpl.body, vars),
+    button,
   }
 }
