@@ -4,6 +4,7 @@ import {
   type BillingCycle,
 } from '@/lib/billing-utils'
 import { ONLINE_GATEWAY_IDS } from '@/lib/payment-methods'
+import { sendPaymentConfirmationEmail } from '@/lib/email'
 
 type SupabaseAdmin = ReturnType<typeof createAdminClient>
 
@@ -49,7 +50,7 @@ export async function activateSubscriptionForPaidPayment(
 
   const { data: plan } = await supabase
     .from('plans')
-    .select('billing_cycle')
+    .select('billing_cycle, name, price')
     .eq('id', payment.plan_id)
     .single()
   if (!plan) return
@@ -107,6 +108,60 @@ export async function activateSubscriptionForPaidPayment(
     .update({ status: 'active' })
     .eq('id', payment.athlete_id)
     .eq('club_id', clubId)
+
+  // Correo de confirmación (best-effort: nunca bloquea el flujo de pago).
+  await notifyPaymentConfirmed(supabase, clubId, payment, plan as { name?: string; price?: number }, nextBillingStr)
+}
+
+/**
+ * Envía el correo de confirmación de pago. Best-effort: cualquier fallo se loguea pero no
+ * interrumpe la confirmación (el pago ya está registrado). Se dispara desde el embudo único
+ * activateSubscriptionForPaidPayment, así cubre pasarelas y confirmaciones manuales del admin.
+ */
+async function notifyPaymentConfirmed(
+  supabase: SupabaseAdmin,
+  clubId: string,
+  payment: PaymentForActivation,
+  plan: { name?: string; price?: number },
+  nextBillingStr: string | null,
+) {
+  try {
+    const { data: athlete } = await supabase
+      .from('athletes')
+      .select('name, email')
+      .eq('id', payment.athlete_id)
+      .eq('club_id', clubId)
+      .maybeSingle()
+    const to = athlete?.email?.trim()
+    if (!to) return // sin email registrado: no se envía
+
+    const { data: club } = await supabase
+      .from('clubs')
+      .select('name, slug, logo_url, primary_color, settings')
+      .eq('id', clubId)
+      .single()
+
+    const clubEmail =
+      ((club?.settings as Record<string, unknown> | null)?.payment_settings as { bank_info?: { email?: string } } | undefined)
+        ?.bank_info?.email ?? null
+
+    await sendPaymentConfirmationEmail({
+      to,
+      athleteName: athlete?.name ?? 'Atleta',
+      clubName: club?.name ?? 'tu academia',
+      clubSlug: club?.slug ?? '',
+      amount: Number(plan?.price ?? 0),
+      planName: plan?.name ?? undefined,
+      periodStart: payment.period_start ?? undefined,
+      periodEnd: payment.period_end ?? undefined,
+      nextBilling: nextBillingStr ?? undefined,
+      logoUrl: club?.logo_url ?? null,
+      brandColor: club?.primary_color ?? null,
+      replyTo: clubEmail,
+    })
+  } catch (err) {
+    console.error('[notifyPaymentConfirmed] error (no bloqueante):', err instanceof Error ? err.message : err)
+  }
 }
 
 export type MarkPaidResult =

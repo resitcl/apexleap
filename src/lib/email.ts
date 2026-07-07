@@ -270,6 +270,116 @@ function buildPaymentReminderHtml(opts: {
 }
 
 // ---------------------------------------------------------------------------
+// Template: Confirmación de pago
+// ---------------------------------------------------------------------------
+
+function buildPaymentConfirmationHtml(opts: {
+  athleteName: string
+  clubName: string
+  clubSlug: string
+  amount: number
+  currency?: string
+  planName?: string
+  periodStart?: string
+  periodEnd?: string
+  nextBilling?: string
+  logoUrl?: string | null
+  brandColor?: string | null
+}) {
+  const currency = opts.currency ?? 'CLP'
+  const formattedAmount = new Intl.NumberFormat('es-CL', {
+    style: 'currency',
+    currency,
+    minimumFractionDigits: 0,
+  }).format(opts.amount)
+
+  const paymentUrl = `${APP_URL}/${opts.clubSlug}/athlete`
+  const { bg, fg } = getClubBranding(opts.brandColor)
+  // DATE anclado a mediodía local para no correr el día por zona horaria.
+  const fmt = (d?: string) =>
+    d ? new Date(`${d}T12:00:00`).toLocaleDateString('es-CL', { day: 'numeric', month: 'long', year: 'numeric' }) : ''
+  const periodText = opts.periodStart && opts.periodEnd ? `${fmt(opts.periodStart)} — ${fmt(opts.periodEnd)}` : ''
+  const nextText = fmt(opts.nextBilling)
+
+  return `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pago confirmado – ${opts.clubName}</title>
+</head>
+<body style="margin:0;padding:0;background:#f4f4f5;font-family:Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 20px;">
+    <tr>
+      <td align="center">
+        <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+
+          ${buildHeader(opts.clubName, opts.logoUrl, bg, fg)}
+
+          <!-- Success banner -->
+          <tr>
+            <td style="background:#dcfce7;padding:12px 40px;border-bottom:1px solid #bbf7d0;">
+              <p style="margin:0;font-size:14px;color:#166534;text-align:center;font-weight:600;">
+                ✅ Pago confirmado
+              </p>
+            </td>
+          </tr>
+
+          <!-- Body -->
+          <tr>
+            <td style="padding:40px;">
+              <h1 style="margin:0 0 8px;font-size:22px;color:#18181b;">
+                ¡Gracias, ${opts.athleteName}!
+              </h1>
+              <p style="margin:0 0 24px;font-size:16px;color:#52525b;line-height:1.6;">
+                Recibimos tu pago en <strong>${opts.clubName}</strong>. Tu membresía está al día.
+              </p>
+
+              <!-- Payment card -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;border:1px solid #e4e4e7;border-radius:8px;margin-bottom:24px;">
+                <tr>
+                  <td style="padding:24px;">
+                    ${opts.planName ? `<p style="margin:0 0 8px;font-size:13px;color:#71717a;text-transform:uppercase;letter-spacing:0.5px;">Plan</p>
+                    <p style="margin:0 0 16px;font-size:16px;color:#18181b;font-weight:600;">${opts.planName}</p>` : ''}
+                    <p style="margin:0 0 8px;font-size:13px;color:#71717a;text-transform:uppercase;letter-spacing:0.5px;">Monto pagado</p>
+                    <p style="margin:0 0 ${periodText || nextText ? '16px' : '0'};font-size:28px;color:#166534;font-weight:700;">${formattedAmount}</p>
+                    ${periodText ? `<p style="margin:0 0 ${nextText ? '8px' : '0'};font-size:14px;color:#71717a;">Período cubierto: <strong style="color:#3f3f46;">${periodText}</strong></p>` : ''}
+                    ${nextText ? `<p style="margin:0;font-size:14px;color:#71717a;">Próximo cobro: <strong style="color:#3f3f46;">${nextText}</strong></p>` : ''}
+                  </td>
+                </tr>
+              </table>
+
+              <!-- CTA Button con color de marca -->
+              <table cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="background:${bg};border-radius:8px;text-align:center;">
+                    <a href="${paymentUrl}"
+                       style="display:inline-block;padding:14px 28px;color:${fg};font-size:15px;font-weight:600;text-decoration:none;">
+                      Ver mis pagos →
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="margin:24px 0 0;font-size:14px;color:#52525b;line-height:1.6;">
+                Este comprobante confirma tu pago. Si tienes alguna duda, contacta directamente a tu academia.
+              </p>
+            </td>
+          </tr>
+
+          ${buildFooter(opts.clubName)}
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+`
+}
+
+// ---------------------------------------------------------------------------
 // Funciones de envío públicas
 // ---------------------------------------------------------------------------
 
@@ -357,6 +467,53 @@ export async function sendPaymentReminderEmail(opts: {
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Error desconocido'
     console.error('[email] Excepción al enviar recordatorio:', message)
+    return { success: false, error: message }
+  }
+}
+
+/**
+ * Envía la confirmación de un pago recibido a un alumno.
+ */
+export async function sendPaymentConfirmationEmail(opts: {
+  to: string
+  athleteName: string
+  clubName: string
+  clubSlug: string
+  amount: number
+  currency?: string
+  planName?: string
+  periodStart?: string
+  periodEnd?: string
+  nextBilling?: string
+  logoUrl?: string | null
+  brandColor?: string | null
+  replyTo?: string | null
+}): Promise<SendEmailResult> {
+  if (!process.env.RESEND_API_KEY) {
+    console.warn('[email] RESEND_API_KEY no configurada — confirmación de pago no enviada')
+    return { success: false, error: 'RESEND_API_KEY no configurada' }
+  }
+
+  try {
+    const replyTo = resolveReplyTo(opts.replyTo)
+    const { data, error } = await getResend().emails.send({
+      from: FROM_EMAIL,
+      to: opts.to,
+      ...(replyTo ? { reply_to: replyTo } : {}),
+      subject: `Pago confirmado – ${opts.clubName}`,
+      html: buildPaymentConfirmationHtml(opts),
+    })
+
+    if (error) {
+      console.error('[email] Error al enviar confirmación:', error)
+      return { success: false, error: error.message }
+    }
+
+    console.log(`[email] Confirmación enviada a ${opts.to} (id: ${data?.id})`)
+    return { success: true, id: data?.id }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Error desconocido'
+    console.error('[email] Excepción al enviar confirmación:', message)
     return { success: false, error: message }
   }
 }
