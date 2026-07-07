@@ -40,6 +40,7 @@ export interface PaymentSettings {
   khipu: GatewayConfig
   cash_instructions: string
   billing_policy: 'accumulate' | 'suspend'
+  reminders_enabled: boolean
 }
 
 /* ── Gateway definitions ────────────────────────────────────────────────── */
@@ -93,6 +94,7 @@ function toState(v?: Partial<PaymentSettings> | null): PaymentSettings {
     khipu: { ...EMPTY_GW, ...v?.khipu },
     cash_instructions: v?.cash_instructions ?? '',
     billing_policy: v?.billing_policy === 'accumulate' ? 'accumulate' : 'suspend',
+    reminders_enabled: v?.reminders_enabled === true,
   }
 }
 
@@ -192,6 +194,24 @@ export function BankInfoForm({ defaultValues }: Props) {
               )
             })}
           </div>
+        </CardContent>
+      </Card>
+
+      {/* ── Recordatorios por correo ─────────────────────────────────── */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Recordatorios de pago por correo</CardTitle>
+          <CardDescription>
+            Envía recordatorios automáticos al alumno: 3 días antes del vencimiento y cuando hay
+            mora (1, 7 y 15 días). Para buena entrega, verifica un dominio propio en Resend.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ToggleSwitch
+            on={form.reminders_enabled}
+            onToggle={() => setForm((p) => ({ ...p, reminders_enabled: !p.reminders_enabled }))}
+            label={form.reminders_enabled ? 'Recordatorios activados' : 'Recordatorios desactivados'}
+          />
         </CardContent>
       </Card>
 

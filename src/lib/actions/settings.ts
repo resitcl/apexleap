@@ -151,6 +151,7 @@ export async function updatePaymentSettings(paymentSettings: {
   khipu: { enabled: boolean; sandbox: boolean; api_key: string; secret_key: string; commerce_code: string; checkout_url?: string }
   cash_instructions: string
   billing_policy?: 'accumulate' | 'suspend'
+  reminders_enabled?: boolean
 }) {
   const membership = await getClubMembershipRole()
   if (membership !== 'admin' && membership !== 'admin_athlete') {

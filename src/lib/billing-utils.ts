@@ -21,6 +21,14 @@ export function getBillingPolicyFromSettings(
   return ps?.billing_policy === 'accumulate' ? 'accumulate' : 'suspend'
 }
 
+/** ¿El club activó los recordatorios de pago por correo? (default: desactivado / opt-in). */
+export function getRemindersEnabledFromSettings(
+  settings: Record<string, unknown> | null | undefined,
+): boolean {
+  const ps = (settings?.payment_settings ?? null) as { reminders_enabled?: unknown } | null
+  return ps?.reminders_enabled === true
+}
+
 export const CYCLE_MONTHS: Record<BillingCycle, number> = {
   monthly: 1,
   quarterly: 3,
