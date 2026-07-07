@@ -5,6 +5,68 @@ import { getClubId, getClubMembershipRole } from '@/lib/actions/club-context'
 import { sendBroadcastEmail, sendPaymentReminderEmail } from '@/lib/email'
 import { randomUUID } from 'crypto'
 import { revalidatePath } from 'next/cache'
+import { auth } from '@clerk/nextjs/server'
+
+export type CommunicationLog = {
+  id: string
+  kind: string
+  channel: string
+  subject: string | null
+  audience_type: string | null
+  recipient_count: number
+  sent_count: number
+  failed_count: number
+  created_at: string
+}
+
+/** Registra un envío en el historial. Best-effort: si la tabla aún no está migrada, no rompe. */
+async function logCommunication(
+  supabase: ReturnType<typeof createAdminClient>,
+  clubId: string,
+  entry: {
+    kind: 'broadcast' | 'individual' | 'payment_request'
+    subject?: string | null
+    audienceType?: string | null
+    recipientCount: number
+    sentCount: number
+    failedCount: number
+  },
+) {
+  try {
+    const { userId } = await auth()
+    await supabase.from('communication_logs').insert({
+      club_id: clubId,
+      kind: entry.kind,
+      channel: 'email',
+      subject: entry.subject ?? null,
+      audience_type: entry.audienceType ?? null,
+      recipient_count: entry.recipientCount,
+      sent_count: entry.sentCount,
+      failed_count: entry.failedCount,
+      sent_by: userId ?? null,
+    })
+  } catch {
+    // best-effort
+  }
+}
+
+/** Historial reciente de comunicaciones enviadas del club. */
+export async function getCommunicationLogs(limit = 30): Promise<CommunicationLog[]> {
+  await assertAdmin()
+  const clubId = await getClubId()
+  const supabase = createAdminClient()
+  try {
+    const { data } = await supabase
+      .from('communication_logs')
+      .select('id, kind, channel, subject, audience_type, recipient_count, sent_count, failed_count, created_at')
+      .eq('club_id', clubId)
+      .order('created_at', { ascending: false })
+      .limit(limit)
+    return (data ?? []) as CommunicationLog[]
+  } catch {
+    return []
+  }
+}
 
 export type MessageTemplate = { id: string; name: string; subject: string; body: string }
 
@@ -215,6 +277,15 @@ export async function sendBulkMessage(input: {
     }
   }
 
+  await logCommunication(supabase, clubId, {
+    kind: 'broadcast',
+    subject,
+    audienceType: input.audience.type,
+    recipientCount: matched.length,
+    sentCount: sent,
+    failedCount: failed,
+  })
+
   return { total: matched.length, sent, failed, skippedNoEmail }
 }
 
@@ -267,6 +338,14 @@ export async function sendMessageToAthlete(
     brandColor: club?.primary_color ?? null,
     replyTo,
   })
+  await logCommunication(supabase, clubId, {
+    kind: 'individual',
+    subject,
+    audienceType: 'athlete',
+    recipientCount: 1,
+    sentCount: res.success ? 1 : 0,
+    failedCount: res.success ? 0 : 1,
+  })
   return res.success ? { ok: true } : { ok: false, error: res.error ?? 'No se pudo enviar.' }
 }
 
@@ -318,6 +397,14 @@ export async function sendPaymentRequest(
     logoUrl: club?.logo_url ?? null,
     brandColor: club?.primary_color ?? null,
     replyTo,
+  })
+  await logCommunication(supabase, clubId, {
+    kind: 'payment_request',
+    subject: `Solicitud de pago – ${clubName}`,
+    audienceType: 'athlete',
+    recipientCount: 1,
+    sentCount: res.success ? 1 : 0,
+    failedCount: res.success ? 0 : 1,
   })
   return res.success ? { ok: true } : { ok: false, error: res.error ?? 'No se pudo enviar.' }
 }
