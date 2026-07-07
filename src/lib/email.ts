@@ -181,7 +181,7 @@ function buildPaymentReminderHtml(opts: {
   const { bg, fg } = getClubBranding(opts.brandColor)
 
   const dueDateText = opts.dueDate
-    ? `Fecha de vencimiento: <strong>${new Date(opts.dueDate).toLocaleDateString('es-CL', { day: 'numeric', month: 'long', year: 'numeric' })}</strong>`
+    ? `Fecha de vencimiento: <strong>${new Date(`${opts.dueDate}T12:00:00`).toLocaleDateString('es-CL', { day: 'numeric', month: 'long', year: 'numeric' })}</strong>`
     : ''
 
   return `

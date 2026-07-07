@@ -5,6 +5,7 @@ import {
   calculatePeriodStartForPayment,
   getBillingAnchorDay,
   getBillingPolicyFromSettings,
+  getRemindersEnabledFromSettings,
   todayYmd,
   ymdFromDate,
   parseYmd,
@@ -12,6 +13,7 @@ import {
   type BillingPolicy,
 } from '@/lib/billing-utils'
 import { ONLINE_GATEWAY_IDS } from '@/lib/payment-methods'
+import { sendPaymentReminderEmail } from '@/lib/email'
 
 type CronResult = {
   clubsProcessed: number
@@ -246,6 +248,70 @@ export async function backfillMissingBillingAnchorsForClub(clubId: string): Prom
   return fixed
 }
 
+const REMINDER_OFFSETS = [-3, 1, 7, 15] // días relativos al vencimiento (negativo = antes de vencer)
+
+/**
+ * Envía recordatorios de pago por correo en offsets EXACTOS respecto al vencimiento: 3 días antes,
+ * y 1/7/15 días de mora. Al ejecutarse una vez al día, el match exacto garantiza un solo envío por
+ * offset sin necesidad de trackear estado (sin columna extra). Solo si el club activó recordatorios;
+ * best-effort (un fallo de correo no interrumpe el cron).
+ */
+export async function sendPaymentRemindersForClub(clubId: string): Promise<number> {
+  const supabase = createAdminClient()
+  const { data: club } = await supabase
+    .from('clubs')
+    .select('name, slug, logo_url, primary_color, settings')
+    .eq('id', clubId)
+    .single()
+
+  const settings = (club?.settings ?? {}) as Record<string, unknown>
+  if (!getRemindersEnabledFromSettings(settings)) return 0
+
+  const ps = (settings.payment_settings ?? {}) as { bank_info?: { email?: string }; cash_instructions?: string }
+  const clubEmail = ps.bank_info?.email ?? null
+  const cashInstructions = ps.cash_instructions || undefined
+  const todayMs = parseYmd(todayYmd()).getTime()
+
+  const { data: payments } = await supabase
+    .from('payments')
+    .select('id, amount, due_date, status, plans(name), athletes(name, email)')
+    .eq('club_id', clubId)
+    .in('status', ['pending', 'overdue'])
+    .not('due_date', 'is', null)
+
+  let sent = 0
+  for (const p of payments ?? []) {
+    const due = p.due_date as string
+    const offset = Math.round((todayMs - parseYmd(due).getTime()) / 86400000)
+    if (!REMINDER_OFFSETS.includes(offset)) continue
+
+    const athlete = (Array.isArray(p.athletes) ? p.athletes[0] : p.athletes) as { name?: string; email?: string } | null
+    const to = athlete?.email?.trim()
+    if (!to) continue
+    const plan = (Array.isArray(p.plans) ? p.plans[0] : p.plans) as { name?: string } | null
+
+    try {
+      await sendPaymentReminderEmail({
+        to,
+        athleteName: athlete?.name ?? 'Atleta',
+        clubName: club?.name ?? 'tu academia',
+        clubSlug: club?.slug ?? '',
+        amount: Number(p.amount ?? 0),
+        dueDate: due,
+        planName: plan?.name ?? undefined,
+        paymentInstructions: cashInstructions,
+        logoUrl: club?.logo_url ?? null,
+        brandColor: club?.primary_color ?? null,
+        replyTo: clubEmail,
+      })
+      sent++
+    } catch (err) {
+      console.error('[sendPaymentRemindersForClub] error (no bloqueante):', err instanceof Error ? err.message : err)
+    }
+  }
+  return sent
+}
+
 export async function runBillingCronForClub(clubId: string): Promise<Omit<CronResult, 'clubsProcessed'>> {
   const supabase = createAdminClient()
   const { data: clubRow } = await supabase.from('clubs').select('settings').eq('id', clubId).single()
@@ -258,6 +324,8 @@ export async function runBillingCronForClub(clubId: string): Promise<Omit<CronRe
   // "Acumular": nunca vencer por impago (la sub sigue activa acumulando deuda).
   // "No acumular": vencer normal tras la gracia → deja de facturar.
   const subscriptionsExpired = policy === 'accumulate' ? 0 : await expireSubscriptionsForClub(clubId)
+  // Recordatorios por correo (después de sincronizar mora, para usar estados actualizados).
+  await sendPaymentRemindersForClub(clubId)
   return { paymentsGenerated, overdueSynced, gatewayFailed, subscriptionsExpired }
 }
 
