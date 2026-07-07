@@ -322,6 +322,7 @@ export async function sendPaymentRemindersForClub(clubId: string): Promise<numbe
         subjectOverride: tpl.subject,
         introOverride: tpl.intro,
         buttonOverride: tpl.button ?? undefined,
+        showDetails: tpl.showDetails,
       })
       sent++
     } catch (err) {

@@ -24,6 +24,8 @@ export type AutoTemplate = {
   buttonText: string
   /** URL del botón (CTA). Vacío → se usa el botón por defecto (portal del alumno). Admite variables. */
   buttonUrl: string
+  /** Muestra la tarjeta con plan y monto en el correo. Solo aplica a correos que la tienen. Default true. */
+  showDetails: boolean
 }
 
 export const AUTO_TEMPLATE_KEYS: AutoTemplateKey[] = [
@@ -36,27 +38,31 @@ export const AUTO_TEMPLATE_KEYS: AutoTemplateKey[] = [
 /** Metadatos para la UI: etiqueta, descripción del disparador y variables disponibles. */
 export const AUTO_TEMPLATE_META: Record<
   AutoTemplateKey,
-  { label: string; trigger: string; variables: string[] }
+  { label: string; trigger: string; variables: string[]; hasDetailsCard: boolean }
 > = {
   payment_confirmation: {
     label: "Confirmación de pago",
     trigger: "Se envía automáticamente cuando un pago se confirma (pasarela o confirmación manual).",
     variables: ["nombre", "club", "plan", "monto"],
+    hasDetailsCard: true,
   },
   payment_reminder: {
     label: "Recordatorio / atraso de mensualidad",
     trigger: "Se envía por el cron de recordatorios (si están activados) según la fecha de vencimiento.",
     variables: ["nombre", "club", "plan", "monto", "fecha_vencimiento"],
+    hasDetailsCard: true,
   },
   payment_failed: {
     label: "Pago rechazado",
     trigger: "Se envía cuando la pasarela (Flow / MercadoPago) rechaza o no completa un pago.",
     variables: ["nombre", "club", "plan", "monto"],
+    hasDetailsCard: true,
   },
   welcome: {
     label: "Bienvenida (nuevo alumno)",
     trigger: "Se envía al inscribir un alumno nuevo que tenga email registrado.",
     variables: ["nombre", "club"],
+    hasDetailsCard: false,
   },
 }
 
@@ -98,6 +104,7 @@ export function getAutoTemplate(
     enabled: saved.enabled !== false, // por defecto activado
     buttonText: typeof saved.buttonText === "string" ? saved.buttonText : "",
     buttonUrl: typeof saved.buttonUrl === "string" ? saved.buttonUrl : "",
+    showDetails: saved.showDetails !== false, // por defecto se muestra
   }
 }
 
@@ -114,7 +121,7 @@ export function resolveAutoEmail(
   settings: Record<string, unknown> | null | undefined,
   key: AutoTemplateKey,
   vars: Record<string, string | number | undefined>,
-): { subject: string; intro: string; button: { text: string; url: string } | null } | null {
+): { subject: string; intro: string; button: { text: string; url: string } | null; showDetails: boolean } | null {
   const tpl = getAutoTemplate(settings, key)
   if (!tpl.enabled) return null
   // Botón personalizado solo si el club definió una URL; el texto cae a "Ver más" si va vacío.
@@ -126,5 +133,6 @@ export function resolveAutoEmail(
     subject: renderTemplateVars(tpl.subject, vars),
     intro: renderTemplateVars(tpl.body, vars),
     button,
+    showDetails: tpl.showDetails,
   }
 }

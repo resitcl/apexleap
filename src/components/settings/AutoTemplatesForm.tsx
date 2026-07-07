@@ -61,7 +61,7 @@ export function AutoTemplatesForm({ defaultValues }: Props) {
 
   function resetToDefault(key: AutoTemplateKey) {
     const def = AUTO_TEMPLATE_DEFAULTS[key]
-    set(key, { subject: def.subject, body: def.body, buttonText: "", buttonUrl: "" })
+    set(key, { subject: def.subject, body: def.body, buttonText: "", buttonUrl: "", showDetails: true })
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -164,6 +164,30 @@ export function AutoTemplatesForm({ defaultValues }: Props) {
                   Si dejas la URL vacía, se usa el botón por defecto (portal del alumno). El texto y la URL admiten variables.
                 </p>
               </div>
+
+              {meta.hasDetailsCard && (
+                <div className="flex items-center justify-between rounded-lg border border-border/40 p-3">
+                  <div>
+                    <p className="text-xs font-medium">Tarjeta con plan y monto</p>
+                    <p className="text-[11px] text-muted-foreground">Muestra el recuadro con el plan y el monto dentro del correo.</p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={!t.enabled}
+                    onClick={() => set(key, { showDetails: !t.showDetails })}
+                    className="flex items-center gap-2 text-sm font-medium shrink-0 disabled:opacity-50"
+                  >
+                    {t.showDetails ? (
+                      <ToggleRight className="w-6 h-6 text-green-500" />
+                    ) : (
+                      <ToggleLeft className="w-6 h-6 text-muted-foreground" />
+                    )}
+                    <span className={t.showDetails ? "" : "text-muted-foreground"}>
+                      {t.showDetails ? "Visible" : "Oculta"}
+                    </span>
+                  </button>
+                </div>
+              )}
 
               <div className="flex flex-wrap items-center gap-1.5">
                 <span className="text-[11px] text-muted-foreground mr-1">Variables:</span>

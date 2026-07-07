@@ -176,6 +176,7 @@ async function notifyPaymentConfirmed(
       subjectOverride: tpl.subject,
       introOverride: tpl.intro,
       buttonOverride: tpl.button ?? undefined,
+      showDetails: tpl.showDetails,
     })
   } catch (err) {
     console.error('[notifyPaymentConfirmed] error (no bloqueante):', err instanceof Error ? err.message : err)
@@ -242,6 +243,7 @@ export async function notifyPaymentFailed(
       subjectOverride: tpl.subject,
       introOverride: tpl.intro,
       buttonOverride: tpl.button ?? undefined,
+      showDetails: tpl.showDetails,
     })
   } catch (err) {
     console.error('[notifyPaymentFailed] error (no bloqueante):', err instanceof Error ? err.message : err)
