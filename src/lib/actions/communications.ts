@@ -2,7 +2,7 @@
 
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getClubId, getClubMembershipRole } from '@/lib/actions/club-context'
-import { sendBroadcastEmail } from '@/lib/email'
+import { sendBroadcastEmail, sendPaymentReminderEmail } from '@/lib/email'
 import { randomUUID } from 'crypto'
 import { revalidatePath } from 'next/cache'
 
@@ -216,4 +216,108 @@ export async function sendBulkMessage(input: {
   }
 
   return { total: matched.length, sent, failed, skippedNoEmail }
+}
+
+/** Envía un mensaje personalizado a UN alumno (desde su ficha). */
+export async function sendMessageToAthlete(
+  athleteId: string,
+  input: { subject: string; body: string },
+): Promise<{ ok: boolean; error?: string }> {
+  await assertAdmin()
+  const clubId = await getClubId()
+  const supabase = createAdminClient()
+
+  const subject = input.subject.trim()
+  const body = input.body.trim()
+  if (!subject || !body) return { ok: false, error: 'Asunto y mensaje son obligatorios.' }
+
+  const { data: a } = await supabase
+    .from('athletes')
+    .select('name, email, subscriptions(status, plans(name)), payments(status, amount)')
+    .eq('club_id', clubId)
+    .eq('id', athleteId)
+    .maybeSingle()
+  if (!a) return { ok: false, error: 'Alumno no encontrado.' }
+  const to = a.email?.trim()
+  if (!to) return { ok: false, error: 'El alumno no tiene email registrado.' }
+
+  const { data: club } = await supabase
+    .from('clubs').select('name, logo_url, primary_color, settings').eq('id', clubId).single()
+  const clubName = club?.name ?? 'tu academia'
+  const settings = (club?.settings ?? {}) as Record<string, unknown>
+  const replyTo = ((settings.payment_settings as { bank_info?: { email?: string } } | undefined)?.bank_info?.email) ?? null
+
+  const subs = (a.subscriptions ?? []) as Array<{ status: string; plans: { name: string } | { name: string }[] | null }>
+  const activeSub = subs.find((s) => s.status === 'active')
+  const plan = Array.isArray(activeSub?.plans) ? activeSub?.plans[0] : activeSub?.plans
+  const debt = ((a.payments ?? []) as Array<{ status: string; amount: number }>)
+    .filter((p) => p.status === 'overdue').reduce((s, p) => s + Number(p.amount), 0)
+  const firstName = (a.name ?? '').trim().split(/\s+/)[0] || a.name || 'alumno'
+  const vars: Record<string, string> = {
+    nombre: firstName, nombre_completo: a.name ?? '', plan: plan?.name ?? '',
+    deuda: debt > 0 ? `$${debt.toLocaleString('es-CL')}` : '$0', club: clubName,
+  }
+
+  const res = await sendBroadcastEmail({
+    to,
+    subject: applyVars(subject, vars),
+    bodyText: applyVars(body, vars),
+    clubName,
+    logoUrl: club?.logo_url ?? null,
+    brandColor: club?.primary_color ?? null,
+    replyTo,
+  })
+  return res.success ? { ok: true } : { ok: false, error: res.error ?? 'No se pudo enviar.' }
+}
+
+/** Envía una solicitud de pago a un alumno (recordatorio con monto + link al portal de pago). */
+export async function sendPaymentRequest(
+  athleteId: string,
+  note?: string,
+): Promise<{ ok: boolean; error?: string }> {
+  await assertAdmin()
+  const clubId = await getClubId()
+  const supabase = createAdminClient()
+
+  const { data: a } = await supabase
+    .from('athletes')
+    .select('name, email, subscriptions(status, plans(name, price)), payments(status, amount, due_date)')
+    .eq('club_id', clubId)
+    .eq('id', athleteId)
+    .maybeSingle()
+  if (!a) return { ok: false, error: 'Alumno no encontrado.' }
+  const to = a.email?.trim()
+  if (!to) return { ok: false, error: 'El alumno no tiene email registrado.' }
+
+  const { data: club } = await supabase
+    .from('clubs').select('name, slug, logo_url, primary_color, settings').eq('id', clubId).single()
+  const clubName = club?.name ?? 'tu academia'
+  const settings = (club?.settings ?? {}) as Record<string, unknown>
+  const ps = (settings.payment_settings ?? {}) as { bank_info?: { email?: string }; cash_instructions?: string }
+  const replyTo = ps.bank_info?.email ?? null
+
+  const subs = (a.subscriptions ?? []) as Array<{ status: string; plans: { name: string; price: number } | { name: string; price: number }[] | null }>
+  const activeSub = subs.find((s) => s.status === 'active')
+  const plan = Array.isArray(activeSub?.plans) ? activeSub?.plans[0] : activeSub?.plans
+  const pmts = (a.payments ?? []) as Array<{ status: string; amount: number; due_date: string }>
+  const outstanding = pmts
+    .filter((p) => p.status === 'overdue' || p.status === 'pending')
+    .sort((x, y) => (x.due_date ?? '').localeCompare(y.due_date ?? ''))[0]
+  const debt = pmts.filter((p) => p.status === 'overdue').reduce((s, p) => s + Number(p.amount), 0)
+  const amount = Number(outstanding?.amount ?? (debt > 0 ? debt : plan?.price ?? 0))
+
+  const res = await sendPaymentReminderEmail({
+    to,
+    athleteName: a.name ?? 'Atleta',
+    clubName,
+    clubSlug: club?.slug ?? '',
+    amount,
+    dueDate: outstanding?.due_date,
+    planName: plan?.name ?? undefined,
+    paymentInstructions: note?.trim() || ps.cash_instructions || undefined,
+    logoUrl: club?.logo_url ?? null,
+    brandColor: club?.primary_color ?? null,
+    replyTo,
+  })
+  return res.success ? { ok: true } : { ok: false, error: res.error ?? 'No se pudo enviar.' }
 }
