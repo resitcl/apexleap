@@ -17,6 +17,7 @@ import { ManualCheckInButton } from "@/components/athletes/ManualCheckInButton"
 import { NewSubscriptionFromAthleteButton } from "@/components/athletes/NewSubscriptionFromAthleteButton"
 import { InviteAthleteButton } from "@/components/athletes/InviteAthleteButton"
 import { AthleteBillingDayControl } from "@/components/athletes/AthleteBillingDayControl"
+import { SuspendAthleteButton } from "@/components/athletes/SuspendAthleteButton"
 import {
   ChevronLeft, Pencil, Phone, Mail, FileText,
   Calendar, CreditCard, CheckSquare, Activity, Heart,
@@ -181,6 +182,9 @@ export default async function AthleteDetailPage({ params }: PageProps) {
           </Link>
         )}
         {!archivedAt && <ManualCheckInButton athleteId={id} />}
+        {!archivedAt && !isStaffOnly && (
+          <SuspendAthleteButton athleteId={id} status={(athlete as { status?: string }).status ?? 'active'} />
+        )}
         {!archivedAt && (
           <Link href={`/dashboard/athletes/${id}/edit`}>
             <Button size="sm" className="gap-1.5">
