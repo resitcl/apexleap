@@ -12,6 +12,7 @@ import {
   archiveAthleteForUser,
 } from '@/lib/admin-athlete-sync'
 import { cancelPriorSubscriptions } from '@/lib/subscription-activation'
+import { calculatePeriodStartForPayment, ymdFromDate, type BillingCycle } from '@/lib/billing-utils'
 
 const athleteSchema = z.object({
   name: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
@@ -456,4 +457,86 @@ export async function sendAthleteInvitation(
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : 'Error inesperado.' }
   }
+}
+
+export type AthleteBillingInfo = {
+  hasActiveSub: boolean
+  anchorDay: number | null
+  nextBilling: string | null
+  cycle: string | null
+}
+
+/** Info del día de cobro (billing anchor) de la suscripción activa del alumno, para la ficha. */
+export async function getAthleteBillingInfo(athleteId: string): Promise<AthleteBillingInfo> {
+  await assertClubStaff()
+  const clubId = await getClubId()
+  const supabase = createAdminClient()
+
+  const { data: sub } = await supabase
+    .from('subscriptions')
+    .select('billing_anchor_day, next_billing_date, plans(billing_cycle)')
+    .eq('club_id', clubId)
+    .eq('athlete_id', athleteId)
+    .eq('status', 'active')
+    .maybeSingle()
+
+  if (!sub) return { hasActiveSub: false, anchorDay: null, nextBilling: null, cycle: null }
+  const plansData = sub.plans as unknown
+  const plan = Array.isArray(plansData) ? plansData[0] : (plansData as { billing_cycle: string } | null)
+  return {
+    hasActiveSub: true,
+    anchorDay: (sub.billing_anchor_day as number | null) ?? null,
+    nextBilling: (sub.next_billing_date as string | null) ?? null,
+    cycle: plan?.billing_cycle ?? null,
+  }
+}
+
+/**
+ * Fija el día de cobro (billing anchor) de la suscripción activa del alumno y realinea el ciclo:
+ * el período actual (que contiene hoy, según el nuevo día) se considera cubierto y el próximo
+ * cobro queda al final de ese período. No genera deuda retroactiva ni toca cuotas vencidas
+ * existentes; solo reordena la facturación futura (y con ella los recordatorios).
+ */
+export async function setAthleteBillingDay(athleteId: string, day: number): Promise<AthleteBillingInfo> {
+  await assertClubStaff()
+  const clubId = await getClubId()
+  const supabase = createAdminClient()
+
+  const anchorDay = Math.max(1, Math.min(28, Math.round(day)))
+
+  const { data: sub } = await supabase
+    .from('subscriptions')
+    .select('id, plans(billing_cycle)')
+    .eq('club_id', clubId)
+    .eq('athlete_id', athleteId)
+    .eq('status', 'active')
+    .maybeSingle()
+  if (!sub) throw new Error('El alumno no tiene una suscripción activa a la cual fijarle el día de cobro.')
+
+  const plansData = sub.plans as unknown
+  const plan = Array.isArray(plansData) ? plansData[0] : (plansData as { billing_cycle: string } | null)
+  const cycle = (plan?.billing_cycle ?? 'monthly') as BillingCycle
+
+  const now = new Date()
+  const { periodStart, periodEnd } = calculatePeriodStartForPayment(anchorDay, now, cycle, null)
+  const periodStartStr = ymdFromDate(periodStart)
+  const periodEndStr = periodEnd ? ymdFromDate(periodEnd) : null
+
+  const { error } = await supabase
+    .from('subscriptions')
+    .update({
+      billing_anchor_day: anchorDay,
+      current_period_start: periodStartStr,
+      current_period_end: periodEndStr,
+      // El próximo cobro queda al final del período actual → el ciclo se alinea al día elegido y
+      // el alumno queda al día en el período en curso (sin inventar deuda).
+      next_billing_date: periodEndStr,
+    })
+    .eq('id', sub.id)
+    .eq('club_id', clubId)
+  if (error) throw new Error(error.message)
+
+  revalidatePath(`/dashboard/athletes/${athleteId}`)
+  revalidatePath('/dashboard/athletes')
+  return { hasActiveSub: true, anchorDay, nextBilling: periodEndStr, cycle }
 }

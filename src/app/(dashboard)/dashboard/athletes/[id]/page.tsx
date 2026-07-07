@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { getAthleteById } from "@/lib/actions/athletes"
+import { getAthleteById, getAthleteBillingInfo } from "@/lib/actions/athletes"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -16,6 +16,7 @@ import { AthleteNotesButton } from "@/components/athletes/AthleteNotesButton"
 import { ManualCheckInButton } from "@/components/athletes/ManualCheckInButton"
 import { NewSubscriptionFromAthleteButton } from "@/components/athletes/NewSubscriptionFromAthleteButton"
 import { InviteAthleteButton } from "@/components/athletes/InviteAthleteButton"
+import { AthleteBillingDayControl } from "@/components/athletes/AthleteBillingDayControl"
 import {
   ChevronLeft, Pencil, Phone, Mail, FileText,
   Calendar, CreditCard, CheckSquare, Activity, Heart,
@@ -37,6 +38,10 @@ export default async function AthleteDetailPage({ params }: PageProps) {
   } catch {
     notFound()
   }
+
+  const billingInfo = await getAthleteBillingInfo(id).catch(() => ({
+    hasActiveSub: false, anchorDay: null, nextBilling: null, cycle: null,
+  }))
 
   let sportType: string | null = null
   try { sportType = await getClubSportType() } catch { /* silent */ }
@@ -373,6 +378,8 @@ export default async function AthleteDetailPage({ params }: PageProps) {
               <p className="text-xs text-muted-foreground">Plan Activo</p>
               <p className="font-medium">{activeSub?.plans?.name ?? "Sin plan"}</p>
             </div>
+            <Separator />
+            <AthleteBillingDayControl athleteId={id} initial={billingInfo} />
             <Separator />
             <div>
               <div className="flex items-center justify-between mb-2">
