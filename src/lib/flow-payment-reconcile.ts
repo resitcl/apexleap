@@ -4,6 +4,7 @@ import {
   activateSubscriptionForPaidPayment,
   markPaymentPaidIdempotent,
   persistAmountMismatch,
+  notifyPaymentFailed,
 } from '@/lib/subscription-activation'
 
 function parsePaymentIdFromCommerceOrder(value: unknown): string | null {
@@ -165,9 +166,18 @@ export { activateSubscriptionForPaidPayment } from '@/lib/subscription-activatio
 export async function markFlowPaymentFailedIfPending(token: string, reason: string): Promise<void> {
   if (!token?.trim()) return
   const supabase = createAdminClient()
-  await supabase
+  const { data: failed } = await supabase
     .from('payments')
     .update({ status: 'failed', notes: `Flow: pago no completado (${reason})` })
     .eq('transaction_id', token.trim())
     .in('status', ['pending', 'overdue'])
+    .select('club_id, athlete_id, plan_id, amount')
+  // Aviso al alumno solo si el pago realmente transicionó a failed (best-effort).
+  for (const p of failed ?? []) {
+    await notifyPaymentFailed(supabase, p.club_id as string, {
+      athlete_id: p.athlete_id as string,
+      plan_id: (p.plan_id as string | null) ?? null,
+      amount: (p.amount as number | null) ?? null,
+    })
+  }
 }

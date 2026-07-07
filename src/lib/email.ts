@@ -80,6 +80,20 @@ function buildFooter(clubName: string) {
   </tr>`
 }
 
+/**
+ * Convierte el texto de introducción personalizado (plantillas automáticas) en HTML:
+ * el primer bloque es el encabezado y el resto párrafos. Escapa HTML y respeta saltos de línea.
+ */
+function renderIntroHtml(text: string): string {
+  const blocks = text.split(/\n{2,}/).map((b) => escapeHtml(b.trim()).replace(/\n/g, "<br/>")).filter(Boolean)
+  if (blocks.length === 0) return ""
+  const [head, ...rest] = blocks
+  return (
+    `<h1 style="margin:0 0 16px;font-size:22px;color:#18181b;">${head}</h1>` +
+    rest.map((p) => `<p style="margin:0 0 16px;font-size:16px;color:#52525b;line-height:1.6;">${p}</p>`).join("")
+  )
+}
+
 // ---------------------------------------------------------------------------
 // Template: Bienvenida / Invitación al alumno
 // ---------------------------------------------------------------------------
@@ -91,6 +105,7 @@ function buildInvitationHtml(opts: {
   adminName?: string
   logoUrl?: string | null
   brandColor?: string | null
+  introOverride?: string
 }) {
   const signInUrl = `${APP_URL}/${opts.clubSlug}/signin`
   const { bg, fg } = getClubBranding(opts.brandColor)
@@ -114,7 +129,7 @@ function buildInvitationHtml(opts: {
           <!-- Body -->
           <tr>
             <td style="padding:40px;">
-              <h1 style="margin:0 0 16px;font-size:24px;color:#18181b;">
+              ${opts.introOverride ? renderIntroHtml(opts.introOverride) : `<h1 style="margin:0 0 16px;font-size:24px;color:#18181b;">
                 ¡Bienvenido/a, ${opts.athleteName}!
               </h1>
               <p style="margin:0 0 16px;font-size:16px;color:#52525b;line-height:1.6;">
@@ -122,7 +137,7 @@ function buildInvitationHtml(opts: {
               </p>
               <p style="margin:0 0 32px;font-size:16px;color:#52525b;line-height:1.6;">
                 Entra a tu cuenta para ver tu plan de entrenamiento, estado de pagos y más.
-              </p>
+              </p>`}
 
               <!-- CTA Button con color de marca -->
               <table cellpadding="0" cellspacing="0">
@@ -169,6 +184,7 @@ function buildPaymentReminderHtml(opts: {
   paymentInstructions?: string
   logoUrl?: string | null
   brandColor?: string | null
+  introOverride?: string
 }) {
   const currency = opts.currency ?? 'CLP'
   const formattedAmount = new Intl.NumberFormat('es-CL', {
@@ -212,12 +228,12 @@ function buildPaymentReminderHtml(opts: {
           <!-- Body -->
           <tr>
             <td style="padding:40px;">
-              <h1 style="margin:0 0 8px;font-size:22px;color:#18181b;">
+              ${opts.introOverride ? renderIntroHtml(opts.introOverride) : `<h1 style="margin:0 0 8px;font-size:22px;color:#18181b;">
                 Hola, ${opts.athleteName}
               </h1>
               <p style="margin:0 0 24px;font-size:16px;color:#52525b;line-height:1.6;">
                 Te recordamos que tienes un pago pendiente en <strong>${opts.clubName}</strong>.
-              </p>
+              </p>`}
 
               <!-- Payment card -->
               <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;border:1px solid #e4e4e7;border-radius:8px;margin-bottom:24px;">
@@ -285,6 +301,7 @@ function buildPaymentConfirmationHtml(opts: {
   nextBilling?: string
   logoUrl?: string | null
   brandColor?: string | null
+  introOverride?: string
 }) {
   const currency = opts.currency ?? 'CLP'
   const formattedAmount = new Intl.NumberFormat('es-CL', {
@@ -329,12 +346,12 @@ function buildPaymentConfirmationHtml(opts: {
           <!-- Body -->
           <tr>
             <td style="padding:40px;">
-              <h1 style="margin:0 0 8px;font-size:22px;color:#18181b;">
+              ${opts.introOverride ? renderIntroHtml(opts.introOverride) : `<h1 style="margin:0 0 8px;font-size:22px;color:#18181b;">
                 ¡Gracias, ${opts.athleteName}!
               </h1>
               <p style="margin:0 0 24px;font-size:16px;color:#52525b;line-height:1.6;">
                 Recibimos tu pago en <strong>${opts.clubName}</strong>. Tu membresía está al día.
-              </p>
+              </p>`}
 
               <!-- Payment card -->
               <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;border:1px solid #e4e4e7;border-radius:8px;margin-bottom:24px;">
@@ -380,6 +397,107 @@ function buildPaymentConfirmationHtml(opts: {
 }
 
 // ---------------------------------------------------------------------------
+// Template: Pago rechazado / no completado
+// ---------------------------------------------------------------------------
+
+function buildPaymentFailedHtml(opts: {
+  athleteName: string
+  clubName: string
+  clubSlug: string
+  amount: number
+  currency?: string
+  planName?: string
+  logoUrl?: string | null
+  brandColor?: string | null
+  introOverride?: string
+}) {
+  const currency = opts.currency ?? 'CLP'
+  const formattedAmount = new Intl.NumberFormat('es-CL', {
+    style: 'currency',
+    currency,
+    minimumFractionDigits: 0,
+  }).format(opts.amount)
+
+  const paymentUrl = `${APP_URL}/${opts.clubSlug}/athlete`
+  const { bg, fg } = getClubBranding(opts.brandColor)
+
+  return `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pago no procesado – ${opts.clubName}</title>
+</head>
+<body style="margin:0;padding:0;background:#f4f4f5;font-family:Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 20px;">
+    <tr>
+      <td align="center">
+        <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+
+          ${buildHeader(opts.clubName, opts.logoUrl, bg, fg)}
+
+          <!-- Error banner -->
+          <tr>
+            <td style="background:#fee2e2;padding:12px 40px;border-bottom:1px solid #fecaca;">
+              <p style="margin:0;font-size:14px;color:#991b1b;text-align:center;font-weight:600;">
+                ⚠️ Tu pago no se pudo procesar
+              </p>
+            </td>
+          </tr>
+
+          <!-- Body -->
+          <tr>
+            <td style="padding:40px;">
+              ${opts.introOverride ? renderIntroHtml(opts.introOverride) : `<h1 style="margin:0 0 8px;font-size:22px;color:#18181b;">
+                Hola, ${opts.athleteName}
+              </h1>
+              <p style="margin:0 0 24px;font-size:16px;color:#52525b;line-height:1.6;">
+                Intentamos procesar tu pago en <strong>${opts.clubName}</strong>, pero fue rechazado o no se completó.
+              </p>`}
+
+              <!-- Payment card -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;border:1px solid #e4e4e7;border-radius:8px;margin-bottom:24px;">
+                <tr>
+                  <td style="padding:24px;">
+                    ${opts.planName ? `<p style="margin:0 0 8px;font-size:13px;color:#71717a;text-transform:uppercase;letter-spacing:0.5px;">Plan</p>
+                    <p style="margin:0 0 16px;font-size:16px;color:#18181b;font-weight:600;">${opts.planName}</p>` : ''}
+                    <p style="margin:0 0 8px;font-size:13px;color:#71717a;text-transform:uppercase;letter-spacing:0.5px;">Monto</p>
+                    <p style="margin:0;font-size:28px;color:#18181b;font-weight:700;">${formattedAmount}</p>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- CTA Button con color de marca -->
+              <table cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="background:${bg};border-radius:8px;text-align:center;">
+                    <a href="${paymentUrl}"
+                       style="display:inline-block;padding:14px 28px;color:${fg};font-size:15px;font-weight:600;text-decoration:none;">
+                      Reintentar pago →
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="margin:24px 0 0;font-size:14px;color:#52525b;line-height:1.6;">
+                Puedes reintentar el pago desde tu cuenta. Si el problema persiste, contacta directamente a tu academia.
+              </p>
+            </td>
+          </tr>
+
+          ${buildFooter(opts.clubName)}
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+`
+}
+
+// ---------------------------------------------------------------------------
 // Funciones de envío públicas
 // ---------------------------------------------------------------------------
 
@@ -395,6 +513,8 @@ export async function sendInvitationEmail(opts: {
   logoUrl?: string | null
   brandColor?: string | null
   replyTo?: string | null
+  subjectOverride?: string
+  introOverride?: string
 }): Promise<SendEmailResult> {
   if (!process.env.RESEND_API_KEY) {
     console.warn('[email] RESEND_API_KEY no configurada — email de invitación no enviado')
@@ -407,7 +527,7 @@ export async function sendInvitationEmail(opts: {
       from: FROM_EMAIL,
       to: opts.to,
       ...(replyTo ? { reply_to: replyTo } : {}),
-      subject: `¡Bienvenido/a a ${opts.clubName}! 🥋`,
+      subject: opts.subjectOverride?.trim() || `¡Bienvenido/a a ${opts.clubName}! 🥋`,
       html: buildInvitationHtml(opts),
     })
 
@@ -441,6 +561,8 @@ export async function sendPaymentReminderEmail(opts: {
   logoUrl?: string | null
   brandColor?: string | null
   replyTo?: string | null
+  subjectOverride?: string
+  introOverride?: string
 }): Promise<SendEmailResult> {
   if (!process.env.RESEND_API_KEY) {
     console.warn('[email] RESEND_API_KEY no configurada — recordatorio de pago no enviado')
@@ -453,7 +575,7 @@ export async function sendPaymentReminderEmail(opts: {
       from: FROM_EMAIL,
       to: opts.to,
       ...(replyTo ? { reply_to: replyTo } : {}),
-      subject: `Recordatorio de pago – ${opts.clubName}`,
+      subject: opts.subjectOverride?.trim() || `Recordatorio de pago – ${opts.clubName}`,
       html: buildPaymentReminderHtml(opts),
     })
 
@@ -488,6 +610,8 @@ export async function sendPaymentConfirmationEmail(opts: {
   logoUrl?: string | null
   brandColor?: string | null
   replyTo?: string | null
+  subjectOverride?: string
+  introOverride?: string
 }): Promise<SendEmailResult> {
   if (!process.env.RESEND_API_KEY) {
     console.warn('[email] RESEND_API_KEY no configurada — confirmación de pago no enviada')
@@ -500,7 +624,7 @@ export async function sendPaymentConfirmationEmail(opts: {
       from: FROM_EMAIL,
       to: opts.to,
       ...(replyTo ? { reply_to: replyTo } : {}),
-      subject: `Pago confirmado – ${opts.clubName}`,
+      subject: opts.subjectOverride?.trim() || `Pago confirmado – ${opts.clubName}`,
       html: buildPaymentConfirmationHtml(opts),
     })
 
@@ -514,6 +638,52 @@ export async function sendPaymentConfirmationEmail(opts: {
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Error desconocido'
     console.error('[email] Excepción al enviar confirmación:', message)
+    return { success: false, error: message }
+  }
+}
+
+/**
+ * Avisa a un alumno que su pago fue rechazado o no se completó por la pasarela.
+ */
+export async function sendPaymentFailedEmail(opts: {
+  to: string
+  athleteName: string
+  clubName: string
+  clubSlug: string
+  amount: number
+  currency?: string
+  planName?: string
+  logoUrl?: string | null
+  brandColor?: string | null
+  replyTo?: string | null
+  subjectOverride?: string
+  introOverride?: string
+}): Promise<SendEmailResult> {
+  if (!process.env.RESEND_API_KEY) {
+    console.warn('[email] RESEND_API_KEY no configurada — aviso de pago rechazado no enviado')
+    return { success: false, error: 'RESEND_API_KEY no configurada' }
+  }
+
+  try {
+    const replyTo = resolveReplyTo(opts.replyTo)
+    const { data, error } = await getResend().emails.send({
+      from: FROM_EMAIL,
+      to: opts.to,
+      ...(replyTo ? { reply_to: replyTo } : {}),
+      subject: opts.subjectOverride?.trim() || `Tu pago no se pudo procesar – ${opts.clubName}`,
+      html: buildPaymentFailedHtml(opts),
+    })
+
+    if (error) {
+      console.error('[email] Error al enviar aviso de pago rechazado:', error)
+      return { success: false, error: error.message }
+    }
+
+    console.log(`[email] Aviso de pago rechazado enviado a ${opts.to} (id: ${data?.id})`)
+    return { success: true, id: data?.id }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Error desconocido'
+    console.error('[email] Excepción al enviar aviso de pago rechazado:', message)
     return { success: false, error: message }
   }
 }

@@ -185,6 +185,36 @@ export async function updatePaymentSettings(paymentSettings: {
   return { success: true }
 }
 
+/**
+ * Guarda las plantillas automáticas (subject/body/enabled por caso de uso) en
+ * `clubs.settings.auto_templates`. Solo admin. Merge sobre lo existente.
+ */
+export async function saveAutoTemplates(
+  templates: Record<string, { subject: string; body: string; enabled: boolean }>,
+) {
+  const membership = await getClubMembershipRole()
+  if (membership !== 'admin' && membership !== 'admin_athlete') {
+    throw new Error('Solo un administrador del club puede editar las plantillas automáticas.')
+  }
+
+  const clubId = await getClubId()
+  const supabase = createAdminClient()
+
+  const { data: club } = await supabase.from('clubs').select('settings').eq('id', clubId).single()
+  const currentSettings = (club?.settings ?? {}) as Record<string, unknown>
+
+  const updatedSettings = { ...currentSettings, auto_templates: templates }
+
+  const { error } = await supabase
+    .from('clubs')
+    .update({ settings: updatedSettings, updated_at: new Date().toISOString() })
+    .eq('id', clubId)
+
+  if (error) throw new Error(error.message)
+  revalidatePath('/dashboard/settings')
+  return { success: true }
+}
+
 export async function deleteClub(confirmName: string) {
   const membership = await getClubMembershipRole()
   if (membership !== 'admin') {

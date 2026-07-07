@@ -4,7 +4,13 @@ import {
   type BillingCycle,
 } from '@/lib/billing-utils'
 import { ONLINE_GATEWAY_IDS } from '@/lib/payment-methods'
-import { sendPaymentConfirmationEmail } from '@/lib/email'
+import { sendPaymentConfirmationEmail, sendPaymentFailedEmail } from '@/lib/email'
+import { resolveAutoEmail } from '@/lib/auto-templates'
+
+/** Formatea un monto CLP para usar en variables de plantilla ({{monto}}). */
+function formatClp(amount: number): string {
+  return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }).format(amount)
+}
 
 type SupabaseAdmin = ReturnType<typeof createAdminClient>
 
@@ -141,14 +147,23 @@ async function notifyPaymentConfirmed(
       .eq('id', clubId)
       .single()
 
+    const settings = (club?.settings ?? {}) as Record<string, unknown>
     const clubEmail =
-      ((club?.settings as Record<string, unknown> | null)?.payment_settings as { bank_info?: { email?: string } } | undefined)
-        ?.bank_info?.email ?? null
+      (settings.payment_settings as { bank_info?: { email?: string } } | undefined)?.bank_info?.email ?? null
+
+    const clubName = club?.name ?? 'tu academia'
+    const tpl = resolveAutoEmail(settings, 'payment_confirmation', {
+      nombre: athlete?.name ?? 'Atleta',
+      club: clubName,
+      plan: plan?.name ?? '',
+      monto: formatClp(Number(plan?.price ?? 0)),
+    })
+    if (!tpl) return // el club desactivó este correo automático
 
     await sendPaymentConfirmationEmail({
       to,
       athleteName: athlete?.name ?? 'Atleta',
-      clubName: club?.name ?? 'tu academia',
+      clubName,
       clubSlug: club?.slug ?? '',
       amount: Number(plan?.price ?? 0),
       planName: plan?.name ?? undefined,
@@ -158,9 +173,76 @@ async function notifyPaymentConfirmed(
       logoUrl: club?.logo_url ?? null,
       brandColor: club?.primary_color ?? null,
       replyTo: clubEmail,
+      subjectOverride: tpl.subject,
+      introOverride: tpl.intro,
     })
   } catch (err) {
     console.error('[notifyPaymentConfirmed] error (no bloqueante):', err instanceof Error ? err.message : err)
+  }
+}
+
+/**
+ * Avisa al alumno que su pago fue rechazado/no completado por la pasarela. Best-effort:
+ * cualquier fallo se loguea pero no interrumpe el flujo. Se llama SOLO cuando un pago transiciona
+ * a `failed` desde un reconcile real de pasarela (no desde intentos abandonados por el cron).
+ */
+export async function notifyPaymentFailed(
+  supabase: SupabaseAdmin,
+  clubId: string,
+  payment: { athlete_id: string; plan_id?: string | null; amount?: number | null },
+) {
+  try {
+    if (!payment.athlete_id) return
+    const { data: athlete } = await supabase
+      .from('athletes')
+      .select('name, email')
+      .eq('id', payment.athlete_id)
+      .eq('club_id', clubId)
+      .maybeSingle()
+    const to = athlete?.email?.trim()
+    if (!to) return
+
+    const { data: club } = await supabase
+      .from('clubs')
+      .select('name, slug, logo_url, primary_color, settings')
+      .eq('id', clubId)
+      .single()
+
+    let planName: string | undefined
+    if (payment.plan_id) {
+      const { data: plan } = await supabase.from('plans').select('name').eq('id', payment.plan_id).maybeSingle()
+      planName = plan?.name ?? undefined
+    }
+
+    const settings = (club?.settings ?? {}) as Record<string, unknown>
+    const clubEmail =
+      (settings.payment_settings as { bank_info?: { email?: string } } | undefined)?.bank_info?.email ?? null
+    const clubName = club?.name ?? 'tu academia'
+    const amount = Number(payment.amount ?? 0)
+
+    const tpl = resolveAutoEmail(settings, 'payment_failed', {
+      nombre: athlete?.name ?? 'Atleta',
+      club: clubName,
+      plan: planName ?? '',
+      monto: formatClp(amount),
+    })
+    if (!tpl) return
+
+    await sendPaymentFailedEmail({
+      to,
+      athleteName: athlete?.name ?? 'Atleta',
+      clubName,
+      clubSlug: club?.slug ?? '',
+      amount,
+      planName,
+      logoUrl: club?.logo_url ?? null,
+      brandColor: club?.primary_color ?? null,
+      replyTo: clubEmail,
+      subjectOverride: tpl.subject,
+      introOverride: tpl.intro,
+    })
+  } catch (err) {
+    console.error('[notifyPaymentFailed] error (no bloqueante):', err instanceof Error ? err.message : err)
   }
 }
 

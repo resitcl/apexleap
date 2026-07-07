@@ -220,12 +220,14 @@ export async function getClubInfo(): Promise<{
   primary_color: string | null
   /** Email de contacto del club — se usa como reply-to en correos salientes */
   email: string | null
+  /** settings JSON del club (payment_settings, auto_templates, etc.) */
+  settings: Record<string, unknown>
 }> {
   const clubId = await getClubId()
   const supabase = createAdminClient()
   const { data } = await supabase
     .from('clubs')
-    .select('id, name, slug, logo_url, primary_color, email')
+    .select('id, name, slug, logo_url, primary_color, email, settings')
     .eq('id', clubId)
     .single()
   return {
@@ -235,6 +237,7 @@ export async function getClubInfo(): Promise<{
     logo_url: (data?.logo_url as string | null) ?? null,
     primary_color: (data?.primary_color as string | null) ?? null,
     email: (data?.email as string | null) ?? null,
+    settings: (data?.settings as Record<string, unknown> | null) ?? {},
   }
 }
 
