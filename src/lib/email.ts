@@ -517,3 +517,91 @@ export async function sendPaymentConfirmationEmail(opts: {
     return { success: false, error: message }
   }
 }
+
+// ---------------------------------------------------------------------------
+// Template: Mensaje/comunicación genérica (módulo Comunicaciones)
+// ---------------------------------------------------------------------------
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
+function buildBroadcastHtml(opts: {
+  clubName: string
+  bodyText: string
+  logoUrl?: string | null
+  brandColor?: string | null
+}) {
+  const { bg, fg } = getClubBranding(opts.brandColor)
+  const bodyHtml = opts.bodyText
+    .split('\n')
+    .map((line) =>
+      line.trim() === ''
+        ? '<div style="height:10px;"></div>'
+        : `<p style="margin:0 0 12px;font-size:16px;color:#3f3f46;line-height:1.6;">${escapeHtml(line)}</p>`,
+    )
+    .join('')
+
+  return `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${escapeHtml(opts.clubName)}</title>
+</head>
+<body style="margin:0;padding:0;background:#f4f4f5;font-family:Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 20px;">
+    <tr>
+      <td align="center">
+        <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+          ${buildHeader(opts.clubName, opts.logoUrl, bg, fg)}
+          <tr>
+            <td style="padding:36px 40px;">
+              ${bodyHtml}
+            </td>
+          </tr>
+          ${buildFooter(opts.clubName)}
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+`
+}
+
+/**
+ * Envía un mensaje/comunicación genérica a un alumno (módulo Comunicaciones).
+ */
+export async function sendBroadcastEmail(opts: {
+  to: string
+  subject: string
+  bodyText: string
+  clubName: string
+  logoUrl?: string | null
+  brandColor?: string | null
+  replyTo?: string | null
+}): Promise<SendEmailResult> {
+  if (!process.env.RESEND_API_KEY) {
+    return { success: false, error: 'RESEND_API_KEY no configurada' }
+  }
+  try {
+    const replyTo = resolveReplyTo(opts.replyTo)
+    const { data, error } = await getResend().emails.send({
+      from: FROM_EMAIL,
+      to: opts.to,
+      ...(replyTo ? { reply_to: replyTo } : {}),
+      subject: opts.subject,
+      html: buildBroadcastHtml(opts),
+    })
+    if (error) return { success: false, error: error.message }
+    return { success: true, id: data?.id }
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : 'Error desconocido' }
+  }
+}
