@@ -391,7 +391,7 @@ export async function updatePaymentStatus(
   return data
 }
 
-export async function deletePayment(id: string) {
+export async function deletePayment(id: string): Promise<{ ok: boolean; error?: string }> {
   await assertClubCapability('finances')
   const clubId = await getClubId()
   const supabase = createAdminClient()
@@ -404,13 +404,17 @@ export async function deletePayment(id: string) {
     .maybeSingle()
 
   if (existing?.status === 'paid') {
-    throw new Error('No se puede eliminar un pago ya confirmado como pagado.')
+    // Regla de negocio esperada (no un error inesperado): se DEVUELVE para que el cliente la
+    // muestre en un toast. Si se lanzara, en producción Next sanitiza el mensaje y el usuario
+    // vería el error genérico ("An error occurred in the Server Components render…").
+    return { ok: false, error: 'No se puede eliminar un pago ya confirmado como pagado.' }
   }
 
   const { error } = await supabase
     .from('payments').delete().eq('id', id).eq('club_id', clubId)
   if (error) throw new Error(error.message)
   revalidatePath('/dashboard/payments')
+  return { ok: true }
 }
 
 /**

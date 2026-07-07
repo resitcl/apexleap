@@ -24,9 +24,13 @@ export function DeletePaymentButton({ paymentId }: Props) {
   async function handleDelete() {
     setLoading(true)
     try {
-      await deletePayment(paymentId)
-      toast.success("Pago eliminado")
-      router.refresh()
+      const res = await deletePayment(paymentId)
+      if (res && res.ok === false) {
+        toast.error(res.error ?? "No se pudo eliminar el pago")
+      } else {
+        toast.success("Pago eliminado")
+        router.refresh()
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Error al eliminar")
     } finally {
