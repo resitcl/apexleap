@@ -3,6 +3,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getClubId, getClubMembershipRole } from '@/lib/actions/club-context'
 import { sendBroadcastEmail, sendPaymentReminderEmail } from '@/lib/email'
+import { getAutoTemplate, renderTemplateVars } from '@/lib/auto-templates'
 import { randomUUID } from 'crypto'
 import { revalidatePath } from 'next/cache'
 import { auth } from '@clerk/nextjs/server'
@@ -385,6 +386,25 @@ export async function sendPaymentRequest(
   const debt = pmts.filter((p) => p.status === 'overdue').reduce((s, p) => s + Number(p.amount), 0)
   const amount = Number(outstanding?.amount ?? (debt > 0 ? debt : plan?.price ?? 0))
 
+  // Cobro manual: acción explícita del admin → se envía siempre, pero usando el texto/botón de la
+  // plantilla "Recordatorio / atraso" del club (misma que usa el cron), para mantener consistencia.
+  const reminderTpl = getAutoTemplate(settings, 'payment_reminder')
+  const montoFmt = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }).format(amount)
+  const dueFmt = outstanding?.due_date
+    ? new Date(`${outstanding.due_date}T12:00:00`).toLocaleDateString('es-CL', { day: 'numeric', month: 'long', year: 'numeric' })
+    : ''
+  const tplVars = {
+    nombre: a.name ?? 'Atleta',
+    club: clubName,
+    plan: plan?.name ?? '',
+    monto: montoFmt,
+    fecha_vencimiento: dueFmt,
+  }
+  const btnUrl = renderTemplateVars(reminderTpl.buttonUrl, tplVars).trim()
+  const buttonOverride = btnUrl
+    ? { text: renderTemplateVars(reminderTpl.buttonText, tplVars).trim() || 'Ver más', url: btnUrl }
+    : undefined
+
   const res = await sendPaymentReminderEmail({
     to,
     athleteName: a.name ?? 'Atleta',
@@ -397,6 +417,9 @@ export async function sendPaymentRequest(
     logoUrl: club?.logo_url ?? null,
     brandColor: club?.primary_color ?? null,
     replyTo,
+    subjectOverride: renderTemplateVars(reminderTpl.subject, tplVars),
+    introOverride: renderTemplateVars(reminderTpl.body, tplVars),
+    buttonOverride,
   })
   await logCommunication(supabase, clubId, {
     kind: 'payment_request',
