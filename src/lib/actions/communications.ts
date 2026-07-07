@@ -420,6 +420,7 @@ export async function sendPaymentRequest(
     subjectOverride: renderTemplateVars(reminderTpl.subject, tplVars),
     introOverride: renderTemplateVars(reminderTpl.body, tplVars),
     buttonOverride,
+    showDetails: reminderTpl.showDetails,
   })
   await logCommunication(supabase, clubId, {
     kind: 'payment_request',
