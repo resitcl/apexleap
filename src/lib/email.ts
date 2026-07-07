@@ -106,9 +106,12 @@ function buildInvitationHtml(opts: {
   logoUrl?: string | null
   brandColor?: string | null
   introOverride?: string
+  buttonOverride?: { text: string; url: string }
 }) {
   const signInUrl = `${APP_URL}/${opts.clubSlug}/signin`
   const { bg, fg } = getClubBranding(opts.brandColor)
+  const ctaUrl = opts.buttonOverride?.url || signInUrl
+  const ctaText = opts.buttonOverride?.text || 'Acceder a mi cuenta →'
 
   return `
 <!DOCTYPE html>
@@ -143,9 +146,9 @@ function buildInvitationHtml(opts: {
               <table cellpadding="0" cellspacing="0">
                 <tr>
                   <td style="background:${bg};border-radius:8px;text-align:center;">
-                    <a href="${signInUrl}"
+                    <a href="${ctaUrl}"
                        style="display:inline-block;padding:14px 28px;color:${fg};font-size:15px;font-weight:600;text-decoration:none;">
-                      Acceder a mi cuenta →
+                      ${ctaText}
                     </a>
                   </td>
                 </tr>
@@ -153,7 +156,7 @@ function buildInvitationHtml(opts: {
 
               <p style="margin:32px 0 0;font-size:13px;color:#a1a1aa;">
                 Si el botón no funciona, copia este link en tu navegador:<br />
-                <a href="${signInUrl}" style="color:${bg};">${signInUrl}</a>
+                <a href="${ctaUrl}" style="color:${bg};">${ctaUrl}</a>
               </p>
             </td>
           </tr>
@@ -185,6 +188,7 @@ function buildPaymentReminderHtml(opts: {
   logoUrl?: string | null
   brandColor?: string | null
   introOverride?: string
+  buttonOverride?: { text: string; url: string }
 }) {
   const currency = opts.currency ?? 'CLP'
   const formattedAmount = new Intl.NumberFormat('es-CL', {
@@ -194,6 +198,8 @@ function buildPaymentReminderHtml(opts: {
   }).format(opts.amount)
 
   const paymentUrl = `${APP_URL}/${opts.clubSlug}/athlete`
+  const ctaUrl = opts.buttonOverride?.url || paymentUrl
+  const ctaText = opts.buttonOverride?.text || 'Ver mi cuenta →'
   const { bg, fg } = getClubBranding(opts.brandColor)
 
   const dueDateText = opts.dueDate
@@ -259,9 +265,9 @@ function buildPaymentReminderHtml(opts: {
               <table cellpadding="0" cellspacing="0">
                 <tr>
                   <td style="background:${bg};border-radius:8px;text-align:center;">
-                    <a href="${paymentUrl}"
+                    <a href="${ctaUrl}"
                        style="display:inline-block;padding:14px 28px;color:${fg};font-size:15px;font-weight:600;text-decoration:none;">
-                      Ver mi cuenta →
+                      ${ctaText}
                     </a>
                   </td>
                 </tr>
@@ -302,6 +308,7 @@ function buildPaymentConfirmationHtml(opts: {
   logoUrl?: string | null
   brandColor?: string | null
   introOverride?: string
+  buttonOverride?: { text: string; url: string }
 }) {
   const currency = opts.currency ?? 'CLP'
   const formattedAmount = new Intl.NumberFormat('es-CL', {
@@ -311,6 +318,8 @@ function buildPaymentConfirmationHtml(opts: {
   }).format(opts.amount)
 
   const paymentUrl = `${APP_URL}/${opts.clubSlug}/athlete`
+  const ctaUrl = opts.buttonOverride?.url || paymentUrl
+  const ctaText = opts.buttonOverride?.text || 'Ver mis pagos →'
   const { bg, fg } = getClubBranding(opts.brandColor)
   // DATE anclado a mediodía local para no correr el día por zona horaria.
   const fmt = (d?: string) =>
@@ -371,9 +380,9 @@ function buildPaymentConfirmationHtml(opts: {
               <table cellpadding="0" cellspacing="0">
                 <tr>
                   <td style="background:${bg};border-radius:8px;text-align:center;">
-                    <a href="${paymentUrl}"
+                    <a href="${ctaUrl}"
                        style="display:inline-block;padding:14px 28px;color:${fg};font-size:15px;font-weight:600;text-decoration:none;">
-                      Ver mis pagos →
+                      ${ctaText}
                     </a>
                   </td>
                 </tr>
@@ -410,6 +419,7 @@ function buildPaymentFailedHtml(opts: {
   logoUrl?: string | null
   brandColor?: string | null
   introOverride?: string
+  buttonOverride?: { text: string; url: string }
 }) {
   const currency = opts.currency ?? 'CLP'
   const formattedAmount = new Intl.NumberFormat('es-CL', {
@@ -419,6 +429,8 @@ function buildPaymentFailedHtml(opts: {
   }).format(opts.amount)
 
   const paymentUrl = `${APP_URL}/${opts.clubSlug}/athlete`
+  const ctaUrl = opts.buttonOverride?.url || paymentUrl
+  const ctaText = opts.buttonOverride?.text || 'Reintentar pago →'
   const { bg, fg } = getClubBranding(opts.brandColor)
 
   return `
@@ -472,9 +484,9 @@ function buildPaymentFailedHtml(opts: {
               <table cellpadding="0" cellspacing="0">
                 <tr>
                   <td style="background:${bg};border-radius:8px;text-align:center;">
-                    <a href="${paymentUrl}"
+                    <a href="${ctaUrl}"
                        style="display:inline-block;padding:14px 28px;color:${fg};font-size:15px;font-weight:600;text-decoration:none;">
-                      Reintentar pago →
+                      ${ctaText}
                     </a>
                   </td>
                 </tr>
@@ -515,6 +527,7 @@ export async function sendInvitationEmail(opts: {
   replyTo?: string | null
   subjectOverride?: string
   introOverride?: string
+  buttonOverride?: { text: string; url: string }
 }): Promise<SendEmailResult> {
   if (!process.env.RESEND_API_KEY) {
     console.warn('[email] RESEND_API_KEY no configurada — email de invitación no enviado')
@@ -563,6 +576,7 @@ export async function sendPaymentReminderEmail(opts: {
   replyTo?: string | null
   subjectOverride?: string
   introOverride?: string
+  buttonOverride?: { text: string; url: string }
 }): Promise<SendEmailResult> {
   if (!process.env.RESEND_API_KEY) {
     console.warn('[email] RESEND_API_KEY no configurada — recordatorio de pago no enviado')
@@ -612,6 +626,7 @@ export async function sendPaymentConfirmationEmail(opts: {
   replyTo?: string | null
   subjectOverride?: string
   introOverride?: string
+  buttonOverride?: { text: string; url: string }
 }): Promise<SendEmailResult> {
   if (!process.env.RESEND_API_KEY) {
     console.warn('[email] RESEND_API_KEY no configurada — confirmación de pago no enviada')
@@ -658,6 +673,7 @@ export async function sendPaymentFailedEmail(opts: {
   replyTo?: string | null
   subjectOverride?: string
   introOverride?: string
+  buttonOverride?: { text: string; url: string }
 }): Promise<SendEmailResult> {
   if (!process.env.RESEND_API_KEY) {
     console.warn('[email] RESEND_API_KEY no configurada — aviso de pago rechazado no enviado')

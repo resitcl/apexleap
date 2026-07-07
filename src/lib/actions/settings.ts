@@ -190,7 +190,7 @@ export async function updatePaymentSettings(paymentSettings: {
  * `clubs.settings.auto_templates`. Solo admin. Merge sobre lo existente.
  */
 export async function saveAutoTemplates(
-  templates: Record<string, { subject: string; body: string; enabled: boolean }>,
+  templates: Record<string, { subject: string; body: string; enabled: boolean; buttonText: string; buttonUrl: string }>,
 ) {
   const membership = await getClubMembershipRole()
   if (membership !== 'admin' && membership !== 'admin_athlete') {

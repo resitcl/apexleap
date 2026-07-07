@@ -61,7 +61,7 @@ export function AutoTemplatesForm({ defaultValues }: Props) {
 
   function resetToDefault(key: AutoTemplateKey) {
     const def = AUTO_TEMPLATE_DEFAULTS[key]
-    set(key, { subject: def.subject, body: def.body })
+    set(key, { subject: def.subject, body: def.body, buttonText: "", buttonUrl: "" })
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -141,6 +141,27 @@ export function AutoTemplatesForm({ defaultValues }: Props) {
                 />
                 <p className="text-[11px] text-muted-foreground">
                   La primera línea se muestra como título. Deja una línea en blanco para separar párrafos.
+                </p>
+              </div>
+
+              <div className="space-y-1.5 rounded-lg border border-border/40 p-3">
+                <Label className="text-xs">Botón (opcional)</Label>
+                <div className="grid sm:grid-cols-2 gap-2">
+                  <Input
+                    value={t.buttonText}
+                    disabled={!t.enabled}
+                    onChange={(e) => set(key, { buttonText: e.target.value })}
+                    placeholder="Texto del botón (ej: Pagar ahora)"
+                  />
+                  <Input
+                    value={t.buttonUrl}
+                    disabled={!t.enabled}
+                    onChange={(e) => set(key, { buttonUrl: e.target.value })}
+                    placeholder="https://... (URL del botón)"
+                  />
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Si dejas la URL vacía, se usa el botón por defecto (portal del alumno). El texto y la URL admiten variables.
                 </p>
               </div>
 
