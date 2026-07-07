@@ -9,8 +9,9 @@ import { ClubSettingsForm } from "@/components/settings/ClubSettingsForm"
 import { DeleteClubButton } from "@/components/settings/DeleteClubButton"
 import { CategoriesManager } from "@/components/settings/CategoriesManager"
 import { BankInfoForm } from "@/components/settings/BankInfoForm"
+import { AutoTemplatesForm } from "@/components/settings/AutoTemplatesForm"
 import { CoachPermissionsForm } from "@/components/settings/CoachPermissionsForm"
-import { Settings, AlertTriangle, Calendar, CreditCard, Tag, Cog, ChevronRight, ShieldCheck } from "lucide-react"
+import { Settings, AlertTriangle, Calendar, CreditCard, Tag, Cog, ChevronRight, ShieldCheck, Mail } from "lucide-react"
 import {
   DashboardPage,
   DashboardPageHeader,
@@ -35,6 +36,9 @@ export default async function SettingsPage({ searchParams }: PageProps) {
   const canManageCoachPerms = membership === "admin" || membership === "admin_athlete"
 
   if (tab === "payments" && !canManagePayments) {
+    redirect("/dashboard/settings?tab=general")
+  }
+  if (tab === "templates" && !canManagePayments) {
     redirect("/dashboard/settings?tab=general")
   }
   if (tab === "danger" && !canManageDanger) {
@@ -83,6 +87,9 @@ export default async function SettingsPage({ searchParams }: PageProps) {
     { key: "general", label: "General", icon: <Cog className="w-4 h-4" /> },
     ...(canManagePayments
       ? [{ key: "payments", label: "Pagos", icon: <CreditCard className="w-4 h-4" /> }]
+      : []),
+    ...(canManagePayments
+      ? [{ key: "templates", label: "Plantillas", icon: <Mail className="w-4 h-4" /> }]
       : []),
     { key: "categories", label: "Categorías", icon: <Tag className="w-4 h-4" /> },
     { key: "seasons", label: "Temporadas", icon: <Calendar className="w-4 h-4" />, href: "/dashboard/settings/seasons" },
@@ -149,6 +156,20 @@ export default async function SettingsPage({ searchParams }: PageProps) {
           <BankInfoForm
             defaultValues={
               ((club?.settings as Record<string, unknown> | null)?.payment_settings as Record<string, unknown> | null) ?? null
+            }
+          />
+        </DashboardSectionCard>
+      )}
+
+      {tab === "templates" && (
+        <DashboardSectionCard
+          icon={<Mail className="w-5 h-5" />}
+          title="Plantillas automáticas"
+          description="Personaliza el texto de los correos que se envían solos: confirmación de pago, recordatorio/atraso, pago rechazado y bienvenida."
+        >
+          <AutoTemplatesForm
+            defaultValues={
+              ((club?.settings as Record<string, unknown> | null)?.auto_templates as Record<string, unknown> | null) ?? null
             }
           />
         </DashboardSectionCard>

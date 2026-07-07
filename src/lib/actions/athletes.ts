@@ -13,6 +13,7 @@ import {
 } from '@/lib/admin-athlete-sync'
 import { cancelPriorSubscriptions } from '@/lib/subscription-activation'
 import { calculatePeriodStartForPayment, getBillingAnchorDay, ymdFromDate, type BillingCycle } from '@/lib/billing-utils'
+import { resolveAutoEmail, getAutoTemplate, renderTemplateVars } from '@/lib/auto-templates'
 
 const athleteSchema = z.object({
   name: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
@@ -223,18 +224,27 @@ export async function createAthlete(input: AthleteInput) {
   // Enviar email de bienvenida si el alumno tiene email registrado
   if (parsed.email) {
     const clubInfo = await getClubInfo()
-    // No bloqueamos si el email falla — solo lo registramos
-    sendInvitationEmail({
-      to: parsed.email,
-      athleteName: parsed.name,
-      clubName: clubInfo.name,
-      clubSlug: clubInfo.slug,
-      logoUrl: clubInfo.logo_url,
-      brandColor: clubInfo.primary_color,
-      replyTo: clubInfo.email,
-    }).catch((err) =>
-      console.error('[athletes] Error inesperado al enviar invitación:', err)
-    )
+    const tpl = resolveAutoEmail(clubInfo.settings, 'welcome', {
+      nombre: parsed.name,
+      club: clubInfo.name,
+    })
+    // Solo si el club no desactivó la plantilla de bienvenida.
+    if (tpl) {
+      // No bloqueamos si el email falla — solo lo registramos
+      sendInvitationEmail({
+        to: parsed.email,
+        athleteName: parsed.name,
+        clubName: clubInfo.name,
+        clubSlug: clubInfo.slug,
+        logoUrl: clubInfo.logo_url,
+        brandColor: clubInfo.primary_color,
+        replyTo: clubInfo.email,
+        subjectOverride: tpl.subject,
+        introOverride: tpl.intro,
+      }).catch((err) =>
+        console.error('[athletes] Error inesperado al enviar invitación:', err)
+      )
+    }
   }
 
   revalidatePath('/dashboard/athletes')
@@ -442,6 +452,11 @@ export async function sendAthleteInvitation(
 
     const clubInfo = await getClubInfo()
 
+    // Reenvío manual: se envía siempre (acción explícita del admin), pero con el texto
+    // de la plantilla de bienvenida del club.
+    const welcomeTpl = getAutoTemplate(clubInfo.settings, 'welcome')
+    const vars = { nombre: athlete.name, club: clubInfo.name }
+
     const result = await sendInvitationEmail({
       to: athlete.email,
       athleteName: athlete.name,
@@ -450,6 +465,8 @@ export async function sendAthleteInvitation(
       logoUrl: clubInfo.logo_url,
       brandColor: clubInfo.primary_color,
       replyTo: clubInfo.email,
+      subjectOverride: renderTemplateVars(welcomeTpl.subject, vars),
+      introOverride: renderTemplateVars(welcomeTpl.body, vars),
     })
 
     if (!result.success) return { ok: false, error: result.error ?? 'No se pudo enviar el correo.' }

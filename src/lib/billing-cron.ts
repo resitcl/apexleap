@@ -14,6 +14,7 @@ import {
 } from '@/lib/billing-utils'
 import { ONLINE_GATEWAY_IDS } from '@/lib/payment-methods'
 import { sendPaymentReminderEmail } from '@/lib/email'
+import { getAutoTemplate, resolveAutoEmail } from '@/lib/auto-templates'
 
 type CronResult = {
   clubsProcessed: number
@@ -266,6 +267,8 @@ export async function sendPaymentRemindersForClub(clubId: string): Promise<numbe
 
   const settings = (club?.settings ?? {}) as Record<string, unknown>
   if (!getRemindersEnabledFromSettings(settings)) return 0
+  // Además del toggle general de recordatorios, respeta si el club desactivó esta plantilla.
+  if (!getAutoTemplate(settings, 'payment_reminder').enabled) return 0
 
   const ps = (settings.payment_settings ?? {}) as { bank_info?: { email?: string }; cash_instructions?: string }
   const clubEmail = ps.bank_info?.email ?? null
@@ -290,19 +293,34 @@ export async function sendPaymentRemindersForClub(clubId: string): Promise<numbe
     if (!to) continue
     const plan = (Array.isArray(p.plans) ? p.plans[0] : p.plans) as { name?: string } | null
 
+    const clubName = club?.name ?? 'tu academia'
+    const amount = Number(p.amount ?? 0)
+    const montoFmt = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }).format(amount)
+    const dueFmt = new Date(`${due}T12:00:00`).toLocaleDateString('es-CL', { day: 'numeric', month: 'long', year: 'numeric' })
+    const tpl = resolveAutoEmail(settings, 'payment_reminder', {
+      nombre: athlete?.name ?? 'Atleta',
+      club: clubName,
+      plan: plan?.name ?? '',
+      monto: montoFmt,
+      fecha_vencimiento: dueFmt,
+    })
+    if (!tpl) continue
+
     try {
       await sendPaymentReminderEmail({
         to,
         athleteName: athlete?.name ?? 'Atleta',
-        clubName: club?.name ?? 'tu academia',
+        clubName,
         clubSlug: club?.slug ?? '',
-        amount: Number(p.amount ?? 0),
+        amount,
         dueDate: due,
         planName: plan?.name ?? undefined,
         paymentInstructions: cashInstructions,
         logoUrl: club?.logo_url ?? null,
         brandColor: club?.primary_color ?? null,
         replyTo: clubEmail,
+        subjectOverride: tpl.subject,
+        introOverride: tpl.intro,
       })
       sent++
     } catch (err) {
