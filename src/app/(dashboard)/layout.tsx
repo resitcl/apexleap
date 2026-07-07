@@ -28,6 +28,7 @@ import {
   ClipboardList,
   Swords,
   Globe,
+  Megaphone,
 } from "lucide-react"
 import Image from "next/image"
 import { MobileSidebar } from "@/components/layouts/MobileSidebar"
@@ -178,6 +179,7 @@ function buildNavGroups(v: ReturnType<typeof getSportVocab>, options?: { account
     {
       label: "Club",
       items: [
+        { href: "/dashboard/communications", label: "Comunicaciones", icon: Megaphone },
         { href: "/dashboard/documents",  label: "Documentos", icon: FileText },
         { href: "/dashboard/inventory",  label: "Inventario", icon: Package },
         { href: "/dashboard/media",      label: "Media Hub",  icon: Film },
