@@ -109,3 +109,12 @@ export function subscriptionRequiresPaymentConfirmation(paymentMethod: string): 
     (ONLINE_GATEWAY_IDS as readonly string[]).includes(paymentMethod)
   )
 }
+
+/**
+ * Medios offline: el pago no se acredita al instante y requiere confirmación manual del admin
+ * (transferencia, efectivo). Las pasarelas online NO son offline: el alumno paga en la pasarela y
+ * se confirma por webhook, así que no debe quedar encerrado en la pantalla de "confirmación del admin".
+ */
+export function isOfflinePaymentMethod(paymentMethod: string): boolean {
+  return paymentMethod === 'transfer' || paymentMethod === 'cash'
+}
