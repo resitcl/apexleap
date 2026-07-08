@@ -19,6 +19,7 @@ import {
   getEnabledPaymentMethodIdsFromClubSettings,
   assertPaymentMethodEnabled,
   subscriptionRequiresPaymentConfirmation,
+  isOfflinePaymentMethod,
   ONLINE_GATEWAY_IDS,
 } from '@/lib/payment-methods'
 import { cancelPriorSubscriptions } from '@/lib/subscription-activation'
@@ -288,14 +289,18 @@ export async function getOnboardingData(): Promise<OnboardingData> {
     if (!hasActiveSubscription) {
       const { data: pendingSub } = await supabase
         .from('subscriptions')
-        .select('id, plans(name)')
+        .select('id, payment_method, plans(name)')
         .eq('club_id', clubId)
         .eq('athlete_id', athlete.id)
         .eq('status', 'pending_payment')
         .maybeSingle()
-      hasPendingPayment = !!pendingSub
+      // Solo los medios OFFLINE (transferencia/efectivo) muestran "pendiente de confirmación del
+      // admin". Una pasarela online pendiente = pago no completado → el alumno puede reintentar
+      // (vuelve al wizard), no queda encerrado.
+      const pendingMethod = (pendingSub as { payment_method?: string } | null)?.payment_method ?? ''
+      hasPendingPayment = !!pendingSub && isOfflinePaymentMethod(pendingMethod)
       const planRow = pendingSub?.plans as { name?: string } | null | undefined
-      pendingPaymentPlanName = planRow?.name ?? null
+      pendingPaymentPlanName = hasPendingPayment ? (planRow?.name ?? null) : null
     }
   }
 
@@ -410,13 +415,16 @@ export async function getAthleteFinancialAccessState(): Promise<AthleteFinancial
 
   const { data: pendingSub } = await supabase
     .from('subscriptions')
-    .select('id')
+    .select('id, payment_method')
     .eq('club_id', clubId)
     .eq('athlete_id', athlete.id)
     .eq('status', 'pending_payment')
     .maybeSingle()
 
-  const awaitingAdminPaymentConfirmation = !!pendingSub
+  // Solo transferencia/efectivo bloquean el portal esperando confirmación del admin. Una pasarela
+  // online pendiente NO debe encerrar al alumno: puede reintentar el pago o cambiar de medio.
+  const awaitingAdminPaymentConfirmation =
+    !!pendingSub && isOfflinePaymentMethod((pendingSub as { payment_method?: string }).payment_method ?? '')
 
   const delinquency = {
     isLate: false,
@@ -892,7 +900,7 @@ export async function enrollWithPayment(
   const subStatus = pending ? ('pending_payment' as const) : ('active' as const)
 
   // Create subscription
-  const { error: subErr } = await supabase
+  const { data: newSub, error: subErr } = await supabase
     .from('subscriptions')
     .insert({
       club_id: clubId,
@@ -908,16 +916,73 @@ export async function enrollWithPayment(
       current_period_end: endStr,
       next_billing_date: nextBillingStr,
     })
+    .select('id')
+    .single()
 
-  if (subErr) throw new Error('Error al crear la suscripción: ' + subErr.message)
+  if (subErr || !newSub) throw new Error('Error al crear la suscripción: ' + (subErr?.message ?? ''))
 
   // Create payment record
   const totalAmount = (plan.price ?? 0) + (plan.enrollment_fee ?? 0)
-  if (totalAmount > 0) {
-    const concept = plan.enrollment_fee && plan.enrollment_fee > 0
-      ? `Inscripción + Matrícula – ${plan.name}`
-      : `Inscripción – ${plan.name}`
+  const concept = plan.enrollment_fee && plan.enrollment_fee > 0
+    ? `Inscripción + Matrícula – ${plan.name}`
+    : `Inscripción – ${plan.name}`
 
+  // ── Pasarela online con checkout dinámico (MercadoPago): crea la preferencia y devuelve el
+  // init_point para redirigir al alumno a MercadoPago. La suscripción queda pending_payment hasta
+  // que el webhook/reconcile confirme el pago (ahí se activa). Reutiliza los mismos helpers que el
+  // pago desde el portal para que el reintento sea seguro (no choca con el índice único de período).
+  if (paymentMethod === 'mercadopago' && totalAmount > 0) {
+    const mpConfig = resolveMercadoPagoConfigFromSettings((clubRow?.settings ?? {}) as Record<string, unknown>)
+    if (!mpConfig) {
+      throw new Error('MercadoPago no está configurado. Contacta al club para completar el pago por otro medio.')
+    }
+
+    // Cierra intentos de pasarela previos abandonados antes de crear el nuevo (evita duplicados).
+    await supersedePendingGatewayPayments(supabase, clubId, athlete.id)
+
+    const { id: paymentId, created } = await ensureSelfPayPayment(supabase, {
+      clubId,
+      athleteId: athlete.id,
+      planId: plan.id,
+      subscriptionId: newSub.id,
+      concept,
+      amount: totalAmount,
+      dueDate: startStr,
+      method: 'mercadopago',
+      periodStartStr: startStr,
+      periodEndStr: endStr,
+    })
+
+    const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || 'http://localhost:3000').replace(/\/$/, '')
+    const externalReference = `pay_${paymentId}`
+    try {
+      const pref = await createMercadoPagoPreference(mpConfig, {
+        externalReference,
+        title: concept,
+        amount: totalAmount,
+        payerEmail: email,
+        backUrl: `${baseUrl}/api/payments/mercadopago/return`,
+        notificationUrl: `${baseUrl}/api/webhooks/mercadopago?ext=${encodeURIComponent(externalReference)}`,
+      })
+      await supabase
+        .from('payments')
+        .update({ transaction_id: pref.id, notes: `MercadoPago order: ${externalReference}` })
+        .eq('id', paymentId)
+        .eq('club_id', clubId)
+
+      revalidatePath('/dashboard/athlete')
+      return { success: true, isTransfer: false, initPoint: pref.initPoint }
+    } catch (e) {
+      if (created) {
+        await supabase.from('payments').delete().eq('id', paymentId).eq('club_id', clubId)
+      }
+      throw e
+    }
+  }
+
+  // ── Resto de medios (transferencia, efectivo, y otras pasarelas sin checkout dinámico):
+  // se registra el pago pendiente para confirmación del admin.
+  if (totalAmount > 0) {
     const notes = isTransfer
       ? receiptUrl
         ? `Comprobante: ${receiptUrl}`
@@ -932,6 +997,7 @@ export async function enrollWithPayment(
         club_id: clubId,
         athlete_id: athlete.id,
         plan_id: plan.id,
+        subscription_id: newSub.id,
         concept,
         amount: totalAmount,
         status: 'pending',

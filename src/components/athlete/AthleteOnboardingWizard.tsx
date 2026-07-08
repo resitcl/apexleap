@@ -139,6 +139,12 @@ export function AthleteOnboardingWizard({ data, sportConfig: _sportConfig }: Pro
         receiptUrl,
         transferSource
       )
+      // Pasarela online (MercadoPago): redirige al checkout. La página navega fuera; no cambiamos de paso.
+      const initPoint = (result as { initPoint?: string }).initPoint
+      if (initPoint) {
+        window.location.href = initPoint
+        return
+      }
       setStep(result.isTransfer ? 'waiting' : 'done')
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Error al procesar inscripción')
