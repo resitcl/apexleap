@@ -127,7 +127,12 @@ export async function generateDuePaymentsForClub(
       if (nextStart) {
         await supabase
           .from('subscriptions')
-          .update({ next_billing_date: ymdFromDate(nextStart) })
+          .update({
+            next_billing_date: ymdFromDate(nextStart),
+            current_period_start: periodStartStr,
+            current_period_end: periodEndStr,
+            end_date: periodEndStr,
+          })
           .eq('id', sub.id)
           .eq('club_id', clubId)
       }
@@ -155,6 +160,9 @@ export async function generateDuePaymentsForClub(
       .from('subscriptions')
       .update({
         next_billing_date: nextStart ? ymdFromDate(nextStart) : null,
+        current_period_start: periodStartStr,
+        current_period_end: periodEndStr,
+        end_date: periodEndStr,
       })
       .eq('id', sub.id)
       .eq('club_id', clubId)
