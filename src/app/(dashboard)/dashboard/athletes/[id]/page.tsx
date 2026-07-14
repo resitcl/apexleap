@@ -81,6 +81,10 @@ export default async function AthleteDetailPage({ params }: PageProps) {
   }
   const activeSub = subscriptions.find((s) => s.status === "active")
   const overduePayments = payments.filter((p) => p.status === "overdue")
+  const billingOverdue = billingInfo.hasActiveSub && billingInfo.nextBilling
+    ? billingInfo.nextBilling <= new Date().toISOString().slice(0, 10)
+    : false
+  const debtCount = overduePayments.length + (billingOverdue && overduePayments.length === 0 ? 1 : 0)
   const attendanceRate = attendance.length > 0
     ? Math.round((attendance.filter((a) => a.is_valid).length / attendance.length) * 100)
     : null
@@ -142,7 +146,7 @@ export default async function AthleteDetailPage({ params }: PageProps) {
           </h1>
           <p className="text-[15px] text-muted-foreground/70 font-normal mt-2 leading-relaxed">
             {activeSub ? `Plan: ${activeSub.plans?.name ?? ''}` : 'Sin plan activo'}
-            {overduePayments.length > 0 && ` · ${overduePayments.length} pago${overduePayments.length > 1 ? 's' : ''} vencido${overduePayments.length > 1 ? 's' : ''}`}
+            {debtCount > 0 && ` · ${debtCount} pago${debtCount > 1 ? 's' : ''} vencido${debtCount > 1 ? 's' : ''}`}
             {athlete.status !== 'active' && ` · ${athlete.status === 'inactive' ? 'Inactivo' : 'Suspendido'}`}
           </p>
         </div>
@@ -263,14 +267,14 @@ export default async function AthleteDetailPage({ params }: PageProps) {
             {/* Semáforo */}
             <div className="text-center shrink-0">
               <div className={`w-16 h-16 rounded-full flex items-center justify-center text-2xl border-4 ${
-                athlete.health_status === "healthy" && overduePayments.length === 0
+                athlete.health_status === "healthy" && debtCount === 0
                   ? "bg-green-50 border-green-400"
-                  : athlete.health_status === "injured" || overduePayments.length > 0
+                  : athlete.health_status === "injured" || debtCount > 0
                   ? "bg-red-50 border-red-400"
                   : "bg-yellow-50 border-yellow-400"
               }`}>
-                {athlete.health_status === "healthy" && overduePayments.length === 0 ? "🟢" :
-                 athlete.health_status === "injured" || overduePayments.length > 0 ? "🔴" : "🟡"}
+                {athlete.health_status === "healthy" && debtCount === 0 ? "🟢" :
+                 athlete.health_status === "injured" || debtCount > 0 ? "🔴" : "🟡"}
               </div>
               <p className="text-xs text-muted-foreground mt-1">Elegibilidad</p>
             </div>
@@ -300,11 +304,11 @@ export default async function AthleteDetailPage({ params }: PageProps) {
               <CreditCard className="w-5 h-5 text-muted-foreground/50" />
               <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70">Pagos</p>
             </div>
-            <p className={`text-[28px] font-black tracking-tight leading-none uppercase ${overduePayments.length > 0 ? 'text-red-500' : 'text-foreground'}`}>
-              {overduePayments.length > 0 ? overduePayments.length : 'Al día'}
+            <p className={`text-[28px] font-black tracking-tight leading-none uppercase ${debtCount > 0 ? 'text-red-500' : 'text-foreground'}`}>
+              {debtCount > 0 ? debtCount : 'Al día'}
             </p>
-            <p className={`text-[13px] mt-2 font-normal ${overduePayments.length > 0 ? 'text-muted-foreground/50' : 'text-primary'}`}>
-              {overduePayments.length > 0 ? `pago${overduePayments.length > 1 ? 's' : ''} vencido${overduePayments.length > 1 ? 's' : ''}` : 'sin deuda'}
+            <p className={`text-[13px] mt-2 font-normal ${debtCount > 0 ? 'text-muted-foreground/50' : 'text-primary'}`}>
+              {debtCount > 0 ? `pago${debtCount > 1 ? 's' : ''} vencido${debtCount > 1 ? 's' : ''}` : 'sin deuda'}
             </p>
           </div>
         </Link>
