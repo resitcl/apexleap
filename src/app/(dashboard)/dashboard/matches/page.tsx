@@ -1,11 +1,12 @@
 export const dynamic = "force-dynamic"
 
 import { getAllMatches } from "@/lib/actions/matches"
-import { getClubMembershipRole, isClubStaffRole } from "@/lib/actions/club-context"
+import { getClubMembershipRole, isClubStaffRole, isClubAdminRole } from "@/lib/actions/club-context"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Swords, Trophy, MapPin, Calendar, Eye, ExternalLink } from "lucide-react"
 import { StandaloneMatchButton } from "@/components/matches/StandaloneMatchButton"
+import { SeasonImportDialog } from "@/components/competitions/SeasonImportDialog"
 import { EditMatchDialog, type EditableMatchRow } from "@/components/matches/EditMatchDialog"
 import { DeleteMatchButton } from "@/components/matches/DeleteMatchButton"
 import Link from "next/link"
@@ -26,10 +27,12 @@ export default async function MatchesPage() {
   let matches: Awaited<ReturnType<typeof getAllMatches>> = []
   let error: string | null = null
   let isStaff = false
+  let isAdmin = false
 
   try {
     const role = await getClubMembershipRole()
     isStaff = isClubStaffRole(role)
+    isAdmin = isClubAdminRole(role)
     matches = await getAllMatches()
   } catch (e) {
     error = e instanceof Error ? e.message : "Error al cargar partidos"
@@ -49,7 +52,10 @@ export default async function MatchesPage() {
             {standalone.length > 0 && ` · ${standalone.length} amistoso${standalone.length !== 1 ? 's' : ''}`}
           </p>
         </div>
-        {isStaff && <StandaloneMatchButton />}
+        <div className="flex items-center gap-2 flex-wrap">
+          {isAdmin && <SeasonImportDialog />}
+          {isStaff && <StandaloneMatchButton />}
+        </div>
       </div>
 
       {error && (

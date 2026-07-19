@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic"
 import Link from "next/link"
 import { getSubscriptions, getSubscriptionStats } from "@/lib/actions/subscriptions"
 import { getPlans } from "@/lib/actions/plans"
+import { getClubVocab } from "@/lib/actions/club-context"
 import { getAthletes } from "@/lib/actions/athletes"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -100,6 +101,8 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
   } catch {
     // show empty state
   }
+
+  const vocab = await getClubVocab()
 
   const CYCLE_MONTHLY: Record<string, number> = {
     monthly: 1, quarterly: 1/3, semiannual: 1/6, annual: 1/12, single: 0
@@ -468,7 +471,7 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
           <CardContent className="py-16 text-center">
             <Users className="w-12 h-12 mx-auto mb-2 text-muted-foreground opacity-40" />
             <h3 className="font-semibold text-lg mb-1">Sin suscripciones</h3>
-            <p className="text-muted-foreground mb-4">Asigna un plan a tus alumnos</p>
+            <p className="text-muted-foreground mb-4">Asigna un plan a tus {vocab.athletes.toLowerCase()}</p>
             <Link href="/dashboard/subscriptions/new">
               <Button>Asignar Plan</Button>
             </Link>

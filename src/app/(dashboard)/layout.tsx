@@ -315,7 +315,7 @@ export default async function DashboardLayout({
           id: 'overdue-payments',
           type: 'payment' as const,
           title: `${alerts.overduePayments} ${alerts.overduePayments === 1 ? 'pago vencido' : 'pagos vencidos'}`,
-          description: 'Alumnos con cuotas en mora. Se requiere acción.',
+          description: `${vocab.athletes} con cuotas en mora. Se requiere acción.`,
           href: '/dashboard/payments?status=overdue',
           count: alerts.overduePayments,
         }] : []),
