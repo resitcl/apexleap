@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic"
 import Link from "next/link"
 import { redirect } from "next/navigation"
 import { checkUserHasClub } from "@/lib/actions/onboarding"
+import { getClubVocab } from "@/lib/actions/club-context"
 import { getCoachDashboard } from "@/lib/actions/dashboard"
 import { getTodaySessions } from "@/lib/actions/dashboard"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -32,6 +33,8 @@ export default async function CoachPage() {
   } catch (e) {
     error = e instanceof Error ? e.message : "Error al cargar"
   }
+
+  const vocab = await getClubVocab()
 
   if (error || !data) {
     return (
@@ -322,7 +325,7 @@ export default async function CoachPage() {
             <h3 className="font-semibold text-lg mb-1">Sin atletas activos</h3>
             <p className="text-muted-foreground text-sm mb-4">Agrega atletas al club para ver el semáforo de disponibilidad</p>
             <Link href="/dashboard/athletes">
-              <Badge variant="outline" className="cursor-pointer hover:bg-accent">Ir a Alumnos</Badge>
+              <Badge variant="outline" className="cursor-pointer hover:bg-accent">Ir a {vocab.athletes}</Badge>
             </Link>
           </CardContent>
         </Card>

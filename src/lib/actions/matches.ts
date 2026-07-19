@@ -259,6 +259,74 @@ export async function getPlayerStatsForCompetition(competitionId: string) {
   return Array.from(byAthlete.values()).sort((a, b) => a.name.localeCompare(b.name))
 }
 
+// ─── Athlete Match Stats (perfil del jugador) ─────────────────
+
+export interface AthleteMatchStatsGame {
+  matchId: string
+  date: string
+  opponent: string | null
+  competition: string | null
+  /** Marcador desde la perspectiva del club (según localía del partido). */
+  ourScore: number | null
+  theirScore: number | null
+  stats: Record<string, number>
+}
+
+export interface AthleteMatchStatsResult {
+  gamesPlayed: number
+  totals: Record<string, number>
+  games: AthleteMatchStatsGame[]
+}
+
+/**
+ * Estadísticas de UN jugador derivadas de sus partidos: totales acumulados en
+ * el club + desglose partido a partido. Scoped al club activo.
+ */
+export async function getAthleteMatchStats(athleteId: string): Promise<AthleteMatchStatsResult> {
+  const clubId = await getClubId()
+  const supabase = createAdminClient()
+
+  const { data, error } = await supabase
+    .from('match_events')
+    .select('event_type, event_value, match_id, matches(match_date, opponent, is_home, home_score, away_score, competitions(name))')
+    .eq('athlete_id', athleteId)
+    .eq('club_id', clubId)
+
+  if (error) throw new Error(translateError(error.message))
+  if (!data || data.length === 0) return { gamesPlayed: 0, totals: {}, games: [] }
+
+  const byMatch = new Map<string, AthleteMatchStatsGame>()
+  const totals: Record<string, number> = {}
+
+  for (const ev of data) {
+    const m = ev.matches as unknown as {
+      match_date: string; opponent: string | null; is_home: boolean;
+      home_score: number | null; away_score: number | null;
+      competitions: { name: string } | null
+    } | null
+    if (!ev.match_id || !m) continue
+
+    if (!byMatch.has(ev.match_id)) {
+      byMatch.set(ev.match_id, {
+        matchId: ev.match_id,
+        date: m.match_date,
+        opponent: m.opponent,
+        competition: m.competitions?.name ?? null,
+        ourScore: m.is_home ? m.home_score : m.away_score,
+        theirScore: m.is_home ? m.away_score : m.home_score,
+        stats: {},
+      })
+    }
+    const game = byMatch.get(ev.match_id)!
+    const value = Number(ev.event_value)
+    game.stats[ev.event_type] = (game.stats[ev.event_type] ?? 0) + value
+    totals[ev.event_type] = (totals[ev.event_type] ?? 0) + value
+  }
+
+  const games = Array.from(byMatch.values()).sort((a, b) => b.date.localeCompare(a.date))
+  return { gamesPlayed: games.length, totals, games }
+}
+
 // ─── Global Player Stats (all competitions) ───────────────────
 
 export async function getGlobalPlayerStats() {

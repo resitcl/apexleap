@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic"
 
 import Link from "next/link"
 import { getPlans } from "@/lib/actions/plans"
+import { getClubVocab } from "@/lib/actions/club-context"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -26,6 +27,8 @@ export default async function PlansPage() {
   } catch (e) {
     error = e instanceof Error ? e.message : 'Error al cargar planes'
   }
+
+  const vocab = await getClubVocab()
 
   const activePlans = plans.filter((p) => p.is_active)
   const totalSubscribers = plans.reduce((acc, p) => {
@@ -145,7 +148,7 @@ export default async function PlansPage() {
                   {/* Active athletes avatars */}
                   {activeAthletes.length > 0 && (
                     <div className="pt-2 border-t">
-                      <p className="text-xs text-muted-foreground mb-2">Alumnos activos</p>
+                      <p className="text-xs text-muted-foreground mb-2">{vocab.athletes} activos</p>
                       <div className="flex flex-wrap gap-1">
                         {activeAthletes.slice(0, 8).map((a) => (
                           <Link key={a.id} href={`/dashboard/athletes/${a.id}`} title={a.name}>

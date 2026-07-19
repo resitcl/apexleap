@@ -15,6 +15,7 @@ import { QRCheckInDisplay } from "@/components/attendance/QRCheckInDisplay"
 import { ExportAttendanceButton } from "@/components/attendance/ExportAttendanceButton"
 import { JustifyAttendanceButton } from "@/components/attendance/JustifyAttendanceButton"
 import { getAthletes } from "@/lib/actions/athletes"
+import { getClubVocab } from "@/lib/actions/club-context"
 import { getSchedules } from "@/lib/actions/schedules"
 import { getCategories } from "@/lib/actions/categories"
 import { getVenues } from "@/lib/actions/venues"
@@ -77,6 +78,8 @@ export default async function AttendancePage({ searchParams }: PageProps) {
   } catch (e) {
     error = e instanceof Error ? e.message : "Error al cargar asistencia"
   }
+
+  const vocab = await getClubVocab()
 
   const validToday = todayRecords.filter((r) => r.is_valid).length
   /** Mapa `scheduleId -> athleteId[]` con quienes ya marcaron hoy en esa sesión.
@@ -142,7 +145,7 @@ export default async function AttendancePage({ searchParams }: PageProps) {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <div className="flex items-center gap-1">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Alumnos Activos</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">{vocab.athletes} Activos</CardTitle>
               <InfoTooltip text="Atletas con estado activo en el club. Referencia para calcular tasa de asistencia." />
             </div>
             <Users className="w-4 h-4 text-muted-foreground" />
@@ -325,7 +328,7 @@ export default async function AttendancePage({ searchParams }: PageProps) {
                 <label className="text-xs text-muted-foreground font-medium">Alumno</label>
                 <select name="athleteId" defaultValue={athleteId}
                   className="h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring w-full">
-                  <option value="">Todos los alumnos</option>
+                  <option value="">Todos los {vocab.athletes.toLowerCase()}</option>
                   {athletes.map((a) => (
                     <option key={a.id} value={a.id}>{a.name}</option>
                   ))}

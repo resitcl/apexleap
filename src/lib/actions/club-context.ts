@@ -3,6 +3,7 @@ import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { CLUB_COOKIE } from '@/lib/constants'
+import { getSportVocab, type SportVocab } from '@/lib/sport-vocab'
 
 
 export async function getClubId(): Promise<string> {
@@ -210,6 +211,19 @@ export async function getClubSportType(): Promise<string | null> {
     .eq('id', clubId)
     .single()
   return data?.sport_type ?? null
+}
+
+/**
+ * Vocabulario del club activo según su deporte (p. ej. "Jugadores" vs
+ * "Alumnos"). Úsalo en las páginas para que los labels visibles coincidan con
+ * el menú lateral. Ante error devuelve el vocabulario por defecto.
+ */
+export async function getClubVocab(): Promise<SportVocab> {
+  try {
+    return getSportVocab(await getClubSportType())
+  } catch {
+    return getSportVocab(null)
+  }
 }
 
 export async function getClubInfo(): Promise<{

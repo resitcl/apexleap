@@ -5,6 +5,7 @@ import { getAthletes } from "@/lib/actions/athletes"
 import { getPlans } from "@/lib/actions/plans"
 import { getCategories } from "@/lib/actions/categories"
 import { getPendingEnrollments } from "@/lib/actions/athlete-enrollment"
+import { getClubVocab } from "@/lib/actions/club-context"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
@@ -85,6 +86,9 @@ export default async function AthletesPage({ searchParams }: PageProps) {
   } catch (e) {
     error = e instanceof Error ? e.message : "Error al cargar alumnos"
   }
+
+  const vocab = await getClubVocab()
+  const vocabLower = vocab.athletes.toLowerCase()
 
   const now = new Date()
   const nowMs = now.getTime()
@@ -255,7 +259,7 @@ export default async function AthletesPage({ searchParams }: PageProps) {
     <DashboardPage>
       {/* ── GREETING ── */}
       <DashboardPageHeader
-        title={<>Gestión de <span className="text-primary">Alumnos.</span></>}
+        title={<>Gestión de <span className="text-primary">{vocab.athletes}.</span></>}
         subtitle={
           <>
             <span>{total.toLocaleString('es-CL')} registrados en total</span>
@@ -306,7 +310,7 @@ export default async function AthletesPage({ searchParams }: PageProps) {
             </div>
             <div>
               <p className="text-4xl font-black tracking-tight text-primary leading-none">{statusCounts.active}</p>
-              <p className="text-[13px] text-muted-foreground/50 mt-2 font-normal">alumnos activos</p>
+              <p className="text-[13px] text-muted-foreground/50 mt-2 font-normal">{vocabLower} activos</p>
             </div>
           </div>
         </Link>
@@ -361,7 +365,7 @@ export default async function AthletesPage({ searchParams }: PageProps) {
               </div>
               <div>
                 <p className="text-4xl font-black tracking-tight text-muted-foreground/30 leading-none">—</p>
-                <p className="text-[13px] text-muted-foreground/50 mt-2 font-normal">sin alumnos activos</p>
+                <p className="text-[13px] text-muted-foreground/50 mt-2 font-normal">sin {vocabLower} activos</p>
               </div>
             </div>
           )
@@ -527,8 +531,8 @@ export default async function AthletesPage({ searchParams }: PageProps) {
       ) : athletes.length === 0 ? (
         <DashboardEmptyState
           icon={<Users className="w-8 h-8" />}
-          title={params.search ? "Sin resultados" : "No hay alumnos registrados"}
-          description={params.search ? `No encontramos resultados para "${params.search}".` : "Comienza agregando el primer alumno al sistema y activa el dashboard operativo."}
+          title={params.search ? "Sin resultados" : `No hay ${vocabLower} registrados`}
+          description={params.search ? `No encontramos resultados para "${params.search}".` : `Comienza agregando el primer ${vocab.athlete.toLowerCase()} al sistema y activa el dashboard operativo.`}
           action={!params.search ? (
             <Link href="/dashboard/athletes/new">
               <Button className="rounded-xl font-black uppercase tracking-widest text-xs h-11 px-6">Agregar Alumno</Button>

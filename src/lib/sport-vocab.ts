@@ -117,7 +117,51 @@ const DEFAULT: SportVocab = {
   session: 'Sesión', team: 'Club', sport: '🏅 Club', isTeamSport: true,
 }
 
+/**
+ * Normaliza una clave de deporte para un lookup tolerante a idioma, tildes,
+ * mayúsculas y separadores: "Básquetbol", "BASQUETBOL", "Básquet-bol" → "basquetbol".
+ */
+function normalizeSportKey(s: string): string {
+  return s
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[\s._-]+/g, '')
+}
+
+// Índice de las claves canónicas del MAP por su forma normalizada.
+const NORMALIZED_MAP: Record<string, SportVocab> = {}
+for (const [key, vocab] of Object.entries(MAP)) {
+  NORMALIZED_MAP[normalizeSportKey(key)] = vocab
+}
+
+/**
+ * Sinónimos y otros idiomas → forma normalizada de la clave canónica del MAP.
+ * Cubre los valores en inglés que llegan de algunas integraciones (p. ej. el
+ * sport_type "basketball") y variantes regionales comunes. Solo se listan los
+ * que NO coinciden ya por normalización directa.
+ */
+const SPORT_ALIASES: Record<string, string> = {
+  basketball: 'basquetbol', baloncesto: 'basquetbol', basket: 'basquetbol', bball: 'basquetbol',
+  football: 'futbol', soccer: 'futbol',
+  volleyball: 'voley', voleibol: 'voley', volei: 'voley',
+  balonmano: 'handball',
+  swimming: 'natacion',
+  tennis: 'tenis',
+  athletics: 'atletismo', running: 'atletismo',
+  boxing: 'boxeo',
+  wrestling: 'lucha',
+  bjj: 'jiujitsu',
+}
+
 export function getSportVocab(sportType: string | null | undefined): SportVocab {
   if (!sportType) return DEFAULT
-  return MAP[sportType] ?? DEFAULT
+  const norm = normalizeSportKey(sportType)
+  // 1) match directo contra las claves canónicas normalizadas
+  if (NORMALIZED_MAP[norm]) return NORMALIZED_MAP[norm]
+  // 2) alias (otro idioma / variante) → clave canónica
+  const canonical = SPORT_ALIASES[norm]
+  if (canonical && NORMALIZED_MAP[canonical]) return NORMALIZED_MAP[canonical]
+  return DEFAULT
 }

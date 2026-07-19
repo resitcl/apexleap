@@ -1,6 +1,8 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import { getAthleteById, getAthleteBillingInfo } from "@/lib/actions/athletes"
+import { getAthleteMatchStats } from "@/lib/actions/matches"
+import { AthleteMatchStats } from "@/components/athletes/AthleteMatchStats"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -26,6 +28,7 @@ import {
 } from "lucide-react"
 import { getClubSportType } from "@/lib/actions/club-context"
 import { getSportConfig, getSportFieldDisplayValue } from "@/lib/sport-fields"
+import { getSportVocab } from "@/lib/sport-vocab"
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -48,6 +51,10 @@ export default async function AthleteDetailPage({ params }: PageProps) {
   let sportType: string | null = null
   try { sportType = await getClubSportType() } catch { /* silent */ }
   const sportConfig = getSportConfig(sportType)
+  const vocab = getSportVocab(sportType)
+
+  let matchStats: Awaited<ReturnType<typeof getAthleteMatchStats>> = { gamesPlayed: 0, totals: {}, games: [] }
+  try { matchStats = await getAthleteMatchStats(id) } catch { /* silent */ }
   const technicalMeta = (athlete as { technical_meta?: Record<string, unknown> }).technical_meta ?? {}
 
   const payments = (athlete.payments ?? []) as Array<{
@@ -161,7 +168,7 @@ export default async function AthleteDetailPage({ params }: PageProps) {
         <Link href="/dashboard/athletes">
           <Button variant="ghost" size="sm" className="gap-2">
             <ChevronLeft className="w-4 h-4" />
-            Alumnos
+            {vocab.athletes}
           </Button>
         </Link>
         <div className="flex-1" />
@@ -373,6 +380,9 @@ export default async function AthleteDetailPage({ params }: PageProps) {
           </CardContent>
         </Card>
       )}
+
+      {/* Estadísticas de partidos (derivadas de match_events) */}
+      <AthleteMatchStats data={matchStats} sport={sportType} />
 
       {/* Tabs: 4 pestañas de la Ficha 360° */}
       <div className="grid md:grid-cols-2 lg:grid-cols-[1fr_340px] gap-3 items-start">

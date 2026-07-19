@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { getSubscriptions, getSubscriptionStats } from "@/lib/actions/subscriptions"
+import { getClubVocab } from "@/lib/actions/club-context"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -42,6 +43,8 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
   } catch {
     // show empty state
   }
+
+  const vocab = await getClubVocab()
 
   return (
     <div className="space-y-6">
@@ -126,7 +129,7 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
           <CardContent className="py-16 text-center">
             <Users className="w-12 h-12 mx-auto mb-2 text-muted-foreground opacity-40" />
             <h3 className="font-semibold text-lg mb-1">Sin suscripciones</h3>
-            <p className="text-muted-foreground mb-4">Asigna un plan a tus alumnos</p>
+            <p className="text-muted-foreground mb-4">Asigna un plan a tus {vocab.athletes.toLowerCase()}</p>
             <Link href="/dashboard/subscriptions/new">
               <Button>Asignar Plan</Button>
             </Link>
