@@ -970,7 +970,9 @@ export async function enrollWithPayment(
         .eq('id', paymentId)
         .eq('club_id', clubId)
 
-      revalidatePath('/dashboard/athlete')
+      // No revalidar: el cliente navega de inmediato a MercadoPago. Un revalidatePath
+      // dispara un refetch del RSC que la navegación aborta ("Load failed" en Safari) →
+      // crashea antes de redirigir. La página es force-dynamic y se recarga al volver.
       return { success: true, isTransfer: false, initPoint: pref.initPoint }
     } catch (e) {
       if (created) {
@@ -1628,9 +1630,9 @@ export async function createFlowCheckoutForSelfPayment() {
       .eq('id', paymentId)
       .eq('club_id', clubId)
 
-    revalidatePath('/dashboard/athlete/payments')
-    revalidatePath('/dashboard/payments')
-
+    // No revalidar: el cliente navega de inmediato a Flow. Un revalidatePath dispara un
+    // refetch del RSC que la navegación aborta ("Load failed" en Safari) → crashea antes
+    // de redirigir. La página es force-dynamic y se recarga al volver.
     return { checkoutUrl: created.checkoutUrl }
   } catch (e) {
     if (createdPayment) {
@@ -1739,9 +1741,9 @@ export async function createMercadoPagoCheckoutForSelfPayment() {
       .eq('id', paymentId)
       .eq('club_id', clubId)
 
-    revalidatePath('/dashboard/athlete/payments')
-    revalidatePath('/dashboard/payments')
-
+    // No revalidar: el cliente navega de inmediato a MercadoPago. Un revalidatePath dispara
+    // un refetch del RSC que la navegación aborta ("Load failed" en Safari) → crashea antes
+    // de redirigir. La página es force-dynamic y se recarga al volver.
     return { initPoint: pref.initPoint }
   } catch (e) {
     if (createdPayment) {
