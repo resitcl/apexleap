@@ -1,5 +1,6 @@
 export const dynamic = "force-dynamic"
 
+import { Suspense } from "react"
 import Link from "next/link"
 import { redirect } from "next/navigation"
 import { checkUserHasClub } from "@/lib/actions/onboarding"
@@ -117,8 +118,12 @@ export default async function AthletePaymentsPage() {
         description="Estado de tu plan, historial de transacciones y cuotas mensuales pendientes."
       />
 
-      <FlowPaymentBanner />
-      <MercadoPagoPaymentBanner />
+      {/* useSearchParams() requiere Suspense: sin él, un fallo de hidratación de los banners
+          (justo la página de retorno de la pasarela con ?mp=…) escala a toda la página. */}
+      <Suspense fallback={null}>
+        <FlowPaymentBanner />
+        <MercadoPagoPaymentBanner />
+      </Suspense>
 
       {/* Subscription status banner */}
       {sub && plan ? (

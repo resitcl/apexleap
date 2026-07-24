@@ -67,16 +67,38 @@ export function PayNowModal({ planName, planPrice, planCycle, bankInfo, enabledM
   const [step, setStep] = useState<Step>('method')
   const [selectedMethod, setSelectedMethod] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [redirecting, setRedirecting] = useState(false)
   const [transferDelivery, setTransferDelivery] = useState<'upload' | 'whatsapp'>('upload')
   const [receiptFile, setReceiptFile] = useState<File | null>(null)
   const [receiptPreview, setReceiptPreview] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const mountedRef = useRef(false)
+  // ref además del state: el finally corre en un closure async y leería un state stale.
+  const redirectingRef = useRef(false)
+
+  // Deja la UI en estado estable "Redirigiendo…" y navega a la pasarela. No se debe volver
+  // a renderizar tras esto (evita el crash React 19 de commit del DOM con navegación pendiente).
+  function startGatewayRedirect(url: string) {
+    redirectingRef.current = true
+    setRedirecting(true)
+    window.location.href = url
+  }
 
   useEffect(() => {
     mountedRef.current = true
+    // Safari iOS bfcache: si el usuario vuelve con "atrás" desde la pasarela, la página se
+    // restaura congelada en "Redirigiendo…". Reactivamos el modal.
+    const onPageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) {
+        redirectingRef.current = false
+        setRedirecting(false)
+        setLoading(false)
+      }
+    }
+    window.addEventListener('pageshow', onPageShow)
     return () => {
       mountedRef.current = false
+      window.removeEventListener('pageshow', onPageShow)
     }
   }, [])
 
@@ -119,13 +141,13 @@ export function PayNowModal({ planName, planPrice, planCycle, bankInfo, enabledM
           if (!flow?.checkoutUrl) {
             throw new Error('No se pudo generar el checkout de Flow.')
           }
-          window.location.href = flow.checkoutUrl
+          startGatewayRedirect(flow.checkoutUrl)
           return
         } catch (flowErr) {
           // Fallback legacy: link manual configurado en ajustes.
           if (!flowCheckoutUrl) throw flowErr
           await submitSelfPayment({ paymentMethod: selectedMethod })
-          window.location.href = flowCheckoutUrl
+          startGatewayRedirect(flowCheckoutUrl)
         }
         return
       }
@@ -134,13 +156,13 @@ export function PayNowModal({ planName, planPrice, planCycle, bankInfo, enabledM
         try {
           const mp = await createMercadoPagoCheckoutForSelfPayment()
           if (!mp?.initPoint) throw new Error('No se pudo generar el checkout de MercadoPago.')
-          window.location.href = mp.initPoint
+          startGatewayRedirect(mp.initPoint)
           return
         } catch (mpErr) {
           // Fallback legacy: link de pago manual configurado en ajustes.
           if (!mercadopagoCheckoutUrl) throw mpErr
           await submitSelfPayment({ paymentMethod: selectedMethod })
-          window.location.href = mercadopagoCheckoutUrl
+          startGatewayRedirect(mercadopagoCheckoutUrl)
         }
         return
       }
@@ -168,7 +190,8 @@ export function PayNowModal({ planName, planPrice, planCycle, bankInfo, enabledM
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Error al procesar el pago')
     } finally {
-      if (mountedRef.current) setLoading(false)
+      // No reactivar la UI si ya iniciamos la navegación a la pasarela.
+      if (mountedRef.current && !redirectingRef.current) setLoading(false)
     }
   }
 
@@ -456,7 +479,9 @@ export function PayNowModal({ planName, planPrice, planCycle, bankInfo, enabledM
                 }
                 className="w-full h-12 rounded-xl bg-primary text-primary-foreground font-black uppercase tracking-widest text-xs flex items-center justify-center gap-2 hover:bg-primary/90 hover:scale-[1.01] transition-all shadow-[0_0_20px_rgba(var(--primary),0.25)] disabled:opacity-40 disabled:hover:scale-100 disabled:shadow-none"
               >
-                {loading ? (
+                {redirecting ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" /> Redirigiendo a {selectedMethod === 'flow' ? 'Flow' : 'MercadoPago'}…</>
+                ) : loading ? (
                   <><Loader2 className="w-4 h-4 animate-spin" /> Procesando...</>
                 ) : (
                   <>{selectedMethod === 'transfer' ? 'Enviar Comprobante' : 'Confirmar Pago'} <ChevronRight className="w-4 h-4" /></>

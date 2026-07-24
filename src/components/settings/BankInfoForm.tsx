@@ -343,6 +343,10 @@ export function BankInfoForm({ defaultValues }: Props) {
       {GATEWAYS.map(gw => {
         const cfg = form[gw.id]
         if (!cfg.enabled) return null
+        // MercadoPago no usa el flag sandbox: el ambiente lo determinan las credenciales
+        // (TEST-… vs APP_USR-…). Ver src/lib/mercadopago.ts (siempre usa init_point).
+        const isMercadoPago = gw.id === 'mercadopago'
+        const mpTestMode = isMercadoPago && (cfg.secret_key ?? '').startsWith('TEST-')
         return (
           <Card key={gw.id}>
             <CardHeader>
@@ -351,20 +355,34 @@ export function BankInfoForm({ defaultValues }: Props) {
                   <CardTitle className="text-base">{gw.label}</CardTitle>
                   <CardDescription>{gw.description}</CardDescription>
                 </div>
-                <ToggleSwitch
-                  on={!cfg.sandbox}
-                  onToggle={() => setGw(gw.id, 'sandbox', !cfg.sandbox)}
-                  label={cfg.sandbox ? 'Sandbox' : 'Producción'}
-                />
+                {!isMercadoPago && (
+                  <ToggleSwitch
+                    on={!cfg.sandbox}
+                    onToggle={() => setGw(gw.id, 'sandbox', !cfg.sandbox)}
+                    label={cfg.sandbox ? 'Sandbox' : 'Producción'}
+                  />
+                )}
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              {cfg.sandbox && (
+              {isMercadoPago ? (
+                mpTestMode ? (
+                  <div className="flex items-center gap-2 text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-md px-3 py-2">
+                    <FlaskConical className="w-3.5 h-3.5 shrink-0" />
+                    Credenciales de PRUEBA detectadas (TEST-…) — los pagos no serán reales.
+                  </div>
+                ) : (
+                  <div className="flex items-start gap-2 text-xs text-muted-foreground bg-muted/40 border border-border rounded-md px-3 py-2">
+                    <FlaskConical className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                    <span>El ambiente lo determinan tus credenciales: usa <strong>TEST-…</strong> para probar y <strong>APP_USR-…</strong> para cobrar de verdad.</span>
+                  </div>
+                )
+              ) : cfg.sandbox ? (
                 <div className="flex items-center gap-2 text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-md px-3 py-2">
                   <FlaskConical className="w-3.5 h-3.5 shrink-0" />
                   Modo sandbox activo — los pagos no se procesarán realmente.
                 </div>
-              )}
+              ) : null}
               <div className="grid gap-4">
                 {gw.fields.map(f => {
                   const secretId = `${gw.id}-${f.key}`

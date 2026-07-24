@@ -49,6 +49,22 @@ export function AthleteOnboardingWizard({ data, sportConfig: _sportConfig }: Pro
   const [isPending, startTransition] = useTransition()
   const [step, setStep] = useState<Step>(data.hasPendingPayment ? 'waiting' : 'plan')
   const [loading, setLoading] = useState(false)
+  const [redirecting, setRedirecting] = useState(false)
+  // ref además del state: el finally corre en un closure async y leería un state stale.
+  const redirectingRef = useRef(false)
+
+  useEffect(() => {
+    // Safari iOS bfcache: si el usuario vuelve con "atrás" desde MercadoPago, reactivamos la UI.
+    const onPageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) {
+        redirectingRef.current = false
+        setRedirecting(false)
+        setLoading(false)
+      }
+    }
+    window.addEventListener('pageshow', onPageShow)
+    return () => window.removeEventListener('pageshow', onPageShow)
+  }, [])
 
   const enabledPaymentIds = useMemo(
     () => getEnabledPaymentMethodIdsFromClubSettings((data.club.settings ?? {}) as Record<string, unknown>),
@@ -142,6 +158,9 @@ export function AthleteOnboardingWizard({ data, sportConfig: _sportConfig }: Pro
       // Pasarela online (MercadoPago): redirige al checkout. La página navega fuera; no cambiamos de paso.
       const initPoint = (result as { initPoint?: string }).initPoint
       if (initPoint) {
+        // Deja la UI en "Redirigiendo…" y navega; no volvemos a renderizar tras esto.
+        redirectingRef.current = true
+        setRedirecting(true)
         window.location.href = initPoint
         return
       }
@@ -149,7 +168,8 @@ export function AthleteOnboardingWizard({ data, sportConfig: _sportConfig }: Pro
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Error al procesar inscripción')
     } finally {
-      setLoading(false)
+      // No reactivar la UI si ya iniciamos la navegación a la pasarela.
+      if (!redirectingRef.current) setLoading(false)
     }
   }
 
@@ -598,7 +618,9 @@ export function AthleteOnboardingWizard({ data, sportConfig: _sportConfig }: Pro
               (isTransfer && transferDelivery === 'whatsapp' && !waLink)
             }
           >
-            {loading ? (
+            {redirecting ? (
+              <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Redirigiendo a MercadoPago…</>
+            ) : loading ? (
               <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Procesando...</>
             ) : (
               <>{isTransfer ? 'Enviar Comprobante' : 'Confirmar Pago'} <ChevronRight className="w-4 h-4 ml-1" /></>

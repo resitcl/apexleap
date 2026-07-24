@@ -83,6 +83,9 @@ export default function GlobalError({
           >
             Reintentar
           </button>
+          {/* Navegación dura a propósito: global-error corre fuera del árbol del router,
+              donde <Link> no es confiable. */}
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
           <a
             href="/"
             style={{
