@@ -471,79 +471,65 @@ export async function importSeasonWorkbook(
   // ── 4b. Competencia: el módulo "Competencias" lista `competitions` y cuelga
   // los partidos por competition_id. La temporada (club_seasons) es solo el
   // periodo; sin una competencia ligada, los partidos no aparecen en esa vista.
-  // Se crea/reutiliza una competición para la temporada y sus partidos se
-  // cuelgan de ella (además de season_id).
+  //
+  // Se usa UNA competencia DEDICADA a la planilla, identificada por su nombre
+  // ("Temporada YYYY-N"). NO se reutiliza cualquier competencia de la temporada:
+  // una temporada puede tener varias (una liga y un torneo distintos, p. ej.
+  // "Deutsche Basket" e "Italo Hispano" en Apertura 2026) y colgar los partidos
+  // de una elegida al azar los mezclaría con una competencia ajena.
   const nombreCompetencia = `Temporada ${nombreTemporada}`
   let competitionId: string | null = null
 
-  // (a) ¿Ya hay una competición ligada a esta temporada? (re-import). Se omite
-  // si la temporada aún no existe en la base (vista previa → seasonId ficticio).
-  if (!seasonId.startsWith('dry:')) {
-    const { data: compPorSeason } = await supabase
-      .from('competitions')
-      .select('id')
-      .eq('club_id', clubId)
-      .eq('season_id', seasonId)
-      .limit(1)
-      .maybeSingle()
-    if (compPorSeason) {
-      competitionId = compPorSeason.id as string
-      log.push('✅ Competencia existente ligada a la temporada')
-    }
-  }
+  // Reutilizar solo si ya existe una competencia con ESE nombre (idempotencia
+  // del re-import); si no, crearla.
+  const { data: compPorNombre } = await supabase
+    .from('competitions')
+    .select('id, season_id')
+    .eq('club_id', clubId)
+    .eq('name', nombreCompetencia)
+    .limit(1)
+    .maybeSingle()
 
-  if (!competitionId) {
-    // (b) ¿Hay una competición con ese nombre? (creada a mano) → reutilizar y
-    // backfill de season_id para conectarla con la temporada.
-    const { data: compPorNombre } = await supabase
-      .from('competitions')
-      .select('id, season_id')
-      .eq('club_id', clubId)
-      .eq('name', nombreCompetencia)
-      .limit(1)
-      .maybeSingle()
-
-    if (compPorNombre) {
-      competitionId = compPorNombre.id as string
-      if (!dryRun && !compPorNombre.season_id) {
-        await supabase
-          .from('competitions')
-          .update({ season_id: seasonId })
-          .eq('id', competitionId)
-          .eq('club_id', clubId)
-      }
-      log.push(
-        compPorNombre.season_id
-          ? `✅ Competencia "${nombreCompetencia}" reutilizada`
-          : `✅ Competencia "${nombreCompetencia}" reutilizada y ligada a la temporada`
-      )
-    } else if (dryRun) {
-      competitionId = 'dry:competition'
-      log.push(`➕ (previa) Se creará la competencia "${nombreCompetencia}" (liga, basketball)`)
-    } else {
-      // (c) Crear la competición. status según si la temporada ya terminó.
-      const { data: nuevaComp, error: errComp } = await supabase
+  if (compPorNombre) {
+    competitionId = compPorNombre.id as string
+    if (!dryRun && !compPorNombre.season_id) {
+      await supabase
         .from('competitions')
-        .insert({
-          club_id: clubId,
-          name: nombreCompetencia,
-          type: 'league',
-          sport: 'basketball',
-          start_date: fechaInicio,
-          end_date: fechaFin,
-          status: fechaFin <= hoy ? 'finished' : 'active',
-          season_id: seasonId,
-          description: 'Creada por la importación de temporada (.xlsx)',
-        })
-        .select('id')
-        .single()
-      if (errComp || !nuevaComp) {
-        // Sin competición los partidos igual se importan (quedan sueltos); se avisa.
-        errors.push(`⚠️ No se pudo crear la competencia "${nombreCompetencia}": ${errComp?.message ?? 'sin datos'} — los partidos quedarán sin competencia`)
-      } else {
-        competitionId = nuevaComp.id as string
-        log.push(`✅ Competencia creada: "${nombreCompetencia}" (liga, basketball)`)
-      }
+        .update({ season_id: seasonId })
+        .eq('id', competitionId)
+        .eq('club_id', clubId)
+    }
+    log.push(
+      compPorNombre.season_id
+        ? `✅ Competencia "${nombreCompetencia}" reutilizada`
+        : `✅ Competencia "${nombreCompetencia}" reutilizada y ligada a la temporada`
+    )
+  } else if (dryRun) {
+    competitionId = 'dry:competition'
+    log.push(`➕ (previa) Se creará la competencia "${nombreCompetencia}" (liga, basketball)`)
+  } else {
+    // Crear la competición. status según si la temporada ya terminó.
+    const { data: nuevaComp, error: errComp } = await supabase
+      .from('competitions')
+      .insert({
+        club_id: clubId,
+        name: nombreCompetencia,
+        type: 'league',
+        sport: 'basketball',
+        start_date: fechaInicio,
+        end_date: fechaFin,
+        status: fechaFin <= hoy ? 'finished' : 'active',
+        season_id: seasonId,
+        description: 'Creada por la importación de temporada (.xlsx)',
+      })
+      .select('id')
+      .single()
+    if (errComp || !nuevaComp) {
+      // Sin competición los partidos igual se importan (quedan sueltos); se avisa.
+      errors.push(`⚠️ No se pudo crear la competencia "${nombreCompetencia}": ${errComp?.message ?? 'sin datos'} — los partidos quedarán sin competencia`)
+    } else {
+      competitionId = nuevaComp.id as string
+      log.push(`✅ Competencia creada: "${nombreCompetencia}" (liga, basketball)`)
     }
   }
 
@@ -823,9 +809,16 @@ export async function importSeasonWorkbook(
           meta: { ...(existente.meta ?? {}), source: SEASON_IMPORT_SOURCE },
           updated_at: new Date().toISOString(),
         }
-        // Backfill solo si el partido no estaba ya en una competencia: no pisar
-        // una asignación manual del usuario.
-        if (competitionId && !existente.competition_id) payload.competition_id = competitionId
+        // Asigna la competencia dedicada de la temporada. Reasigna aunque el
+        // partido ya esté en otra competencia SIEMPRE que ese vínculo lo haya
+        // puesto este mismo importador (meta.source = season-xlsx) — así se
+        // corrige una asignación previa incorrecta. No pisa una competencia
+        // asignada a mano por el usuario.
+        const compAsignadaPorImportador =
+          (existente.meta as { source?: string } | null)?.source === SEASON_IMPORT_SOURCE
+        if (competitionId && (!existente.competition_id || compAsignadaPorImportador)) {
+          payload.competition_id = competitionId
+        }
         if (rival) payload.opponent = rival // solo si el Excel lo trae
         if (fecha <= hoy) payload.status = 'finished'
         // home_score/away_score son el marcador literal de cada lado: los puntos
