@@ -7,6 +7,7 @@ import { ThemeProvider } from "next-themes";
 import { Toaster } from "@/components/ui/sonner";
 import { RegisterServiceWorker } from "@/components/pwa/RegisterServiceWorker";
 import { SplashRemover } from "@/components/pwa/SplashRemover";
+import { ClientErrorReporter } from "@/components/pwa/ClientErrorReporter";
 import "./globals.css";
 
 const inter = Inter({
@@ -81,6 +82,7 @@ export default function RootLayout({
             <Toaster />
             <RegisterServiceWorker />
             <SplashRemover />
+            <ClientErrorReporter />
           </ThemeProvider>
         </body>
       </html>

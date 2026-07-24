@@ -92,9 +92,11 @@ export async function createMercadoPagoPreference(config: MercadoPagoConfig, inp
     throw new Error(message)
   }
   const id = typeof json.id === 'string' ? json.id : String(json.id ?? '')
-  const initPoint =
-    (config.sandbox && typeof json.sandbox_init_point === 'string' && json.sandbox_init_point) ||
-    (typeof json.init_point === 'string' ? json.init_point : '')
+  // Usar SIEMPRE init_point. El ambiente (prueba vs producción) lo determinan las credenciales
+  // (TEST-… vs APP_USR-…), no la URL. sandbox_init_point es legacy y, con credenciales
+  // productivas, redirige a un checkout de prueba que queda colgado en mercadopago.cl.
+  // Guía oficial: https://github.com/mercadopago/sdk-js/discussions/60
+  const initPoint = typeof json.init_point === 'string' ? json.init_point : ''
   if (!id || !initPoint) throw new Error('MercadoPago no devolvió init_point de checkout')
   return { id, initPoint, raw: json }
 }

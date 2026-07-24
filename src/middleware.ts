@@ -9,6 +9,7 @@ const BYPASS_CLERK_PREFIXES = [
   '/api/webhooks/flow',
   '/api/payments/mercadopago',
   '/api/webhooks/mercadopago',
+  '/api/client-errors', // telemetría best-effort; sendBeacon no sigue redirects de auth
 ]
 
 const isPublicRoute = createRouteMatcher([
