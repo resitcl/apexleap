@@ -2,16 +2,22 @@
  * Smoothcomp scraper — upcoming BJJ events in Chile.
  *
  * How it works:
- *  1. Fetch smoothcomp.com/en/events/upcoming → JSON-LD ItemList with ~1009 event URLs.
- *     The global ItemList already contains org-specific subdomain URLs, e.g.:
- *       https://jiujitsu-fest.smoothcomp.com/en/event/28741
- *       https://kimura.smoothcomp.com/en/event/XXXXX
- *  2. Filter that list keeping only URLs from the known Chilean orgs.
- *  3. Fetch only those ~5-20 events to read their SportsEvent JSON-LD.
- *  4. Cache 24 h.
+ *  1. Fetch smoothcomp.com/en/events/upcoming (HTTP 200 for scrapers).
+ *  2. That page embeds the full listing as an inline JS array:
+ *       var events = [{ id, title, url, startdate, enddate,
+ *                       location_country, location_city, days_to_start, ... }]
+ *     We parse that blob directly — it already carries country + dates, so we
+ *     filter to location_country === 'CL' without any further requests.
+ *  3. Cache 24 h.
+ *
+ * Why not read each event's detail page?
+ *  The per-event pages (both org subdomains and the root domain) are now behind
+ *  Cloudflare and return HTTP 403 to bots. The aggregate listing stays open, and
+ *  it already contains everything we need — including Chilean events hosted on the
+ *  root smoothcomp.com domain, which the old org-subdomain allowlist missed.
  *
  * robots.txt says Crawl-delay: 10 for generic bots.
- * Fetching ~20 pages once per 24 h is well within that.
+ * Fetching one page per 24 h is well within that.
  */
 
 import { unstable_cache } from 'next/cache'
@@ -19,7 +25,7 @@ import { unstable_cache } from 'next/cache'
 export interface SmoothcompEvent {
   name:       string
   url:        string
-  startDate:  string   // ISO 8601
+  startDate:  string   // ISO 8601 (date, e.g. "2026-07-25")
   endDate:    string
   city:       string
   country:    string
@@ -29,13 +35,22 @@ export interface SmoothcompEvent {
   daysLeft:   number
 }
 
-// ─── Chilean BJJ orgs on smoothcomp ──────────────────────────────────────────
-// Extend this list whenever a new Chilean org is found.
-const CHILE_ORGS = [
-  'jiujitsu-fest',   // Jiu-Jitsu Fest (Santiago, La Serena, …)
-  'kimura',          // Torneo Kimura (Talagante)
-  'cbjjd',           // CBJJD Chile
-]
+const UPCOMING_URL = 'https://smoothcomp.com/en/events/upcoming'
+
+// Shape of one entry in the page's inline `var events = [...]` array.
+interface RawEvent {
+  id:                     number
+  title:                  string
+  url:                    string
+  cover_image:            string | null
+  startdate:              string
+  enddate:                string
+  location_country:       string   // ISO code, e.g. "CL"
+  location_country_human: string   // e.g. "Chile"
+  location_city:          string
+  days_to_start:          number
+  eventEnded:             boolean
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const HEADERS = {
@@ -47,7 +62,7 @@ const HEADERS = {
   'Referer':         'https://smoothcomp.com/',
 }
 
-async function get(url: string, ms = 8_000): Promise<string | null> {
+async function get(url: string, ms = 15_000): Promise<string | null> {
   try {
     const res = await fetch(url, {
       headers: HEADERS,
@@ -61,98 +76,92 @@ async function get(url: string, ms = 8_000): Promise<string | null> {
   }
 }
 
-function extractLdJson(html: string): unknown[] {
-  const out: unknown[] = []
-  const re = /<script\s+type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/gi
-  let m: RegExpExecArray | null
-  while ((m = re.exec(html)) !== null) {
-    try { out.push(JSON.parse(m[1])) } catch { /* skip */ }
+/**
+ * Extract the inline `var events = [ ... ]` array from the upcoming page.
+ * Balances brackets while respecting string literals so it survives commas and
+ * brackets inside titles/URLs. Returns [] if the marker isn't found.
+ */
+function extractEventsBlob(html: string): RawEvent[] {
+  const marker = 'var events = ['
+  const markerIdx = html.indexOf(marker)
+  if (markerIdx === -1) return []
+
+  const start = html.indexOf('[', markerIdx)
+  let depth = 0
+  let inStr = false
+  let esc = false
+  let quote = ''
+  let end = -1
+
+  for (let i = start; i < html.length; i++) {
+    const c = html[i]
+    if (inStr) {
+      if (esc) esc = false
+      else if (c === '\\') esc = true
+      else if (c === quote) inStr = false
+      continue
+    }
+    if (c === '"' || c === "'") { inStr = true; quote = c; continue }
+    if (c === '[') depth++
+    else if (c === ']') { depth--; if (depth === 0) { end = i + 1; break } }
   }
-  return out
+
+  if (end === -1) return []
+  try {
+    return JSON.parse(html.slice(start, end)) as RawEvent[]
+  } catch {
+    return []
+  }
 }
 
-/** Parse a SportsEvent JSON-LD block into our shape, or null if not Chilean / past. */
-function parseSportsEvent(block: unknown, sourceUrl: string): SmoothcompEvent | null {
-  const b = block as Record<string, unknown>
-  if (b['@type'] !== 'SportsEvent') return null
+/** Capitalize each word of a city name (source is inconsistently cased). */
+function titleCase(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/\b\p{L}/gu, (ch) => ch.toUpperCase())
+    .trim()
+}
 
-  const addr    = ((b.location as Record<string, unknown>)
-    ?.address) as Record<string, unknown> | null
-  const country = String(addr?.addressCountry ?? '')
-  if (country !== 'Chile' && country !== 'CL') return null
+/** Derive a human org name from the event's subdomain, if any. */
+function orgFromUrl(url: string): string {
+  const m = url.match(/https?:\/\/([a-z0-9-]+)\.smoothcomp\.com/i)
+  const sub = m?.[1]
+  if (!sub || sub === 'www') return ''
+  return titleCase(sub.replace(/-/g, ' '))
+}
 
-  const start   = String(b.startDate ?? '')
-  const daysLeft = start
-    ? Math.ceil((new Date(start).getTime() - Date.now()) / 86_400_000)
-    : -1
-  if (daysLeft < 0) return null     // skip past events
-
+function toEvent(raw: RawEvent): SmoothcompEvent {
+  const city = titleCase(raw.location_city ?? '')
+  const country = raw.location_country_human || 'Chile'
   return {
-    name:      String(b.name ?? 'Evento sin nombre'),
-    url:       sourceUrl,
-    startDate: start,
-    endDate:   String(b.endDate ?? ''),
-    city:      String(addr?.addressLocality ?? ''),
+    name:      raw.title || 'Evento sin nombre',
+    url:       raw.url,
+    startDate: raw.startdate || '',
+    endDate:   raw.enddate || '',
+    city,
     country,
-    location:  String(
-      addr?.description ??
-      (b.location as Record<string, unknown>)?.name ?? ''
-    ),
-    image:     typeof b.image === 'string' ? b.image : null,
-    organizer: String(
-      (b.organizer as Record<string, unknown> | null)?.name ?? ''
-    ),
-    daysLeft,
+    location:  [city, country].filter(Boolean).join(', '),
+    image:     raw.cover_image || null,
+    organizer: orgFromUrl(raw.url),
+    daysLeft:  Number.isFinite(raw.days_to_start) ? raw.days_to_start : 0,
   }
-}
-
-/** Fetch one event page, return parsed data or null. */
-async function fetchEvent(url: string): Promise<SmoothcompEvent | null> {
-  const html = await get(url)
-  if (!html) return null
-  for (const block of extractLdJson(html)) {
-    const e = parseSportsEvent(block, url)
-    if (e) return e
-  }
-  return null
 }
 
 // ─── Core ─────────────────────────────────────────────────────────────────────
 async function _fetchChileEvents(): Promise<SmoothcompEvent[]> {
-  // 1. Get the full global event list
-  const html = await get('https://smoothcomp.com/en/events/upcoming', 15_000)
+  const html = await get(UPCOMING_URL)
   if (!html) return []
 
-  // 2. Extract all event URLs from the ItemList
-  let allUrls: string[] = []
-  for (const block of extractLdJson(html)) {
-    const b = block as Record<string, unknown>
-    if (b['@type'] === 'ItemList') {
-      allUrls = ((b.itemListElement as Array<Record<string, unknown>>) ?? [])
-        .map((item) => String(item.url ?? ''))
-        .filter(Boolean)
-      break
-    }
-  }
+  const raw = extractEventsBlob(html)
+  if (raw.length === 0) return []
 
-  if (allUrls.length === 0) return []
-
-  // 3. Keep only URLs belonging to the Chilean orgs we care about
-  const chileUrls = allUrls.filter((url) =>
-    CHILE_ORGS.some((org) => url.includes(`${org}.smoothcomp.com`))
-  )
-
-  if (chileUrls.length === 0) return []
-
-  // 4. Fetch those events in parallel (should be a small number ~5-20)
-  const results = await Promise.allSettled(chileUrls.map((url) => fetchEvent(url)))
-
-  const events: SmoothcompEvent[] = []
-  for (const r of results) {
-    if (r.status === 'fulfilled' && r.value) events.push(r.value)
-  }
-
-  return events
+  return raw
+    .filter((e) =>
+      (e.location_country === 'CL' || e.location_country_human === 'Chile') &&
+      !e.eventEnded &&
+      e.days_to_start >= 0,
+    )
+    .map(toEvent)
     .sort((a, b) => a.startDate.localeCompare(b.startDate))
     .slice(0, 8)
 }
@@ -160,6 +169,6 @@ async function _fetchChileEvents(): Promise<SmoothcompEvent[]> {
 // ─── Exported cached function (24 h TTL) ──────────────────────────────────────
 export const getSmoothcompChileEvents = unstable_cache(
   _fetchChileEvents,
-  ['smoothcomp-chile-bjj-v3'],
+  ['smoothcomp-chile-bjj-v4'],
   { revalidate: 86_400 },
 )
