@@ -208,7 +208,7 @@ export default async function DashboardLayout({
 }) {
   let alerts = {
     overduePayments: 0, expiringSoonDocs: 0, expiringSubscriptions: 0,
-    pendingEnrollments: 0, paidToday: 0,
+    pendingEnrollments: 0, pendingEnrollmentPaid: 0, paidToday: 0,
     clubName: null as string | null,
     primaryColor: null as string | null,
     secondaryColor: null as string | null,
@@ -344,7 +344,7 @@ export default async function DashboardLayout({
     items: group.items.map((item) => ({
       href:           item.href,
       label:          item.label,
-      icon:           <item.icon className="w-4 h-4 shrink-0" />,
+      icon:           <item.icon className="w-5 h-5 shrink-0" />,
       badge:          badgeMap[item.href] ?? 0,
       notificationId: notificationIdMap[item.href],
     })),
@@ -357,7 +357,10 @@ export default async function DashboardLayout({
   } as React.CSSProperties
 
   return (
-    <div className="h-screen flex overflow-hidden" style={brandingStyle} suppressHydrationWarning>
+    // `h-dvh` (no `h-screen`): en móvil `100vh` es la altura CON la barra del navegador oculta,
+    // así que el shell quedaba más alto que el viewport visible, el body scrolleaba y el header
+    // —con el botón de menú— se iba fuera de pantalla. `100dvh` sigue al viewport real.
+    <div className="h-dvh flex overflow-hidden overscroll-none" style={brandingStyle} suppressHydrationWarning>
       <ClubBrandingRoot varsJson={JSON.stringify(brandCss)} />
       {/* ── Desktop Sidebar ── */}
       <aside className="w-60 bg-sidebar border-r border-sidebar-border hidden md:flex flex-col shrink-0 h-full">
@@ -432,8 +435,9 @@ export default async function DashboardLayout({
       {/* ── Right side ── */}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
 
-        {/* Top Header */}
-        <header className="h-16 border-b border-border flex items-center px-4 bg-sidebar gap-3 shrink-0">
+        {/* Top Header — `viewport-fit=cover` deja el contenido bajo la barra de estado en PWA:
+            el inset superior lo agrega el propio header. */}
+        <header className="h-16 shrink-0 border-b border-border flex items-center px-3 md:px-4 bg-sidebar gap-2 md:gap-3 pt-[env(safe-area-inset-top)] box-content">
           {/* Mobile hamburger */}
           <div className="md:hidden shrink-0">
             <MobileSidebar
@@ -446,15 +450,15 @@ export default async function DashboardLayout({
           </div>
 
           {/* Mobile logo */}
-          <Link href="/dashboard" className="flex items-center gap-2.5 md:hidden">
+          <Link href="/dashboard" className="flex items-center gap-2 md:hidden min-w-0">
             {alerts.logoUrl ? (
-              <Image src={alerts.logoUrl} alt={alerts.clubName ?? 'Club'} width={28} height={28} className="rounded-xl object-cover" />
+              <Image src={alerts.logoUrl} alt={alerts.clubName ?? 'Club'} width={30} height={30} className="rounded-xl object-cover shrink-0" />
             ) : (
-              <div className="w-7 h-7 rounded-xl flex items-center justify-center text-white font-black text-xs" style={{ backgroundColor: brandColor }}>
+              <div className="w-[30px] h-[30px] rounded-xl flex items-center justify-center text-white font-black text-xs shrink-0" style={{ backgroundColor: brandColor }}>
                 {(alerts.clubName ?? 'AL').slice(0, 2).toUpperCase()}
               </div>
             )}
-            <span className="font-bold text-sm">{alerts.clubName ?? 'ApexLeap'}</span>
+            <span className="font-bold text-[15px] truncate max-w-[9rem]">{alerts.clubName ?? 'ApexLeap'}</span>
           </Link>
 
           <div className="flex-1" />
@@ -476,7 +480,7 @@ export default async function DashboardLayout({
         </header>
 
         {/* Scrollable page content */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 bg-background">
+        <main className="flex-1 overflow-y-auto overscroll-contain p-4 md:p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] md:pb-6 bg-background">
           <AgreementGateWrapper>
             {children}
           </AgreementGateWrapper>

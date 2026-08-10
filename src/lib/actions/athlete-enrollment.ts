@@ -23,6 +23,7 @@ import {
   ONLINE_GATEWAY_IDS,
 } from '@/lib/payment-methods'
 import { cancelPriorSubscriptions } from '@/lib/subscription-activation'
+import { notifyAdminsPaymentSubmitted } from '@/lib/admin-notifications'
 import { createFlowPayment, resolveFlowConfigFromSettings } from '@/lib/flow'
 import { createMercadoPagoPreference, resolveMercadoPagoConfigFromSettings } from '@/lib/mercadopago'
 import { TRANSFER_RECEIPT_MAX_BYTES } from '@/lib/constants'
@@ -1009,6 +1010,18 @@ export async function enrollWithPayment(
         period_start: startStr,
         period_end: endStr,
       })
+
+    // Aviso al admin: inscripción con pago pendiente de validación.
+    await notifyAdminsPaymentSubmitted(supabase, {
+      clubId,
+      athleteId: athlete.id,
+      amount: totalAmount,
+      paymentMethod,
+      concept,
+      planName: plan.name,
+      state: 'pending',
+      hasReceipt: !!receiptUrl,
+    })
   }
 
   revalidatePath('/dashboard/athlete')
@@ -1426,6 +1439,18 @@ export async function submitSelfPayment(params: {
     })
 
   if (error) throw new Error('Error al registrar el pago: ' + error.message)
+
+  // Aviso al admin: el pago queda pendiente de validación y nadie lo mira si no llega un correo.
+  await notifyAdminsPaymentSubmitted(supabase, {
+    clubId,
+    athleteId: athlete.id,
+    amount: Number(plan.price ?? 0),
+    paymentMethod: params.paymentMethod,
+    concept,
+    planName: plan.name,
+    state: 'pending',
+    hasReceipt: !!params.receiptUrl,
+  })
 
   revalidatePath('/dashboard/athlete/payments')
   revalidatePath('/dashboard/payments')

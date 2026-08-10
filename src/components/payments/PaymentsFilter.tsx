@@ -13,6 +13,29 @@ function getCurrentMonthRange() {
   return { start, end }
 }
 
+const PILL = 'h-10 shrink-0 rounded-lg border px-3.5 text-sm font-medium transition-colors active:scale-[0.98]'
+const PILL_IDLE = 'bg-background border-input text-muted-foreground hover:border-foreground/30 hover:text-foreground'
+const SMALL_PILL = 'h-9 shrink-0 rounded-lg border px-3 text-[13px] font-medium transition-colors'
+
+/**
+ * Fila de filtros que en móvil desplaza horizontalmente en vez de apilar botones diminutos.
+ * La etiqueta va arriba en móvil y a la izquierda desde `sm`.
+ */
+function ScrollRow({ label, children }: { label?: string; children: React.ReactNode }) {
+  return (
+    <div className="sm:flex sm:items-start sm:gap-2">
+      {label ? (
+        <span className="mb-1 block text-[11px] font-bold uppercase tracking-wider text-muted-foreground/70 sm:mb-0 sm:w-28 sm:shrink-0 sm:pt-2 sm:text-xs sm:font-medium sm:normal-case sm:tracking-normal">
+          {label}
+        </span>
+      ) : null}
+      <div className="-mx-1 min-w-0 flex-1 overflow-x-auto px-1 pb-1">
+        <div className="flex min-w-max items-center gap-2 sm:min-w-0 sm:flex-wrap">{children}</div>
+      </div>
+    </div>
+  )
+}
+
 function MonthPresetButtons({
   currentFrom,
   currentTo,
@@ -58,22 +81,14 @@ function MonthPresetButtons({
       <button
         type="button"
         onClick={() => applyPreset('due-month')}
-        className={`h-9 px-3 rounded-md border text-sm font-medium transition-colors ${
-          dueMonthActive
-            ? 'bg-amber-500 text-white border-amber-500'
-            : 'bg-background border-input text-muted-foreground hover:text-foreground'
-        }`}
+        className={`${PILL} ${dueMonthActive ? 'bg-amber-500 text-white border-amber-500' : PILL_IDLE}`}
       >
         Cuotas del mes
       </button>
       <button
         type="button"
         onClick={() => applyPreset('paid-month')}
-        className={`h-9 px-3 rounded-md border text-sm font-medium transition-colors ${
-          paidMonthActive
-            ? 'bg-emerald-500 text-white border-emerald-500'
-            : 'bg-background border-input text-muted-foreground hover:text-foreground'
-        }`}
+        className={`${PILL} ${paidMonthActive ? 'bg-emerald-500 text-white border-emerald-500' : PILL_IDLE}`}
       >
         Cobrados del mes
       </button>
@@ -82,11 +97,11 @@ function MonthPresetButtons({
 }
 
 const STATUS_OPTIONS = [
-  { value: 'pending',   label: 'Pendiente', activeClass: 'bg-amber-500 text-white border-amber-500' },
-  { value: 'paid',      label: 'Pagado',    activeClass: 'bg-emerald-500 text-white border-emerald-500' },
-  { value: 'overdue',   label: 'Vencido',   activeClass: 'bg-red-500 text-white border-red-500' },
-  { value: 'failed',    label: 'Fallido',   activeClass: 'bg-red-700 text-white border-red-700' },
-  { value: 'cancelled', label: 'Cancelado', activeClass: 'bg-zinc-500 text-white border-zinc-500' },
+  { value: 'paid',      label: 'Pagado',    dot: 'bg-emerald-500', activeClass: 'bg-emerald-500 text-white border-emerald-500' },
+  { value: 'pending',   label: 'Pendiente', dot: 'bg-amber-500',   activeClass: 'bg-amber-500 text-white border-amber-500' },
+  { value: 'overdue',   label: 'Vencido',   dot: 'bg-red-500',     activeClass: 'bg-red-500 text-white border-red-500' },
+  { value: 'failed',    label: 'Fallido',   dot: 'bg-red-700',     activeClass: 'bg-red-700 text-white border-red-700' },
+  { value: 'cancelled', label: 'Cancelado', dot: 'bg-zinc-500',    activeClass: 'bg-zinc-500 text-white border-zinc-500' },
 ]
 
 const METHOD_OPTIONS = [
@@ -145,53 +160,64 @@ export function PaymentsFilter({
 
   return (
     <div className="space-y-3">
-      {/* Primary row */}
-      <div className="flex flex-wrap items-center gap-2">
-        {/* Search */}
-        <form method="get" action="/dashboard/payments" className="flex items-center gap-2">
-          {currentStatus    && <input type="hidden" name="status"        value={currentStatus}    />}
-          {currentMethod    && <input type="hidden" name="paymentMethod" value={currentMethod}    />}
-          {currentFrom      && <input type="hidden" name="from"          value={currentFrom}      />}
-          {currentTo        && <input type="hidden" name="to"            value={currentTo}        />}
-          {currentPaidFrom  && <input type="hidden" name="paidFrom"      value={currentPaidFrom}  />}
-          {currentPaidTo    && <input type="hidden" name="paidTo"        value={currentPaidTo}    />}
-          {currentAmountMin && <input type="hidden" name="amountMin"     value={currentAmountMin} />}
-          {currentAmountMax && <input type="hidden" name="amountMax"     value={currentAmountMax} />}
-          <input
-            type="text" name="athleteName" defaultValue={currentAthleteName ?? ''}
-            placeholder="Buscar alumno..."
-            className="h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring w-40"
-          />
+      {/* Búsqueda */}
+      <form
+        method="get"
+        action="/dashboard/payments"
+        className="flex flex-col gap-2 sm:flex-row sm:items-center"
+      >
+        {currentStatus    && <input type="hidden" name="status"        value={currentStatus}    />}
+        {currentMethod    && <input type="hidden" name="paymentMethod" value={currentMethod}    />}
+        {currentFrom      && <input type="hidden" name="from"          value={currentFrom}      />}
+        {currentTo        && <input type="hidden" name="to"            value={currentTo}        />}
+        {currentPaidFrom  && <input type="hidden" name="paidFrom"      value={currentPaidFrom}  />}
+        {currentPaidTo    && <input type="hidden" name="paidTo"        value={currentPaidTo}    />}
+        {currentAmountMin && <input type="hidden" name="amountMin"     value={currentAmountMin} />}
+        {currentAmountMax && <input type="hidden" name="amountMax"     value={currentAmountMax} />}
+        <input
+          type="text" name="athleteName" defaultValue={currentAthleteName ?? ''}
+          placeholder="Buscar alumno..."
+          className="h-11 min-w-0 flex-1 rounded-lg border border-input bg-background px-3 text-[15px] focus:outline-none focus:ring-2 focus:ring-ring sm:h-10 sm:max-w-[16rem] sm:text-sm"
+        />
+        <div className="flex items-center gap-2">
           <input
             type="text" name="search" defaultValue={currentSearch ?? ''}
             placeholder="Concepto..."
-            className="h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring w-32"
+            className="h-11 min-w-0 flex-1 rounded-lg border border-input bg-background px-3 text-[15px] focus:outline-none focus:ring-2 focus:ring-ring sm:h-10 sm:w-32 sm:flex-none sm:text-sm"
           />
-          <button type="submit" className="h-9 px-4 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90">
+          <button type="submit" className="h-11 shrink-0 rounded-lg bg-primary px-5 text-sm font-bold text-primary-foreground hover:bg-primary/90 sm:h-10">
             Buscar
           </button>
-        </form>
+        </div>
+      </form>
 
-        <div className="w-px h-6 bg-border" />
+      {/* Estado de pago */}
+      <ScrollRow label="Estado de pago">
+        <button
+          type="button"
+          onClick={() => router.push(buildUrl({ status: null }))}
+          className={`${PILL} ${!currentStatus ? 'border-foreground/40 bg-foreground text-background' : PILL_IDLE}`}
+        >
+          Todos
+        </button>
+        {STATUS_OPTIONS.map((opt) => {
+          const active = currentStatus === opt.value
+          return (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => router.push(buildUrl({ status: active ? null : opt.value }))}
+              className={`${PILL} inline-flex items-center gap-2 ${active ? opt.activeClass : PILL_IDLE}`}
+            >
+              <span className={`h-2 w-2 rounded-full ${active ? 'bg-white' : opt.dot}`} />
+              {opt.label}
+            </button>
+          )
+        })}
+      </ScrollRow>
 
-        {/* Status pills */}
-        {STATUS_OPTIONS.map((opt) => (
-          <button
-            key={opt.value}
-            onClick={() => router.push(buildUrl({ status: currentStatus === opt.value ? null : opt.value }))}
-            className={`h-9 px-3 rounded-md border text-sm font-medium transition-colors ${
-              currentStatus === opt.value
-                ? opt.activeClass
-                : 'bg-background border-input text-muted-foreground hover:border-foreground/30 hover:text-foreground'
-            }`}
-          >
-            {opt.label}
-          </button>
-        ))}
-
-        <div className="w-px h-6 bg-border" />
-
-        {/* Month presets */}
+      {/* Atajos + avanzado */}
+      <ScrollRow label="Atajos">
         <MonthPresetButtons
           currentFrom={currentFrom}
           currentTo={currentTo}
@@ -200,58 +226,56 @@ export function PaymentsFilter({
           currentStatus={currentStatus}
         />
 
-        <div className="w-px h-6 bg-border" />
+        <span className="h-6 w-px shrink-0 bg-border" />
 
-        {/* Advanced toggle */}
         <button
           type="button"
           onClick={() => setExpanded(!expanded)}
-          className={`h-9 px-3 rounded-md border text-sm font-medium transition-colors flex items-center gap-1.5 ${
-            expanded || advancedCount > 0
-              ? 'bg-primary/10 border-primary/30 text-primary'
-              : 'bg-background border-input text-muted-foreground hover:text-foreground'
+          className={`${PILL} inline-flex items-center gap-1.5 ${
+            expanded || advancedCount > 0 ? 'bg-primary/10 border-primary/30 text-primary' : PILL_IDLE
           }`}
         >
-          <SlidersHorizontal className="w-3.5 h-3.5" />
+          <SlidersHorizontal className="w-4 h-4" />
           Más filtros
           {advancedCount > 0 && (
             <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-primary text-primary-foreground text-[10px] font-bold">
               {advancedCount}
             </span>
           )}
-          {expanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+          {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
         </button>
 
         {hasAny && (
           <button
+            type="button"
             onClick={() => router.push(pathname)}
-            className="h-9 px-3 rounded-md border border-input text-sm text-muted-foreground hover:text-foreground flex items-center gap-1.5"
+            className={`${PILL} inline-flex items-center gap-1.5 ${PILL_IDLE}`}
           >
-            <X className="w-3.5 h-3.5" /> Limpiar
+            <X className="w-4 h-4" /> Limpiar
           </button>
         )}
-      </div>
+      </ScrollRow>
 
       {/* Advanced panel */}
       {expanded && (
-        <div className="p-4 rounded-lg border border-border bg-muted/30 space-y-4">
+        <div className="p-3 sm:p-4 rounded-lg border border-border bg-muted/30 space-y-4">
           {/* Method */}
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-medium text-muted-foreground w-24 shrink-0">Método de pago</span>
+          <ScrollRow label="Método de pago">
             {METHOD_OPTIONS.map((opt) => (
               <button
                 key={opt.value}
+                type="button"
                 onClick={() => router.push(buildUrl({ paymentMethod: currentMethod === opt.value ? null : opt.value }))}
-                className={`h-7 px-2.5 rounded-md border text-xs font-medium transition-colors ${
+                className={`${SMALL_PILL} ${
                   currentMethod === opt.value
                     ? 'bg-primary text-primary-foreground border-primary'
-                    : 'bg-background border-input text-muted-foreground hover:text-foreground'
+                    : PILL_IDLE
                 }`}
               >
                 {opt.label}
               </button>
             ))}
-          </div>
+          </ScrollRow>
 
           {/* Date ranges */}
           <div className="grid sm:grid-cols-2 gap-4">
@@ -259,15 +283,15 @@ export function PaymentsFilter({
               <span className="text-xs font-medium text-muted-foreground">Fecha vencimiento</span>
               <div className="flex items-center gap-2">
                 <input type="date" defaultValue={currentFrom ?? ''}
-                  className="flex-1 h-8 px-2 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="min-w-0 flex-1 h-10 px-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                   onChange={(e) => router.push(buildUrl({ from: e.target.value || null }))} />
                 <span className="text-xs text-muted-foreground">—</span>
                 <input type="date" defaultValue={currentTo ?? ''}
-                  className="flex-1 h-8 px-2 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="min-w-0 flex-1 h-10 px-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                   onChange={(e) => router.push(buildUrl({ to: e.target.value || null }))} />
                 {(currentFrom || currentTo) && (
-                  <button onClick={() => router.push(buildUrl({ from: null, to: null }))} className="text-muted-foreground hover:text-foreground shrink-0">
-                    <X className="w-3.5 h-3.5" />
+                  <button type="button" onClick={() => router.push(buildUrl({ from: null, to: null }))} className="text-muted-foreground hover:text-foreground shrink-0">
+                    <X className="w-4 h-4" />
                   </button>
                 )}
               </div>
@@ -276,15 +300,15 @@ export function PaymentsFilter({
               <span className="text-xs font-medium text-muted-foreground">Fecha de pago efectivo</span>
               <div className="flex items-center gap-2">
                 <input type="date" defaultValue={currentPaidFrom ?? ''}
-                  className="flex-1 h-8 px-2 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="min-w-0 flex-1 h-10 px-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                   onChange={(e) => router.push(buildUrl({ paidFrom: e.target.value || null }))} />
                 <span className="text-xs text-muted-foreground">—</span>
                 <input type="date" defaultValue={currentPaidTo ?? ''}
-                  className="flex-1 h-8 px-2 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="min-w-0 flex-1 h-10 px-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                   onChange={(e) => router.push(buildUrl({ paidTo: e.target.value || null }))} />
                 {(currentPaidFrom || currentPaidTo) && (
-                  <button onClick={() => router.push(buildUrl({ paidFrom: null, paidTo: null }))} className="text-muted-foreground hover:text-foreground shrink-0">
-                    <X className="w-3.5 h-3.5" />
+                  <button type="button" onClick={() => router.push(buildUrl({ paidFrom: null, paidTo: null }))} className="text-muted-foreground hover:text-foreground shrink-0">
+                    <X className="w-4 h-4" />
                   </button>
                 )}
               </div>
@@ -292,9 +316,9 @@ export function PaymentsFilter({
           </div>
 
           {/* Amount range */}
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-medium text-muted-foreground w-24 shrink-0">Rango de monto</span>
-            <form method="get" action="/dashboard/payments" className="flex items-center gap-2">
+          <div className="space-y-1.5">
+            <span className="text-xs font-medium text-muted-foreground">Rango de monto</span>
+            <form method="get" action="/dashboard/payments" className="flex flex-wrap items-center gap-2">
               {currentStatus    && <input type="hidden" name="status"        value={currentStatus}    />}
               {currentMethod    && <input type="hidden" name="paymentMethod" value={currentMethod}    />}
               {currentFrom      && <input type="hidden" name="from"          value={currentFrom}      />}
@@ -303,12 +327,12 @@ export function PaymentsFilter({
               {currentPaidTo    && <input type="hidden" name="paidTo"        value={currentPaidTo}    />}
               {currentSearch    && <input type="hidden" name="search"        value={currentSearch}    />}
               {currentAthleteName && <input type="hidden" name="athleteName" value={currentAthleteName} />}
-              <input type="number" name="amountMin" defaultValue={currentAmountMin ?? ''} min={0} placeholder="Mín."
-                className="h-8 px-2 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring w-24" />
+              <input type="number" inputMode="numeric" name="amountMin" defaultValue={currentAmountMin ?? ''} min={0} placeholder="Mín."
+                className="h-10 px-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring w-24" />
               <span className="text-xs text-muted-foreground">—</span>
-              <input type="number" name="amountMax" defaultValue={currentAmountMax ?? ''} min={0} placeholder="Máx."
-                className="h-8 px-2 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring w-24" />
-              <button type="submit" className="h-8 px-3 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90">
+              <input type="number" inputMode="numeric" name="amountMax" defaultValue={currentAmountMax ?? ''} min={0} placeholder="Máx."
+                className="h-10 px-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring w-24" />
+              <button type="submit" className="h-10 px-4 rounded-md bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90">
                 Aplicar
               </button>
             </form>

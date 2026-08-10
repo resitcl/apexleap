@@ -7,22 +7,8 @@ import { EditPaymentButton } from './EditPaymentButton'
 import { MarkAsPaidButton } from './MarkAsPaidButton'
 import { ConfirmTransferButton } from './ConfirmTransferButton'
 import { DeletePaymentButton } from './DeletePaymentButton'
-import { ONLINE_GATEWAY_IDS } from '@/lib/payment-methods'
-
-const STATUS_DOT: Record<string, string> = {
-  paid: 'bg-emerald-400', pending: 'bg-amber-400', overdue: 'bg-red-500',
-  failed: 'bg-red-500', cancelled: 'bg-muted-foreground/40',
-}
-
-const STATUS_LABEL: Record<string, string> = {
-  paid: 'Pagado', pending: 'Pendiente', overdue: 'Vencido',
-  failed: 'Fallido', cancelled: 'Cancelado',
-}
-
-const METHOD_LABEL: Record<string, string> = {
-  cash: 'Efectivo', transfer: 'Transferencia', webpay: 'Webpay',
-  flow: 'Flow', mercadopago: 'MercadoPago', khipu: 'Khipu', other: 'Otro',
-}
+import { ONLINE_GATEWAY_IDS, paymentMethodLabel } from '@/lib/payment-methods'
+import { paymentRowTone } from '@/lib/payment-status'
 
 const BILLING_LABEL: Record<string, string> = {
   monthly: 'mes', quarterly: 'trim', semiannual: 'sem', annual: 'año', single: 'único',
@@ -47,13 +33,17 @@ interface Payment {
 
 interface Props {
   payment: Payment
-  athleteDebt: number
   isDuplicate: boolean
   /** subscriptions.next_billing_date de la suscripción activa del atleta */
   nextBillingDate: string | null
+  /** Días de mora ya calculados en el servidor (no usar Date.now() en render). */
+  overdueDays: number
 }
 
-export function PaymentRowClient({ payment, athleteDebt, isDuplicate, nextBillingDate }: Props) {
+const fmtDate = (iso: string) =>
+  new Date(iso).toLocaleDateString('es-CL', { day: 'numeric', month: 'short', year: 'numeric' })
+
+export function PaymentRowClient({ payment, isDuplicate, nextBillingDate, overdueDays }: Props) {
   const [confirmOpen, setConfirmOpen] = useState(false)
 
   const athlete = payment.athletes
@@ -65,8 +55,7 @@ export function PaymentRowClient({ payment, athleteDebt, isDuplicate, nextBillin
   const isPendingTransfer = (payment.status === 'pending' || payment.status === 'overdue') && (isTransfer || hasReceipt)
   const plan = payment.plans
 
-  const dot = STATUS_DOT[payment.status] ?? 'bg-muted-foreground/40'
-  const label = STATUS_LABEL[payment.status] ?? payment.status
+  const tone = paymentRowTone(payment.status)
 
   function handleRowClick() {
     if (isPendingTransfer && !confirmOpen) {
@@ -74,19 +63,104 @@ export function PaymentRowClient({ payment, athleteDebt, isDuplicate, nextBillin
     }
   }
 
+  const actions = (
+    <>
+      <EditPaymentButton payment={payment} />
+      {(payment.status === 'pending' || payment.status === 'overdue') && !isOnlineGateway && (
+        isPendingTransfer ? (
+          <ConfirmTransferButton payment={payment} />
+        ) : (
+          <MarkAsPaidButton paymentId={payment.id} />
+        )
+      )}
+      <DeletePaymentButton paymentId={payment.id} />
+    </>
+  )
+
+  const statusChip = (
+    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-black uppercase tracking-wider ${tone.bg} ${tone.text}`}>
+      <span className={`h-1.5 w-1.5 rounded-full ${tone.dot}`} />
+      {tone.label}
+      {overdueDays > 0 ? <span className="opacity-80">· {overdueDays}d</span> : null}
+    </span>
+  )
+
   return (
     <>
+      {/* ══ MOBILE CARD ══ */}
       <div
-        className={`grid grid-cols-1 md:grid-cols-[minmax(200px,2fr)_110px_minmax(140px,1.5fr)_120px_110px_130px_120px] gap-3 md:gap-4 items-center px-6 py-4 transition-colors ${
+        className={`md:hidden p-4 space-y-3 transition-colors ${
+          isPendingTransfer ? 'cursor-pointer border-l-2 border-l-amber-500 bg-amber-500/[0.04]' : ''
+        }`}
+        onClick={handleRowClick}
+      >
+        <div className="flex items-start gap-3">
+          <Avatar className="w-10 h-10 shrink-0 border border-border">
+            <AvatarFallback className="text-xs font-black bg-muted/60">
+              {athlete?.name?.slice(0, 2).toUpperCase() ?? '??'}
+            </AvatarFallback>
+          </Avatar>
+          <div className="min-w-0 flex-1">
+            {athlete ? (
+              <Link
+                href={`/dashboard/athletes/${athlete.id}`}
+                className="block truncate text-[15px] font-bold hover:text-primary"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {athlete.name}
+              </Link>
+            ) : (
+              <span className="text-[15px] font-bold text-muted-foreground">—</span>
+            )}
+            <p className="mt-0.5 truncate text-[12px] text-muted-foreground/70">
+              {payment.concept}
+              {hasReceipt && <span className="ml-1.5 text-primary/80">📎</span>}
+            </p>
+          </div>
+          <p className="shrink-0 text-[17px] font-black tracking-tight text-foreground">
+            ${Number(payment.amount).toLocaleString('es-CL')}
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-1.5">
+          {statusChip}
+          {payment.payment_method && (
+            <span className="rounded-full border border-border bg-muted/60 px-2.5 py-1 text-[11px] font-bold text-muted-foreground">
+              {paymentMethodLabel(payment.payment_method)}
+            </span>
+          )}
+          {isDuplicate && (
+            <span className="rounded-full bg-amber-500/20 px-2 py-1 text-[11px] font-black text-amber-600 dark:text-amber-400">DUP</span>
+          )}
+          {plan && (
+            <span className="max-w-[10rem] truncate rounded-full border border-border bg-muted/60 px-2.5 py-1 text-[11px] font-bold text-muted-foreground">
+              {plan.name}{plan.billing_cycle ? `/${BILLING_LABEL[plan.billing_cycle] ?? ''}` : ''}
+            </span>
+          )}
+        </div>
+
+        <div className="flex items-center justify-between gap-3 text-[12px] text-muted-foreground/70">
+          <span>{payment.paid_at ? `Pagado ${fmtDate(payment.paid_at)}` : `Vence ${fmtDate(`${payment.due_date}T12:00:00`)}`}</span>
+          {nextBillingDate ? <span>Próx. {fmtDate(`${nextBillingDate}T12:00:00`)}</span> : null}
+        </div>
+
+        <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+          {actions}
+        </div>
+      </div>
+
+      {/* ══ DESKTOP GRID ══ */}
+      <div
+        className={`hidden md:grid grid-cols-[minmax(200px,2fr)_110px_minmax(140px,1.5fr)_120px_110px_130px_120px] gap-4 items-center px-6 py-4 transition-colors ${
           isPendingTransfer
-            ? 'cursor-pointer hover:bg-primary/5 border-l-2 border-l-primary/40'
+            ? 'cursor-pointer hover:bg-amber-500/5 border-l-2 border-l-amber-500/60'
             : 'hover:bg-muted/5'
         }`}
         onClick={handleRowClick}
       >
         {/* Athlete */}
         <div className="flex items-center gap-3 min-w-0">
-          <Avatar className="w-9 h-9 shrink-0 border border-white/[0.06]">
+          <Avatar className="w-9 h-9 shrink-0 border border-border">
             <AvatarFallback className="text-xs font-black bg-muted/40">
               {athlete?.name?.slice(0, 2).toUpperCase() ?? '??'}
             </AvatarFallback>
@@ -114,7 +188,7 @@ export function PaymentRowClient({ payment, athleteDebt, isDuplicate, nextBillin
         <div>
           <p className="text-sm font-black tracking-tight text-foreground">${Number(payment.amount).toLocaleString('es-CL')}</p>
           {payment.payment_method && (
-            <p className="text-[10px] text-muted-foreground/50 font-medium mt-0.5">{METHOD_LABEL[payment.payment_method] ?? payment.payment_method}</p>
+            <p className="text-[10px] text-muted-foreground/60 font-medium mt-0.5">{paymentMethodLabel(payment.payment_method)}</p>
           )}
         </div>
 
@@ -123,7 +197,7 @@ export function PaymentRowClient({ payment, athleteDebt, isDuplicate, nextBillin
           {plan ? (
             <>
               <p className="text-sm font-bold text-foreground/80 truncate">{plan.name}</p>
-              <p className="text-[10px] text-muted-foreground/50 font-medium">
+              <p className="text-[10px] text-muted-foreground/60 font-medium">
                 ${Number(payment.amount).toLocaleString('es-CL')}/{BILLING_LABEL[plan.billing_cycle ?? ''] ?? ''}
               </p>
             </>
@@ -134,11 +208,8 @@ export function PaymentRowClient({ payment, athleteDebt, isDuplicate, nextBillin
 
         {/* Paid at */}
         <div>
-          <p className="md:hidden text-[9px] font-black uppercase tracking-widest text-muted-foreground/50 mb-0.5">Fecha pago</p>
           {payment.paid_at ? (
-            <p className="text-sm text-muted-foreground font-medium">
-              {new Date(payment.paid_at).toLocaleDateString('es-CL', { day: 'numeric', month: 'short', year: 'numeric' })}
-            </p>
+            <p className="text-sm text-muted-foreground font-medium">{fmtDate(payment.paid_at)}</p>
           ) : (
             <span className="text-sm text-muted-foreground/40">—</span>
           )}
@@ -146,11 +217,8 @@ export function PaymentRowClient({ payment, athleteDebt, isDuplicate, nextBillin
 
         {/* Next subscription payment */}
         <div>
-          <p className="md:hidden text-[9px] font-black uppercase tracking-widest text-muted-foreground/50 mb-0.5">Próximo pago</p>
           {nextBillingDate ? (
-            <p className="text-sm text-muted-foreground font-medium">
-              {new Date(nextBillingDate + 'T12:00:00').toLocaleDateString('es-CL', { day: 'numeric', month: 'short', year: 'numeric' })}
-            </p>
+            <p className="text-sm text-muted-foreground font-medium">{fmtDate(`${nextBillingDate}T12:00:00`)}</p>
           ) : (
             <span className="text-sm text-muted-foreground/40">—</span>
           )}
@@ -159,35 +227,18 @@ export function PaymentRowClient({ payment, athleteDebt, isDuplicate, nextBillin
         {/* Status */}
         <div className="flex flex-col gap-0.5 min-w-0">
           <div className="flex items-center gap-2">
-            <span className={`w-2 h-2 rounded-full shrink-0 ${dot}`} />
-            <span className={`text-sm font-bold ${
-              payment.status === 'paid' ? 'text-primary' :
-              payment.status === 'overdue' ? 'text-destructive' :
-              payment.status === 'pending' ? 'text-amber-400' :
-              'text-muted-foreground'
-            }`}>
-              {label}
-            </span>
-            {isDuplicate && <span className="text-[9px] bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded font-bold">DUP</span>}
+            <span className={`w-2 h-2 rounded-full shrink-0 ${tone.dot}`} />
+            <span className={`text-sm font-bold ${tone.text}`}>{tone.label}</span>
+            {isDuplicate && <span className="text-[9px] bg-amber-500/20 text-amber-600 dark:text-amber-400 px-1.5 py-0.5 rounded font-bold">DUP</span>}
           </div>
-          {payment.status === 'overdue' && (() => {
-            const days = Math.floor((Date.now() - new Date(`${payment.due_date}T12:00:00`).getTime()) / 86400000)
-            if (days <= 0) return null
-            return <p className="text-[10px] text-destructive font-bold pl-4">{days}d mora</p>
-          })()}
+          {overdueDays > 0 && (
+            <p className="text-[10px] text-red-600 dark:text-red-400 font-bold pl-4">{overdueDays}d mora</p>
+          )}
         </div>
 
         {/* Actions */}
         <div className="flex items-center gap-1.5 justify-end" onClick={(e) => e.stopPropagation()}>
-          <EditPaymentButton payment={payment} />
-          {(payment.status === 'pending' || payment.status === 'overdue') && !isOnlineGateway && (
-            isPendingTransfer ? (
-              <ConfirmTransferButton payment={payment} />
-            ) : (
-              <MarkAsPaidButton paymentId={payment.id} />
-            )
-          )}
-          <DeletePaymentButton paymentId={payment.id} />
+          {actions}
         </div>
       </div>
 

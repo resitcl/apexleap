@@ -200,7 +200,7 @@ export async function createPayment(input: PaymentInput) {
     await activateSubscriptionForPaidPayment(
       supabase,
       clubId,
-      { athlete_id: parsed.athlete_id, plan_id: parsed.plan_id, period_start: periodStart, period_end: periodEnd },
+      { athlete_id: parsed.athlete_id, plan_id: parsed.plan_id, period_start: periodStart, period_end: periodEnd, amount: parsed.amount },
       paidAtDate,
       parsed.payment_method ?? 'manual',
     )
@@ -227,7 +227,7 @@ export async function markAsPaid(id: string, method: string, paidAt?: string) {
   // Fetch payment before updating so we have athlete_id + plan_id
   const { data: payment, error: fetchError } = await supabase
     .from('payments')
-    .select('id, athlete_id, plan_id, period_start, period_end, payment_method')
+    .select('id, athlete_id, plan_id, period_start, period_end, payment_method, amount')
     .eq('id', id)
     .eq('club_id', clubId)
     .single()
@@ -420,15 +420,19 @@ export async function deletePayment(id: string): Promise<{ ok: boolean; error?: 
 /**
  * Confirm a transfer payment: mark as paid and activate the subscription.
  * The payment_method is forced to 'transfer'.
+ *
+ * `amount` permite registrar el monto REAL transferido cuando difiere del valor del plan
+ * (descuentos, becas, abonos parciales acordados). La diferencia queda anotada en `notes`
+ * para dejar rastro de por qué el cobro no calza con la tarifa del plan.
  */
-export async function confirmTransferPayment(paymentId: string, paidAt?: string) {
+export async function confirmTransferPayment(paymentId: string, paidAt?: string, amount?: number) {
   await assertClubCapability('finances')
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
   const { data: payment, error: paymentError } = await supabase
     .from('payments')
-    .select('id, athlete_id, plan_id, period_start, period_end')
+    .select('id, athlete_id, plan_id, period_start, period_end, amount, notes')
     .eq('id', paymentId)
     .eq('club_id', clubId)
     .single()
@@ -437,12 +441,33 @@ export async function confirmTransferPayment(paymentId: string, paidAt?: string)
 
   const paidAtDate = paidAt ? new Date(`${paidAt}T12:00:00`) : new Date()
 
+  const originalAmount = Number(payment.amount ?? 0)
+  let finalAmount = originalAmount
+  let notes = (payment.notes as string | null) ?? null
+
+  if (amount !== undefined && amount !== null) {
+    if (!Number.isFinite(amount) || amount < 0) {
+      throw new Error('El monto transferido debe ser un número mayor o igual a 0.')
+    }
+    finalAmount = Math.round(amount)
+    if (Math.abs(finalAmount - originalAmount) >= 1) {
+      const delta = finalAmount - originalAmount
+      const label = delta < 0 ? 'Descuento' : 'Excedente'
+      const line =
+        `${label} aplicado al confirmar: transferido $${finalAmount.toLocaleString('es-CL')} ` +
+        `(plan $${originalAmount.toLocaleString('es-CL')}, diferencia $${Math.abs(delta).toLocaleString('es-CL')}).`
+      notes = notes ? `${notes}\n${line}` : line
+    }
+  }
+
   const { error: updateError } = await supabase
     .from('payments')
     .update({
       status: 'paid',
       paid_at: paidAtDate.toISOString(),
       payment_method: 'transfer',
+      amount: finalAmount,
+      notes,
     })
     .eq('id', paymentId)
     .eq('club_id', clubId)
@@ -450,7 +475,13 @@ export async function confirmTransferPayment(paymentId: string, paidAt?: string)
   if (updateError) throw new Error(updateError.message)
 
   if (payment.plan_id && payment.athlete_id) {
-    await activateSubscriptionForPaidPayment(supabase, clubId, payment, paidAtDate, 'transfer')
+    await activateSubscriptionForPaidPayment(
+      supabase,
+      clubId,
+      { ...payment, amount: finalAmount },
+      paidAtDate,
+      'transfer',
+    )
     revalidatePath('/dashboard/subscriptions')
     revalidatePath('/dashboard/athletes')
     revalidatePath(`/dashboard/athletes/${payment.athlete_id}`)
@@ -473,7 +504,7 @@ export async function bulkMarkAsPaid(ids: string[], method = 'manual') {
   // Fetch affected payments so we can activate subscriptions
   const { data: payments, error: fetchError } = await supabase
     .from('payments')
-    .select('id, athlete_id, plan_id, period_start, period_end, payment_method')
+    .select('id, athlete_id, plan_id, period_start, period_end, payment_method, amount')
     .in('id', ids)
     .eq('club_id', clubId)
     .in('status', ['pending', 'overdue'])

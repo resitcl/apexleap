@@ -6,6 +6,7 @@ import {
 import { ONLINE_GATEWAY_IDS } from '@/lib/payment-methods'
 import { sendPaymentConfirmationEmail, sendPaymentFailedEmail } from '@/lib/email'
 import { resolveAutoEmail } from '@/lib/auto-templates'
+import { notifyAdminsPaymentSubmitted } from '@/lib/admin-notifications'
 
 /** Formatea un monto CLP para usar en variables de plantilla ({{monto}}). */
 function formatClp(amount: number): string {
@@ -19,6 +20,8 @@ export type PaymentForActivation = {
   plan_id: string | null
   period_start?: string | null
   period_end?: string | null
+  /** Monto realmente cobrado. Puede diferir del precio del plan (descuentos, becas). */
+  amount?: number | null
 }
 
 /** Cancela suscripciones activas o en espera de pago del atleta (opcionalmente excluyendo una). */
@@ -117,6 +120,19 @@ export async function activateSubscriptionForPaidPayment(
 
   // Correo de confirmación (best-effort: nunca bloquea el flujo de pago).
   await notifyPaymentConfirmed(supabase, clubId, payment, plan as { name?: string; price?: number }, nextBillingStr)
+
+  // Pasarela = el alumno pagó por su cuenta y nadie del club tocó nada: avisamos al admin.
+  // Las confirmaciones manuales (transfer/cash/manual) las hace el propio admin, no se avisan.
+  if ((ONLINE_GATEWAY_IDS as readonly string[]).includes(paymentMethod)) {
+    await notifyAdminsPaymentSubmitted(supabase, {
+      clubId,
+      athleteId: payment.athlete_id,
+      amount: Number(payment.amount ?? plan.price ?? 0),
+      paymentMethod,
+      planName: (plan as { name?: string }).name ?? null,
+      state: 'paid',
+    })
+  }
 }
 
 /**
@@ -151,12 +167,16 @@ async function notifyPaymentConfirmed(
     const clubEmail =
       (settings.payment_settings as { bank_info?: { email?: string } } | undefined)?.bank_info?.email ?? null
 
+    // El monto del pago manda sobre el precio de lista: si el admin confirmó un monto distinto
+    // (descuento), el alumno debe ver en su comprobante lo que realmente transfirió.
+    const paidAmount = Number(payment.amount ?? plan?.price ?? 0)
+
     const clubName = club?.name ?? 'tu academia'
     const tpl = resolveAutoEmail(settings, 'payment_confirmation', {
       nombre: athlete?.name ?? 'Atleta',
       club: clubName,
       plan: plan?.name ?? '',
-      monto: formatClp(Number(plan?.price ?? 0)),
+      monto: formatClp(paidAmount),
     })
     if (!tpl) return // el club desactivó este correo automático
 
@@ -165,7 +185,7 @@ async function notifyPaymentConfirmed(
       athleteName: athlete?.name ?? 'Atleta',
       clubName,
       clubSlug: club?.slug ?? '',
-      amount: Number(plan?.price ?? 0),
+      amount: paidAmount,
       planName: plan?.name ?? undefined,
       periodStart: payment.period_start ?? undefined,
       periodEnd: payment.period_end ?? undefined,
@@ -282,7 +302,7 @@ export async function markPaymentPaidIdempotent(
     .eq('id', paymentId)
     .eq('club_id', clubId)
     .neq('status', 'paid')
-    .select('id, athlete_id, plan_id, period_start, period_end')
+    .select('id, athlete_id, plan_id, period_start, period_end, amount')
     .maybeSingle()
 
   if (error) throw new Error(error.message)

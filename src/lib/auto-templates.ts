@@ -12,6 +12,7 @@ export type AutoTemplateKey =
   | "payment_reminder"
   | "payment_failed"
   | "welcome"
+  | "admin_payment_alert"
 
 export type AutoTemplate = {
   /** Asunto del correo. Admite variables {{...}}. */
@@ -33,6 +34,7 @@ export const AUTO_TEMPLATE_KEYS: AutoTemplateKey[] = [
   "payment_reminder",
   "payment_failed",
   "welcome",
+  "admin_payment_alert",
 ]
 
 /** Metadatos para la UI: etiqueta, descripción del disparador y variables disponibles. */
@@ -64,6 +66,14 @@ export const AUTO_TEMPLATE_META: Record<
     variables: ["nombre", "club"],
     hasDetailsCard: false,
   },
+  admin_payment_alert: {
+    label: "Aviso al administrador (pago de un alumno)",
+    trigger:
+      "Se envía a los administradores del club cuando un alumno registra un pago desde su portal " +
+      "o cuando una pasarela acredita un pago automáticamente.",
+    variables: ["nombre", "club", "plan", "monto", "metodo", "estado"],
+    hasDetailsCard: true,
+  },
 }
 
 /** Texto por defecto (subject + body) de cada caso. `enabled` por defecto es true. */
@@ -87,6 +97,12 @@ export const AUTO_TEMPLATE_DEFAULTS: Record<AutoTemplateKey, { subject: string; 
     body:
       "¡Bienvenido/a, {{nombre}}!\n\nTu academia {{club}} te ha dado de alta en su plataforma. " +
       "Desde tu cuenta puedes ver tus pagos y el estado de tu membresía.",
+  },
+  admin_payment_alert: {
+    subject: "{{nombre}} registró un pago – {{club}}",
+    body:
+      "Nuevo pago registrado\n\n{{nombre}} registró un pago de {{monto}} por {{metodo}} en {{club}}. " +
+      "Revisa el detalle y confirma el cobro desde el panel de Pagos.",
   },
 }
 

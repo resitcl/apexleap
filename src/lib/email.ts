@@ -516,6 +516,133 @@ function buildPaymentFailedHtml(opts: {
 }
 
 // ---------------------------------------------------------------------------
+// Template: Aviso al administrador — un alumno registró un pago
+// ---------------------------------------------------------------------------
+
+function buildAdminPaymentAlertHtml(opts: {
+  athleteName: string
+  clubName: string
+  clubSlug: string
+  amount: number
+  currency?: string
+  planName?: string
+  methodLabel?: string
+  /** "Pendiente de validación" | "Confirmado automáticamente" */
+  statusLabel?: string
+  concept?: string
+  hasReceipt?: boolean
+  logoUrl?: string | null
+  brandColor?: string | null
+  introOverride?: string
+  buttonOverride?: { text: string; url: string }
+  showDetails?: boolean
+}) {
+  const currency = opts.currency ?? 'CLP'
+  const formattedAmount = new Intl.NumberFormat('es-CL', {
+    style: 'currency',
+    currency,
+    minimumFractionDigits: 0,
+  }).format(opts.amount)
+
+  const ctaUrl = opts.buttonOverride?.url || `${APP_URL}/dashboard/payments?status=pending`
+  const ctaText = opts.buttonOverride?.text || 'Revisar en el panel →'
+  const showDetails = opts.showDetails !== false
+  const { bg, fg } = getClubBranding(opts.brandColor)
+  const needsReview = (opts.statusLabel ?? '').toLowerCase().includes('pendiente')
+
+  const bannerBg = needsReview ? '#fef3c7' : '#dcfce7'
+  const bannerBorder = needsReview ? '#fde68a' : '#bbf7d0'
+  const bannerColor = needsReview ? '#92400e' : '#166534'
+  const bannerText = needsReview
+    ? '🔔 Nuevo pago por validar'
+    : '✅ Pago acreditado automáticamente'
+
+  const row = (label: string, value: string) => `
+    <tr>
+      <td style="padding:6px 0;font-size:13px;color:#71717a;">${escapeHtml(label)}</td>
+      <td style="padding:6px 0;font-size:14px;color:#18181b;font-weight:600;text-align:right;">${escapeHtml(value)}</td>
+    </tr>`
+
+  return `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nuevo pago registrado – ${escapeHtml(opts.clubName)}</title>
+</head>
+<body style="margin:0;padding:0;background:#f4f4f5;font-family:Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 20px;">
+    <tr>
+      <td align="center">
+        <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+
+          ${buildHeader(opts.clubName, opts.logoUrl, bg, fg)}
+
+          <tr>
+            <td style="background:${bannerBg};padding:12px 40px;border-bottom:1px solid ${bannerBorder};">
+              <p style="margin:0;font-size:14px;color:${bannerColor};text-align:center;font-weight:600;">
+                ${bannerText}
+              </p>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:40px;">
+              ${opts.introOverride ? renderIntroHtml(opts.introOverride) : `<h1 style="margin:0 0 8px;font-size:22px;color:#18181b;">
+                Nuevo pago registrado
+              </h1>
+              <p style="margin:0 0 24px;font-size:16px;color:#52525b;line-height:1.6;">
+                <strong>${escapeHtml(opts.athleteName)}</strong> registró un pago en <strong>${escapeHtml(opts.clubName)}</strong>.
+              </p>`}
+
+              ${showDetails ? `<table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;border:1px solid #e4e4e7;border-radius:8px;margin-bottom:24px;">
+                <tr>
+                  <td style="padding:20px 24px;">
+                    <p style="margin:0 0 4px;font-size:13px;color:#71717a;text-transform:uppercase;letter-spacing:0.5px;">Monto</p>
+                    <p style="margin:0 0 14px;font-size:28px;color:#18181b;font-weight:700;">${formattedAmount}</p>
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                      ${row('Alumno', opts.athleteName)}
+                      ${opts.planName ? row('Plan', opts.planName) : ''}
+                      ${opts.concept ? row('Concepto', opts.concept) : ''}
+                      ${opts.methodLabel ? row('Método', opts.methodLabel) : ''}
+                      ${opts.statusLabel ? row('Estado', opts.statusLabel) : ''}
+                      ${row('Comprobante', opts.hasReceipt ? 'Adjunto' : 'Sin adjunto')}
+                    </table>
+                  </td>
+                </tr>
+              </table>` : ''}
+
+              <table cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="background:${bg};border-radius:8px;text-align:center;">
+                    <a href="${ctaUrl}"
+                       style="display:inline-block;padding:14px 28px;color:${fg};font-size:15px;font-weight:600;text-decoration:none;">
+                      ${ctaText}
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="margin:24px 0 0;font-size:13px;color:#a1a1aa;line-height:1.6;">
+                Recibes este aviso porque administras ${escapeHtml(opts.clubName)} en ApexLeap.
+                Puedes desactivarlo en Configuración → Plantillas automáticas.
+              </p>
+            </td>
+          </tr>
+
+          ${buildFooter(opts.clubName)}
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+`
+}
+
+// ---------------------------------------------------------------------------
 // Funciones de envío públicas
 // ---------------------------------------------------------------------------
 
@@ -710,6 +837,61 @@ export async function sendPaymentFailedEmail(opts: {
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Error desconocido'
     console.error('[email] Excepción al enviar aviso de pago rechazado:', message)
+    return { success: false, error: message }
+  }
+}
+
+/**
+ * Avisa a los administradores del club que un alumno registró un pago.
+ * `to` acepta varios destinatarios (todos los admins del club).
+ */
+export async function sendAdminPaymentAlertEmail(opts: {
+  to: string[]
+  athleteName: string
+  clubName: string
+  clubSlug: string
+  amount: number
+  currency?: string
+  planName?: string
+  methodLabel?: string
+  statusLabel?: string
+  concept?: string
+  hasReceipt?: boolean
+  logoUrl?: string | null
+  brandColor?: string | null
+  replyTo?: string | null
+  subjectOverride?: string
+  introOverride?: string
+  buttonOverride?: { text: string; url: string }
+  showDetails?: boolean
+}): Promise<SendEmailResult> {
+  if (!process.env.RESEND_API_KEY) {
+    console.warn('[email] RESEND_API_KEY no configurada — aviso de pago al admin no enviado')
+    return { success: false, error: 'RESEND_API_KEY no configurada' }
+  }
+  const recipients = [...new Set(opts.to.map((e) => e.trim().toLowerCase()).filter(Boolean))]
+  if (recipients.length === 0) return { success: false, error: 'Sin destinatarios' }
+
+  try {
+    const replyTo = resolveReplyTo(opts.replyTo)
+    const { data, error } = await getResend().emails.send({
+      from: FROM_EMAIL,
+      to: recipients,
+      ...(replyTo ? { reply_to: replyTo } : {}),
+      subject: opts.subjectOverride?.trim() || `${opts.athleteName} registró un pago – ${opts.clubName}`,
+      html: buildAdminPaymentAlertHtml(opts),
+    })
+
+    if (error) {
+      console.error('[email] Error al avisar al admin del pago:', error)
+      return { success: false, error: error.message }
+    }
+
+    console.log(`[email] Aviso de pago enviado a ${recipients.length} admin(s) (id: ${data?.id})`)
+    return { success: true, id: data?.id }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Error desconocido'
+    console.error('[email] Excepción al avisar al admin del pago:', message)
     return { success: false, error: message }
   }
 }

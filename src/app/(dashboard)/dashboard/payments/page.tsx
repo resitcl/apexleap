@@ -5,42 +5,22 @@ import Link from "next/link"
 import { Suspense } from "react"
 import { getPayments, getNextBillingDateByAthleteIds } from "@/lib/actions/payments"
 import { getPaymentMetrics, getMonthlyAthleteCollectionStatus } from "@/lib/actions/billing"
-import { ONLINE_GATEWAY_IDS } from "@/lib/payment-methods"
+import { paymentMethodLabel } from "@/lib/payment-methods"
+import { paymentRowTone } from "@/lib/payment-status"
 import { MonthlyCollectionPanel } from "@/components/payments/MonthlyCollectionPanel"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Plus, DollarSign, Clock, AlertTriangle, TrendingUp, CreditCard, ArrowUpRight, ChevronLeft, ChevronRight, CalendarClock, Target, Wallet, BarChart3, ArrowDownRight, Activity, Users } from "lucide-react"
 import { InfoTooltip } from "@/components/ui/info-tooltip"
 import { PaymentsFilter } from "@/components/payments/PaymentsFilter"
-import { MarkAsPaidButton } from "@/components/payments/MarkAsPaidButton"
 import { PaymentRowClient } from "@/components/payments/PaymentRowClient"
 import { ExportPaymentsButton } from "@/components/payments/ExportPaymentsButton"
 import { BulkMarkAsPaidButton } from "@/components/payments/BulkMarkAsPaidButton"
-import { DeletePaymentButton } from "@/components/payments/DeletePaymentButton"
-import { EditPaymentButton } from "@/components/payments/EditPaymentButton"
 import { SyncOverdueButton } from "@/components/payments/SyncOverdueButton"
 
 interface PageProps {
   searchParams: Promise<{ status?: string; page?: string; from?: string; to?: string; athleteId?: string; search?: string; athleteName?: string; amountMin?: string; amountMax?: string; paymentMethod?: string; paidFrom?: string; paidTo?: string; dueFrom?: string; dueTo?: string }>
-}
-
-const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline"; dot: string }> = {
-  paid:      { label: 'Pagado',    variant: 'default',     dot: 'bg-emerald-400' },
-  pending:   { label: 'Pendiente', variant: 'secondary',   dot: 'bg-amber-400' },
-  overdue:   { label: 'Vencido',   variant: 'destructive', dot: 'bg-red-500' },
-  failed:    { label: 'Fallido',   variant: 'destructive', dot: 'bg-red-500' },
-  cancelled: { label: 'Cancelado', variant: 'outline',     dot: 'bg-muted-foreground/40' },
-}
-
-const BILLING_LABEL: Record<string, string> = {
-  monthly: 'mes', quarterly: 'trim', semiannual: 'sem', annual: 'año', single: 'único',
-}
-
-const METHOD_LABEL: Record<string, string> = {
-  cash: 'Efectivo', transfer: 'Transferencia', webpay: 'Webpay',
-  flow: 'Flow', mercadopago: 'MercadoPago', khipu: 'Khipu', other: 'Otro',
 }
 
 function formatCurrency(value: number) {
@@ -68,7 +48,8 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
   let metrics: Awaited<ReturnType<typeof getPaymentMetrics>> | null = null
   let monthlyCollection: Awaited<ReturnType<typeof getMonthlyAthleteCollectionStatus>> | null = null
   let error: string | null = null
-  const currentMonthIso = new Date().toISOString().slice(0, 7)
+  const nowMs = new Date().getTime()
+  const currentMonthIso = new Date(nowMs).toISOString().slice(0, 7)
   let nextBillingByAthlete: Record<string, string | null> = {}
 
   try {
@@ -128,29 +109,8 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
     tableHasFilters ? `${allPayments.length} movimientos filtrados` : `${allPayments.length} movimientos en tabla/exportación`,
     search ? `concepto: ${search}` : null,
     athleteName ? `atleta: ${athleteName}` : null,
-    params.status ? `estado: ${STATUS_CONFIG[params.status]?.label ?? params.status}` : null,
+    params.status ? `estado: ${paymentRowTone(params.status).label}` : null,
   ].filter(Boolean)
-
-  // Overdue alerts
-  const overdueAthletes = (() => {
-    const map: Record<string, { name: string; id: string; debt: number }> = {}
-    for (const p of allPayments.filter((p) => p.status === 'overdue')) {
-      const ath = p.athletes as { id: string; name: string } | null
-      if (!ath) continue
-      if (!map[ath.id]) map[ath.id] = { id: ath.id, name: ath.name, debt: 0 }
-      map[ath.id].debt += Number(p.amount)
-    }
-    return Object.values(map).sort((a, b) => b.debt - a.debt)
-  })()
-
-  // Debt per athlete (for table)
-  const debtByAthlete: Record<string, number> = {}
-  for (const p of allPayments) {
-    if (p.status === 'pending' || p.status === 'overdue') {
-      const id = (p.athletes as { id: string } | null)?.id ?? p.athlete_id ?? ''
-      if (id) debtByAthlete[id] = (debtByAthlete[id] ?? 0) + Number(p.amount)
-    }
-  }
 
   // Duplicate detection
   const keyCounts: Record<string, number> = {}
@@ -199,7 +159,7 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/5 text-primary">
+            <Badge variant="outline" className="rounded-full border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
               {formatCurrency(dashboard.actualIncome)} cobrados este mes
             </Badge>
             <Badge variant="outline" className="rounded-full">
@@ -248,15 +208,15 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
 
       {/* ═══════════ KPI GRID ═══════════ */}
       <div className="grid gap-4 lg:grid-cols-12">
-        <Card className="lg:col-span-4 rounded-2xl border-primary/20 bg-card shadow-sm overflow-hidden relative">
-          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary to-primary/30" />
+        <Card className="lg:col-span-4 rounded-2xl border-emerald-500/25 bg-card shadow-sm overflow-hidden relative">
+          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-500 to-emerald-500/30" />
           <CardContent className="pt-7 pb-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Cobrado este mes</p>
-                <p className="mt-3 text-4xl font-black tracking-tighter text-primary">{formatCurrency(dashboard.actualIncome)}</p>
+                <p className="mt-3 text-3xl md:text-4xl font-black tracking-tighter text-emerald-600 dark:text-emerald-400">{formatCurrency(dashboard.actualIncome)}</p>
               </div>
-              <DollarSign className="h-6 w-6 text-primary" />
+              <DollarSign className="h-6 w-6 text-emerald-500" />
             </div>
             <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
               <span className="text-muted-foreground/70">{dashboard.actualIncomeCount} pagos confirmados</span>
@@ -290,9 +250,9 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
           <CardContent className="pt-6 pb-5">
             <div className="flex items-center justify-between mb-3">
               <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Brecha del mes</p>
-              <Wallet className="h-4 w-4 text-amber-400" />
+              <Wallet className="h-4 w-4 text-amber-500" />
             </div>
-            <p className={`text-3xl font-black tracking-tighter ${dashboard.collectionGap > 0 ? 'text-amber-400' : 'text-emerald-500'}`}>
+            <p className={`text-3xl font-black tracking-tighter ${dashboard.collectionGap > 0 ? 'text-amber-500' : 'text-emerald-600 dark:text-emerald-400'}`}>
               {formatCurrency(dashboard.collectionGap)}
             </p>
             <p className="mt-1.5 text-xs text-muted-foreground/60 font-medium">
@@ -326,10 +286,10 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
                 <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Avance contra esperado</p>
                 <InfoTooltip text="Cobrado este mes comparado contra lo esperado para el mismo mes." />
               </div>
-              <TrendingUp className="h-4 w-4 text-primary" />
+              <TrendingUp className="h-4 w-4 text-emerald-500" />
             </div>
             <div className="flex items-end justify-between gap-4">
-              <p className={`text-3xl font-black tracking-tighter ${expectedProgress >= 80 ? 'text-primary' : expectedProgress >= 50 ? 'text-amber-400' : 'text-destructive'}`}>
+              <p className={`text-3xl font-black tracking-tighter ${expectedProgress >= 80 ? 'text-emerald-600 dark:text-emerald-400' : expectedProgress >= 50 ? 'text-amber-500' : 'text-red-500'}`}>
                 {expectedProgress}%
               </p>
               <p className="text-xs text-muted-foreground/70 text-right">
@@ -338,7 +298,7 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
             </div>
             <div className="mt-2 h-1.5 w-full rounded-full bg-muted/40 overflow-hidden">
               <div
-                className={`h-full rounded-full ${expectedProgress >= 80 ? 'bg-primary' : expectedProgress >= 50 ? 'bg-amber-400' : 'bg-destructive'}`}
+                className={`h-full rounded-full ${expectedProgress >= 80 ? 'bg-emerald-500' : expectedProgress >= 50 ? 'bg-amber-500' : 'bg-red-500'}`}
                 style={{ width: `${expectedProgress}%` }}
               />
             </div>
@@ -352,10 +312,10 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
                 <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Tasa sobre emitido</p>
                 <InfoTooltip text="Cobrado este mes versus pagos emitidos con vencimiento en el mismo mes." />
               </div>
-              <BarChart3 className="h-4 w-4 text-primary" />
+              <BarChart3 className="h-4 w-4 text-emerald-500" />
             </div>
             <div className="flex items-end justify-between gap-4">
-              <p className={`text-3xl font-black tracking-tighter ${emittedProgress >= 80 ? 'text-primary' : emittedProgress >= 50 ? 'text-amber-400' : 'text-destructive'}`}>
+              <p className={`text-3xl font-black tracking-tighter ${emittedProgress >= 80 ? 'text-emerald-600 dark:text-emerald-400' : emittedProgress >= 50 ? 'text-amber-500' : 'text-red-500'}`}>
                 {emittedProgress}%
               </p>
               <p className="text-xs text-muted-foreground/70 text-right">
@@ -364,7 +324,7 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
             </div>
             <div className="mt-2 h-1.5 w-full rounded-full bg-muted/40 overflow-hidden">
               <div
-                className={`h-full rounded-full ${emittedProgress >= 80 ? 'bg-primary' : emittedProgress >= 50 ? 'bg-amber-400' : 'bg-destructive'}`}
+                className={`h-full rounded-full ${emittedProgress >= 80 ? 'bg-emerald-500' : emittedProgress >= 50 ? 'bg-amber-500' : 'bg-red-500'}`}
                 style={{ width: `${emittedProgress}%` }}
               />
             </div>
@@ -392,8 +352,8 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
             <CardTitle className="text-sm font-black uppercase tracking-widest text-foreground">Cobrado vs Emitido</CardTitle>
             <p className="text-xs text-muted-foreground/70">Lectura mensual de los últimos 6 meses para saber si la cobranza acompaña la emisión de cuotas.</p>
           </CardHeader>
-          <CardContent className="px-6 pt-5 pb-6">
-            <div className="flex items-end gap-3 h-56">
+          <CardContent className="px-4 sm:px-6 pt-5 pb-6 overflow-x-auto">
+            <div className="flex items-end gap-3 h-56 min-w-[420px]">
               {monthlyChart.map((m, i) => {
                 const collectedH = Math.max(m.collected > 0 ? Math.round((m.collected / chartMax) * 168) : 0, m.collected > 0 ? 10 : 0)
                 const emittedH = Math.max(m.emitted > 0 ? Math.round((m.emitted / chartMax) * 168) : 0, m.emitted > 0 ? 10 : 0)
@@ -404,7 +364,7 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
                     <div className="flex items-end justify-center gap-1.5 h-44 w-full">
                       <div className="flex flex-col items-center gap-1 w-full">
                         <div
-                          className={`w-full max-w-6 rounded-t-md ${isCurrent ? 'bg-primary' : 'bg-primary/50'}`}
+                          className={`w-full max-w-6 rounded-t-md ${isCurrent ? 'bg-emerald-500' : 'bg-emerald-500/50'}`}
                           style={{ height: collectedH }}
                         />
                         <span className="text-[9px] text-muted-foreground/60">Cob.</span>
@@ -433,7 +393,7 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
               })}
             </div>
             <div className="mt-4 flex flex-wrap gap-4 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
-              <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-primary inline-block" />Cobrado</span>
+              <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-emerald-500 inline-block" />Cobrado</span>
               <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-sky-500/90 inline-block" />Emitido</span>
               <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-destructive/60 inline-block" />En mora</span>
             </div>
@@ -454,7 +414,7 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
                   {dashboard.methodMix.map((row) => (
                     <div key={row.method} className="space-y-1.5">
                       <div className="flex items-center justify-between gap-3">
-                        <span className="text-xs font-bold text-muted-foreground truncate">{METHOD_LABEL[row.method] ?? row.method}</span>
+                        <span className="text-xs font-bold text-muted-foreground truncate">{paymentMethodLabel(row.method)}</span>
                         <div className="text-right">
                           <p className="text-xs font-black text-foreground">{formatCurrency(row.amount)}</p>
                           <p className="text-[10px] text-muted-foreground/60">{row.count} pagos · {row.pct}%</p>
@@ -520,7 +480,7 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
                     <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Transferencias</p>
                     <p className="mt-2 text-3xl font-black tracking-tighter text-foreground">{dashboard.pendingTransfersCount}</p>
                   </div>
-                  <Clock className="h-5 w-5 text-amber-400" />
+                  <Clock className="h-5 w-5 text-amber-500" />
                 </div>
                 <p className="mt-2 text-xs text-muted-foreground/60">Pagos con comprobante o transferencia por revisar.</p>
               </CardContent>
@@ -565,7 +525,7 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
                     <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Duplicados</p>
                     <p className="mt-2 text-3xl font-black tracking-tighter text-foreground">{dashboard.duplicateGroupsCount}</p>
                   </div>
-                  <CalendarClock className="h-5 w-5 text-amber-400" />
+                  <CalendarClock className="h-5 w-5 text-amber-500" />
                 </div>
                 <p className="mt-2 text-xs text-muted-foreground/60">Posibles cobros repetidos por atleta y mes de vencimiento.</p>
               </CardContent>
@@ -648,142 +608,35 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
           <div className="divide-y divide-white/[0.03]">
             {payments.map((payment) => {
               const athlete = payment.athletes as { id: string; name: string; photo_url: string | null } | null
-              const athleteDebt = athlete ? (debtByAthlete[athlete.id] ?? 0) : 0
               const isDuplicate = dupKeys.has(`${athlete?.id ?? payment.athlete_id ?? ''}|${payment.due_date?.slice(0, 7) ?? ''}`)
               const notes = (payment as { notes?: string | null }).notes
-              const hasReceipt = notes && /https?:\/\/[^\s]+/i.test(notes)
-              const isOnlineGateway = !!payment.payment_method && (ONLINE_GATEWAY_IDS as readonly string[]).includes(payment.payment_method)
-              const isTransfer = !isOnlineGateway && (payment.payment_method === 'transfer' || (notes && notes.toLowerCase().includes('comprobante')))
-              const isPendingTransfer = (payment.status === 'pending' || payment.status === 'overdue') && (isTransfer || hasReceipt)
-
-              const cfg = STATUS_CONFIG[payment.status] ?? { label: payment.status, variant: 'outline' as const, dot: 'bg-muted-foreground/40' }
               const plan = (payment as { plans?: { name: string; billing_cycle?: string } | null }).plans
               const athleteIdKey = athlete?.id ?? payment.athlete_id ?? ''
               const nextPay = athleteIdKey ? nextBillingByAthlete[athleteIdKey] ?? null : null
-
-              // For pending transfers, use the interactive client component
-              if (isPendingTransfer) {
-                return (
-                  <PaymentRowClient
-                    key={payment.id}
-                    payment={{
-                      ...payment,
-                      notes: notes ?? null,
-                      athletes: athlete,
-                      plans: plan ?? null,
-                    }}
-                    athleteDebt={athleteDebt}
-                    isDuplicate={isDuplicate}
-                    nextBillingDate={nextPay}
-                  />
-                )
-              }
+              const overdueDays =
+                payment.status === 'overdue' && payment.due_date
+                  ? Math.max(0, Math.floor((nowMs - new Date(`${payment.due_date}T12:00:00`).getTime()) / 86400000))
+                  : 0
 
               return (
-                <div
+                <PaymentRowClient
                   key={payment.id}
-                  className="grid grid-cols-1 md:grid-cols-[minmax(200px,2fr)_110px_minmax(140px,1.5fr)_120px_110px_130px_120px] gap-3 md:gap-4 items-center px-6 py-4 hover:bg-muted/5 transition-colors"
-                >
-                  {/* Athlete */}
-                  <div className="flex items-center gap-3 min-w-0">
-                    <Avatar className="w-9 h-9 shrink-0 border border-white/[0.06]">
-                      <AvatarFallback className="text-xs font-black bg-muted/40">
-                        {athlete?.name?.slice(0, 2).toUpperCase() ?? '??'}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="min-w-0">
-                      {athlete ? (
-                        <Link href={`/dashboard/athletes/${athlete.id}`} className="text-sm font-bold hover:text-primary transition-colors truncate block">
-                          {athlete.name}
-                        </Link>
-                      ) : (
-                        <span className="text-sm font-bold text-muted-foreground">—</span>
-                      )}
-                      <p className="text-[10px] text-muted-foreground/60 truncate">{payment.concept}</p>
-                    </div>
-                  </div>
-
-                  {/* Amount */}
-                  <div>
-                    <p className="text-sm font-black tracking-tight text-foreground">${Number(payment.amount).toLocaleString('es-CL')}</p>
-                    {payment.payment_method && (
-                      <p className="text-[10px] text-muted-foreground/50 font-medium mt-0.5">{METHOD_LABEL[payment.payment_method] ?? payment.payment_method}</p>
-                    )}
-                  </div>
-
-                  {/* Plan */}
-                  <div className="min-w-0">
-                    {plan ? (
-                      <>
-                        <p className="text-sm font-bold text-foreground/80 truncate">{plan.name}</p>
-                        <p className="text-[10px] text-muted-foreground/50 font-medium">
-                          ${Number(payment.amount).toLocaleString('es-CL')}/{BILLING_LABEL[plan.billing_cycle ?? ''] ?? ''}
-                        </p>
-                      </>
-                    ) : (
-                      <span className="text-xs text-muted-foreground/40">—</span>
-                    )}
-                  </div>
-
-                  {/* Paid at */}
-                  <div>
-                    <p className="md:hidden text-[9px] font-black uppercase tracking-widest text-muted-foreground/50 mb-0.5">Fecha pago</p>
-                    {payment.paid_at ? (
-                      <p className="text-sm text-muted-foreground font-medium">
-                        {new Date(payment.paid_at).toLocaleDateString('es-CL', { day: 'numeric', month: 'short', year: 'numeric' })}
-                      </p>
-                    ) : (
-                      <span className="text-sm text-muted-foreground/40">—</span>
-                    )}
-                  </div>
-
-                  {/* Next subscription payment */}
-                  <div>
-                    <p className="md:hidden text-[9px] font-black uppercase tracking-widest text-muted-foreground/50 mb-0.5">Próximo pago</p>
-                    {nextPay ? (
-                      <p className="text-sm text-muted-foreground font-medium">
-                        {new Date(nextPay + 'T12:00:00').toLocaleDateString('es-CL', { day: 'numeric', month: 'short', year: 'numeric' })}
-                      </p>
-                    ) : (
-                      <span className="text-sm text-muted-foreground/40">—</span>
-                    )}
-                  </div>
-
-                  {/* Status */}
-                  <div className="flex flex-col gap-0.5 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className={`w-2 h-2 rounded-full shrink-0 ${cfg.dot}`} />
-                      <span className={`text-sm font-bold ${
-                        payment.status === 'paid' ? 'text-primary' :
-                        payment.status === 'overdue' ? 'text-destructive' :
-                        payment.status === 'pending' ? 'text-amber-400' :
-                        'text-muted-foreground'
-                      }`}>
-                        {cfg.label}
-                      </span>
-                      {isDuplicate && <span className="text-[9px] bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded font-bold">DUP</span>}
-                    </div>
-                    {payment.status === 'overdue' && (() => {
-                      const days = Math.floor((Date.now() - new Date(`${payment.due_date}T12:00:00`).getTime()) / 86400000)
-                      if (days <= 0) return null
-                      return <p className="text-[10px] text-destructive font-bold pl-4">{days}d mora</p>
-                    })()}
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex items-center gap-1.5 justify-end">
-                    <EditPaymentButton payment={payment} />
-                    {(payment.status === 'pending' || payment.status === 'overdue') && !isOnlineGateway && (
-                      <MarkAsPaidButton paymentId={payment.id} />
-                    )}
-                    <DeletePaymentButton paymentId={payment.id} />
-                  </div>
-                </div>
+                  payment={{
+                    ...payment,
+                    notes: notes ?? null,
+                    athletes: athlete,
+                    plans: plan ?? null,
+                  }}
+                  isDuplicate={isDuplicate}
+                  nextBillingDate={nextPay}
+                  overdueDays={overdueDays}
+                />
               )
             })}
           </div>
         </Card>
       )}
+
 
       {/* ═══════════ PAGINATION ═══════════ */}
       {total > 25 && (

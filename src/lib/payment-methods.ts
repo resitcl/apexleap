@@ -11,6 +11,23 @@
 /** Pasarelas online (no incluye transfer ni cash). */
 export const ONLINE_GATEWAY_IDS = ['flow', 'webpay', 'mercadopago', 'khipu'] as const
 
+/** Etiqueta legible de un medio de pago (tablas, exportaciones y correos). */
+export const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  cash: 'Efectivo',
+  transfer: 'Transferencia',
+  webpay: 'Webpay',
+  flow: 'Flow',
+  mercadopago: 'MercadoPago',
+  khipu: 'Khipu',
+  manual: 'Manual',
+  other: 'Otro',
+}
+
+export function paymentMethodLabel(method: string | null | undefined): string {
+  if (!method) return '—'
+  return PAYMENT_METHOD_LABELS[method] ?? method
+}
+
 export type OnlineGatewayId = (typeof ONLINE_GATEWAY_IDS)[number]
 
 function nonEmpty(s?: string | null): boolean {

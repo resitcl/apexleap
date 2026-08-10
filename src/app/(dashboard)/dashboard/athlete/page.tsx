@@ -320,9 +320,12 @@ export default async function AthletePage({ searchParams }: { searchParams?: Pro
             <div>
               {activeSub ? (
                 <>
+                  {/* Ojo con el orden: `<= 0` debe evaluarse antes que `<= 7`, si no una
+                      suscripción vencida se pintaba ámbar («por vencer») en vez de roja. */}
                   <p className={`text-[28px] font-black tracking-tight leading-none uppercase ${
-                    daysUntilExpiry !== null && daysUntilExpiry <= 7 ? 'text-amber-500' : 
-                    daysUntilExpiry !== null && daysUntilExpiry <= 0 ? 'text-red-500' : 'text-primary'
+                    daysUntilExpiry !== null && daysUntilExpiry <= 0 ? 'text-red-500' :
+                    daysUntilExpiry !== null && daysUntilExpiry <= 7 ? 'text-amber-500' :
+                    'text-emerald-600 dark:text-emerald-400'
                   }`}>
                     {daysUntilExpiry !== null ? (
                       daysUntilExpiry <= 0 ? 'Vencida' : `${daysUntilExpiry}d`
@@ -379,7 +382,7 @@ export default async function AthletePage({ searchParams }: { searchParams?: Pro
               <p className="text-[13px] mt-2.5 font-medium flex items-center gap-1.5">
                 {expiredDocs.length > 0
                   ? <span className="text-muted-foreground/60">{expiredDocs.length} por renovar</span>
-                  : <><CheckCircle2 className="w-4 h-4 text-primary" /><span className="text-primary">Verificados</span></>
+                  : <><CheckCircle2 className="w-4 h-4 text-emerald-500" /><span className="text-emerald-600 dark:text-emerald-400">Verificados</span></>
                 }
               </p>
             </div>
@@ -663,7 +666,7 @@ export default async function AthletePage({ searchParams }: { searchParams?: Pro
         <div className="rounded-2xl bg-card p-5 border border-border shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <p className="text-sm font-bold flex items-center gap-2">
-              <CreditCard className="w-4 h-4 text-red-500" /> Pagos Pendientes
+              <CreditCard className={`w-4 h-4 ${pendingPayments.some((p) => p.status === 'overdue') ? 'text-red-500' : 'text-amber-500'}`} /> Pagos Pendientes
             </p>
             <Link href="/dashboard/athlete/payments" className="text-xs text-primary font-bold inline-flex items-center gap-1 hover:gap-2 transition-all">
               Ver todos <ChevronRight className="w-3.5 h-3.5" />
@@ -673,8 +676,8 @@ export default async function AthletePage({ searchParams }: { searchParams?: Pro
             {pendingPayments.slice(0, 3).map((p) => (
               <div key={p.id} className="flex items-center justify-between py-3">
                 <div className="flex items-center gap-3">
-                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${p.status === 'overdue' ? 'bg-red-500/15' : 'bg-muted/50'}`}>
-                    {p.status === 'overdue' ? <AlertTriangle className="w-3.5 h-3.5 text-red-500" /> : <Clock className="w-3.5 h-3.5 text-muted-foreground/60" />}
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${p.status === 'overdue' ? 'bg-red-500/15' : 'bg-amber-500/15'}`}>
+                    {p.status === 'overdue' ? <AlertTriangle className="w-3.5 h-3.5 text-red-500" /> : <Clock className="w-3.5 h-3.5 text-amber-500" />}
                   </div>
                   <div>
                     <p className="text-sm font-semibold">{p.concept || 'Cuota'}</p>
@@ -683,7 +686,7 @@ export default async function AthletePage({ searchParams }: { searchParams?: Pro
                 </div>
                 <div className="text-right">
                   <p className="text-sm font-black">${Number(p.amount).toLocaleString('es-CL')}</p>
-                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide ${p.status === 'overdue' ? 'bg-red-500/15 text-red-500' : 'bg-muted/50 text-muted-foreground/60'}`}>
+                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide ${p.status === 'overdue' ? 'bg-red-500/15 text-red-600 dark:text-red-400' : 'bg-amber-500/15 text-amber-600 dark:text-amber-400'}`}>
                     {p.status === 'overdue' ? 'Vencido' : 'Pendiente'}
                   </span>
                 </div>

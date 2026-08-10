@@ -7,7 +7,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
-import { CheckCircle, ExternalLink, ImageIcon } from "lucide-react"
+import { CheckCircle, ExternalLink, ImageIcon, Pencil, RotateCcw } from "lucide-react"
 import { confirmTransferPayment, getReceiptSignedUrl } from "@/lib/actions/payments"
 
 interface Props {
@@ -36,11 +36,17 @@ function extractReceiptRef(notes: string | null): string | null {
   return url ? url[0] : null
 }
 
+const clp = (n: number) => `$${Math.round(n).toLocaleString('es-CL')}`
+
 export function ConfirmTransferButton({ payment, open: controlledOpen, onOpenChange, hideButton }: Props) {
   const [internalOpen, setInternalOpen] = useState(false)
   const open = controlledOpen !== undefined ? controlledOpen : internalOpen
   const [paidAt, setPaidAt] = useState(() => new Date().toISOString().split('T')[0])
   const [loading, setLoading] = useState(false)
+
+  const expectedAmount = Math.round(Number(payment.amount) || 0)
+  const [amountText, setAmountText] = useState(String(expectedAmount))
+  const [editingAmount, setEditingAmount] = useState(false)
 
   const receiptRef = extractReceiptRef(payment.notes)
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null)
@@ -59,8 +65,21 @@ export function ConfirmTransferButton({ payment, open: controlledOpen, onOpenCha
     return () => { cancelled = true }
   }, [open, receiptRef])
 
+  // Al reabrir el diálogo se vuelve al monto del plan (evita arrastrar un descuento anterior).
+  useEffect(() => {
+    if (open) {
+      setAmountText(String(expectedAmount))
+      setEditingAmount(false)
+    }
+  }, [open, expectedAmount])
+
   const athleteName = payment.athletes?.name ?? 'Atleta'
   const planName = payment.plans?.name ?? payment.concept
+
+  const parsedAmount = Number(amountText.replace(/[^\d]/g, ''))
+  const amountValid = Number.isFinite(parsedAmount) && parsedAmount >= 0 && amountText.trim() !== ''
+  const diff = amountValid ? parsedAmount - expectedAmount : 0
+  const hasDiff = amountValid && Math.abs(diff) >= 1
 
   function handleOpenChange(value: boolean) {
     setInternalOpen(value)
@@ -68,10 +87,18 @@ export function ConfirmTransferButton({ payment, open: controlledOpen, onOpenCha
   }
 
   async function handleConfirm() {
+    if (!amountValid) {
+      toast.error('Ingresa un monto válido')
+      return
+    }
     setLoading(true)
     try {
-      await confirmTransferPayment(payment.id, paidAt)
-      toast.success('Pago confirmado y suscripción activada')
+      await confirmTransferPayment(payment.id, paidAt, parsedAmount)
+      toast.success(
+        hasDiff
+          ? `Pago confirmado por ${clp(parsedAmount)} (plan ${clp(expectedAmount)})`
+          : 'Pago confirmado y suscripción activada',
+      )
       handleOpenChange(false)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Error al confirmar pago')
@@ -86,7 +113,7 @@ export function ConfirmTransferButton({ payment, open: controlledOpen, onOpenCha
         <Button
           size="sm"
           variant="outline"
-          className="gap-1 text-green-600 border-green-200 hover:bg-green-50"
+          className="gap-1 text-emerald-600 border-emerald-500/40 hover:bg-emerald-500/10 dark:text-emerald-400"
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleOpenChange(true) }}
         >
           <CheckCircle className="w-4 h-4" />
@@ -95,7 +122,7 @@ export function ConfirmTransferButton({ payment, open: controlledOpen, onOpenCha
       )}
 
       <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-lg max-h-[90dvh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Confirmar Pago por Transferencia</DialogTitle>
             <DialogDescription>
@@ -115,8 +142,8 @@ export function ConfirmTransferButton({ payment, open: controlledOpen, onOpenCha
                 <span className="font-medium">{planName}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Monto</span>
-                <span className="font-bold text-lg">${Number(payment.amount).toLocaleString('es-CL')}</span>
+                <span className="text-muted-foreground">Monto del plan</span>
+                <span className="font-medium">{clp(expectedAmount)}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Vencimiento</span>
@@ -169,6 +196,63 @@ export function ConfirmTransferButton({ payment, open: controlledOpen, onOpenCha
               </div>
             )}
 
+            {/* Monto realmente transferido — permite registrar descuentos/becas */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <Label htmlFor="paidAmount">Monto transferido</Label>
+                {!editingAmount ? (
+                  <button
+                    type="button"
+                    onClick={() => setEditingAmount(true)}
+                    className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                  >
+                    <Pencil className="w-3 h-3" />
+                    Aplicar descuento
+                  </button>
+                ) : hasDiff ? (
+                  <button
+                    type="button"
+                    onClick={() => setAmountText(String(expectedAmount))}
+                    className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground"
+                  >
+                    <RotateCcw className="w-3 h-3" />
+                    Usar monto del plan
+                  </button>
+                ) : null}
+              </div>
+              <div className="relative">
+                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">$</span>
+                <input
+                  id="paidAmount"
+                  type="text"
+                  inputMode="numeric"
+                  value={amountText}
+                  readOnly={!editingAmount}
+                  onFocus={() => setEditingAmount(true)}
+                  onChange={(e) => setAmountText(e.target.value.replace(/[^\d]/g, ''))}
+                  className={`w-full h-11 rounded-md border bg-background pl-7 pr-3 py-2 text-base font-bold focus:outline-none focus:ring-2 focus:ring-ring ${
+                    !amountValid
+                      ? 'border-destructive'
+                      : hasDiff
+                        ? 'border-amber-500'
+                        : 'border-input'
+                  } ${!editingAmount ? 'text-muted-foreground' : ''}`}
+                />
+              </div>
+              {!amountValid ? (
+                <p className="text-xs text-destructive">Ingresa un monto válido (solo números).</p>
+              ) : hasDiff ? (
+                <p className="text-xs text-amber-600 dark:text-amber-400">
+                  {diff < 0 ? 'Descuento' : 'Excedente'} de <strong>{clp(Math.abs(diff))}</strong> respecto al plan
+                  ({clp(expectedAmount)}). Se registrará el monto real y quedará anotado en el pago.
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Se registrará el monto del plan. Edítalo si el alumno transfirió otra cantidad.
+                </p>
+              )}
+            </div>
+
             {/* Paid date */}
             <div className="space-y-1.5">
               <Label htmlFor="paidAt">Fecha de pago</Label>
@@ -177,7 +261,7 @@ export function ConfirmTransferButton({ payment, open: controlledOpen, onOpenCha
                 type="date"
                 value={paidAt}
                 onChange={(e) => setPaidAt(e.target.value)}
-                className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                className="w-full h-11 rounded-md border border-input bg-background px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-ring sm:text-sm"
               />
               <p className="text-xs text-muted-foreground">
                 La suscripción se activará desde esta fecha por el período del plan
@@ -185,13 +269,13 @@ export function ConfirmTransferButton({ payment, open: controlledOpen, onOpenCha
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={loading}>
               Cancelar
             </Button>
-            <Button onClick={handleConfirm} disabled={loading} className="gap-2">
+            <Button onClick={handleConfirm} disabled={loading || !amountValid} className="gap-2">
               <CheckCircle className="w-4 h-4" />
-              {loading ? 'Confirmando...' : 'Confirmar Pago'}
+              {loading ? 'Confirmando...' : `Confirmar ${clp(amountValid ? parsedAmount : expectedAmount)}`}
             </Button>
           </DialogFooter>
         </DialogContent>

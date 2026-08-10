@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { useCallback, useMemo, useState } from 'react'
 import { Search, X, SlidersHorizontal, ChevronDown, ChevronUp } from 'lucide-react'
+import { ATHLETE_PAYMENT_STATUSES, ATHLETE_PAYMENT_STATUS_META } from '@/lib/payment-status'
 
 const ATHLETE_STATUS: { value: string | null; label: string }[] = [
   { value: null, label: 'Todos' },
@@ -12,8 +13,8 @@ const ATHLETE_STATUS: { value: string | null; label: string }[] = [
 ]
 
 const HEALTH_FILTERS: { value: string; label: string; dot: string }[] = [
-  { value: 'healthy', label: 'Aptos', dot: 'bg-emerald-400' },
-  { value: 'observation', label: 'Observación', dot: 'bg-amber-400' },
+  { value: 'healthy', label: 'Aptos', dot: 'bg-emerald-500' },
+  { value: 'observation', label: 'Observación', dot: 'bg-amber-500' },
   { value: 'injured', label: 'Lesionados', dot: 'bg-red-500' },
 ]
 
@@ -43,6 +44,25 @@ interface Props {
   categories: Category[]
 }
 
+/**
+ * Fila de filtros que en móvil desplaza horizontalmente en vez de apilar botones diminutos.
+ * La etiqueta va arriba en móvil y a la izquierda desde `sm`.
+ */
+function ScrollRow({ label, children }: { label?: string; children: React.ReactNode }) {
+  return (
+    <div className="sm:flex sm:items-start sm:gap-2">
+      {label ? (
+        <span className="mb-1 block text-[11px] font-bold uppercase tracking-wider text-muted-foreground/70 sm:mb-0 sm:w-28 sm:shrink-0 sm:pt-2 sm:text-xs sm:font-medium sm:normal-case sm:tracking-normal">
+          {label}
+        </span>
+      ) : null}
+      <div className="-mx-1 min-w-0 flex-1 overflow-x-auto px-1 pb-1">
+        <div className="flex min-w-max items-center gap-2 sm:min-w-0 sm:flex-wrap">{children}</div>
+      </div>
+    </div>
+  )
+}
+
 export function AthletesFilter({ plans, categories }: Props) {
   const router = useRouter()
   const pathname = usePathname()
@@ -56,6 +76,7 @@ export function AthletesFilter({ plans, categories }: Props) {
   const currentPlanId = get('planId')
   const currentSubStatus = get('subStatus')
   const currentCategoryId = get('categoryId')
+  const currentPayStatus = get('payStatus')
   const currentSort = get('sort')
   const inactiveOn = get('inactive') === '1'
   const expiredDocsOn = get('expiredDocs') === '1'
@@ -124,6 +145,7 @@ export function AthletesFilter({ plans, categories }: Props) {
     !!(
       currentSearch ||
       currentStatus ||
+      currentPayStatus ||
       currentHealth ||
       currentPlanId ||
       currentSubStatus ||
@@ -139,51 +161,84 @@ export function AthletesFilter({ plans, categories }: Props) {
       minAtt
     )
 
+  const pillBase =
+    'h-10 shrink-0 rounded-lg border px-3.5 text-sm font-medium transition-colors active:scale-[0.98]'
+  const pillIdle =
+    'border-input bg-background text-muted-foreground hover:border-foreground/30 hover:text-foreground'
+  const smallPill = 'h-9 shrink-0 rounded-lg border px-3 text-[13px] font-medium transition-colors'
+
   return (
     <div className="space-y-3">
-      {/* Fila principal — misma idea que PaymentsFilter: sin card envolvente */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative min-w-0 w-full sm:w-auto sm:min-w-[220px] sm:max-w-md sm:flex-1">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <input
-            type="text"
-            data-athletes-filter-search
-            placeholder="Buscar por nombre, email o RUT..."
-            className="h-9 w-full rounded-md border border-input bg-background pl-9 pr-[5.25rem] text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-ring"
-            defaultValue={currentSearch}
-            onChange={(e) => {
-              const val = e.target.value
-              const w = window as Window & { _athSearch?: ReturnType<typeof setTimeout> }
-              clearTimeout(w._athSearch)
-              w._athSearch = setTimeout(() => updateParam('search', val || null), 350)
-            }}
-          />
-          <div className="absolute right-1 top-1/2 flex -translate-y-1/2 items-center gap-0.5">
-            {currentSearch ? (
-              <button
-                type="button"
-                className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
-                onClick={() => updateParam('search', null)}
-                aria-label="Limpiar búsqueda"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            ) : null}
+      {/* Búsqueda */}
+      <div className="relative w-full sm:max-w-md">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <input
+          type="text"
+          data-athletes-filter-search
+          placeholder="Buscar por nombre, email o RUT..."
+          className="h-11 w-full rounded-lg border border-input bg-background pl-9 pr-[5.5rem] text-[15px] text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-ring sm:text-sm"
+          defaultValue={currentSearch}
+          onChange={(e) => {
+            const val = e.target.value
+            const w = window as Window & { _athSearch?: ReturnType<typeof setTimeout> }
+            clearTimeout(w._athSearch)
+            w._athSearch = setTimeout(() => updateParam('search', val || null), 350)
+          }}
+        />
+        <div className="absolute right-1.5 top-1/2 flex -translate-y-1/2 items-center gap-0.5">
+          {currentSearch ? (
             <button
               type="button"
-              className="h-7 shrink-0 rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground hover:bg-primary/90"
-              onClick={() => {
-                const el = document.querySelector<HTMLInputElement>('input[data-athletes-filter-search]')
-                updateParam('search', el?.value?.trim() || null)
-              }}
+              className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+              onClick={() => updateParam('search', null)}
+              aria-label="Limpiar búsqueda"
             >
-              Buscar
+              <X className="h-4 w-4" />
             </button>
-          </div>
+          ) : null}
+          <button
+            type="button"
+            className="h-8 shrink-0 rounded-md bg-primary px-3 text-xs font-bold text-primary-foreground hover:bg-primary/90"
+            onClick={() => {
+              const el = document.querySelector<HTMLInputElement>('input[data-athletes-filter-search]')
+              updateParam('search', el?.value?.trim() || null)
+            }}
+          >
+            Buscar
+          </button>
         </div>
+      </div>
 
-        <div className="hidden h-6 w-px shrink-0 bg-border sm:block" />
+      {/* Estado de pago — el filtro más usado, siempre visible */}
+      <ScrollRow label="Estado de pago">
+        <button
+          type="button"
+          onClick={() => updateParam('payStatus', null)}
+          className={`${pillBase} ${
+            !currentPayStatus ? 'border-foreground/40 bg-foreground text-background' : pillIdle
+          }`}
+        >
+          Todos
+        </button>
+        {ATHLETE_PAYMENT_STATUSES.map((key) => {
+          const meta = ATHLETE_PAYMENT_STATUS_META[key]
+          const active = currentPayStatus === key
+          return (
+            <button
+              key={key}
+              type="button"
+              onClick={() => updateParam('payStatus', active ? null : key)}
+              className={`${pillBase} inline-flex items-center gap-2 ${active ? meta.active : pillIdle}`}
+            >
+              <span className={`h-2 w-2 rounded-full ${active ? 'bg-white' : meta.dot}`} />
+              {meta.filterLabel}
+            </button>
+          )
+        })}
+      </ScrollRow>
 
+      {/* Estado del alumno + acciones */}
+      <ScrollRow label="Estado alumno">
         {ATHLETE_STATUS.map((opt) => {
           const active =
             (opt.value === null && !currentStatus) || (opt.value !== null && currentStatus === opt.value)
@@ -198,10 +253,8 @@ export function AthletesFilter({ plans, categories }: Props) {
                 }
                 router.push(buildUrl({ status: currentStatus === opt.value ? null : opt.value }))
               }}
-              className={`h-9 shrink-0 rounded-md border px-3 text-sm font-medium transition-colors ${
-                active
-                  ? 'border-primary bg-primary text-primary-foreground'
-                  : 'border-input bg-background text-muted-foreground hover:border-foreground/30 hover:text-foreground'
+              className={`${pillBase} ${
+                active ? 'border-primary bg-primary text-primary-foreground' : pillIdle
               }`}
             >
               {opt.label}
@@ -209,44 +262,41 @@ export function AthletesFilter({ plans, categories }: Props) {
           )
         })}
 
-        <div className="h-6 w-px shrink-0 bg-border" />
+        <span className="h-6 w-px shrink-0 bg-border" />
 
         <button
           type="button"
           onClick={() => setExpanded(!expanded)}
-          className={`flex h-9 shrink-0 items-center gap-1.5 rounded-md border px-3 text-sm font-medium transition-colors ${
-            expanded || advancedCount > 0
-              ? 'border-primary/30 bg-primary/10 text-primary'
-              : 'border-input bg-background text-muted-foreground hover:text-foreground'
+          className={`${pillBase} inline-flex items-center gap-1.5 ${
+            expanded || advancedCount > 0 ? 'border-primary/30 bg-primary/10 text-primary' : pillIdle
           }`}
         >
-          <SlidersHorizontal className="h-3.5 w-3.5" />
+          <SlidersHorizontal className="h-4 w-4" />
           Más filtros
           {advancedCount > 0 ? (
             <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
               {advancedCount}
             </span>
           ) : null}
-          {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+          {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
         </button>
 
         {hasAny ? (
           <button
             type="button"
             onClick={() => router.push(pathname)}
-            className="flex h-9 shrink-0 items-center gap-1.5 rounded-md border border-input px-3 text-sm text-muted-foreground hover:text-foreground"
+            className={`${pillBase} inline-flex items-center gap-1.5 ${pillIdle}`}
           >
-            <X className="h-3.5 w-3.5" /> Limpiar
+            <X className="h-4 w-4" /> Limpiar
           </button>
         ) : null}
-      </div>
+      </ScrollRow>
 
-      {/* Panel — Salud, plan y filtros avanzados (como vista de pagos) */}
+      {/* Panel — Salud, plan y filtros avanzados */}
       {expanded ? (
-        <div className="space-y-4 rounded-lg border border-border bg-muted/30 p-4">
+        <div className="space-y-4 rounded-lg border border-border bg-muted/30 p-3 sm:p-4">
           {/* Salud */}
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="w-24 shrink-0 text-xs font-medium text-muted-foreground">Salud</span>
+          <ScrollRow label="Salud">
             {HEALTH_FILTERS.map((f) => {
               const active = currentHealth === f.value
               return (
@@ -254,10 +304,8 @@ export function AthletesFilter({ plans, categories }: Props) {
                   key={f.value}
                   type="button"
                   onClick={() => updateParam('health', active ? null : f.value)}
-                  className={`inline-flex h-7 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition-colors ${
-                    active
-                      ? 'border-primary bg-primary text-primary-foreground'
-                      : 'border-input bg-background text-muted-foreground hover:text-foreground'
+                  className={`${smallPill} inline-flex items-center gap-1.5 ${
+                    active ? 'border-primary bg-primary text-primary-foreground' : pillIdle
                   }`}
                 >
                   <span className={`h-1.5 w-1.5 rounded-full ${active ? 'bg-primary-foreground' : f.dot}`} />
@@ -265,310 +313,284 @@ export function AthletesFilter({ plans, categories }: Props) {
                 </button>
               )
             })}
-          </div>
+          </ScrollRow>
 
           {/* Planes */}
           {plans.length > 0 ? (
-            <div className="flex flex-wrap items-start gap-2">
-              <span className="w-24 shrink-0 pt-1 text-xs font-medium text-muted-foreground">Plan</span>
-              <div className="flex min-w-0 flex-1 flex-wrap gap-1.5">
+            <ScrollRow label="Plan">
+              <button
+                type="button"
+                onClick={() => router.push(buildUrl({ planId: null }))}
+                className={`${smallPill} ${
+                  !currentPlanId ? 'border-primary bg-primary text-primary-foreground' : pillIdle
+                }`}
+              >
+                Todos
+              </button>
+              {plans.map((p) => (
                 <button
+                  key={p.id}
                   type="button"
-                  onClick={() => router.push(buildUrl({ planId: null }))}
-                  className={`h-7 shrink-0 rounded-md border px-2.5 text-xs font-medium transition-colors ${
-                    !currentPlanId
-                      ? 'border-primary bg-primary text-primary-foreground'
-                      : 'border-input bg-background text-muted-foreground hover:text-foreground'
+                  onClick={() => router.push(buildUrl({ planId: currentPlanId === p.id ? null : p.id }))}
+                  className={`${smallPill} max-w-[200px] truncate ${
+                    currentPlanId === p.id ? 'border-primary bg-primary text-primary-foreground' : pillIdle
                   }`}
+                  title={p.name}
                 >
-                  Todos
+                  {p.name}
                 </button>
-                {plans.map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => router.push(buildUrl({ planId: currentPlanId === p.id ? null : p.id }))}
-                    className={`h-7 max-w-[200px] shrink-0 truncate rounded-md border px-2.5 text-xs font-medium transition-colors ${
-                      currentPlanId === p.id
-                        ? 'border-primary bg-primary text-primary-foreground'
-                        : 'border-input bg-background text-muted-foreground hover:text-foreground'
-                    }`}
-                    title={p.name}
-                  >
-                    {p.name}
-                  </button>
-                ))}
-              </div>
-            </div>
+              ))}
+            </ScrollRow>
           ) : null}
 
-            {categories.length > 0 ? (
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="w-28 shrink-0 text-xs font-medium text-muted-foreground">Categoría</span>
+          {categories.length > 0 ? (
+            <ScrollRow label="Categoría">
+              <button
+                type="button"
+                onClick={() => router.push(buildUrl({ categoryId: null }))}
+                className={`${smallPill} ${
+                  !currentCategoryId ? 'border-primary bg-primary text-primary-foreground' : pillIdle
+                }`}
+              >
+                Todas
+              </button>
+              {categories.map((c) => (
                 <button
+                  key={c.id}
                   type="button"
-                  onClick={() => router.push(buildUrl({ categoryId: null }))}
-                  className={`h-7 rounded-md border px-2.5 text-xs font-medium ${
-                    !currentCategoryId
-                      ? 'border-primary bg-primary text-primary-foreground'
-                      : 'border-input bg-background text-muted-foreground hover:text-foreground'
+                  onClick={() => router.push(buildUrl({ categoryId: currentCategoryId === c.id ? null : c.id }))}
+                  className={`${smallPill} max-w-[160px] truncate ${
+                    currentCategoryId === c.id ? 'border-primary bg-primary text-primary-foreground' : pillIdle
+                  }`}
+                  title={c.name}
+                >
+                  {c.name}
+                </button>
+              ))}
+            </ScrollRow>
+          ) : null}
+
+          <ScrollRow label="Suscripción">
+            {SUB_STATUS.map((opt) => {
+              const active =
+                (opt.value === null && !currentSubStatus) ||
+                (opt.value !== null && currentSubStatus === opt.value)
+              return (
+                <button
+                  key={opt.value ?? 'all'}
+                  type="button"
+                  onClick={() => {
+                    if (opt.value === null) {
+                      router.push(buildUrl({ subStatus: null }))
+                      return
+                    }
+                    router.push(buildUrl({ subStatus: currentSubStatus === opt.value ? null : opt.value }))
+                  }}
+                  className={`${smallPill} ${
+                    active ? 'border-primary bg-primary text-primary-foreground' : pillIdle
                   }`}
                 >
-                  Todas
+                  {opt.label}
                 </button>
-                {categories.map((c) => (
-                  <button
-                    key={c.id}
-                    type="button"
-                    onClick={() =>
-                      router.push(
-                        buildUrl({ categoryId: currentCategoryId === c.id ? null : c.id }),
-                      )
+              )
+            })}
+          </ScrollRow>
+
+          <ScrollRow label="Orden">
+            {SORT_OPTIONS.map((opt) => {
+              const active =
+                (opt.value === null && !currentSort) || (opt.value !== null && currentSort === opt.value)
+              return (
+                <button
+                  key={opt.value ?? 'name'}
+                  type="button"
+                  onClick={() => {
+                    if (opt.value === null) {
+                      router.push(buildUrl({ sort: null }))
+                      return
                     }
-                    className={`h-7 max-w-[160px] truncate rounded-md border px-2.5 text-xs font-medium ${
-                      currentCategoryId === c.id
-                        ? 'border-primary bg-primary text-primary-foreground'
-                        : 'border-input bg-background text-muted-foreground hover:text-foreground'
-                    }`}
-                    title={c.name}
-                  >
-                    {c.name}
-                  </button>
-                ))}
-              </div>
-            ) : null}
+                    router.push(buildUrl({ sort: currentSort === opt.value ? null : opt.value }))
+                  }}
+                  className={`${smallPill} ${
+                    active ? 'border-primary bg-primary text-primary-foreground' : pillIdle
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              )
+            })}
+          </ScrollRow>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="w-28 shrink-0 text-xs font-medium text-muted-foreground">Suscripción</span>
-              {SUB_STATUS.map((opt) => {
-                const active =
-                  (opt.value === null && !currentSubStatus) ||
-                  (opt.value !== null && currentSubStatus === opt.value)
-                return (
+          <ScrollRow label="Alertas">
+            <button
+              type="button"
+              onClick={() => router.push(buildUrl({ inactive: inactiveOn ? null : '1' }))}
+              className={`${smallPill} ${
+                inactiveOn ? 'border-amber-500 bg-amber-500/15 text-amber-600 dark:text-amber-400' : pillIdle
+              }`}
+            >
+              Sin check-in 30d
+            </button>
+            <button
+              type="button"
+              onClick={() => router.push(buildUrl({ expiredDocs: expiredDocsOn ? null : '1' }))}
+              className={`${smallPill} ${
+                expiredDocsOn ? 'border-primary bg-primary/10 text-primary' : pillIdle
+              }`}
+            >
+              Doc. vencidos
+            </button>
+            <button
+              type="button"
+              onClick={() => router.push(buildUrl({ debtOld60: debtOld60On ? null : '1' }))}
+              className={`${smallPill} ${
+                debtOld60On ? 'border-red-500/60 bg-red-500/10 text-red-600 dark:text-red-400' : pillIdle
+              }`}
+            >
+              Deuda +60 días
+            </button>
+          </ScrollRow>
+
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="space-y-1.5">
+              <span className="text-xs font-medium text-muted-foreground">Edad (años)</span>
+              <form
+                method="get"
+                action="/dashboard/athletes"
+                className="flex flex-wrap items-center gap-2"
+              >
+                {[...sp.entries()].map(([k, v]) =>
+                  !['ageMin', 'ageMax', 'page'].includes(k) ? (
+                    <input key={`${k}-${v}`} type="hidden" name={k} value={v} />
+                  ) : null,
+                )}
+                <input
+                  name="ageMin"
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  max={120}
+                  placeholder="Mín."
+                  defaultValue={ageMin}
+                  className="h-9 w-20 rounded-md border border-input bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+                <span className="text-xs text-muted-foreground">—</span>
+                <input
+                  name="ageMax"
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  max={120}
+                  placeholder="Máx."
+                  defaultValue={ageMax}
+                  className="h-9 w-20 rounded-md border border-input bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+                <button
+                  type="submit"
+                  className="h-9 rounded-md bg-primary px-3 text-xs font-bold text-primary-foreground hover:bg-primary/90"
+                >
+                  Aplicar
+                </button>
+                {(ageMin || ageMax) && (
                   <button
-                    key={opt.value ?? 'all'}
                     type="button"
-                    onClick={() => {
-                      if (opt.value === null) {
-                        router.push(buildUrl({ subStatus: null }))
-                        return
-                      }
-                      router.push(
-                        buildUrl({ subStatus: currentSubStatus === opt.value ? null : opt.value }),
-                      )
-                    }}
-                    className={`h-7 rounded-md border px-2.5 text-xs font-medium ${
-                      active
-                        ? 'border-primary bg-primary text-primary-foreground'
-                        : 'border-input bg-background text-muted-foreground hover:text-foreground'
-                    }`}
+                    className="text-muted-foreground hover:text-foreground"
+                    onClick={() => router.push(buildUrl({ ageMin: null, ageMax: null }))}
                   >
-                    {opt.label}
+                    <X className="h-4 w-4" />
                   </button>
-                )
-              })}
+                )}
+              </form>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="w-28 shrink-0 text-xs font-medium text-muted-foreground">Orden</span>
-              {SORT_OPTIONS.map((opt) => {
-                const active =
-                  (opt.value === null && !currentSort) || (opt.value !== null && currentSort === opt.value)
-                return (
+            <div className="space-y-1.5">
+              <span className="text-xs font-medium text-muted-foreground">Deuda vencida ($)</span>
+              <form
+                method="get"
+                action="/dashboard/athletes"
+                className="flex flex-wrap items-center gap-2"
+              >
+                {[...sp.entries()].map(([k, v]) =>
+                  !['debtMin', 'debtMax', 'page'].includes(k) ? (
+                    <input key={`${k}-${v}`} type="hidden" name={k} value={v} />
+                  ) : null,
+                )}
+                <input
+                  name="debtMin"
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  placeholder="Mín."
+                  defaultValue={debtMin}
+                  className="h-9 w-24 rounded-md border border-input bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+                <span className="text-xs text-muted-foreground">—</span>
+                <input
+                  name="debtMax"
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  placeholder="Máx."
+                  defaultValue={debtMax}
+                  className="h-9 w-24 rounded-md border border-input bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+                <button
+                  type="submit"
+                  className="h-9 rounded-md bg-primary px-3 text-xs font-bold text-primary-foreground hover:bg-primary/90"
+                >
+                  Aplicar
+                </button>
+                {(debtMin || debtMax) && (
                   <button
-                    key={opt.value ?? 'name'}
                     type="button"
-                    onClick={() => {
-                      if (opt.value === null) {
-                        router.push(buildUrl({ sort: null }))
-                        return
-                      }
-                      router.push(buildUrl({ sort: currentSort === opt.value ? null : opt.value }))
-                    }}
-                    className={`h-7 rounded-md border px-2.5 text-xs font-medium ${
-                      active
-                        ? 'border-primary bg-primary text-primary-foreground'
-                        : 'border-input bg-background text-muted-foreground hover:text-foreground'
-                    }`}
+                    className="text-muted-foreground hover:text-foreground"
+                    onClick={() => router.push(buildUrl({ debtMin: null, debtMax: null }))}
                   >
-                    {opt.label}
+                    <X className="h-4 w-4" />
                   </button>
-                )
-              })}
+                )}
+              </form>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="w-28 shrink-0 text-xs font-medium text-muted-foreground">Alertas</span>
-              <button
-                type="button"
-                onClick={() => router.push(buildUrl({ inactive: inactiveOn ? null : '1' }))}
-                className={`h-7 rounded-md border px-2.5 text-xs font-medium ${
-                  inactiveOn
-                    ? 'border-amber-500 bg-amber-500/15 text-amber-600 dark:text-amber-400'
-                    : 'border-input bg-background text-muted-foreground hover:text-foreground'
-                }`}
+            <div className="space-y-1.5">
+              <span className="text-xs font-medium text-muted-foreground">Check-ins totales (mín.)</span>
+              <form
+                method="get"
+                action="/dashboard/athletes"
+                className="flex flex-wrap items-center gap-2"
               >
-                Sin check-in 30d
-              </button>
-              <button
-                type="button"
-                onClick={() => router.push(buildUrl({ expiredDocs: expiredDocsOn ? null : '1' }))}
-                className={`h-7 rounded-md border px-2.5 text-xs font-medium ${
-                  expiredDocsOn
-                    ? 'border-primary bg-primary/10 text-primary'
-                    : 'border-input bg-background text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                Doc. vencidos
-              </button>
-              <button
-                type="button"
-                onClick={() => router.push(buildUrl({ debtOld60: debtOld60On ? null : '1' }))}
-                className={`h-7 rounded-md border px-2.5 text-xs font-medium ${
-                  debtOld60On
-                    ? 'border-destructive/50 bg-destructive/10 text-destructive'
-                    : 'border-input bg-background text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                Deuda +60 días
-              </button>
+                {[...sp.entries()].map(([k, v]) =>
+                  !['minAtt', 'page'].includes(k) ? (
+                    <input key={`${k}-${v}`} type="hidden" name={k} value={v} />
+                  ) : null,
+                )}
+                <input
+                  name="minAtt"
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  placeholder="Ej. 10"
+                  defaultValue={minAtt}
+                  className="h-9 w-24 rounded-md border border-input bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+                <button
+                  type="submit"
+                  className="h-9 rounded-md bg-primary px-3 text-xs font-bold text-primary-foreground hover:bg-primary/90"
+                >
+                  Aplicar
+                </button>
+                {minAtt ? (
+                  <button
+                    type="button"
+                    className="text-muted-foreground hover:text-foreground"
+                    onClick={() => router.push(buildUrl({ minAtt: null }))}
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                ) : null}
+              </form>
             </div>
-
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              <div className="space-y-1.5">
-                <span className="text-xs font-medium text-muted-foreground">Edad (años)</span>
-                <form
-                  method="get"
-                  action="/dashboard/athletes"
-                  className="flex flex-wrap items-center gap-2"
-                >
-                  {[...sp.entries()].map(([k, v]) =>
-                    !['ageMin', 'ageMax', 'page'].includes(k) ? (
-                      <input key={`${k}-${v}`} type="hidden" name={k} value={v} />
-                    ) : null,
-                  )}
-                  <input
-                    name="ageMin"
-                    type="number"
-                    min={0}
-                    max={120}
-                    placeholder="Mín."
-                    defaultValue={ageMin}
-                    className="h-8 w-20 rounded-md border border-input bg-background px-2 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
-                  />
-                  <span className="text-xs text-muted-foreground">—</span>
-                  <input
-                    name="ageMax"
-                    type="number"
-                    min={0}
-                    max={120}
-                    placeholder="Máx."
-                    defaultValue={ageMax}
-                    className="h-8 w-20 rounded-md border border-input bg-background px-2 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
-                  />
-                  <button
-                    type="submit"
-                    className="h-8 rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground hover:bg-primary/90"
-                  >
-                    Aplicar
-                  </button>
-                  {(ageMin || ageMax) && (
-                    <button
-                      type="button"
-                      className="text-muted-foreground hover:text-foreground"
-                      onClick={() => router.push(buildUrl({ ageMin: null, ageMax: null }))}
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  )}
-                </form>
-              </div>
-
-              <div className="space-y-1.5">
-                <span className="text-xs font-medium text-muted-foreground">Deuda vencida ($)</span>
-                <form
-                  method="get"
-                  action="/dashboard/athletes"
-                  className="flex flex-wrap items-center gap-2"
-                >
-                  {[...sp.entries()].map(([k, v]) =>
-                    !['debtMin', 'debtMax', 'page'].includes(k) ? (
-                      <input key={`${k}-${v}`} type="hidden" name={k} value={v} />
-                    ) : null,
-                  )}
-                  <input
-                    name="debtMin"
-                    type="number"
-                    min={0}
-                    placeholder="Mín."
-                    defaultValue={debtMin}
-                    className="h-8 w-24 rounded-md border border-input bg-background px-2 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
-                  />
-                  <span className="text-xs text-muted-foreground">—</span>
-                  <input
-                    name="debtMax"
-                    type="number"
-                    min={0}
-                    placeholder="Máx."
-                    defaultValue={debtMax}
-                    className="h-8 w-24 rounded-md border border-input bg-background px-2 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
-                  />
-                  <button
-                    type="submit"
-                    className="h-8 rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground hover:bg-primary/90"
-                  >
-                    Aplicar
-                  </button>
-                  {(debtMin || debtMax) && (
-                    <button
-                      type="button"
-                      className="text-muted-foreground hover:text-foreground"
-                      onClick={() => router.push(buildUrl({ debtMin: null, debtMax: null }))}
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  )}
-                </form>
-              </div>
-
-              <div className="space-y-1.5">
-                <span className="text-xs font-medium text-muted-foreground">Check-ins totales (mín.)</span>
-                <form
-                  method="get"
-                  action="/dashboard/athletes"
-                  className="flex flex-wrap items-center gap-2"
-                >
-                  {[...sp.entries()].map(([k, v]) =>
-                    !['minAtt', 'page'].includes(k) ? (
-                      <input key={`${k}-${v}`} type="hidden" name={k} value={v} />
-                    ) : null,
-                  )}
-                  <input
-                    name="minAtt"
-                    type="number"
-                    min={0}
-                    placeholder="Ej. 10"
-                    defaultValue={minAtt}
-                    className="h-8 w-24 rounded-md border border-input bg-background px-2 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
-                  />
-                  <button
-                    type="submit"
-                    className="h-8 rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground hover:bg-primary/90"
-                  >
-                    Aplicar
-                  </button>
-                  {minAtt ? (
-                    <button
-                      type="button"
-                      className="text-muted-foreground hover:text-foreground"
-                      onClick={() => router.push(buildUrl({ minAtt: null }))}
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  ) : null}
-                </form>
-              </div>
-            </div>
+          </div>
         </div>
       ) : null}
     </div>

@@ -19,13 +19,38 @@ import { getEnabledPaymentMethodIdsFromClubSettings } from "@/lib/payment-method
 import { AthleteSectionHeader } from "@/components/athlete/AthleteSectionHeader"
 import { FlowPaymentBanner } from "@/components/athlete/FlowPaymentBanner"
 import { MercadoPagoPaymentBanner } from "@/components/athlete/MercadoPagoPaymentBanner"
+import { paymentRowTone } from "@/lib/payment-status"
 
-const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
-  paid:      { label: "Pagado",    variant: "default" },
-  pending:   { label: "Pendiente", variant: "secondary" },
-  overdue:   { label: "Vencido",   variant: "destructive" },
-  failed:    { label: "Fallido",   variant: "destructive" },
-  cancelled: { label: "Cancelado", variant: "outline" },
+/** Salud de la suscripción: verde vigente, ámbar por vencer, rojo vencida. */
+function subscriptionTone(daysLeft: number | null) {
+  if (daysLeft !== null && daysLeft <= 0) {
+    return {
+      text: "text-red-600 dark:text-red-400",
+      icon: "text-red-500",
+      badge: "bg-red-500 text-white",
+      iconBox: "bg-red-500/15 border-red-500/30",
+      card: "border-red-500/30 bg-red-500/5",
+      label: "Vencida",
+    }
+  }
+  if (daysLeft !== null && daysLeft <= 7) {
+    return {
+      text: "text-amber-600 dark:text-amber-400",
+      icon: "text-amber-500",
+      badge: "bg-amber-500 text-white",
+      iconBox: "bg-amber-500/15 border-amber-500/30",
+      card: "border-amber-500/30 bg-amber-500/5",
+      label: "Por vencer",
+    }
+  }
+  return {
+    text: "text-emerald-600 dark:text-emerald-400",
+    icon: "text-emerald-500",
+    badge: "bg-emerald-500 text-white",
+    iconBox: "bg-emerald-500/15 border-emerald-500/30",
+    card: "border-emerald-500/25 bg-emerald-500/5",
+    label: "Activa",
+  }
 }
 
 const BILLING_LABEL: Record<string, string> = {
@@ -98,17 +123,14 @@ export default async function AthletePaymentsPage() {
   // Days until subscription expires
   let daysLeft: number | null = null
   let daysLeftLabel = ""
-  let daysLeftColor = "text-green-600"
   if (sub?.end_date) {
     const end = new Date(sub.end_date)
     const today = new Date()
     today.setHours(0, 0, 0, 0)
     daysLeft = Math.ceil((end.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-    if (daysLeft <= 0) { daysLeftLabel = "Vencida"; daysLeftColor = "text-red-600" }
-    else if (daysLeft <= 7) { daysLeftLabel = `${daysLeft} días`; daysLeftColor = "text-orange-500" }
-    else if (daysLeft <= 30) { daysLeftLabel = `${daysLeft} días`; daysLeftColor = "text-yellow-600" }
-    else { daysLeftLabel = `${daysLeft} días`; daysLeftColor = "text-green-600" }
+    daysLeftLabel = daysLeft <= 0 ? "Vencida" : `${daysLeft} días`
   }
+  const subTone = subscriptionTone(daysLeft)
 
   return (
     <div className="space-y-8 pb-12 pt-1">
@@ -127,18 +149,18 @@ export default async function AthletePaymentsPage() {
 
       {/* Subscription status banner */}
       {sub && plan ? (
-        <Card className={`rounded-2xl border ${daysLeft !== null && daysLeft <= 7 ? "border-orange-500/30 bg-orange-500/5" : "border-primary/20 bg-primary/5"} shadow-sm relative overflow-hidden`}>
-          {daysLeft !== null && daysLeft <= 7 && <div className="absolute inset-0 bg-orange-500/10 animate-pulse" />}
+        <Card className={`rounded-2xl border ${subTone.card} shadow-sm relative overflow-hidden`}>
+          {daysLeft !== null && daysLeft <= 7 && daysLeft > 0 && <div className="absolute inset-0 bg-amber-500/10 animate-pulse" />}
           <CardContent className="py-6 relative z-10">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
               <div className="flex items-center gap-4">
-                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 border ${daysLeft !== null && daysLeft <= 7 ? "bg-orange-500/20 border-orange-500/30" : "bg-primary/20 border-primary/30"}`}>
-                  <ShieldCheck className={`w-8 h-8 ${daysLeft !== null && daysLeft <= 7 ? "text-orange-500" : "text-primary"}`} />
+                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 border ${subTone.iconBox}`}>
+                  <ShieldCheck className={`w-8 h-8 ${subTone.icon}`} />
                 </div>
                 <div>
                   <div className="flex items-center gap-3 flex-wrap">
                     <p className="font-black text-xl tracking-tight leading-none">{plan.name}</p>
-                    <Badge className={`text-[10px] uppercase font-black tracking-widest px-2 py-0.5 ${daysLeft !== null && daysLeft <= 0 ? "bg-destructive text-white" : daysLeft !== null && daysLeft <= 7 ? "bg-orange-500 text-white" : "bg-primary text-primary-foreground"}`}>{daysLeft !== null && daysLeft <= 0 ? "Vencida" : "Activa"}</Badge>
+                    <Badge className={`text-[10px] uppercase font-black tracking-widest px-2 py-0.5 ${subTone.badge}`}>{subTone.label}</Badge>
                   </div>
                   <p className="text-xs uppercase font-bold tracking-widest text-muted-foreground/80 mt-2">
                     ${plan.price.toLocaleString('es-CL')} <span className="text-muted-foreground/40 mx-1">/</span> {BILLING_LABEL[plan.billing_cycle] ?? plan.billing_cycle}
@@ -148,7 +170,7 @@ export default async function AthletePaymentsPage() {
               <div className="text-left sm:text-right w-full sm:w-auto p-4 sm:p-0 bg-background/50 sm:bg-transparent rounded-xl border sm:border-0 border-white/[0.04]">
                 {daysLeft !== null ? (
                   <>
-                    <p className={`text-3xl font-black tracking-tighter ${daysLeft !== null && daysLeft <= 7 ? "text-orange-500 drop-shadow-[0_0_8px_rgba(249,115,22,0.3)]" : "text-primary drop-shadow-[0_0_8px_rgba(var(--primary),0.3)]"}`}>{daysLeftLabel}</p>
+                    <p className={`text-3xl font-black tracking-tighter ${subTone.text}`}>{daysLeftLabel}</p>
                     <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1">
                       Vence: <strong className="text-foreground">{new Date(sub.end_date!).toLocaleDateString('es-CL', { day: 'numeric', month: 'short' })}</strong>
                     </p>
@@ -259,15 +281,15 @@ export default async function AthletePaymentsPage() {
 
       {/* Summary KPIs */}
       <div className="grid grid-cols-3 gap-4">
-        <Card className="rounded-2xl border-white/[0.04] bg-card shadow-sm hover:border-primary/20 transition-colors">
+        <Card className="rounded-2xl border-white/[0.04] bg-card shadow-sm hover:border-emerald-500/20 transition-colors">
           <CardContent className="py-6 text-center">
-            <p className="text-3xl sm:text-4xl font-black text-primary drop-shadow-[0_0_8px_rgba(var(--primary),0.3)]">${totalPaid.toLocaleString('es-CL')}</p>
+            <p className="text-2xl sm:text-4xl font-black text-emerald-600 dark:text-emerald-400">${totalPaid.toLocaleString('es-CL')}</p>
             <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mt-2">Pagos Confirmados</p>
           </CardContent>
         </Card>
         <Card className="rounded-2xl border-white/[0.04] bg-card shadow-sm">
           <CardContent className="py-6 text-center">
-            <p className={`text-3xl sm:text-4xl font-black ${pendingPayments.length > 0 ? "text-amber-500 drop-shadow-[0_0_8px_rgba(245,158,11,0.3)]" : "text-muted-foreground/30"}`}>
+            <p className={`text-2xl sm:text-4xl font-black ${pendingPayments.length > 0 ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground/30"}`}>
               {pendingPayments.length}
             </p>
             <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mt-2">Pendientes</p>
@@ -275,7 +297,7 @@ export default async function AthletePaymentsPage() {
         </Card>
         <Card className="rounded-2xl border-white/[0.04] bg-card shadow-sm">
           <CardContent className="py-6 text-center">
-            <p className={`text-3xl sm:text-4xl font-black ${overduePayments.length > 0 ? "text-destructive drop-shadow-[0_0_8px_rgba(239,68,68,0.3)]" : "text-muted-foreground/30"}`}>
+            <p className={`text-2xl sm:text-4xl font-black ${overduePayments.length > 0 ? "text-red-600 dark:text-red-400" : "text-muted-foreground/30"}`}>
               {overduePayments.length}
             </p>
             <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mt-2">Vencidos</p>
@@ -299,18 +321,14 @@ export default async function AthletePaymentsPage() {
           ) : (
             <div className="flex flex-col divide-y divide-border/20">
               {paymentsList.map((p) => {
-                const cfg = STATUS_CONFIG[p.status] ?? STATUS_CONFIG.pending
+                const tone = paymentRowTone(p.status)
                 const hasPeriod = p.period_start && p.period_end
                 const isPaid = p.status === 'paid'
                 const isOverdue = p.status === 'overdue'
 
                 return (
                   <div key={p.id} className="flex flex-col sm:flex-row sm:items-center gap-4 px-6 sm:px-8 py-5 hover:bg-muted/5 transition-colors">
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border ${
-                      isPaid ? 'bg-primary/10 border-primary/20 text-primary' : 
-                      isOverdue ? 'bg-destructive/10 border-destructive/20 text-destructive' : 
-                      'bg-muted border-white/[0.04] text-muted-foreground'
-                    }`}>
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${tone.bg} ${tone.text}`}>
                       {isPaid ? <CheckCircle className="w-5 h-5" /> : 
                        isOverdue ? <AlertTriangle className="w-5 h-5" /> : 
                        <Clock className="w-5 h-5" />}
@@ -321,7 +339,7 @@ export default async function AthletePaymentsPage() {
                       <div className="flex flex-wrap items-center gap-3 mt-1.5 text-[10px] uppercase font-bold tracking-widest text-muted-foreground/70">
                         {hasPeriod && (
                           <span className="flex items-center gap-1.5 bg-background border border-white/[0.04] px-2 py-0.5 rounded">
-                            <ShieldCheck className="w-3 h-3 text-primary" />
+                            <ShieldCheck className={`w-3 h-3 ${isPaid ? 'text-emerald-500' : 'text-muted-foreground/50'}`} />
                             Cubre {formatPeriod(new Date(p.period_start!), new Date(p.period_end!))}
                           </span>
                         )}
@@ -330,7 +348,7 @@ export default async function AthletePaymentsPage() {
                           {p.due_date && `Vence: ${new Date(p.due_date).toLocaleDateString('es-CL', { day: 'numeric', month: 'short' })}`}
                         </span>
                         {p.paid_at && (
-                          <span className="flex items-center gap-1 text-primary">
+                          <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
                             • Pagado: {new Date(p.paid_at).toLocaleDateString('es-CL', { day: 'numeric', month: 'short' })}
                           </span>
                         )}
@@ -340,11 +358,12 @@ export default async function AthletePaymentsPage() {
                     <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between sm:justify-center shrink-0 gap-2 sm:gap-1">
                       <p className="font-black text-xl tracking-tighter text-foreground">${Number(p.amount).toLocaleString('es-CL')}</p>
                       <Badge className={`text-[9px] uppercase font-black tracking-widest px-2 py-0.5 ${
-                        isPaid ? 'bg-primary text-primary-foreground' : 
-                        isOverdue ? 'bg-destructive text-destructive-foreground' : 
+                        isPaid ? 'bg-emerald-500 text-white' :
+                        isOverdue ? 'bg-red-500 text-white' :
+                        p.status === 'pending' ? 'bg-amber-500 text-white' :
                         'bg-muted text-muted-foreground'
                       }`}>
-                        {cfg.label}
+                        {tone.label}
                       </Badge>
                     </div>
                   </div>
