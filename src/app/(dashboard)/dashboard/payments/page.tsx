@@ -7,6 +7,8 @@ import { getPayments, getNextBillingDateByAthleteIds } from "@/lib/actions/payme
 import { getPaymentMetrics, getMonthlyAthleteCollectionStatus } from "@/lib/actions/billing"
 import { paymentMethodLabel } from "@/lib/payment-methods"
 import { paymentRowTone } from "@/lib/payment-status"
+import { getPaymentReminderHistory } from "@/lib/actions/communications"
+import { formatReminderAge, type LastReminder } from "@/lib/payment-reminders"
 import { MonthlyCollectionPanel } from "@/components/payments/MonthlyCollectionPanel"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -51,6 +53,7 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
   const nowMs = new Date().getTime()
   const currentMonthIso = new Date(nowMs).toISOString().slice(0, 7)
   let nextBillingByAthlete: Record<string, string | null> = {}
+  let reminders: Record<string, LastReminder> = {}
 
   try {
     const [result, allResult, metricsResult, collectionResult] = await Promise.all([
@@ -65,6 +68,8 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
     metrics = metricsResult
     monthlyCollection = collectionResult
     nextBillingByAthlete = await getNextBillingDateByAthleteIds(result.payments.map((p) => p.athlete_id))
+    // Último cobro enviado a cada alumno de la página. Vacío si la migración 038 no corrió.
+    reminders = await getPaymentReminderHistory(result.payments.map((p) => p.athlete_id)).catch(() => ({}))
   } catch (e) {
     error = e instanceof Error ? e.message : 'Error al cargar pagos'
   }
@@ -141,10 +146,12 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
   }
 
   return (
-    <div className="space-y-8 pb-12 pt-1">
+    // Flex (no space-y) para reordenar en móvil: la tabla y sus filtros suben, la analítica
+    // baja. Antes había que scrollear ~15 tarjetas antes de llegar a lo accionable.
+    <div className="flex flex-col gap-8 pb-12 pt-1">
 
       {/* ═══════════ HEADER ═══════════ */}
-      <div className="flex flex-col lg:flex-row items-start lg:items-end justify-between gap-6">
+      <div className="order-1 flex flex-col gap-6 md:order-none lg:flex-row items-start lg:items-end justify-between">
         <div className="space-y-3">
           <div className="flex items-center gap-3">
             <CreditCard className="w-10 h-10 text-primary" />
@@ -173,7 +180,7 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
           </div>
         </div>
 
-        <div className="flex items-center gap-3 flex-wrap">
+        <div className="-mx-4 flex w-[calc(100%+2rem)] items-center gap-2 overflow-x-auto px-4 pb-1 lg:mx-0 lg:w-auto lg:flex-wrap lg:gap-3 lg:overflow-visible lg:px-0">
           <SyncOverdueButton />
           {payments.filter((p) => p.status === 'pending' || p.status === 'overdue').length > 1 && (
             <BulkMarkAsPaidButton
@@ -198,7 +205,7 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
 
       {/* Athlete filter banner */}
       {athleteId && (
-        <div className="flex items-center gap-3 p-4 rounded-xl bg-primary/5 border border-primary/20">
+        <div className="order-2 flex items-center gap-3 p-4 rounded-xl bg-primary/5 border border-primary/20 md:order-none">
           <span className="text-primary font-bold text-sm uppercase tracking-wide">Filtrando pagos por atleta</span>
           <Link href="/dashboard/payments" className="ml-auto text-xs font-bold text-muted-foreground hover:text-foreground underline">
             Ver todos
@@ -207,7 +214,7 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
       )}
 
       {/* ═══════════ KPI GRID ═══════════ */}
-      <div className="grid gap-4 lg:grid-cols-12">
+      <div className="order-8 grid gap-4 md:order-none lg:grid-cols-12">
         <Card className="lg:col-span-4 rounded-2xl border-emerald-500/25 bg-card shadow-sm overflow-hidden relative">
           <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-500 to-emerald-500/30" />
           <CardContent className="pt-7 pb-6">
@@ -346,7 +353,7 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
       </div>
 
       {/* ═══════════ CHARTS ROW ═══════════ */}
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,1fr)]">
+      <div className="order-11 grid gap-6 md:order-none xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,1fr)]">
         <Card className="rounded-2xl border-white/[0.04] bg-card shadow-sm">
           <CardHeader className="pb-0 pt-5 px-6">
             <CardTitle className="text-sm font-black uppercase tracking-widest text-foreground">Cobrado vs Emitido</CardTitle>
@@ -462,7 +469,7 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
       </div>
 
       {/* ═══════════ ATTENTION TODAY ═══════════ */}
-      <div className="space-y-3">
+      <div className="order-9 space-y-3 md:order-none">
         <div className="flex items-center justify-between gap-3">
           <div>
             <h2 className="text-sm font-black uppercase tracking-widest text-foreground">Atención Hoy</h2>
@@ -536,11 +543,13 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
 
       {/* ═══════════ MONTHLY COLLECTION BY ATHLETE ═══════════ */}
       {monthlyCollection && (
-        <MonthlyCollectionPanel data={monthlyCollection} />
+        <div className="order-10 md:order-none">
+          <MonthlyCollectionPanel data={monthlyCollection} />
+        </div>
       )}
 
       {/* ═══════════ OPERATIONS HEADER ═══════════ */}
-      <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
+      <div className="order-3 flex flex-col gap-4 md:order-none lg:flex-row lg:items-end lg:justify-between">
         <div>
           <h2 className="text-sm font-black uppercase tracking-widest text-foreground">Movimientos y Cobranza</h2>
           <p className="mt-1 text-sm text-muted-foreground/70">
@@ -559,6 +568,7 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
       {/* ═══════════ FILTERS ═══════════ */}
       <Suspense fallback={null}>
         <PaymentsFilter
+          className="order-4 md:order-none"
           currentStatus={params.status}
           currentMethod={paymentMethod || undefined}
           currentFrom={from || undefined}
@@ -574,11 +584,11 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
 
       {/* ═══════════ PAYMENTS TABLE ═══════════ */}
       {error ? (
-        <Card className="rounded-2xl border-destructive/20">
+        <Card className="order-5 rounded-2xl border-destructive/20 md:order-none">
           <CardContent className="py-12 text-center text-destructive font-bold">{error}</CardContent>
         </Card>
       ) : payments.length === 0 ? (
-        <Card className="rounded-2xl border-white/[0.04]">
+        <Card className="order-5 rounded-2xl border-white/[0.04] md:order-none">
           <CardContent className="py-20 text-center">
             <CreditCard className="w-14 h-14 mx-auto mb-5 text-muted-foreground/20" />
             <h3 className="font-black text-xl uppercase tracking-tight mb-2">Sin pagos registrados</h3>
@@ -589,7 +599,7 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
           </CardContent>
         </Card>
       ) : (
-        <Card className="rounded-2xl border-white/[0.04] bg-card shadow-sm overflow-hidden">
+        <Card className="order-5 rounded-2xl border-white/[0.04] bg-card shadow-sm overflow-hidden md:order-none">
           {/* Table Header */}
           <div className="hidden md:grid grid-cols-[minmax(200px,2fr)_110px_minmax(140px,1.5fr)_120px_110px_130px_120px] gap-4 px-6 py-3.5 border-b border-white/[0.04] bg-muted/10">
             <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50">Atleta</span>
@@ -613,6 +623,7 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
               const plan = (payment as { plans?: { name: string; billing_cycle?: string } | null }).plans
               const athleteIdKey = athlete?.id ?? payment.athlete_id ?? ''
               const nextPay = athleteIdKey ? nextBillingByAthlete[athleteIdKey] ?? null : null
+              const lastReminder = athleteIdKey ? reminders[athleteIdKey] ?? null : null
               const overdueDays =
                 payment.status === 'overdue' && payment.due_date
                   ? Math.max(0, Math.floor((nowMs - new Date(`${payment.due_date}T12:00:00`).getTime()) / 86400000))
@@ -630,6 +641,12 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
                   isDuplicate={isDuplicate}
                   nextBillingDate={nextPay}
                   overdueDays={overdueDays}
+                  lastReminderLabel={lastReminder ? formatReminderAge(lastReminder.sentAt, nowMs) : null}
+                  lastReminderTitle={
+                    lastReminder
+                      ? `Último cobro enviado: ${new Date(lastReminder.sentAt).toLocaleString('es-CL')}${lastReminder.sentCount > 1 ? ` · ${lastReminder.sentCount} envíos` : ''}`
+                      : null
+                  }
                 />
               )
             })}
@@ -640,7 +657,7 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
 
       {/* ═══════════ PAGINATION ═══════════ */}
       {total > 25 && (
-        <div className="flex items-center justify-between pt-2">
+        <div className="order-6 flex items-center justify-between pt-2 md:order-none">
           <p className="text-xs font-bold text-muted-foreground/60 uppercase tracking-widest">
             Mostrando {(page - 1) * 25 + 1}–{Math.min(page * 25, total)} de {total}
           </p>

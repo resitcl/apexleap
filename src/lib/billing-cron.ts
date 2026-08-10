@@ -14,6 +14,7 @@ import {
 } from '@/lib/billing-utils'
 import { ONLINE_GATEWAY_IDS } from '@/lib/payment-methods'
 import { sendPaymentReminderEmail } from '@/lib/email'
+import { logPaymentReminder } from '@/lib/payment-reminders'
 import { getAutoTemplate, resolveAutoEmail } from '@/lib/auto-templates'
 
 type CronResult = {
@@ -285,7 +286,7 @@ export async function sendPaymentRemindersForClub(clubId: string): Promise<numbe
 
   const { data: payments } = await supabase
     .from('payments')
-    .select('id, amount, due_date, status, plans(name), athletes(name, email)')
+    .select('id, athlete_id, amount, due_date, status, plans(name), athletes(name, email)')
     .eq('club_id', clubId)
     .in('status', ['pending', 'overdue'])
     .not('due_date', 'is', null)
@@ -333,6 +334,15 @@ export async function sendPaymentRemindersForClub(clubId: string): Promise<numbe
         showDetails: tpl.showDetails,
       })
       sent++
+      // Bitácora por alumno: permite ver en la ficha/lista cuándo se le insistió por última vez.
+      await logPaymentReminder(supabase, clubId, {
+        athleteId: p.athlete_id as string,
+        paymentId: p.id as string,
+        source: 'cron',
+        status: 'sent',
+        amount,
+        dueDate: due,
+      })
     } catch (err) {
       console.error('[sendPaymentRemindersForClub] error (no bloqueante):', err instanceof Error ? err.message : err)
     }

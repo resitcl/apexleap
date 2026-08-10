@@ -9,6 +9,7 @@ import { ConfirmTransferButton } from './ConfirmTransferButton'
 import { DeletePaymentButton } from './DeletePaymentButton'
 import { ONLINE_GATEWAY_IDS, paymentMethodLabel } from '@/lib/payment-methods'
 import { paymentRowTone } from '@/lib/payment-status'
+import { MailCheck } from 'lucide-react'
 
 const BILLING_LABEL: Record<string, string> = {
   monthly: 'mes', quarterly: 'trim', semiannual: 'sem', annual: 'año', single: 'único',
@@ -38,12 +39,16 @@ interface Props {
   nextBillingDate: string | null
   /** Días de mora ya calculados en el servidor (no usar Date.now() en render). */
   overdueDays: number
+  /** "Cobro hace 3d" — último recordatorio enviado al alumno, ya formateado en el servidor. */
+  lastReminderLabel?: string | null
+  /** Fecha/hora exacta del último cobro, para el tooltip. */
+  lastReminderTitle?: string | null
 }
 
 const fmtDate = (iso: string) =>
   new Date(iso).toLocaleDateString('es-CL', { day: 'numeric', month: 'short', year: 'numeric' })
 
-export function PaymentRowClient({ payment, isDuplicate, nextBillingDate, overdueDays }: Props) {
+export function PaymentRowClient({ payment, isDuplicate, nextBillingDate, overdueDays, lastReminderLabel, lastReminderTitle }: Props) {
   const [confirmOpen, setConfirmOpen] = useState(false)
 
   const athlete = payment.athletes
@@ -131,6 +136,15 @@ export function PaymentRowClient({ payment, isDuplicate, nextBillingDate, overdu
           )}
           {isDuplicate && (
             <span className="rounded-full bg-amber-500/20 px-2 py-1 text-[11px] font-black text-amber-600 dark:text-amber-400">DUP</span>
+          )}
+          {lastReminderLabel && (
+            <span
+              title={lastReminderTitle ?? undefined}
+              className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/60 px-2 py-1 text-[11px] font-bold text-muted-foreground"
+            >
+              <MailCheck className="h-3 w-3" />
+              {lastReminderLabel}
+            </span>
           )}
           {plan && (
             <span className="max-w-[10rem] truncate rounded-full border border-border bg-muted/60 px-2.5 py-1 text-[11px] font-bold text-muted-foreground">
@@ -233,6 +247,15 @@ export function PaymentRowClient({ payment, isDuplicate, nextBillingDate, overdu
           </div>
           {overdueDays > 0 && (
             <p className="text-[10px] text-red-600 dark:text-red-400 font-bold pl-4">{overdueDays}d mora</p>
+          )}
+          {lastReminderLabel && (
+            <p
+              title={lastReminderTitle ?? undefined}
+              className="flex items-center gap-1 pl-4 text-[10px] font-bold text-muted-foreground/70"
+            >
+              <MailCheck className="h-3 w-3 shrink-0" />
+              {lastReminderLabel}
+            </p>
           )}
         </div>
 

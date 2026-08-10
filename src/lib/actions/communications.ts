@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { getClubId, getClubMembershipRole } from '@/lib/actions/club-context'
 import { sendBroadcastEmail, sendPaymentReminderEmail } from '@/lib/email'
 import { getAutoTemplate, renderTemplateVars } from '@/lib/auto-templates'
+import { getLastRemindersByAthlete, logPaymentReminder, type LastReminder } from '@/lib/payment-reminders'
 import { randomUUID } from 'crypto'
 import { revalidatePath } from 'next/cache'
 import { auth } from '@clerk/nextjs/server'
@@ -430,5 +431,34 @@ export async function sendPaymentRequest(
     sentCount: res.success ? 1 : 0,
     failedCount: res.success ? 0 : 1,
   })
+
+  // Bitácora por alumno: `communication_logs` solo guarda totales, así que no sirve para
+  // responder "¿a quién le mandé cobro y cuándo?".
+  const { userId } = await auth()
+  await logPaymentReminder(supabase, clubId, {
+    athleteId,
+    source: 'manual',
+    status: res.success ? 'sent' : 'failed',
+    amount,
+    dueDate: outstanding?.due_date ?? null,
+    error: res.success ? null : res.error ?? null,
+    sentBy: userId ?? null,
+  })
+
+  revalidatePath('/dashboard/athletes')
+  revalidatePath(`/dashboard/athletes/${athleteId}`)
   return res.success ? { ok: true } : { ok: false, error: res.error ?? 'No se pudo enviar.' }
+}
+
+/**
+ * Último cobro enviado a cada alumno (para la vista de Alumnos).
+ * Vacío si la migración 038 aún no corrió.
+ */
+export async function getPaymentReminderHistory(
+  athleteIds?: string[],
+): Promise<Record<string, LastReminder>> {
+  const role = await getClubMembershipRole()
+  if (role !== 'admin' && role !== 'admin_athlete' && role !== 'coach') return {}
+  const clubId = await getClubId()
+  return getLastRemindersByAthlete(createAdminClient(), clubId, athleteIds)
 }

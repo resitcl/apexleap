@@ -11,13 +11,15 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { DashboardEmptyState, DashboardMetaPill, DashboardPage, DashboardPageHeader } from "@/components/ui/dashboard-kit"
-import { UserPlus, AlertCircle, Clock, Users, TrendingUp, UserCheck, Activity, CheckCircle2, ChevronLeft, ChevronRight, Sparkles } from "lucide-react"
+import { UserPlus, AlertCircle, Clock, Users, TrendingUp, UserCheck, Activity, CheckCircle2, ChevronLeft, ChevronRight, Sparkles, MailCheck } from "lucide-react"
 import { AthletesFilter } from "@/components/athletes/AthletesFilter"
 import { HealthStatusBadge } from "@/components/athletes/HealthStatusBadge"
 import { ExportAthletesButton } from "@/components/athletes/ExportAthletesButton"
 import { BulkActionsWrapper } from "@/components/athletes/BulkActionsWrapper"
 import { SendInvitationDialog } from "@/components/athletes/SendInvitationDialog"
 import { AthleteRowActions } from "@/components/athletes/AthleteRowActions"
+import { getPaymentReminderHistory } from "@/lib/actions/communications"
+import { formatReminderAge, type LastReminder } from "@/lib/payment-reminders"
 import { ONLINE_GATEWAY_IDS } from "@/lib/payment-methods"
 import {
   ATHLETE_PAYMENT_STATUSES,
@@ -150,6 +152,7 @@ export default async function AthletesPage({ searchParams }: PageProps) {
   let plans: { id: string; name: string }[] = []
   let categories: { id: string; name: string; color: string | null }[] = []
   let pendingEnrollmentsCount = 0
+  let reminders: Record<string, LastReminder> = {}
 
   const now = new Date()
   const nowMs = now.getTime()
@@ -265,6 +268,8 @@ export default async function AthletesPage({ searchParams }: PageProps) {
       athletes = result.athletes
       total = result.total
     }
+    // Último cobro enviado a cada alumno de la página. Vacío si la migración 038 no corrió.
+    reminders = await getPaymentReminderHistory(athletes.map((a) => a.id)).catch(() => ({}))
   } catch (e) {
     error = e instanceof Error ? e.message : "Error al cargar alumnos"
   }
@@ -326,6 +331,7 @@ export default async function AthletesPage({ searchParams }: PageProps) {
     <DashboardPage>
       {/* ── GREETING ── */}
       <DashboardPageHeader
+        className="order-1 md:order-none"
         title={<>Gestión de <span className="text-primary">{vocab.athletes}.</span></>}
         subtitle={
           <>
@@ -366,7 +372,7 @@ export default async function AthletesPage({ searchParams }: PageProps) {
       />
 
       {/* ── CARTERA POR ESTADO DE PAGO (filtro rápido: el más usado) ── */}
-      <div className="-mx-4 overflow-x-auto px-4 pb-1 md:mx-0 md:px-0 md:overflow-visible">
+      <div className="order-2 -mx-4 overflow-x-auto px-4 pb-1 md:order-none md:mx-0 md:px-0 md:overflow-visible">
         <div className="flex min-w-max items-stretch gap-2 md:min-w-0 md:flex-wrap">
           <Link
             href={(() => {
@@ -411,7 +417,7 @@ export default async function AthletesPage({ searchParams }: PageProps) {
       </div>
 
       {/* ── KPI ROW ── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-[1fr_1fr_1fr_1fr_1.6fr] gap-3">
+      <div className="order-8 grid grid-cols-2 md:order-none md:grid-cols-4 lg:grid-cols-[1fr_1fr_1fr_1fr_1.6fr] gap-3">
 
         {/* Activos */}
         <Link href="/dashboard/athletes?status=active" className="block h-full">
@@ -532,7 +538,7 @@ export default async function AthletesPage({ searchParams }: PageProps) {
         const pct = Math.round((withOverdue / active.length) * 100)
         if (pct < 30) return null
         return (
-          <Link href={buildPayStatusHref('overdue')}>
+          <Link href={buildPayStatusHref('overdue')} className="order-9 md:order-none">
             <div className="rounded-2xl border border-destructive/20 bg-gradient-to-r from-destructive/10 via-destructive/5 to-transparent p-4 md:p-5 flex items-center gap-4 hover:border-destructive/40 transition-colors cursor-pointer">
               <div className="w-10 h-10 rounded-xl bg-destructive/20 flex items-center justify-center shrink-0">
                 <AlertCircle className="w-5 h-5 text-destructive" />
@@ -576,7 +582,7 @@ export default async function AthletesPage({ searchParams }: PageProps) {
         if (!hasAlerts) return null
 
         return (
-          <div className="flex flex-wrap gap-3">
+          <div className="order-10 flex flex-wrap gap-3 md:order-none">
             {noSub.length > 0 && (
               <div className="flex-1 min-w-[260px] bg-amber-500/10 border border-amber-500/20 rounded-[16px] p-3 flex items-center gap-3">
                 <div className="w-9 h-9 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0">
@@ -627,17 +633,22 @@ export default async function AthletesPage({ searchParams }: PageProps) {
       })()}
 
       {/* Bulk Actions */}
-      <BulkActionsWrapper athletes={athletes.map((a) => ({ id: a.id, name: a.name, photo_url: (a as { photo_url?: string | null }).photo_url ?? null, status: a.status, health_status: a.health_status }))} />
+      <div className="order-4 md:order-none">
+        <BulkActionsWrapper athletes={athletes.map((a) => ({ id: a.id, name: a.name, photo_url: (a as { photo_url?: string | null }).photo_url ?? null, status: a.status, health_status: a.health_status }))} />
+      </div>
 
-      <AthletesFilter plans={plans} categories={categories} />
+      <div className="order-3 md:order-none">
+        <AthletesFilter plans={plans} categories={categories} />
+      </div>
 
       {/* ═══════════ ATHLETES TABLE ═══════════ */}
       {error ? (
-        <Card className="rounded-2xl border-destructive/20">
+        <Card className="order-5 rounded-2xl border-destructive/20 md:order-none">
           <CardContent className="py-12 text-center text-destructive font-bold">{error}</CardContent>
         </Card>
       ) : athletes.length === 0 ? (
         <DashboardEmptyState
+          className="order-5 md:order-none"
           icon={<Users className="w-8 h-8" />}
           title={params.search || payStatus ? "Sin resultados" : `No hay ${vocabLower} registrados`}
           description={
@@ -658,7 +669,7 @@ export default async function AthletesPage({ searchParams }: PageProps) {
           )}
         />
       ) : (
-        <div className="overflow-hidden rounded-[24px] border border-border bg-card shadow-sm">
+        <div className="order-5 overflow-hidden rounded-[24px] border border-border bg-card shadow-sm md:order-none">
           {/* Table Header */}
           <div className="hidden lg:grid grid-cols-[minmax(230px,2.4fr)_105px_minmax(150px,1.2fr)_115px_140px_150px_80px] gap-4 border-b border-border px-6 py-5">
             <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50">Atleta</span>
@@ -728,6 +739,8 @@ export default async function AthletesPage({ searchParams }: PageProps) {
 
               const anchorDay = activeSub?.billing_anchor_day ?? null
               const pendingTransfer = pendingTransferOf(athlete)
+              const lastReminder = reminders[athlete.id] ?? null
+              const reminderLabel = lastReminder ? formatReminderAge(lastReminder.sentAt, nowMs) : null
               const nextDue = nextBilling
                 ? new Date(`${nextBilling}T12:00:00`)
                 : null
@@ -739,6 +752,9 @@ export default async function AthletesPage({ searchParams }: PageProps) {
                   athleteName={athlete.name}
                   status={athlete.status}
                   billingAnchorDay={anchorDay}
+                  hasEmail={!!athlete.email}
+                  debt={debt}
+                  lastReminder={lastReminder}
                   pendingTransfer={
                     pendingTransfer
                       ? {
@@ -810,6 +826,12 @@ export default async function AthletesPage({ searchParams }: PageProps) {
                       {debt > 0 && (
                         <span className="rounded-full bg-red-500 px-2.5 py-1 text-[11px] font-black text-white">
                           ${debt.toLocaleString('es-CL')}
+                        </span>
+                      )}
+                      {reminderLabel && (
+                        <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/60 px-2 py-1 text-[11px] font-bold text-muted-foreground">
+                          <MailCheck className="h-3 w-3" />
+                          {reminderLabel}
                         </span>
                       )}
                     </div>
@@ -941,6 +963,15 @@ export default async function AthletesPage({ searchParams }: PageProps) {
                           <div className="min-w-0">
                             <p className={`text-[13px] font-bold leading-none mb-1 ${payMeta.text}`}>{payMeta.label}</p>
                             <p className="text-[11px] text-muted-foreground/60 font-medium truncate">{payHint}</p>
+                            {reminderLabel && (
+                              <p
+                                className="mt-1 flex items-center gap-1 text-[10px] font-bold text-muted-foreground/70"
+                                title={`Último cobro enviado: ${new Date(lastReminder!.sentAt).toLocaleString('es-CL')}${lastReminder!.sentCount > 1 ? ` · ${lastReminder!.sentCount} envíos` : ''}`}
+                              >
+                                <MailCheck className="h-3 w-3 shrink-0" />
+                                {reminderLabel}
+                              </p>
+                            )}
                           </div>
                         </>
                       )}
@@ -989,7 +1020,7 @@ export default async function AthletesPage({ searchParams }: PageProps) {
           return new URLSearchParams(base).toString()
         }
         return (
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between pt-1">
+          <div className="order-6 flex flex-col gap-4 md:order-none lg:flex-row lg:items-center lg:justify-between pt-1">
             <p className="text-xs font-bold text-muted-foreground/60 uppercase tracking-widest">
               Mostrando {visibleStart}-{visibleEnd} de {total.toLocaleString('es-CL')}
             </p>

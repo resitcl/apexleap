@@ -22,6 +22,16 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import {
   MoreHorizontal,
   User,
   CreditCard,
@@ -29,8 +39,13 @@ import {
   PauseCircle,
   PlayCircle,
   UserX,
+  BellRing,
+  Loader2,
+  MailCheck,
 } from 'lucide-react'
 import { archiveAthlete, reactivateAthlete, suspendAthlete } from '@/lib/actions/athletes'
+import { sendPaymentRequest } from '@/lib/actions/communications'
+import { formatReminderAge, daysSince, type LastReminder } from '@/lib/payment-reminders'
 import { ConfirmTransferButton } from '@/components/payments/ConfirmTransferButton'
 
 /** Cuota con comprobante esperando validación del admin, si el alumno tiene una. */
@@ -52,7 +67,16 @@ interface Props {
   pendingTransfer?: PendingTransfer | null
   /** Día de cobro vigente, para el aviso del diálogo de confirmación. */
   billingAnchorDay?: number | null
+  /** Sin email no se puede enviar cobro; la opción queda deshabilitada con el motivo. */
+  hasEmail?: boolean
+  /** Deuda vencida, para dar contexto en el diálogo de cobro. */
+  debt?: number
+  /** Último cobro enviado a este alumno (migración 038). */
+  lastReminder?: LastReminder | null
 }
+
+/** Ventana en la que reenviar un cobro se considera insistir de más. */
+const REMINDER_NAG_DAYS = 3
 
 type ConfirmKind = 'suspend' | 'reactivate' | 'archive'
 
@@ -83,13 +107,54 @@ const CONFIRM_COPY: Record<ConfirmKind, { title: (n: string) => string; body: st
   },
 }
 
-export function AthleteRowActions({ athleteId, athleteName, status, pendingTransfer, billingAnchorDay }: Props) {
+export function AthleteRowActions({
+  athleteId,
+  athleteName,
+  status,
+  pendingTransfer,
+  billingAnchorDay,
+  hasEmail = true,
+  debt = 0,
+  lastReminder = null,
+}: Props) {
   const router = useRouter()
   const [confirmKind, setConfirmKind] = useState<ConfirmKind | null>(null)
   const [transferOpen, setTransferOpen] = useState(false)
+  const [reminderOpen, setReminderOpen] = useState(false)
+  const [note, setNote] = useState('')
   const [loading, setLoading] = useState(false)
 
   const isSuspended = status === 'suspended'
+
+  // `Date.now()` en render es impuro y además provocaría desajuste de hidratación; el diálogo
+  // solo necesita la referencia temporal cuando el usuario ya lo abrió.
+  const [nowMs, setNowMs] = useState<number | null>(null)
+  const reminderAge = lastReminder && nowMs ? daysSince(lastReminder.sentAt, nowMs) : null
+  const sentRecently = reminderAge !== null && reminderAge < REMINDER_NAG_DAYS
+
+  function openReminder() {
+    setNowMs(new Date().getTime())
+    setNote('')
+    setReminderOpen(true)
+  }
+
+  async function sendReminder() {
+    setLoading(true)
+    try {
+      const res = await sendPaymentRequest(athleteId, note)
+      if (res.ok) {
+        toast.success(`Cobro enviado a ${athleteName}`)
+        setReminderOpen(false)
+        router.refresh()
+      } else {
+        toast.error(res.error ?? 'No se pudo enviar el cobro')
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'No se pudo enviar el cobro')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   async function runConfirm() {
     if (!confirmKind) return
@@ -144,6 +209,17 @@ export function AthleteRowActions({ athleteId, athleteName, status, pendingTrans
             Registrar pago
           </DropdownMenuItem>
 
+          <DropdownMenuItem
+            disabled={!hasEmail}
+            title={hasEmail ? undefined : 'El alumno no tiene email registrado'}
+            // El diálogo se monta fuera del menú: hay que dejar que Radix cierre el popover
+            // antes de abrirlo, si no el foco vuelve al trigger y lo cierra.
+            onSelect={() => setTimeout(openReminder, 0)}
+          >
+            <BellRing className="h-4 w-4" />
+            Enviar cobro
+          </DropdownMenuItem>
+
           {pendingTransfer ? (
             <DropdownMenuItem
               onSelect={() => {
@@ -195,6 +271,82 @@ export function AthleteRowActions({ athleteId, athleteName, status, pendingTrans
           </AlertDialogContent>
         </AlertDialog>
       ) : null}
+
+      <Dialog open={reminderOpen} onOpenChange={setReminderOpen}>
+        <DialogContent className="sm:max-w-md max-h-[90dvh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Enviar cobro a {athleteName}</DialogTitle>
+            <DialogDescription>
+              Se envía por correo con el monto pendiente y un botón para pagar desde el portal.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-1">
+            {debt > 0 ? (
+              <div className="rounded-lg border border-red-500/25 bg-red-500/10 px-3 py-2 text-sm">
+                <span className="font-bold text-red-600 dark:text-red-400">
+                  ${debt.toLocaleString('es-CL')}
+                </span>{' '}
+                <span className="text-muted-foreground">en cuotas vencidas</span>
+              </div>
+            ) : null}
+
+            {lastReminder ? (
+              <div
+                className={`flex items-start gap-2.5 rounded-lg border px-3 py-2 text-xs ${
+                  sentRecently
+                    ? 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400'
+                    : 'border-border bg-muted/40 text-muted-foreground'
+                }`}
+              >
+                <MailCheck className="mt-0.5 h-4 w-4 shrink-0" />
+                <span>
+                  Último cobro {nowMs ? formatReminderAge(lastReminder.sentAt, nowMs).toLowerCase().replace('cobro ', '') : ''}
+                  {' · '}
+                  {lastReminder.source === 'cron' ? 'recordatorio automático' : 'enviado por el equipo'}
+                  {lastReminder.sentCount > 1 ? ` · ${lastReminder.sentCount} envíos en total` : ''}
+                  {sentRecently ? '. Considera esperar antes de volver a insistir.' : '.'}
+                </span>
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                No hay cobros enviados a este alumno todavía.
+              </p>
+            )}
+
+            <div className="space-y-1.5">
+              <Label htmlFor={`note-${athleteId}`}>Nota (opcional)</Label>
+              <Textarea
+                id={`note-${athleteId}`}
+                rows={3}
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder="Ej: Recuerda regularizar antes del viernes."
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <button
+              type="button"
+              onClick={() => setReminderOpen(false)}
+              disabled={loading}
+              className="h-10 rounded-md border border-input px-4 text-sm font-medium hover:bg-muted disabled:opacity-50"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={() => void sendReminder()}
+              disabled={loading}
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-bold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+            >
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <BellRing className="h-4 w-4" />}
+              {loading ? 'Enviando…' : 'Enviar cobro'}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {pendingTransfer ? (
         <ConfirmTransferButton

@@ -32,8 +32,14 @@ const toneStyles: Record<DashboardTone, { value: string; icon: string; chip: str
   },
 }
 
+/**
+ * Contenedor de página. Es flex-col (no `space-y-8`) para que las secciones puedan reordenarse
+ * con `order-*` en móvil sin tocar el DOM — así el admin llega antes a lo accionable y la
+ * analítica queda abajo. Bonus: con `gap` los hijos ocultos no dejan un hueco doble, cosa que
+ * `space-y` sí hacía.
+ */
 export function DashboardPage({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn("space-y-8 pb-12 pt-1", className)} {...props} />
+  return <div className={cn("flex flex-col gap-8 pb-12 pt-1", className)} {...props} />
 }
 
 interface DashboardPageHeaderProps {

@@ -115,6 +115,7 @@ const METHOD_OPTIONS = [
 ]
 
 interface Props {
+  className?: string
   currentStatus?: string
   currentMethod?: string
   currentFrom?: string
@@ -128,6 +129,7 @@ interface Props {
 }
 
 export function PaymentsFilter({
+  className,
   currentStatus, currentMethod, currentFrom, currentTo,
   currentPaidFrom, currentPaidTo, currentSearch, currentAthleteName,
   currentAmountMin, currentAmountMax,
@@ -159,7 +161,7 @@ export function PaymentsFilter({
   const hasAny = !!(currentStatus || currentSearch || currentAthleteName || advancedCount > 0)
 
   return (
-    <div className="space-y-3">
+    <div className={`space-y-3${className ? ` ${className}` : ''}`}>
       {/* Búsqueda */}
       <form
         method="get"
