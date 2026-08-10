@@ -65,10 +65,26 @@ export async function activateSubscriptionForPaidPayment(
   if (!plan) return
 
   const cycle = plan.billing_cycle as BillingCycle
+
+  // El ancla vigente se lee ANTES de cancelar la suscripción anterior: es el día de cobro que el
+  // club acordó con el alumno y debe sobrevivir a un pago atrasado. Sin esto, una cuota sin
+  // `period_start` reanclaba el ciclo al día en que se pagó.
+  const { data: priorSub } = await supabase
+    .from('subscriptions')
+    .select('billing_anchor_day, current_period_start')
+    .eq('club_id', clubId)
+    .eq('athlete_id', payment.athlete_id)
+    .in('status', ['active', 'pending_payment'])
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
   const { startStr, endStr, nextBillingStr, billingAnchorDay } = subscriptionPeriodFieldsForPlan(cycle, {
     periodStart: payment.period_start,
     periodEnd: payment.period_end,
     paidAt: paidAtDate,
+    billingAnchorDay: (priorSub?.billing_anchor_day as number | null) ?? null,
+    referencePeriodStart: (priorSub?.current_period_start as string | null) ?? null,
   })
 
   const noAutoRenew = new Set<string>(['transfer', 'cash', 'manual', ...ONLINE_GATEWAY_IDS])

@@ -101,12 +101,27 @@ function normYmd(s: string | null | undefined): string | null {
 }
 
 /**
- * Fechas de suscripción al activar un pago: usa inicio/fin de período del pago si existen;
- * si no, cae en paidAt (comportamiento anterior).
+ * Fechas de suscripción al activar un pago.
+ *
+ * REGLA: el día de cobro (ancla) manda; la fecha en que se pagó NUNCA lo mueve. Si un alumno
+ * cobra los 4 y paga atrasado el 10, su próximo cobro sigue siendo el 4 del mes siguiente.
+ *
+ * Prioridad para resolver el período:
+ *   1. `periodStart` de la cuota (lo normal: lo fija el cron o el checkout).
+ *   2. `billingAnchorDay` de la suscripción, alineado con `paidAt`.
+ *   3. `paidAt` (último recurso: alumno sin ancla ni período, p. ej. su primer pago).
  */
 export function subscriptionPeriodFieldsForPlan(
   cycle: BillingCycle,
-  opts: { periodStart?: string | null; periodEnd?: string | null; paidAt: Date },
+  opts: {
+    periodStart?: string | null
+    periodEnd?: string | null
+    paidAt: Date
+    /** `subscriptions.billing_anchor_day` vigente, si el alumno ya tenía una suscripción. */
+    billingAnchorDay?: number | null
+    /** `subscriptions.current_period_start`, para alinear ciclos no mensuales. */
+    referencePeriodStart?: string | null
+  },
 ): {
   startStr: string
   endStr: string | null
@@ -115,13 +130,36 @@ export function subscriptionPeriodFieldsForPlan(
 } {
   const ps = normYmd(opts.periodStart)
   const pe = normYmd(opts.periodEnd)
-  const anchor = ps ? parseYmd(ps) : opts.paidAt
-  const startStr = ps ?? ymdFromDate(opts.paidAt)
+
+  let anchor: Date
+  let startStr: string
+  let fallbackEnd: Date | null = null
+
+  if (ps) {
+    anchor = parseYmd(ps)
+    startStr = ps
+  } else if (opts.billingAnchorDay && cycle !== 'single') {
+    // Sin período en la cuota, reconstruimos el que corresponde al ancla del alumno en lugar
+    // de anclar al día en que pagó (que es justamente lo que producía el corrimiento).
+    const ref = normYmd(opts.referencePeriodStart)
+    const derived = calculatePeriodStartForPayment(
+      Math.max(1, Math.min(28, opts.billingAnchorDay)),
+      opts.paidAt,
+      cycle,
+      ref ? parseYmd(ref) : null,
+    )
+    anchor = derived.periodStart
+    startStr = ymdFromDate(derived.periodStart)
+    fallbackEnd = derived.periodEnd
+  } else {
+    anchor = opts.paidAt
+    startStr = ymdFromDate(opts.paidAt)
+  }
 
   let endStr: string | null
   if (pe) endStr = pe
   else {
-    const end = calculatePeriodEnd(anchor, cycle)
+    const end = fallbackEnd ?? calculatePeriodEnd(anchor, cycle)
     endStr = end ? ymdFromDate(end) : null
   }
 

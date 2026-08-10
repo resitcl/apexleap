@@ -11,12 +11,14 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { DashboardEmptyState, DashboardMetaPill, DashboardPage, DashboardPageHeader } from "@/components/ui/dashboard-kit"
-import { UserPlus, AlertCircle, Clock, Users, TrendingUp, UserCheck, Activity, CheckCircle2, ArrowRight, ChevronLeft, ChevronRight, Sparkles } from "lucide-react"
+import { UserPlus, AlertCircle, Clock, Users, TrendingUp, UserCheck, Activity, CheckCircle2, ChevronLeft, ChevronRight, Sparkles } from "lucide-react"
 import { AthletesFilter } from "@/components/athletes/AthletesFilter"
 import { HealthStatusBadge } from "@/components/athletes/HealthStatusBadge"
 import { ExportAthletesButton } from "@/components/athletes/ExportAthletesButton"
 import { BulkActionsWrapper } from "@/components/athletes/BulkActionsWrapper"
 import { SendInvitationDialog } from "@/components/athletes/SendInvitationDialog"
+import { AthleteRowActions } from "@/components/athletes/AthleteRowActions"
+import { ONLINE_GATEWAY_IDS } from "@/lib/payment-methods"
 import {
   ATHLETE_PAYMENT_STATUSES,
   ATHLETE_PAYMENT_STATUS_META,
@@ -54,12 +56,41 @@ interface PageProps {
 
 type AthleteRow = Awaited<ReturnType<typeof getAthletes>>["athletes"][number]
 
-function paymentsOf(a: AthleteRow) {
-  return (a.payments as Array<{ status: string; amount: number; paid_at: string | null; due_date?: string | null }> | null) ?? []
+interface AthletePayment {
+  id: string
+  status: string
+  amount: number
+  paid_at: string | null
+  due_date?: string | null
+  payment_method?: string | null
+  notes?: string | null
+  concept?: string | null
+  plan_id?: string | null
+  period_start?: string | null
+}
+
+function paymentsOf(a: AthleteRow): AthletePayment[] {
+  return (a.payments as AthletePayment[] | null) ?? []
 }
 
 function subscriptionsOf(a: AthleteRow) {
   return (a.subscriptions as Array<{ status: string; next_billing_date?: string | null }> | null) ?? []
+}
+
+/**
+ * Cuota que el alumno ya pagó por transferencia y el admin todavía no valida.
+ * Mismo criterio que la tabla de Pagos: transferencia/efectivo con comprobante, nunca pasarela
+ * (esas se acreditan solas por webhook).
+ */
+function pendingTransferOf(a: AthleteRow): AthletePayment | null {
+  return (
+    paymentsOf(a).find((p) => {
+      if (p.status !== 'pending' && p.status !== 'overdue') return false
+      if (p.payment_method && (ONLINE_GATEWAY_IDS as readonly string[]).includes(p.payment_method)) return false
+      const notes = p.notes ?? ''
+      return p.payment_method === 'transfer' || notes.toLowerCase().includes('comprobante')
+    }) ?? null
+  )
 }
 
 function attendanceOf(a: AthleteRow) {
@@ -629,11 +660,12 @@ export default async function AthletesPage({ searchParams }: PageProps) {
       ) : (
         <div className="overflow-hidden rounded-[24px] border border-border bg-card shadow-sm">
           {/* Table Header */}
-          <div className="hidden lg:grid grid-cols-[minmax(260px,2.8fr)_120px_minmax(180px,1.5fr)_130px_170px_100px] gap-4 border-b border-border px-6 py-5">
+          <div className="hidden lg:grid grid-cols-[minmax(230px,2.4fr)_105px_minmax(150px,1.2fr)_115px_140px_150px_80px] gap-4 border-b border-border px-6 py-5">
             <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50">Atleta</span>
             <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50">Estado</span>
             <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50">Plan Actual</span>
             <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50">Últ. Pago</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50">Próx. Pago</span>
             <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50">Estado Pago</span>
             <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 text-right pr-2">Acciones</span>
           </div>
@@ -641,7 +673,7 @@ export default async function AthletesPage({ searchParams }: PageProps) {
           {/* Table Rows */}
           <div className="divide-y divide-border">
             {athletes.map((athlete) => {
-              const subs = athlete.subscriptions as Array<{ status: string; current_period_end?: string | null; next_billing_date?: string | null; plans: { name: string; price?: number; billing_cycle?: string } | null }> | null ?? []
+              const subs = athlete.subscriptions as Array<{ status: string; current_period_end?: string | null; next_billing_date?: string | null; billing_anchor_day?: number | null; plans: { name: string; price?: number; billing_cycle?: string } | null }> | null ?? []
               const activeSub    = subs.find((s) => s.status === 'active')
               const expiredSub   = subs.find((s) => s.status === 'expired')
               const pausedSub    = subs.find((s) => s.status === 'paused')
@@ -694,8 +726,49 @@ export default async function AthletesPage({ searchParams }: PageProps) {
 
               const age = ageOf(athlete, nowMs)
 
+              const anchorDay = activeSub?.billing_anchor_day ?? null
+              const pendingTransfer = pendingTransferOf(athlete)
+              const nextDue = nextBilling
+                ? new Date(`${nextBilling}T12:00:00`)
+                : null
+              const nextDueOverdue = !!nextBilling && nextBilling <= today
+
+              const rowActions = (
+                <AthleteRowActions
+                  athleteId={athlete.id}
+                  athleteName={athlete.name}
+                  status={athlete.status}
+                  billingAnchorDay={anchorDay}
+                  pendingTransfer={
+                    pendingTransfer
+                      ? {
+                          id: pendingTransfer.id,
+                          concept: pendingTransfer.concept ?? 'Cuota',
+                          amount: Number(pendingTransfer.amount),
+                          due_date: pendingTransfer.due_date ?? today,
+                          notes: pendingTransfer.notes ?? null,
+                          athlete_id: athlete.id,
+                          plan_id: pendingTransfer.plan_id ?? null,
+                          period_start: pendingTransfer.period_start ?? null,
+                          plans: activeSub?.plans
+                            ? { name: activeSub.plans.name, billing_cycle: activeSub.plans.billing_cycle }
+                            : null,
+                        }
+                      : null
+                  }
+                />
+              )
+
               return (
-                <Link key={athlete.id} href={`/dashboard/athletes/${athlete.id}`} className="group block transition-colors hover:bg-muted/50 active:bg-muted/60">
+                // Enlace "estirado": la fila entera navega al perfil, pero el menú de acciones
+                // vive por encima (z-10) y captura sus propios clics. Un <button> dentro de un <a>
+                // sería HTML inválido y rompería el dropdown.
+                <div key={athlete.id} className="group relative transition-colors hover:bg-muted/50 active:bg-muted/60">
+                  <Link
+                    href={`/dashboard/athletes/${athlete.id}`}
+                    className="absolute inset-0 z-0"
+                    aria-label={`Ver perfil de ${athlete.name}`}
+                  />
 
                   {/* ══ MOBILE / TABLET CARD ══ */}
                   <div className="lg:hidden p-4 space-y-3">
@@ -715,9 +788,7 @@ export default async function AthletesPage({ searchParams }: PageProps) {
                           {athlete.email ?? '—'}{age !== null ? ` · ${age} años` : ''}
                         </p>
                       </div>
-                      <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border bg-muted text-muted-foreground">
-                        <ArrowRight className="w-4 h-4" />
-                      </span>
+                      <div className="relative z-10 shrink-0">{rowActions}</div>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-1.5">
@@ -743,18 +814,29 @@ export default async function AthletesPage({ searchParams }: PageProps) {
                       )}
                     </div>
 
-                    <div className="flex items-center justify-between gap-3 rounded-xl bg-muted/40 px-3 py-2 text-[12px]">
-                      <span className="min-w-0 truncate font-semibold text-foreground/80">{planLabel}</span>
-                      <span className="shrink-0 text-muted-foreground/70">
-                        {lastPaid?.paid_at
-                          ? `Últ. pago ${new Date(lastPaid.paid_at).toLocaleDateString('es-CL', { day: 'numeric', month: 'short' })}`
-                          : payHint}
-                      </span>
+                    <div className="space-y-1.5 rounded-xl bg-muted/40 px-3 py-2 text-[12px]">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="min-w-0 truncate font-semibold text-foreground/80">{planLabel}</span>
+                        <span className="shrink-0 text-muted-foreground/70">
+                          {lastPaid?.paid_at
+                            ? `Últ. pago ${new Date(lastPaid.paid_at).toLocaleDateString('es-CL', { day: 'numeric', month: 'short' })}`
+                            : payHint}
+                        </span>
+                      </div>
+                      {nextDue && (
+                        <div className="flex items-center justify-between gap-3 border-t border-border/50 pt-1.5">
+                          <span className="text-muted-foreground/70">Próximo cobro</span>
+                          <span className={`font-semibold ${nextDueOverdue ? 'text-red-600 dark:text-red-400' : 'text-foreground/80'}`}>
+                            {nextDue.toLocaleDateString('es-CL', { day: 'numeric', month: 'short' })}
+                            {anchorDay ? <span className="ml-1 font-normal text-muted-foreground/60">· día {anchorDay}</span> : null}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
 
                   {/* ══ DESKTOP GRID ══ */}
-                  <div className="hidden lg:grid grid-cols-[minmax(260px,2.8fr)_120px_minmax(180px,1.5fr)_130px_170px_100px] gap-4 items-center px-6 py-5">
+                  <div className="hidden lg:grid grid-cols-[minmax(230px,2.4fr)_105px_minmax(150px,1.2fr)_115px_140px_150px_80px] gap-4 items-center px-6 py-5">
 
                     {/* ── Athlete ── */}
                     <div className="flex items-center gap-4 min-w-0">
@@ -827,6 +909,24 @@ export default async function AthletesPage({ searchParams }: PageProps) {
                       )}
                     </div>
 
+                    {/* ── Next Payment ── */}
+                    <div>
+                      {nextDue ? (
+                        <>
+                          <p className={`mb-0.5 text-[13px] font-bold ${nextDueOverdue ? 'text-red-600 dark:text-red-400' : 'text-foreground'}`}>
+                            {nextDue.toLocaleDateString('es-CL', { day: 'numeric', month: 'short' })}
+                          </p>
+                          <p className="text-[11px] text-muted-foreground/60 font-medium truncate">
+                            {anchorDay ? `día ${anchorDay} de cada mes` : 'próximo cobro'}
+                          </p>
+                        </>
+                      ) : activeSub ? (
+                        <span className="text-xs text-muted-foreground/40" title="La suscripción no tiene próximo cobro programado">Sin programar</span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground/40">—</span>
+                      )}
+                    </div>
+
                     {/* ── Payment Status ── */}
                     <div className="flex items-center gap-3">
                       {payState === 'none' && !activeSub ? (
@@ -847,19 +947,17 @@ export default async function AthletesPage({ searchParams }: PageProps) {
                     </div>
 
                     {/* ── Acciones ── */}
-                    <div className="flex items-center gap-2 justify-end flex-wrap pr-2">
+                    <div className="relative z-10 flex items-center justify-end gap-2 pr-1">
                       {debt > 0 && (
                         <span className="text-[9px] font-black bg-red-500 text-white px-2 py-1 rounded-full" title={`Deuda: $${debt.toLocaleString('es-CL')}`}>
                           ${debt >= 1000 ? `${Math.round(debt / 1000)}k` : debt.toLocaleString('es-CL')}
                         </span>
                       )}
-                      <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border bg-muted text-muted-foreground transition-all group-hover:bg-muted/80 group-hover:text-foreground">
-                        <ArrowRight className="w-4 h-4" />
-                      </span>
+                      {rowActions}
                     </div>
 
                   </div>
-                </Link>
+                </div>
               )
             })}
           </div>

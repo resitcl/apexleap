@@ -7,8 +7,16 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
-import { CheckCircle, ExternalLink, ImageIcon, Pencil, RotateCcw } from "lucide-react"
+import { CheckCircle, ExternalLink, ImageIcon, Pencil, RotateCcw, CalendarClock } from "lucide-react"
 import { confirmTransferPayment, getReceiptSignedUrl } from "@/lib/actions/payments"
+import { setAthleteBillingDay } from "@/lib/actions/athletes"
+import {
+  calculateNextPeriodStart,
+  calculatePeriodStartForPayment,
+  parseYmd,
+  ymdFromDate,
+  type BillingCycle,
+} from "@/lib/billing-utils"
 
 interface Props {
   payment: {
@@ -19,9 +27,12 @@ interface Props {
     notes: string | null
     athlete_id: string
     plan_id: string | null
+    period_start?: string | null
     athletes?: { id: string; name: string } | null
     plans?: { name: string; billing_cycle?: string } | null
   }
+  /** `subscriptions.billing_anchor_day` vigente. Si falta, se deriva del período de la cuota. */
+  billingAnchorDay?: number | null
   open?: boolean
   onOpenChange?: (open: boolean) => void
   hideButton?: boolean
@@ -38,7 +49,35 @@ function extractReceiptRef(notes: string | null): string | null {
 
 const clp = (n: number) => `$${Math.round(n).toLocaleString('es-CL')}`
 
-export function ConfirmTransferButton({ payment, open: controlledOpen, onOpenChange, hideButton }: Props) {
+const fmtLongDate = (ymd: string) =>
+  new Date(`${ymd}T12:00:00`).toLocaleDateString('es-CL', { day: 'numeric', month: 'long', year: 'numeric' })
+
+/**
+ * Día de cobro efectivo del alumno: el ancla guardada manda; si no hay, se deriva del período de
+ * la cuota. Nunca del día en que se pagó — ese es justamente el corrimiento que queremos evitar.
+ */
+function resolveAnchorDay(payment: Props['payment'], billingAnchorDay?: number | null): number | null {
+  if (billingAnchorDay && billingAnchorDay >= 1) return Math.min(28, billingAnchorDay)
+  const ps = payment.period_start
+  if (ps) return Math.min(28, parseYmd(ps).getDate())
+  if (payment.due_date) return Math.min(28, parseYmd(payment.due_date).getDate())
+  return null
+}
+
+/** Próxima fecha de cobro que quedará tras confirmar, según el ancla (no según `paidAt`). */
+function projectNextBilling(anchorDay: number | null, cycle: BillingCycle, periodStart?: string | null): string | null {
+  if (cycle === 'single') return null
+  if (periodStart) {
+    const next = calculateNextPeriodStart(parseYmd(periodStart), cycle)
+    return next ? ymdFromDate(next) : null
+  }
+  if (!anchorDay) return null
+  const { periodStart: ps } = calculatePeriodStartForPayment(anchorDay, new Date(), cycle, null)
+  const next = calculateNextPeriodStart(ps, cycle)
+  return next ? ymdFromDate(next) : null
+}
+
+export function ConfirmTransferButton({ payment, billingAnchorDay, open: controlledOpen, onOpenChange, hideButton }: Props) {
   const [internalOpen, setInternalOpen] = useState(false)
   const open = controlledOpen !== undefined ? controlledOpen : internalOpen
   const [paidAt, setPaidAt] = useState(() => new Date().toISOString().split('T')[0])
@@ -47,6 +86,11 @@ export function ConfirmTransferButton({ payment, open: controlledOpen, onOpenCha
   const expectedAmount = Math.round(Number(payment.amount) || 0)
   const [amountText, setAmountText] = useState(String(expectedAmount))
   const [editingAmount, setEditingAmount] = useState(false)
+
+  const cycle = ((payment.plans?.billing_cycle ?? 'monthly') as BillingCycle)
+  const currentAnchor = resolveAnchorDay(payment, billingAnchorDay)
+  const [anchorDay, setAnchorDay] = useState<number | null>(currentAnchor)
+  const [editingAnchor, setEditingAnchor] = useState(false)
 
   const receiptRef = extractReceiptRef(payment.notes)
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null)
@@ -70,8 +114,10 @@ export function ConfirmTransferButton({ payment, open: controlledOpen, onOpenCha
     if (open) {
       setAmountText(String(expectedAmount))
       setEditingAmount(false)
+      setAnchorDay(currentAnchor)
+      setEditingAnchor(false)
     }
-  }, [open, expectedAmount])
+  }, [open, expectedAmount, currentAnchor])
 
   const athleteName = payment.athletes?.name ?? 'Atleta'
   const planName = payment.plans?.name ?? payment.concept
@@ -86,6 +132,9 @@ export function ConfirmTransferButton({ payment, open: controlledOpen, onOpenCha
     onOpenChange?.(value)
   }
 
+  const anchorChanged = anchorDay !== null && currentAnchor !== null && anchorDay !== currentAnchor
+  const projectedNext = projectNextBilling(currentAnchor, cycle, payment.period_start)
+
   async function handleConfirm() {
     if (!amountValid) {
       toast.error('Ingresa un monto válido')
@@ -94,6 +143,15 @@ export function ConfirmTransferButton({ payment, open: controlledOpen, onOpenCha
     setLoading(true)
     try {
       await confirmTransferPayment(payment.id, paidAt, parsedAmount)
+      // El día de cobro se mueve DESPUÉS de confirmar: al confirmar se (re)crea la suscripción
+      // activa, y `setAthleteBillingDay` necesita una para realinear el ciclo.
+      if (anchorChanged && anchorDay) {
+        try {
+          await setAthleteBillingDay(payment.athlete_id, anchorDay)
+        } catch {
+          toast.warning('Pago confirmado, pero no se pudo cambiar el día de cobro. Ajústalo desde la ficha.')
+        }
+      }
       toast.success(
         hasDiff
           ? `Pago confirmado por ${clp(parsedAmount)} (plan ${clp(expectedAmount)})`
@@ -264,9 +322,70 @@ export function ConfirmTransferButton({ payment, open: controlledOpen, onOpenCha
                 className="w-full h-11 rounded-md border border-input bg-background px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-ring sm:text-sm"
               />
               <p className="text-xs text-muted-foreground">
-                La suscripción se activará desde esta fecha por el período del plan
+                Queda registrada como la fecha en que el alumno pagó. No mueve su día de cobro.
               </p>
             </div>
+
+            {/* Próximo cobro — el ancla manda, no la fecha de pago */}
+            {cycle !== 'single' && currentAnchor ? (
+              <div className="rounded-lg border border-border bg-muted/40 p-3 space-y-2">
+                <div className="flex items-start gap-2.5">
+                  <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium">
+                      Próximo cobro:{' '}
+                      <span className="font-bold">
+                        {anchorChanged ? 'se recalcula al guardar' : projectedNext ? fmtLongDate(projectedNext) : '—'}
+                      </span>
+                    </p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      Cobra el día {currentAnchor} de cada mes. Aunque este pago llegue atrasado, el
+                      ciclo se mantiene en el día {currentAnchor}.
+                    </p>
+                  </div>
+                  {!editingAnchor ? (
+                    <button
+                      type="button"
+                      onClick={() => setEditingAnchor(true)}
+                      className="shrink-0 text-xs font-medium text-primary hover:underline"
+                    >
+                      Cambiar
+                    </button>
+                  ) : null}
+                </div>
+
+                {editingAnchor ? (
+                  <div className="flex flex-wrap items-center gap-2 border-t border-border/60 pt-2">
+                    <Label htmlFor="anchorDay" className="text-xs text-muted-foreground">
+                      Nuevo día de cobro
+                    </Label>
+                    <select
+                      id="anchorDay"
+                      value={anchorDay ?? currentAnchor}
+                      onChange={(e) => setAnchorDay(Number(e.target.value))}
+                      className="h-9 rounded-md border border-input bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                    >
+                      {Array.from({ length: 28 }, (_, i) => i + 1).map((d) => (
+                        <option key={d} value={d}>Día {d}</option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => { setAnchorDay(currentAnchor); setEditingAnchor(false) }}
+                      className="text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      Cancelar
+                    </button>
+                    {anchorChanged ? (
+                      <p className="w-full text-xs text-amber-600 dark:text-amber-400">
+                        El ciclo se realineará al día {anchorDay} al confirmar. El período en curso
+                        queda cubierto: no se genera deuda retroactiva.
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
           </div>
 
           <DialogFooter className="gap-2 sm:gap-0">

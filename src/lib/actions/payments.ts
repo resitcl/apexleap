@@ -169,14 +169,35 @@ export async function createPayment(input: PaymentInput) {
   // Si el pago está ligado a un plan, derivar el período para alinear la facturación y que el
   // índice único (club_id, athlete_id, plan_id, period_start) prevenga pagos duplicados del
   // mismo período (antes quedaba period_start NULL y el índice no cubría los pagos manuales).
+  //
+  // El ancla sale de la suscripción del alumno, NO de la fecha de vencimiento que escribe el
+  // admin: el formulario propone `due_date = hoy`, así que registrar a mano un pago atrasado
+  // movía el día de cobro al día del registro (alumno que cobra los 4 pasaba a cobrar los 10).
   let periodStart: string | null = null
   let periodEnd: string | null = null
   if (parsed.plan_id) {
-    const { data: plan } = await supabase
-      .from('plans').select('billing_cycle').eq('id', parsed.plan_id).eq('club_id', clubId).maybeSingle()
+    const [{ data: plan }, { data: sub }] = await Promise.all([
+      supabase.from('plans').select('billing_cycle').eq('id', parsed.plan_id).eq('club_id', clubId).maybeSingle(),
+      supabase
+        .from('subscriptions')
+        .select('billing_anchor_day, current_period_start')
+        .eq('club_id', clubId)
+        .eq('athlete_id', parsed.athlete_id)
+        .in('status', ['active', 'pending_payment'])
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ])
     const cycle = ((plan?.billing_cycle as string) ?? 'monthly') as BillingCycle
     const ref = parseYmd(parsed.due_date)
-    const { periodStart: ps, periodEnd: pe } = calculatePeriodStartForPayment(getBillingAnchorDay(ref), ref, cycle)
+    const anchorDay = (sub?.billing_anchor_day as number | null) ?? getBillingAnchorDay(ref)
+    const refStart = (sub?.current_period_start as string | null) ?? null
+    const { periodStart: ps, periodEnd: pe } = calculatePeriodStartForPayment(
+      anchorDay,
+      ref,
+      cycle,
+      refStart ? parseYmd(refStart) : null,
+    )
     periodStart = ymdFromDate(ps)
     periodEnd = pe ? ymdFromDate(pe) : null
   }
