@@ -60,7 +60,8 @@ export default async function SuperAdminLayout({ children }: { children: React.R
 
       {/* Main */}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0 bg-background">
-        <header className="h-16 border-b border-border flex items-center px-3 sm:px-4 bg-sidebar gap-2 shrink-0 pt-[env(safe-area-inset-top)] box-content">
+        <header className="shrink-0 border-b border-border bg-sidebar pt-[env(safe-area-inset-top)]">
+        <div className="h-16 flex items-center px-3 sm:px-4 gap-2">
           <div className="md:hidden flex items-center gap-2 min-w-0 flex-1">
             <MobileSidebar
               destructiveNav
@@ -88,9 +89,10 @@ export default async function SuperAdminLayout({ children }: { children: React.R
           </div>
           <div className="flex-1 hidden md:block" />
           <UserNavClient />
+        </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-4 md:p-6">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain p-4 md:p-6">
           {children}
         </main>
       </div>

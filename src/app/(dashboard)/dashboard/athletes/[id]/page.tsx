@@ -385,7 +385,7 @@ export default async function AthleteDetailPage({ params }: PageProps) {
       <AthleteMatchStats data={matchStats} sport={sportType} />
 
       {/* Tabs: 4 pestañas de la Ficha 360° */}
-      <div className="grid md:grid-cols-2 lg:grid-cols-[1fr_340px] gap-3 items-start">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[1fr_340px] gap-3 items-start">
 
         {/* 1. Pestaña Administrativa */}
         <Card>

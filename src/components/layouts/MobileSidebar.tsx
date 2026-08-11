@@ -121,12 +121,14 @@ export function MobileSidebar({
         }`}
         aria-hidden={!open}
       >
-        {/* Club header */}
+        {/* Club header — el inset va en el borde exterior; con `box-content` el padding horizontal
+            se sumaba al ancho y la cabecera desbordaba el cajón. */}
         <div
-          className={`h-16 flex items-center justify-between px-4 border-b shrink-0 pt-[env(safe-area-inset-top)] box-content ${
+          className={`shrink-0 border-b pt-[env(safe-area-inset-top)] ${
             isDark ? "border-zinc-800/80" : "border-sidebar-border"
           }`}
         >
+        <div className="h-16 flex items-center justify-between px-4">
           <Link
             href={isDark ? "/super-admin" : "/dashboard"}
             className="flex items-center gap-3 min-w-0 flex-1"
@@ -159,6 +161,7 @@ export function MobileSidebar({
           >
             <X className="w-5 h-5" />
           </button>
+        </div>
         </div>
 
         {/* Nav groups */}

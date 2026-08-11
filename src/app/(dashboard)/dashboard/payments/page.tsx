@@ -180,7 +180,7 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
           </div>
         </div>
 
-        <div className="-mx-4 flex w-[calc(100%+2rem)] items-center gap-2 overflow-x-auto px-4 pb-1 lg:mx-0 lg:w-auto lg:flex-wrap lg:gap-3 lg:overflow-visible lg:px-0">
+        <div className="flex w-full flex-wrap items-center gap-2 lg:w-auto lg:gap-3">
           <SyncOverdueButton />
           {payments.filter((p) => p.status === 'pending' || p.status === 'overdue').length > 1 && (
             <BulkMarkAsPaidButton
@@ -214,7 +214,7 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
       )}
 
       {/* ═══════════ KPI GRID ═══════════ */}
-      <div className="order-8 grid gap-4 md:order-none lg:grid-cols-12">
+      <div className="order-8 grid grid-cols-1 gap-4 md:order-none lg:grid-cols-12">
         <Card className="lg:col-span-4 rounded-2xl border-emerald-500/25 bg-card shadow-sm overflow-hidden relative">
           <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-500 to-emerald-500/30" />
           <CardContent className="pt-7 pb-6">
@@ -353,7 +353,7 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
       </div>
 
       {/* ═══════════ CHARTS ROW ═══════════ */}
-      <div className="order-11 grid gap-6 md:order-none xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,1fr)]">
+      <div className="order-11 grid grid-cols-1 gap-6 md:order-none xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,1fr)]">
         <Card className="rounded-2xl border-white/[0.04] bg-card shadow-sm">
           <CardHeader className="pb-0 pt-5 px-6">
             <CardTitle className="text-sm font-black uppercase tracking-widest text-foreground">Cobrado vs Emitido</CardTitle>
@@ -407,7 +407,7 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
           </CardContent>
         </Card>
 
-        <div className="grid gap-6">
+        <div className="grid grid-cols-1 gap-6">
           <Card className="rounded-2xl border-white/[0.04] bg-card shadow-sm">
             <CardHeader className="pb-0 pt-5 px-6">
               <CardTitle className="text-sm font-black uppercase tracking-widest text-foreground">Mix por Método</CardTitle>
@@ -478,7 +478,7 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
           <Badge variant="outline" className="rounded-full">KPIs del mes no cambian con filtros</Badge>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
           <Link href="/dashboard/payments?status=pending&paymentMethod=transfer">
             <Card className="rounded-2xl border-border bg-card shadow-sm hover:border-primary/30 hover:bg-muted/10 transition-colors">
               <CardContent className="pt-5 pb-5">

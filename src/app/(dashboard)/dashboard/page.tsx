@@ -432,7 +432,7 @@ export default async function DashboardPage() {
               Ver todos →
             </Link>
           </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {smartAlerts.noEmergencyContact > 0 && (
               <Link href="/dashboard/athletes?filter=noEmergency" className="flex items-center gap-3 p-3 rounded-xl border border-border bg-muted/30 hover:bg-muted/50 transition-colors group">
                 <div className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center shrink-0">
@@ -487,7 +487,7 @@ export default async function DashboardPage() {
       )}
 
       {/* ── MAIN CONTENT GRID ── */}
-      <div className="grid lg:grid-cols-[1fr_360px] gap-6 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6 items-start">
 
         {/* LEFT COLUMN - Charts */}
         <div className="space-y-6">

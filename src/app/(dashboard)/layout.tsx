@@ -435,9 +435,12 @@ export default async function DashboardLayout({
       {/* ── Right side ── */}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
 
-        {/* Top Header — `viewport-fit=cover` deja el contenido bajo la barra de estado en PWA:
-            el inset superior lo agrega el propio header. */}
-        <header className="h-16 shrink-0 border-b border-border flex items-center px-3 md:px-4 bg-sidebar gap-2 md:gap-3 pt-[env(safe-area-inset-top)] box-content">
+        {/* Top Header — `viewport-fit=cover` deja el contenido bajo la barra de estado en PWA, así
+            que el inset lo agrega este wrapper. Va fuera de la fila y NO con `box-content`: en un
+            hijo flex estirado, content-box suma también el padding horizontal al ancho total y el
+            header terminaba más ancho que la pantalla. */}
+        <header className="shrink-0 border-b border-border bg-sidebar pt-[env(safe-area-inset-top)]">
+        <div className="h-16 flex items-center px-3 md:px-4 gap-2 md:gap-3">
           {/* Mobile hamburger */}
           <div className="md:hidden shrink-0">
             <MobileSidebar
@@ -477,10 +480,15 @@ export default async function DashboardLayout({
 
           {/* User name + avatar (client-only to avoid hydration mismatch) */}
           <UserNavClient />
+        </div>
         </header>
 
-        {/* Scrollable page content */}
-        <main className="flex-1 overflow-y-auto overscroll-contain p-4 md:p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] md:pb-6 bg-background">
+        {/* Scrollable page content.
+            `overflow-x-hidden` es imprescindible: con `overflow-y: auto` y el eje X en `visible`,
+            la spec convierte X en `auto`, así que cualquier hijo un píxel más ancho volvía toda la
+            página arrastrable en horizontal. Las zonas que sí deben desplazarse (tiras de filtros,
+            gráficos) tienen su propio `overflow-x-auto`. */}
+        <main className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain p-4 md:p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] md:pb-6 bg-background">
           <AgreementGateWrapper>
             {children}
           </AgreementGateWrapper>
