@@ -1,3 +1,4 @@
+import { cache } from 'react'
 import { auth, clerkClient } from '@clerk/nextjs/server'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
@@ -6,7 +7,13 @@ import { CLUB_COOKIE } from '@/lib/constants'
 import { getSportVocab, type SportVocab } from '@/lib/sport-vocab'
 
 
-export async function getClubId(): Promise<string> {
+/**
+ * Club activo del usuario. Envuelto en `cache()` de React: se resuelve UNA vez por request
+ * aunque lo llamen decenas de veces (el layout, la página y cada server action lo invocan).
+ * Antes cada llamada repetía la lectura de cookies + la consulta a `user_clubs`, y eso se
+ * acumulaba en el TTFB hasta dejar la pantalla en negro en el arranque de la PWA.
+ */
+export const getClubId = cache(async function getClubId(): Promise<string> {
   const { userId } = await auth()
   if (!userId) throw new Error('No autorizado')
 
@@ -40,13 +47,16 @@ export async function getClubId(): Promise<string> {
 
   if (error || !data) throw new Error('Club no encontrado')
   return data.club_id as string
-}
+})
 
 /** Rol en `user_clubs` (incluye admin que también entrena como jugador). */
 export type UserRole = 'admin' | 'admin_athlete' | 'coach' | 'athlete'
 
-/** Rol tal como está en `user_clubs.role` (incluye admin_athlete). */
-export async function getClubMembershipRole(): Promise<string> {
+/**
+ * Rol tal como está en `user_clubs.role` (incluye admin_athlete).
+ * Cacheado por request: lo consultan el layout y cada guard de permisos.
+ */
+export const getClubMembershipRole = cache(async function getClubMembershipRole(): Promise<string> {
   const { userId } = await auth()
   if (!userId) throw new Error('No autorizado')
 
@@ -62,7 +72,7 @@ export async function getClubMembershipRole(): Promise<string> {
     .single()
 
   return (data?.role as string) ?? 'athlete'
-}
+})
 
 export async function getUserRole(): Promise<UserRole> {
   const { userId } = await auth()

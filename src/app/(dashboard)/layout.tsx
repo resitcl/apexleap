@@ -45,7 +45,7 @@ import { getSportVocab } from "@/lib/sport-vocab"
 import { isSuperAdmin } from "@/lib/actions/super-admin"
 import { AgreementGateWrapper } from "@/components/agreements/AgreementGateWrapper"
 import { ClubBrandingRoot } from "@/components/layouts/ClubBrandingRoot"
-import { canAccessClubAiChat, getClubInfo, getClubMembershipRole, getCoachPermissions } from "@/lib/actions/club-context"
+import { getClubInfo, getClubMembershipRole, getCoachPermissions, isClubStaffRole } from "@/lib/actions/club-context"
 
 export async function generateMetadata(): Promise<Metadata> {
   try {
@@ -215,34 +215,35 @@ export default async function DashboardLayout({
     logoUrl: null as string | null,
     useBrandPrimaryForUi: true,
   }
-  try { alerts = await getSidebarAlerts() } catch { /* silent */ }
+  // Todo el shell se resuelve en UNA ronda paralela. Antes eran 5 awaits en serie y cada uno
+  // repetía por dentro `getClubId()` (cookies + consulta a user_clubs): ~10 viajes encadenados
+  // a la base antes del primer byte, que en el arranque de la PWA se veían como pantalla negra.
+  // `getClubId` y `getClubMembershipRole` están cacheados por request, así que no se duplican.
+  const [alertsRes, settingsRes, superAdminRes, roleRes] = await Promise.allSettled([
+    getSidebarAlerts(),
+    getClubSettings(),
+    isSuperAdmin(),
+    getClubMembershipRole(),
+  ])
 
-  let sportType: string | null = null
-  let superAdmin = false
-  try {
-    const settings = await getClubSettings()
-    sportType = (settings as { sport_type?: string | null })?.sport_type ?? null
-  } catch { /* silent */ }
-  try { superAdmin = await isSuperAdmin() } catch { /* silent */ }
+  if (alertsRes.status === 'fulfilled') alerts = alertsRes.value
+  const sportType =
+    settingsRes.status === 'fulfilled'
+      ? ((settingsRes.value as { sport_type?: string | null })?.sport_type ?? null)
+      : null
+  const superAdmin = superAdminRes.status === 'fulfilled' ? superAdminRes.value : false
+  const membershipRole = roleRes.status === 'fulfilled' ? roleRes.value : 'admin'
 
-  let membershipRole = 'admin'
-  try {
-    membershipRole = await getClubMembershipRole()
-  } catch { /* silent */ }
   const isAthleteOnly = membershipRole === 'athlete'
   const isAdminAthlete = membershipRole === 'admin_athlete'
   const isCoach = membershipRole === 'coach'
 
+  // Derivado del rol ya conocido: evita otra consulta (`canAccessClubAiChat` repetía el rol).
+  const showClubAiChat = isClubStaffRole(membershipRole)
+
   let coachPerms: Awaited<ReturnType<typeof getCoachPermissions>> | null = null
   if (isCoach) {
     try { coachPerms = await getCoachPermissions() } catch { /* silent */ }
-  }
-
-  let showClubAiChat = false
-  try {
-    showClubAiChat = await canAccessClubAiChat()
-  } catch {
-    showClubAiChat = false
   }
 
   const vocab = getSportVocab(sportType)
