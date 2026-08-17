@@ -20,9 +20,36 @@ function formatClp(amount: number): string {
 }
 
 /**
+ * Quita de la lista a los super admins de ApexLeap (staff de la plataforma, no del club).
+ * Si la consulta falla, se prefiere no enviar de más: se descarta el lote completo y el
+ * aviso cae al email de contacto del club.
+ */
+async function excludeSuperAdmins(supabase: SupabaseAdmin, userIds: string[]): Promise<string[]> {
+  if (userIds.length === 0) return []
+
+  const { data, error } = await supabase
+    .from('super_admins')
+    .select('user_id')
+    .in('user_id', userIds)
+
+  if (error) {
+    console.error('[getClubAdminEmails] no se pudo filtrar super admins:', error.message)
+    return []
+  }
+
+  const superIds = new Set((data ?? []).map((s) => s.user_id as string))
+  return userIds.filter((id) => !superIds.has(id))
+}
+
+/**
  * Emails de los administradores activos del club.
  * Prioriza la tabla `users` (sincronizada por el webhook de Clerk) y cae a Clerk para
  * miembros antiguos sin fila. Si no hay ninguno, usa el email de contacto del club.
+ *
+ * Los super admins de ApexLeap quedan fuera: al entrar a un club desde el panel
+ * (`superAdminEnterClub`) se les crea una membresía `admin` que nunca se desactiva, así que
+ * acumulan una fila en cada club que visitaron. Sin este filtro, los avisos operativos de
+ * TODAS las academias les llegan a ellos y no solo a los admins del club correspondiente.
  */
 export async function getClubAdminEmails(supabase: SupabaseAdmin, clubId: string): Promise<string[]> {
   const emails = new Set<string>()
@@ -34,7 +61,8 @@ export async function getClubAdminEmails(supabase: SupabaseAdmin, clubId: string
     .eq('is_active', true)
     .in('role', ADMIN_ROLES)
 
-  const userIds = (members ?? []).map((m) => m.user_id as string).filter(Boolean)
+  const memberIds = (members ?? []).map((m) => m.user_id as string).filter(Boolean)
+  const userIds = await excludeSuperAdmins(supabase, memberIds)
 
   if (userIds.length > 0) {
     const { data: users } = await supabase
