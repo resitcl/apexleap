@@ -8,6 +8,7 @@
 
 import { Resend } from 'resend'
 import { normalizeClubPrimary, primaryForegroundForHex } from '@/lib/club-branding'
+import { renderTemplateVars } from '@/lib/auto-templates'
 
 let resendClient: Resend | null = null
 
@@ -981,5 +982,208 @@ export async function sendBroadcastEmail(opts: {
     return { success: true, id: data?.id }
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : 'Error desconocido' }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Template: Membresía suspendida / baja del alumno
+// ---------------------------------------------------------------------------
+
+type MembershipVariant = 'suspended' | 'cancelled' | 'reactivated'
+
+const MEMBERSHIP_COPY: Record<
+  MembershipVariant,
+  { banner: string; bannerBg: string; bannerBorder: string; bannerFg: string; title: string; intro: string; dateLabel: string; note: string; cta: string }
+> = {
+  suspended: {
+    banner: '⏸️ Tu membresía está suspendida',
+    bannerBg: '#fef3c7',
+    bannerBorder: '#fde68a',
+    bannerFg: '#92400e',
+    title: 'Hola, {{nombre}}',
+    intro:
+      'Tu membresía en <strong>{{club}}</strong> quedó suspendida. Mientras esté en pausa no se generarán ' +
+      'nuevos cobros ni podrás registrar asistencia a clases.',
+    dateLabel: 'Suspendida desde',
+    note: 'Cuando quieras retomar, contacta directamente a tu academia para reactivar tu membresía.',
+    cta: 'Ver mi cuenta →',
+  },
+  cancelled: {
+    banner: 'Tu membresía fue dada de baja',
+    bannerBg: '#f4f4f5',
+    bannerBorder: '#e4e4e7',
+    bannerFg: '#52525b',
+    title: 'Hola, {{nombre}}',
+    intro:
+      'Te informamos que tu membresía en <strong>{{club}}</strong> fue dada de baja. Tu suscripción quedó ' +
+      'cancelada y no se generarán cobros nuevos.',
+    dateLabel: 'Baja efectiva',
+    note:
+      'Gracias por haber sido parte de la academia. Si crees que se trata de un error, responde este correo ' +
+      'y lo revisamos.',
+    cta: 'Ver mi cuenta →',
+  },
+  reactivated: {
+    banner: '✅ Tu membresía está activa de nuevo',
+    bannerBg: '#dcfce7',
+    bannerBorder: '#bbf7d0',
+    bannerFg: '#166534',
+    title: '¡Bienvenido/a de vuelta, {{nombre}}!',
+    intro:
+      'Tu membresía en <strong>{{club}}</strong> quedó reactivada. Ya puedes volver a entrenar y tu plan ' +
+      'retoma su ciclo normal de cobro.',
+    dateLabel: 'Activa desde',
+    note: 'Puedes revisar tus próximos cobros y el estado de tu membresía desde tu cuenta.',
+    cta: 'Ver mi cuenta →',
+  },
+}
+
+function buildMembershipStatusHtml(opts: {
+  variant: MembershipVariant
+  athleteName: string
+  clubName: string
+  clubSlug: string
+  planName?: string
+  effectiveDate?: string
+  logoUrl?: string | null
+  brandColor?: string | null
+  introOverride?: string
+  buttonOverride?: { text: string; url: string }
+  showDetails?: boolean
+}) {
+  const copy = MEMBERSHIP_COPY[opts.variant]
+  const { bg, fg } = getClubBranding(opts.brandColor)
+  const showDetails = opts.showDetails !== false
+  const hasDetails = showDetails && Boolean(opts.planName || opts.effectiveDate)
+  // La baja no lleva botón por defecto: el alumno ya no tiene acceso al portal del club.
+  const ctaUrl = opts.buttonOverride?.url || (opts.variant === 'cancelled' ? '' : `${APP_URL}/${opts.clubSlug}/athlete`)
+  const ctaText = opts.buttonOverride?.text || copy.cta
+
+  const defaultIntro =
+    `<h1 style="margin:0 0 8px;font-size:22px;color:#18181b;">${renderTemplateVars(copy.title, { nombre: escapeHtml(opts.athleteName) })}</h1>` +
+    `<p style="margin:0 0 24px;font-size:16px;color:#52525b;line-height:1.6;">${renderTemplateVars(copy.intro, { club: escapeHtml(opts.clubName) })}</p>`
+
+  return `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${copy.banner} – ${opts.clubName}</title>
+</head>
+<body style="margin:0;padding:0;background:#f4f4f5;font-family:Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 20px;">
+    <tr>
+      <td align="center">
+        <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+
+          ${buildHeader(opts.clubName, opts.logoUrl, bg, fg)}
+
+          <!-- Status banner -->
+          <tr>
+            <td style="background:${copy.bannerBg};padding:12px 40px;border-bottom:1px solid ${copy.bannerBorder};">
+              <p style="margin:0;font-size:14px;color:${copy.bannerFg};text-align:center;font-weight:600;">
+                ${copy.banner}
+              </p>
+            </td>
+          </tr>
+
+          <!-- Body -->
+          <tr>
+            <td style="padding:40px;">
+              ${opts.introOverride ? renderIntroHtml(opts.introOverride) : defaultIntro}
+
+              ${hasDetails ? `<table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;border:1px solid #e4e4e7;border-radius:8px;margin-bottom:24px;">
+                <tr>
+                  <td style="padding:24px;">
+                    ${opts.planName ? `<p style="margin:0 0 8px;font-size:13px;color:#71717a;text-transform:uppercase;letter-spacing:0.5px;">Plan</p>
+                    <p style="margin:0 0 16px;font-size:16px;color:#18181b;font-weight:600;">${escapeHtml(opts.planName)}</p>` : ''}
+                    ${opts.effectiveDate ? `<p style="margin:0 0 8px;font-size:13px;color:#71717a;text-transform:uppercase;letter-spacing:0.5px;">${copy.dateLabel}</p>
+                    <p style="margin:0;font-size:16px;color:#18181b;font-weight:600;">${escapeHtml(opts.effectiveDate)}</p>` : ''}
+                  </td>
+                </tr>
+              </table>` : ''}
+
+              ${ctaUrl ? `<table cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="background:${bg};border-radius:8px;text-align:center;">
+                    <a href="${ctaUrl}"
+                       style="display:inline-block;padding:14px 28px;color:${fg};font-size:15px;font-weight:600;text-decoration:none;">
+                      ${ctaText}
+                    </a>
+                  </td>
+                </tr>
+              </table>` : ''}
+
+              <p style="margin:24px 0 0;font-size:14px;color:#52525b;line-height:1.6;">
+                ${copy.note}
+              </p>
+            </td>
+          </tr>
+
+          ${buildFooter(opts.clubName)}
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+`
+}
+
+/**
+ * Avisa al alumno de un cambio en su membresía: suspensión (pausa temporal), baja de la academia
+ * o reactivación. `variant` decide el color, el banner y el texto por defecto.
+ */
+export async function sendMembershipStatusEmail(opts: {
+  variant: MembershipVariant
+  to: string
+  athleteName: string
+  clubName: string
+  clubSlug: string
+  planName?: string
+  effectiveDate?: string
+  logoUrl?: string | null
+  brandColor?: string | null
+  replyTo?: string | null
+  subjectOverride?: string
+  introOverride?: string
+  buttonOverride?: { text: string; url: string }
+  showDetails?: boolean
+}): Promise<SendEmailResult> {
+  if (!process.env.RESEND_API_KEY) {
+    console.warn('[email] RESEND_API_KEY no configurada — aviso de membresía no enviado')
+    return { success: false, error: 'RESEND_API_KEY no configurada' }
+  }
+
+  const defaultSubject =
+    opts.variant === 'suspended'
+      ? `Tu membresía quedó suspendida – ${opts.clubName}`
+      : opts.variant === 'reactivated'
+        ? `Tu membresía en ${opts.clubName} está activa de nuevo`
+        : `Tu membresía en ${opts.clubName} fue dada de baja`
+
+  try {
+    const replyTo = resolveReplyTo(opts.replyTo)
+    const { data, error } = await getResend().emails.send({
+      from: FROM_EMAIL,
+      to: opts.to,
+      ...(replyTo ? { reply_to: replyTo } : {}),
+      subject: opts.subjectOverride?.trim() || defaultSubject,
+      html: buildMembershipStatusHtml(opts),
+    })
+
+    if (error) {
+      console.error('[email] Error al enviar aviso de membresía:', error)
+      return { success: false, error: error.message }
+    }
+
+    console.log(`[email] Aviso de membresía (${opts.variant}) enviado a ${opts.to} (id: ${data?.id})`)
+    return { success: true, id: data?.id }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Error desconocido'
+    console.error('[email] Excepción al enviar aviso de membresía:', message)
+    return { success: false, error: message }
   }
 }

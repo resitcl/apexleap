@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { z } from 'zod'
 import { getClubId, getClubInfo, assertClubStaff } from '@/lib/actions/club-context'
-import { sendInvitationEmail } from '@/lib/email'
+import { sendInvitationEmail, sendMembershipStatusEmail } from '@/lib/email'
 import {
   syncAdminAthletesForClub,
   cleanupStaffOnlyAthletesForClub,
@@ -281,7 +281,7 @@ export async function archiveAthlete(id: string) {
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
-  const { error } = await supabase
+  const { data: archived, error } = await supabase
     .from('athletes')
     .update({
       archived_at: new Date().toISOString(),
@@ -290,12 +290,17 @@ export async function archiveAthlete(id: string) {
     .eq('id', id)
     .eq('club_id', clubId)
     .is('archived_at', null)
+    .select('id')
 
   if (error) throw new Error(error.message)
 
   // Cancelar la suscripción para que el cron de facturación no siga emitiendo cuotas ni
   // acumulando mora sobre un alumno que ya salió del club.
   await cancelPriorSubscriptions(supabase, clubId, id)
+
+  // Aviso al alumno solo si esta llamada fue la que lo dio de baja (evita correos repetidos
+  // si el alumno ya estaba archivado).
+  if (archived && archived.length > 0) await notifyMembershipChange(id, 'cancelled')
 
   revalidatePath('/dashboard/athletes')
   revalidatePath(`/dashboard/athletes/${id}`)
@@ -320,9 +325,15 @@ export async function bulkUpdateAthleteStatus(ids: string[], status: 'active' | 
     .in('id', ids)
     .eq('club_id', clubId)
     .is('archived_at', null)
+    .neq('status', status) // solo los que realmente cambian: evita avisos repetidos
     .select('id')
 
   if (error) throw new Error(error.message)
+
+  const variant =
+    status === 'suspended' ? 'suspended' : status === 'active' ? 'reactivated' : 'cancelled'
+  for (const row of data ?? []) await notifyMembershipChange(row.id as string, variant)
+
   revalidatePath('/dashboard/athletes')
   return { updated: data?.length ?? 0 }
 }
@@ -572,6 +583,81 @@ export async function setAthleteBillingDay(athleteId: string, day: number): Prom
 }
 
 /**
+ * Avisa al alumno por correo de un cambio en su membresía: suspensión (pausa temporal), baja del
+ * club o reactivación. Best-effort: cualquier fallo se loguea pero nunca revierte el cambio de estado,
+ * y respeta la plantilla automática del club (si la desactivó, no se envía nada).
+ */
+async function notifyMembershipChange(athleteId: string, variant: 'suspended' | 'cancelled' | 'reactivated') {
+  try {
+    const clubId = await getClubId()
+    const supabase = createAdminClient()
+
+    const { data: athlete } = await supabase
+      .from('athletes')
+      .select('name, email')
+      .eq('id', athleteId)
+      .eq('club_id', clubId)
+      .maybeSingle()
+    const to = athlete?.email?.trim()
+    if (!to) return // sin email registrado: no se envía
+
+    const { data: sub } = await supabase
+      .from('subscriptions')
+      .select('plans(name)')
+      .eq('club_id', clubId)
+      .eq('athlete_id', athleteId)
+      .order('start_date', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    const plansData = sub?.plans as unknown
+    const plan = Array.isArray(plansData) ? plansData[0] : (plansData as { name?: string } | null)
+    const planName = plan?.name ?? undefined
+
+    const clubInfo = await getClubInfo()
+    const effectiveDate = new Date().toLocaleDateString('es-CL', {
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric',
+    })
+
+    const tpl = resolveAutoEmail(
+      clubInfo.settings,
+      variant === 'suspended'
+        ? 'membership_suspended'
+        : variant === 'reactivated'
+          ? 'membership_reactivated'
+          : 'membership_cancelled',
+      {
+        nombre: athlete?.name ?? 'Atleta',
+        club: clubInfo.name,
+        plan: planName ?? '',
+        fecha: effectiveDate,
+      },
+    )
+    if (!tpl) return // el club desactivó este correo automático
+
+    await sendMembershipStatusEmail({
+      variant,
+      to,
+      athleteName: athlete?.name ?? 'Atleta',
+      clubName: clubInfo.name,
+      clubSlug: clubInfo.slug,
+      planName,
+      effectiveDate,
+      logoUrl: clubInfo.logo_url,
+      brandColor: clubInfo.primary_color,
+      replyTo: clubInfo.email,
+      subjectOverride: tpl.subject,
+      introOverride: tpl.intro,
+      buttonOverride: tpl.button ?? undefined,
+      showDetails: tpl.showDetails,
+    })
+  } catch (err) {
+    console.error('[notifyMembershipChange] error (no bloqueante):', err instanceof Error ? err.message : err)
+  }
+}
+
+/**
  * Suspende temporalmente a un alumno (p. ej. lesión, pausa de entrenamiento): pasa a estado
  * 'suspended' y PAUSA su facturación (la suscripción activa pasa a 'paused', que el cron ignora).
  * No borra deuda existente; solo deja de generar cuotas nuevas mientras esté suspendido.
@@ -588,12 +674,16 @@ export async function suspendAthlete(id: string): Promise<void> {
     .eq('athlete_id', id)
     .eq('status', 'active')
 
-  const { error } = await supabase
+  const { data: suspended, error } = await supabase
     .from('athletes')
     .update({ status: 'suspended' })
     .eq('id', id)
     .eq('club_id', clubId)
+    .neq('status', 'suspended')
+    .select('id')
   if (error) throw new Error(error.message)
+
+  if (suspended && suspended.length > 0) await notifyMembershipChange(id, 'suspended')
 
   revalidatePath(`/dashboard/athletes/${id}`)
   revalidatePath('/dashboard/athletes')
@@ -638,12 +728,16 @@ export async function reactivateAthlete(id: string): Promise<void> {
       .eq('club_id', clubId)
   }
 
-  const { error } = await supabase
+  const { data: reactivated, error } = await supabase
     .from('athletes')
     .update({ status: 'active' })
     .eq('id', id)
     .eq('club_id', clubId)
+    .neq('status', 'active')
+    .select('id')
   if (error) throw new Error(error.message)
+
+  if (reactivated && reactivated.length > 0) await notifyMembershipChange(id, 'reactivated')
 
   revalidatePath(`/dashboard/athletes/${id}`)
   revalidatePath('/dashboard/athletes')
