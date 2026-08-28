@@ -435,7 +435,7 @@ export default async function FinancesPage({ searchParams }: PageProps) {
                 const expensesPct = Math.max((m.expenses / chartMax) * 100, m.expenses > 0 ? 3 : 0)
                 const isCurrentMonth = i === chartData.length - 1
                 return (
-                  <div key={m.label} className="flex-1 flex flex-col items-center gap-1">
+                  <div key={m.label} className="flex-1 h-full flex flex-col items-center gap-1">
                     <div className="w-full flex items-end justify-center gap-0.5 flex-1">
                       <div
                         className={`w-5/12 rounded-t-sm ${isCurrentMonth ? 'bg-green-500' : 'bg-green-400/60'}`}

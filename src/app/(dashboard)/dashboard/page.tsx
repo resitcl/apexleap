@@ -40,6 +40,26 @@ import {
   Zap, Settings, Clock, Phone, Camera, IdCard, UserX,
 } from "lucide-react"
 
+/** Tooltip de gráfico: hover puro en CSS, sin JS de cliente. */
+function BarTooltip({ title, rows, align = 'center' }: {
+  title: string
+  rows: { label: string; value: string; className?: string }[]
+  align?: 'start' | 'center' | 'end'
+}) {
+  // Las columnas de los extremos se anclan a su borde para no salirse de la tarjeta.
+  const pos = align === 'start' ? 'left-0' : align === 'end' ? 'right-0' : 'left-1/2 -translate-x-1/2'
+  return (
+    <div className={`pointer-events-none absolute bottom-full ${pos} z-20 mb-2 whitespace-nowrap rounded-xl border border-border bg-popover text-popover-foreground px-3 py-2 text-left shadow-xl opacity-0 transition-opacity duration-150 group-hover/bar:opacity-100`}>
+      <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">{title}</p>
+      {rows.map((r) => (
+        <p key={r.label} className={`text-[11px] font-bold mt-0.5 ${r.className ?? 'text-foreground'}`}>
+          {r.value} <span className="font-medium text-muted-foreground/50">{r.label}</span>
+        </p>
+      ))}
+    </div>
+  )
+}
+
 export default async function DashboardPage() {
   const hasClub = await checkUserHasClub().catch(() => false)
   if (!hasClub) redirect("/onboarding")
@@ -518,14 +538,21 @@ export default async function DashboardPage() {
                     const pct = maxAmount > 0 ? Math.max((m.amount / maxAmount) * 100, m.amount > 0 ? 8 : 2) : 2
                     const isCurrentMonth = i === monthlyRevenue.length - 1
                     return (
-                      <div key={m.month} className="flex-1 flex flex-col items-center gap-1.5">
+                      <div key={m.month} className="group/bar relative flex-1 h-full flex flex-col items-center gap-1.5">
+                        <BarTooltip
+                          title={new Date(m.month + 'T12:00:00').toLocaleDateString('es-CL', { month: 'long', year: 'numeric' })}
+                          rows={[{ label: 'cobrado', value: `$${m.amount.toLocaleString('es-CL')}`, className: 'text-primary' }]}
+                          align={i === 0 ? 'start' : i === monthlyRevenue.length - 1 ? 'end' : 'center'}
+                        />
                         <span className="text-[10px] text-muted-foreground/40 font-bold">
                           {m.amount > 0 ? `$${Math.round(m.amount / 1000)}k` : ''}
                         </span>
-                        <div
-                          className={`w-full rounded-md transition-all ${isCurrentMonth ? 'bg-primary' : 'bg-primary/25'}`}
-                          style={{ height: `${pct}%` }}
-                        />
+                        <div className="w-full flex-1 flex items-end">
+                          <div
+                            className={`w-full rounded-md transition-all group-hover/bar:brightness-125 ${isCurrentMonth ? 'bg-primary' : 'bg-primary/25'}`}
+                            style={{ height: `${pct}%` }}
+                          />
+                        </div>
                         <span className={`text-[10px] font-bold uppercase ${isCurrentMonth ? 'text-primary' : 'text-muted-foreground/30'}`}>
                           {m.label}
                         </span>
@@ -563,15 +590,25 @@ export default async function DashboardPage() {
                     const pct = maxTotal > 0 ? Math.max((g.total / maxTotal) * 100, g.total > 0 ? 8 : 2) : 2
                     const isCurrentMonth = i === athleteGrowth.length - 1
                     return (
-                      <div key={g.month} className="flex-1 flex flex-col items-center gap-1.5">
+                      <div key={g.month} className="group/bar relative flex-1 h-full flex flex-col items-center gap-1.5">
+                        <BarTooltip
+                          title={new Date(g.month + 'T12:00:00').toLocaleDateString('es-CL', { month: 'long', year: 'numeric' })}
+                          rows={[
+                            { label: `${vocab.athletes.toLowerCase()} acumulados`, value: `${g.total}`, className: 'text-cyan-400' },
+                            { label: 'nuevos del mes', value: `+${g.new}` },
+                          ]}
+                          align={i === 0 ? 'start' : i === athleteGrowth.length - 1 ? 'end' : 'center'}
+                        />
                         <span className="text-[10px] text-muted-foreground/40 font-bold">
                           {g.total > 0 ? g.total : ''}
                         </span>
-                        <div className="w-full flex flex-col justify-end" style={{ height: `${pct}%` }}>
-                          {g.new > 0 && (
-                            <div className="w-full bg-cyan-400 rounded-t-md" style={{ height: `${(g.new / g.total) * 100}%`, minHeight: '4px' }} />
-                          )}
-                          <div className={`w-full rounded-b-md ${isCurrentMonth ? 'bg-cyan-400/60' : 'bg-cyan-400/25'}`} style={{ flex: 1 }} />
+                        <div className="w-full flex-1 flex items-end">
+                          <div className="w-full flex flex-col justify-end transition-all group-hover/bar:brightness-125" style={{ height: `${pct}%` }}>
+                            {g.new > 0 && (
+                              <div className="w-full bg-cyan-400 rounded-t-md" style={{ height: `${(g.new / g.total) * 100}%`, minHeight: '4px' }} />
+                            )}
+                            <div className={`w-full rounded-b-md ${isCurrentMonth ? 'bg-cyan-400/60' : 'bg-cyan-400/25'}`} style={{ flex: 1 }} />
+                          </div>
                         </div>
                         <span className={`text-[10px] font-bold uppercase ${isCurrentMonth ? 'text-cyan-400' : 'text-muted-foreground/30'}`}>
                           {g.label}
@@ -605,20 +642,30 @@ export default async function DashboardPage() {
                   </div>
                 </div>
                 <div className="flex items-end gap-3 h-28">
-                  {weeklyByDay.map((d) => {
+                  {weeklyByDay.map((d, i) => {
                     const heightPct = maxVal > 0 ? Math.max((d.total / maxVal) * 100, d.total > 0 ? 8 : 2) : 2
                     const validPct = d.total > 0 ? (d.valid / d.total) * 100 : 0
                     const isToday = d.label === 'Hoy'
                     return (
-                      <div key={d.date} className="flex-1 flex flex-col items-center gap-1.5">
+                      <div key={d.date} className="group/bar relative flex-1 h-full flex flex-col items-center gap-1.5">
+                        <BarTooltip
+                          title={new Date(d.date + 'T12:00:00').toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'short' })}
+                          rows={[
+                            { label: 'check-ins', value: `${d.total}`, className: 'text-violet-400' },
+                            { label: `válidos (${d.total > 0 ? Math.round((d.valid / d.total) * 100) : 0}%)`, value: `${d.valid}` },
+                          ]}
+                          align={i === 0 ? 'start' : i === weeklyByDay.length - 1 ? 'end' : 'center'}
+                        />
                         <span className="text-[10px] text-muted-foreground/40 font-bold">
                           {d.total > 0 ? d.total : ''}
                         </span>
-                        <div className="w-full relative rounded-md overflow-hidden bg-muted/50" style={{ height: `${heightPct}%` }}>
-                          <div
-                            className={`absolute bottom-0 left-0 right-0 ${isToday ? 'bg-violet-400' : 'bg-violet-400/40'} rounded-md`}
-                            style={{ height: `${validPct}%` }}
-                          />
+                        <div className="w-full flex-1 flex items-end">
+                          <div className="w-full relative rounded-md overflow-hidden bg-muted/50 transition-all group-hover/bar:brightness-125" style={{ height: `${heightPct}%` }}>
+                            <div
+                              className={`absolute bottom-0 left-0 right-0 ${isToday ? 'bg-violet-400' : 'bg-violet-400/40'} rounded-md`}
+                              style={{ height: `${validPct}%` }}
+                            />
+                          </div>
                         </div>
                         <span className={`text-[10px] font-bold uppercase ${isToday ? 'text-violet-400' : 'text-muted-foreground/30'}`}>
                           {d.label}

@@ -226,7 +226,7 @@ export function FinancialProjection({
               const isPositive = m.balance >= 0
 
               return (
-                <div key={m.month} className="flex-1 flex flex-col items-center gap-1">
+                <div key={m.month} className="flex-1 h-full flex flex-col items-center gap-1">
                   <div className="w-full flex items-end justify-center gap-0.5 flex-1">
                     <div
                       className="w-5/12 rounded-t-sm bg-green-500/70 border border-green-600/30"
