@@ -5,6 +5,7 @@ import Link from "next/link"
 import { Suspense } from "react"
 import { getPayments, getNextBillingDateByAthleteIds } from "@/lib/actions/payments"
 import { getPaymentMetrics, getMonthlyAthleteCollectionStatus } from "@/lib/actions/billing"
+import type { ExpectedMonthDetail } from "@/lib/actions/finances"
 import { paymentMethodLabel } from "@/lib/payment-methods"
 import { paymentRowTone } from "@/lib/payment-status"
 import { getPaymentReminderHistory } from "@/lib/actions/communications"
@@ -93,6 +94,7 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
     expectedMonthTotal: 0,
     expectedMonthFromScheduled: 0,
     expectedMonthFromSubscriptions: 0,
+    expectedMonthDetails: [] as ExpectedMonthDetail[],
     collectionGap: 0,
     pendingTransfersCount: 0,
     overdueThisWeekCount: 0,
@@ -242,7 +244,41 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-1.5">
                 <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Esperado del mes</p>
-                <InfoTooltip text="Programado del mes más cobros esperados por suscripciones activas sin fila emitida." />
+                <InfoTooltip side="bottom" width="w-72">
+                  <div className="space-y-2 text-left">
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-popover-foreground">Falta cobrar este mes</p>
+                    {dashboard.expectedMonthDetails.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">No queda nada por cobrar este mes. 🎉</p>
+                    ) : (
+                      <>
+                        <ul className="space-y-1">
+                          {dashboard.expectedMonthDetails.slice(0, 10).map((d, i) => (
+                            <li key={`${d.athleteId ?? 'x'}-${i}`} className="flex items-center justify-between gap-3 text-xs">
+                              <span className="flex min-w-0 items-center gap-1.5">
+                                <span className={`inline-block h-1.5 w-1.5 shrink-0 rounded-full ${d.source === 'scheduled' ? 'bg-amber-500' : 'bg-sky-500'}`} />
+                                <span className="truncate text-popover-foreground">{d.athleteName}</span>
+                              </span>
+                              <span className="shrink-0 font-semibold text-popover-foreground">{formatCurrency(d.amount)}</span>
+                            </li>
+                          ))}
+                        </ul>
+                        {dashboard.expectedMonthDetails.length > 10 && (
+                          <p className="text-[11px] text-muted-foreground">
+                            +{dashboard.expectedMonthDetails.length - 10} alumno{dashboard.expectedMonthDetails.length - 10 !== 1 ? 's' : ''} más
+                          </p>
+                        )}
+                        <div className="flex items-center justify-between gap-3 border-t border-border pt-1.5 text-xs">
+                          <span className="text-muted-foreground">Total esperado</span>
+                          <span className="font-bold text-popover-foreground">{formatCurrency(dashboard.expectedMonthTotal)}</span>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-0.5 text-[10px] text-muted-foreground">
+                          <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-amber-500" />Cuota impaga que vence</span>
+                          <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-sky-500" />Suscripción por generar</span>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </InfoTooltip>
               </div>
               <Target className="h-4 w-4 text-sky-500" />
             </div>

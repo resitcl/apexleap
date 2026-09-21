@@ -129,6 +129,23 @@ export async function getFinanceSummary(month?: string) {
   }
 }
 
+/** Un ítem del desglose de "Esperado del mes": qué alumno y cuánto falta cobrar. */
+export type ExpectedMonthDetail = {
+  athleteId: string | null
+  athleteName: string
+  amount: number
+  /** 'scheduled' = cuota ya emitida e impaga que vence este mes; 'subscription' = suscripción activa que cobra este mes y aún no tiene cuota emitida. */
+  source: 'scheduled' | 'subscription'
+  concept: string | null
+  date: string | null
+}
+
+/** Extrae el primer registro de una relación anidada de Supabase (objeto o arreglo). */
+function firstRelated<T>(rel: T | T[] | null | undefined): T | null {
+  if (!rel) return null
+  return Array.isArray(rel) ? (rel[0] ?? null) : rel
+}
+
 /** Ingresos aún no cobrados que se esperan en el mes (cuotas con vencimiento en el mes + próxima facturación de suscripción si no hay fila en el mes). */
 export async function getExpectedMonthIncome(monthIso: string) {
   const clubId = await getClubId()
@@ -137,20 +154,35 @@ export async function getExpectedMonthIncome(monthIso: string) {
   const y = Number(parts[0])
   const mo = Number(parts[1])
   if (!y || !mo) {
-    return { month: monthIso, fromScheduled: 0, fromSubscriptions: 0, total: 0 }
+    return { month: monthIso, fromScheduled: 0, fromSubscriptions: 0, total: 0, details: [] as ExpectedMonthDetail[] }
   }
   const start = `${y}-${String(mo).padStart(2, '0')}-01`
   const end = new Date(y, mo, 0).toISOString().split('T')[0]
 
+  const details: ExpectedMonthDetail[] = []
+
   const { data: pendingRows } = await supabase
     .from('payments')
-    .select('amount, athlete_id')
+    .select('amount, athlete_id, due_date, concept, athletes(name)')
     .eq('club_id', clubId)
     .in('status', ['pending', 'overdue'])
     .gte('due_date', start)
     .lte('due_date', end)
 
-  const fromScheduled = (pendingRows ?? []).reduce((s, p) => s + Number(p.amount), 0)
+  let fromScheduled = 0
+  for (const p of pendingRows ?? []) {
+    const amount = Number(p.amount)
+    fromScheduled += amount
+    const ath = firstRelated(p.athletes as { name: string } | { name: string }[] | null)
+    details.push({
+      athleteId: (p.athlete_id as string | null) ?? null,
+      athleteName: ath?.name ?? 'Alumno',
+      amount,
+      source: 'scheduled',
+      concept: (p.concept as string | null) ?? null,
+      date: (p.due_date as string | null) ?? null,
+    })
+  }
 
   const { data: dueInMonth } = await supabase
     .from('payments')
@@ -165,7 +197,7 @@ export async function getExpectedMonthIncome(monthIso: string) {
 
   const { data: subs } = await supabase
     .from('subscriptions')
-    .select('athlete_id, next_billing_date, plans(price), athletes(archived_at)')
+    .select('athlete_id, next_billing_date, plans(name, price), athletes(name, archived_at)')
     .eq('club_id', clubId)
     .eq('status', 'active')
     .gte('next_billing_date', start)
@@ -173,21 +205,33 @@ export async function getExpectedMonthIncome(monthIso: string) {
 
   let fromSubscriptions = 0
   for (const s of subs ?? []) {
-    const rawAth = s.athletes as { archived_at: string | null } | { archived_at: string | null }[] | null
-    const ath = Array.isArray(rawAth) ? rawAth[0] : rawAth
+    const ath = firstRelated(s.athletes as { name: string; archived_at: string | null } | { name: string; archived_at: string | null }[] | null)
     if (ath?.archived_at) continue
     const aid = s.athlete_id as string
     if (!aid) continue
     if (athletesWithAnyDueInMonth.has(aid)) continue
-    const plan = s.plans as { price: number } | null
-    fromSubscriptions += Number(plan?.price ?? 0)
+    const plan = firstRelated(s.plans as { name: string; price: number } | { name: string; price: number }[] | null)
+    const amount = Number(plan?.price ?? 0)
+    fromSubscriptions += amount
+    details.push({
+      athleteId: aid,
+      athleteName: ath?.name ?? 'Alumno',
+      amount,
+      source: 'subscription',
+      concept: plan?.name ?? null,
+      date: (s.next_billing_date as string | null) ?? null,
+    })
   }
+
+  // Mayor monto primero: el desglose más útil arriba.
+  details.sort((a, b) => b.amount - a.amount)
 
   return {
     month: monthIso,
     fromScheduled,
     fromSubscriptions,
     total: fromScheduled + fromSubscriptions,
+    details,
   }
 }
 

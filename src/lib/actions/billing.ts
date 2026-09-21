@@ -108,6 +108,7 @@ export async function getPaymentMetrics(month?: string) {
     expectedMonthTotal: expectedMonth.total,
     expectedMonthFromScheduled: expectedMonth.fromScheduled,
     expectedMonthFromSubscriptions: expectedMonth.fromSubscriptions,
+    expectedMonthDetails: expectedMonth.details,
     collectionGap: 0,
 
     // Operational insights
