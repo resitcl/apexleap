@@ -287,9 +287,11 @@ export default async function AthletesPage({ searchParams }: PageProps) {
     payStatusCounts[st] += 1
   }
 
+  // Sobre el set completo (allAthletes), no la página: si no, "activos"/"lesionados" quedaban
+  // topados por PAGE_SIZE (mostraban solo los de la página actual).
   const statusCounts = {
-    active: athletes.filter((a) => a.status === "active").length,
-    injured: athletes.filter((a) => a.health_status === "injured").length,
+    active: allAthletes.filter((a) => a.status === "active").length,
+    injured: allAthletes.filter((a) => a.health_status === "injured").length,
   }
 
   const totalDebt = allAthletes.reduce((sum, a) => sum + debtOf(a), 0)
