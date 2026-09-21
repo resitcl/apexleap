@@ -7,6 +7,7 @@ import { getClubId, assertClubCapability, getClubMembershipRole } from '@/lib/ac
 import {
   calculateNextPeriodStart,
   calculatePeriodStartForPayment,
+  formatPeriod,
   getBillingAnchorDay,
   parseYmd,
   todayYmd,
@@ -160,80 +161,136 @@ export async function getPaymentSummary() {
 // Mutations
 // ─────────────────────────────────────────────────────────────
 
-export async function createPayment(input: PaymentInput) {
-  await assertClubCapability('finances')
-  const clubId = await getClubId()
-  const parsed = paymentSchema.parse(input)
-  const supabase = createAdminClient()
+export type CreatePaymentResult =
+  | { ok: true; payment: Record<string, unknown> }
+  | { ok: false; error: string }
 
-  // Si el pago está ligado a un plan, derivar el período para alinear la facturación y que el
-  // índice único (club_id, athlete_id, plan_id, period_start) prevenga pagos duplicados del
-  // mismo período (antes quedaba period_start NULL y el índice no cubría los pagos manuales).
-  //
-  // El ancla sale de la suscripción del alumno, NO de la fecha de vencimiento que escribe el
-  // admin: el formulario propone `due_date = hoy`, así que registrar a mano un pago atrasado
-  // movía el día de cobro al día del registro (alumno que cobra los 4 pasaba a cobrar los 10).
-  let periodStart: string | null = null
-  let periodEnd: string | null = null
-  if (parsed.plan_id) {
-    const [{ data: plan }, { data: sub }] = await Promise.all([
-      supabase.from('plans').select('billing_cycle').eq('id', parsed.plan_id).eq('club_id', clubId).maybeSingle(),
-      supabase
-        .from('subscriptions')
-        .select('billing_anchor_day, current_period_start')
+/**
+ * Registra un pago manual desde el panel del admin.
+ *
+ * Devuelve un resultado `{ ok }` en vez de lanzar: en producción Next.js enmascara el mensaje
+ * de cualquier error lanzado en un Server Action (lo reemplaza por el texto genérico de
+ * "Server Components render"), así que el admin nunca veía el motivo real. Devolviéndolo, el
+ * formulario puede mostrar el mensaje concreto en un toast.
+ */
+export async function createPayment(input: PaymentInput): Promise<CreatePaymentResult> {
+  try {
+    await assertClubCapability('finances')
+    const clubId = await getClubId()
+    const parsed = paymentSchema.parse(input)
+    const supabase = createAdminClient()
+
+    // Si el pago está ligado a un plan, derivar el período para alinear la facturación y que el
+    // índice único (club_id, athlete_id, plan_id, period_start) prevenga pagos duplicados del
+    // mismo período (antes quedaba period_start NULL y el índice no cubría los pagos manuales).
+    //
+    // El ancla sale de la suscripción del alumno, NO de la fecha de vencimiento que escribe el
+    // admin: el formulario propone `due_date = hoy`, así que registrar a mano un pago atrasado
+    // movía el día de cobro al día del registro (alumno que cobra los 4 pasaba a cobrar los 10).
+    let periodStart: string | null = null
+    let periodEnd: string | null = null
+    if (parsed.plan_id) {
+      const [{ data: plan }, { data: sub }] = await Promise.all([
+        supabase.from('plans').select('billing_cycle').eq('id', parsed.plan_id).eq('club_id', clubId).maybeSingle(),
+        supabase
+          .from('subscriptions')
+          .select('billing_anchor_day, current_period_start')
+          .eq('club_id', clubId)
+          .eq('athlete_id', parsed.athlete_id)
+          .in('status', ['active', 'pending_payment'])
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+      ])
+      const cycle = ((plan?.billing_cycle as string) ?? 'monthly') as BillingCycle
+      const ref = parseYmd(parsed.due_date)
+      const anchorDay = (sub?.billing_anchor_day as number | null) ?? getBillingAnchorDay(ref)
+      const refStart = (sub?.current_period_start as string | null) ?? null
+      const { periodStart: ps, periodEnd: pe } = calculatePeriodStartForPayment(
+        anchorDay,
+        ref,
+        cycle,
+        refStart ? parseYmd(refStart) : null,
+      )
+      periodStart = ymdFromDate(ps)
+      periodEnd = pe ? ymdFromDate(pe) : null
+    }
+
+    // Ya existe una cuota viva de ese período: NO duplicamos ni chocamos contra el índice único
+    // (que producción mostraba como un crash opaco). Avisamos con claridad para que el admin
+    // marque como pagada la cuota existente en Pagos.
+    if (parsed.plan_id && periodStart) {
+      const { data: existing } = await supabase
+        .from('payments')
+        .select('status')
         .eq('club_id', clubId)
         .eq('athlete_id', parsed.athlete_id)
-        .in('status', ['active', 'pending_payment'])
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle(),
-    ])
-    const cycle = ((plan?.billing_cycle as string) ?? 'monthly') as BillingCycle
-    const ref = parseYmd(parsed.due_date)
-    const anchorDay = (sub?.billing_anchor_day as number | null) ?? getBillingAnchorDay(ref)
-    const refStart = (sub?.current_period_start as string | null) ?? null
-    const { periodStart: ps, periodEnd: pe } = calculatePeriodStartForPayment(
-      anchorDay,
-      ref,
-      cycle,
-      refStart ? parseYmd(refStart) : null,
-    )
-    periodStart = ymdFromDate(ps)
-    periodEnd = pe ? ymdFromDate(pe) : null
-  }
+        .eq('plan_id', parsed.plan_id)
+        .eq('period_start', periodStart)
+        .in('status', ['pending', 'overdue', 'paid'])
+        .maybeSingle()
 
-  const { data, error } = await supabase
-    .from('payments')
-    .insert({ ...parsed, club_id: clubId, period_start: periodStart, period_end: periodEnd })
-    .select()
-    .single()
-
-  if (error) {
-    if (error.code === '23505' || error.message.includes('idx_payments_unique_period')) {
-      throw new Error('Ya existe un pago registrado para ese alumno y plan en ese período.')
+      if (existing) {
+        const label = formatPeriod(parseYmd(periodStart), periodEnd ? parseYmd(periodEnd) : null)
+        return {
+          ok: false,
+          error:
+            existing.status === 'paid'
+              ? `Este alumno ya tiene pagada la cuota del período ${label}. No hace falta registrar otro pago.`
+              : `Este alumno ya tiene la cuota del período ${label} pendiente. Márcala como pagada en Pagos en vez de crear un pago nuevo.`,
+        }
+      }
     }
-    throw new Error(error.message)
-  }
 
-  // Auto-create subscription if payment is created as paid and linked to a plan
-  if (parsed.status === 'paid' && parsed.plan_id) {
-    const paidAtDate = parsed.paid_at ? new Date(parsed.paid_at) : new Date()
-    await activateSubscriptionForPaidPayment(
-      supabase,
-      clubId,
-      { athlete_id: parsed.athlete_id, plan_id: parsed.plan_id, period_start: periodStart, period_end: periodEnd, amount: parsed.amount },
-      paidAtDate,
-      parsed.payment_method ?? 'manual',
-    )
-    revalidatePath('/dashboard/subscriptions')
-    revalidatePath('/dashboard/athletes')
+    const { data, error } = await supabase
+      .from('payments')
+      .insert({ ...parsed, club_id: clubId, period_start: periodStart, period_end: periodEnd })
+      .select()
+      .single()
+
+    if (error) {
+      // Backstop del índice único ante una carrera (dos registros simultáneos del mismo período).
+      if (error.code === '23505' || error.message.includes('idx_payments_unique_period')) {
+        return {
+          ok: false,
+          error: 'Este alumno ya tiene una cuota registrada para ese período. Márcala como pagada en Pagos en vez de crear un pago nuevo.',
+        }
+      }
+      console.error('[createPayment] error al insertar el pago:', error.message)
+      return { ok: false, error: `No se pudo registrar el pago: ${error.message}` }
+    }
+
+    // Auto-create subscription if payment is created as paid and linked to a plan
+    if (parsed.status === 'paid' && parsed.plan_id) {
+      const paidAtDate = parsed.paid_at ? new Date(parsed.paid_at) : new Date()
+      await activateSubscriptionForPaidPayment(
+        supabase,
+        clubId,
+        { athlete_id: parsed.athlete_id, plan_id: parsed.plan_id, period_start: periodStart, period_end: periodEnd, amount: parsed.amount },
+        paidAtDate,
+        parsed.payment_method ?? 'manual',
+      )
+      revalidatePath('/dashboard/subscriptions')
+      revalidatePath('/dashboard/athletes')
+      revalidatePath(`/dashboard/athletes/${parsed.athlete_id}`)
+      revalidatePath('/dashboard/athlete')
+    }
+
+    revalidatePath('/dashboard/payments')
     revalidatePath(`/dashboard/athletes/${parsed.athlete_id}`)
-    revalidatePath('/dashboard/athlete')
+    return { ok: true, payment: data }
+  } catch (err) {
+    // Cualquier fallo inesperado (validación, capability, red) se registra en el servidor y se
+    // devuelve legible al formulario (producción esconde el mensaje de un throw en Server Actions).
+    console.error('[createPayment] error inesperado:', err)
+    const message =
+      err instanceof z.ZodError
+        ? err.issues[0]?.message ?? 'Revisa los datos del pago.'
+        : err instanceof Error
+          ? err.message
+          : 'Error inesperado al registrar el pago.'
+    return { ok: false, error: message }
   }
-
-  revalidatePath('/dashboard/payments')
-  revalidatePath(`/dashboard/athletes/${parsed.athlete_id}`)
-  return data
 }
 
 /**

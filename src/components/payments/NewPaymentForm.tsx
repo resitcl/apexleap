@@ -56,7 +56,7 @@ export function NewPaymentForm({ athletes, plans, defaultAthleteId }: Props) {
 
     setLoading(true)
     try {
-      await createPayment({
+      const result = await createPayment({
         athlete_id: form.athlete_id,
         plan_id: form.plan_id || null,
         concept: form.concept,
@@ -68,6 +68,11 @@ export function NewPaymentForm({ athletes, plans, defaultAthleteId }: Props) {
         paid_at: form.status === 'paid' ? new Date(form.paid_at).toISOString() : null,
         transaction_id: null,
       })
+      if (!result.ok) {
+        // Motivo concreto (p. ej. cuota del período ya existente). Se queda en el formulario.
+        toast.error(result.error)
+        return
+      }
       toast.success('Pago registrado correctamente')
       router.push('/dashboard/payments')
     } catch (err) {
