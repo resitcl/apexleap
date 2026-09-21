@@ -7,11 +7,14 @@ import { toast } from 'sonner'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import {
   CheckCircle, Loader2, Zap, ArrowRight, ArrowLeft, CreditCard,
   PartyPopper, ChevronRight, Upload, Clock, ImageIcon, MessageCircle,
+  User, Phone, Shield,
 } from 'lucide-react'
-import { enrollWithPayment, uploadTransferReceipt } from '@/lib/actions/athlete-enrollment'
+import { enrollWithPayment, uploadTransferReceipt, saveRegistrationContact } from '@/lib/actions/athlete-enrollment'
 import type { OnboardingData } from '@/lib/athlete-enrollment-shared'
 import type { SportConfig } from '@/lib/sport-fields'
 import { getEnabledPaymentMethodIdsFromClubSettings } from '@/lib/payment-methods'
@@ -40,16 +43,36 @@ interface Props {
   sportConfig: SportConfig | null
 }
 
-type Step = 'plan' | 'checkout' | 'done' | 'waiting'
+type Step = 'contact' | 'plan' | 'checkout' | 'done' | 'waiting'
 
 // ─── Main Component ─────────────────────────────────────────────────────────
 
 export function AthleteOnboardingWizard({ data, sportConfig: _sportConfig }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
-  const [step, setStep] = useState<Step>(data.hasPendingPayment ? 'waiting' : 'plan')
+
+  // El paso "Tus Datos" (teléfono + contacto de emergencia) va PRIMERO y se guarda antes de
+  // elegir plan/pagar, para que el club tenga estos datos aunque el alumno no complete el pago.
+  // Si ya vienen completos (reinscripción), se salta directo a elegir plan.
+  const contactAlreadyComplete = !!(
+    data.athlete?.phone &&
+    data.athlete?.emergency_contact &&
+    data.athlete?.emergency_phone
+  )
+  const [collectsContact] = useState(!contactAlreadyComplete)
+
+  const [step, setStep] = useState<Step>(
+    data.hasPendingPayment ? 'waiting' : collectsContact ? 'contact' : 'plan'
+  )
   const [loading, setLoading] = useState(false)
   const [redirecting, setRedirecting] = useState(false)
+
+  // Contact step state (paso "Tus Datos")
+  const [savingContact, setSavingContact] = useState(false)
+  const [contactName, setContactName] = useState(data.athlete?.name ?? data.user.fullName ?? '')
+  const [contactPhone, setContactPhone] = useState(data.athlete?.phone ?? '')
+  const [emergencyContact, setEmergencyContact] = useState(data.athlete?.emergency_contact ?? '')
+  const [emergencyPhone, setEmergencyPhone] = useState(data.athlete?.emergency_phone ?? '')
   // ref además del state: el finally corre en un closure async y leería un state stale.
   const redirectingRef = useRef(false)
 
@@ -125,6 +148,30 @@ export function AthleteOnboardingWizard({ data, sportConfig: _sportConfig }: Pro
     setReceiptPreview(URL.createObjectURL(file))
   }
 
+  const isContactComplete =
+    contactName.trim() && contactPhone.trim() && emergencyContact.trim() && emergencyPhone.trim()
+
+  async function handleSaveContact() {
+    if (!isContactComplete) {
+      toast.error('Completa tu teléfono y contacto de emergencia para continuar')
+      return
+    }
+    setSavingContact(true)
+    try {
+      await saveRegistrationContact({
+        name: contactName.trim(),
+        phone: contactPhone.trim(),
+        emergency_contact: emergencyContact.trim(),
+        emergency_phone: emergencyPhone.trim(),
+      })
+      setStep('plan')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'No pudimos guardar tus datos')
+    } finally {
+      setSavingContact(false)
+    }
+  }
+
   async function handleEnroll() {
     if (!selectedPlanId || !paymentMethod) return
     const isTransfer = paymentMethod === 'transfer'
@@ -182,8 +229,12 @@ export function AthleteOnboardingWizard({ data, sportConfig: _sportConfig }: Pro
   // ─── Render helpers ─────────────────────────────────────────────────────
 
   function renderProgressBar() {
-    const labels = ['Selecciona Plan', 'Pago', 'Confirmación']
-    const stepMap: Record<Step, number> = { plan: 0, checkout: 1, done: 2, waiting: 2 }
+    const labels = collectsContact
+      ? ['Tus Datos', 'Selecciona Plan', 'Pago', 'Confirmación']
+      : ['Selecciona Plan', 'Pago', 'Confirmación']
+    const stepMap: Record<Step, number> = collectsContact
+      ? { contact: 0, plan: 1, checkout: 2, done: 3, waiting: 3 }
+      : { contact: 0, plan: 0, checkout: 1, done: 2, waiting: 2 }
     const currentIndex = stepMap[step]
     return (
       <div className="flex items-center justify-center gap-1 mb-8">
@@ -233,6 +284,107 @@ export function AthleteOnboardingWizard({ data, sportConfig: _sportConfig }: Pro
           </div>
         )}
         <span className="font-semibold text-lg">{clubName}</span>
+      </div>
+    )
+  }
+
+  // ─── STEP: Contact (Tus Datos) ──────────────────────────────────────────
+
+  function renderContact() {
+    return (
+      <div className="max-w-lg mx-auto space-y-6">
+        {renderClubHeader()}
+        <div className="text-center space-y-2">
+          <div className="w-16 h-16 rounded-full mx-auto flex items-center justify-center bg-primary/10">
+            <User className="w-8 h-8" style={{ color: primaryColor }} />
+          </div>
+          <h2 className="text-2xl font-bold">Tus Datos</h2>
+          <p className="text-sm text-muted-foreground">
+            Antes de elegir tu plan, déjanos cómo contactarte y a quién avisar ante una emergencia.
+          </p>
+        </div>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <User className="w-4 h-4" /> Información de Contacto
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="contact_name">
+                Nombre completo <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="contact_name"
+                value={contactName}
+                onChange={(e) => setContactName(e.target.value)}
+                placeholder="Tu nombre completo"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="contact_phone" className="flex items-center gap-1.5">
+                <Phone className="w-3.5 h-3.5" /> Teléfono <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="contact_phone"
+                type="tel"
+                value={contactPhone}
+                onChange={(e) => setContactPhone(e.target.value)}
+                placeholder="+56 9 1234 5678"
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Shield className="w-4 h-4" /> Contacto de Emergencia
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="ec_name">
+                Nombre <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="ec_name"
+                value={emergencyContact}
+                onChange={(e) => setEmergencyContact(e.target.value)}
+                placeholder="Ej: María Pérez"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="ec_phone" className="flex items-center gap-1.5">
+                <Phone className="w-3.5 h-3.5" /> Teléfono <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="ec_phone"
+                type="tel"
+                value={emergencyPhone}
+                onChange={(e) => setEmergencyPhone(e.target.value)}
+                placeholder="+56 9 8765 4321"
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="flex justify-end">
+          <Button
+            size="lg"
+            style={{ backgroundColor: primaryColor }}
+            onClick={handleSaveContact}
+            disabled={!isContactComplete || savingContact}
+            className="min-w-[200px] text-white"
+          >
+            {savingContact ? (
+              <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Guardando...</>
+            ) : (
+              <>Continuar <ArrowRight className="w-4 h-4 ml-2" /></>
+            )}
+          </Button>
+        </div>
       </div>
     )
   }
@@ -331,7 +483,16 @@ export function AthleteOnboardingWizard({ data, sportConfig: _sportConfig }: Pro
         )}
 
         {data.plans.length > 0 && (
-          <div className="flex justify-center">
+          <div className="flex justify-center gap-3">
+            {collectsContact && (
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={() => setStep('contact')}
+              >
+                <ArrowLeft className="w-4 h-4 mr-2" /> Atrás
+              </Button>
+            )}
             <Button
               size="lg"
               style={{ backgroundColor: primaryColor }}
@@ -740,6 +901,7 @@ export function AthleteOnboardingWizard({ data, sportConfig: _sportConfig }: Pro
       {/* Wizard content */}
       <div className="relative z-10 w-full max-h-[90vh] overflow-y-auto px-4 py-8">
         {renderProgressBar()}
+        {step === 'contact' && renderContact()}
         {step === 'plan' && renderPlanSelection()}
         {step === 'checkout' && renderCheckout()}
         {step === 'done' && renderDone()}

@@ -147,6 +147,14 @@ export async function enrollInPlan(planId: string) {
 
     if (createErr) throw new Error('Error al crear tu perfil de atleta: ' + createErr.message)
     athlete = created
+  } else {
+    // Reactiva la ficha si venía como `inactive` (registro previo al pago o baja anterior).
+    await supabase
+      .from('athletes')
+      .update({ status: 'active' })
+      .eq('id', athlete.id)
+      .eq('club_id', clubId)
+      .neq('status', 'active')
   }
 
   // Cancel any existing active subscriptions
@@ -875,6 +883,15 @@ export async function enrollWithPayment(
 
     if (createErr) throw new Error('Error al crear tu perfil: ' + createErr.message)
     athlete = created
+  } else {
+    // Si la ficha se creó como `inactive` en el paso de datos previo al pago (o quedó inactiva
+    // tras una baja anterior), al inscribirse vuelve a `active`. neq evita un update inútil.
+    await supabase
+      .from('athletes')
+      .update({ status: 'active' })
+      .eq('id', athlete.id)
+      .eq('club_id', clubId)
+      .neq('status', 'active')
   }
 
   // Cancel existing active or pending_payment subscriptions
@@ -1120,6 +1137,91 @@ export async function saveAthleteProfileSelf(profile: {
 
   revalidatePath('/dashboard/athlete')
   revalidatePath('/dashboard/athlete/profile')
+}
+
+/**
+ * Guarda los datos de contacto del atleta al INICIO del registro (primer paso del wizard,
+ * antes de elegir plan y pagar). Así el club siempre tiene teléfono y contacto de emergencia,
+ * aunque el alumno no complete el pago (típico en transferencia/efectivo, donde antes el paso
+ * de perfil solo aparecía tras confirmar el pago y volver a entrar).
+ *
+ * La ficha se crea como `inactive` para NO inflar los KPIs de atletas activos (dashboard y
+ * stats cuentan solo `status === 'active'`). Al inscribirse (enrollWithPayment / enrollInPlan)
+ * la ficha pasa a `active`.
+ */
+export async function saveRegistrationContact(contact: {
+  name: string
+  phone: string
+  emergency_contact: string
+  emergency_phone: string
+}) {
+  const { userId } = await auth()
+  if (!userId) throw new Error('No autorizado')
+
+  const name = contact.name?.trim()
+  const phone = contact.phone?.trim()
+  const emergencyContact = contact.emergency_contact?.trim()
+  const emergencyPhone = contact.emergency_phone?.trim()
+
+  if (!name) throw new Error('El nombre es obligatorio')
+  if (!phone) throw new Error('El teléfono es obligatorio')
+  if (!emergencyContact) throw new Error('El nombre del contacto de emergencia es obligatorio')
+  if (!emergencyPhone) throw new Error('El teléfono de emergencia es obligatorio')
+
+  const clubId = await getClubId()
+  const supabase = createAdminClient()
+
+  const clerk = await clerkClient()
+  const user = await clerk.users.getUser(userId)
+  const email = (user.emailAddresses[0]?.emailAddress ?? '').trim().toLowerCase() || null
+  if (!email) throw new Error('No se encontró un email asociado a tu cuenta')
+
+  const { data: athlete } = await supabase
+    .from('athletes')
+    .select('id')
+    .eq('club_id', clubId)
+    .eq('email', email)
+    .maybeSingle()
+
+  if (athlete) {
+    // Ya existe (p. ej. reinscripción): solo actualizamos contacto, sin tocar estado ni
+    // technical_meta/birth_date que se completan en el paso de perfil.
+    const { error } = await supabase
+      .from('athletes')
+      .update({
+        name,
+        phone,
+        emergency_contact: emergencyContact,
+        emergency_phone: emergencyPhone,
+      })
+      .eq('id', athlete.id)
+      .eq('club_id', clubId)
+
+    if (error) throw new Error('Error al guardar tus datos: ' + error.message)
+    revalidatePath('/dashboard/athlete')
+    return { success: true, athleteId: athlete.id }
+  }
+
+  const { data: created, error: createErr } = await supabase
+    .from('athletes')
+    .insert({
+      club_id: clubId,
+      name,
+      email,
+      phone,
+      emergency_contact: emergencyContact,
+      emergency_phone: emergencyPhone,
+      status: 'inactive',
+      health_status: 'healthy',
+      technical_meta: {},
+      performance_meta: {},
+    })
+    .select('id')
+    .single()
+
+  if (createErr) throw new Error('Error al guardar tus datos: ' + createErr.message)
+  revalidatePath('/dashboard/athlete')
+  return { success: true, athleteId: created.id }
 }
 
 /**
