@@ -69,11 +69,12 @@ export function NewPaymentForm({ athletes, plans, defaultAthleteId }: Props) {
         transaction_id: null,
       })
       if (!result.ok) {
-        // Motivo concreto (p. ej. cuota del período ya existente). Se queda en el formulario.
+        // Motivo concreto (p. ej. cuota del período ya pagada). Se queda en el formulario.
         toast.error(result.error)
         return
       }
-      toast.success('Pago registrado correctamente')
+      // message: cuando se pagó una cuota que ya existía en vez de crear una nueva.
+      toast.success(result.message ?? 'Pago registrado correctamente')
       router.push('/dashboard/payments')
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Error inesperado')

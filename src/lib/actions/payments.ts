@@ -7,7 +7,6 @@ import { getClubId, assertClubCapability, getClubMembershipRole } from '@/lib/ac
 import {
   calculateNextPeriodStart,
   calculatePeriodStartForPayment,
-  formatPeriod,
   getBillingAnchorDay,
   parseYmd,
   todayYmd,
@@ -162,7 +161,7 @@ export async function getPaymentSummary() {
 // ─────────────────────────────────────────────────────────────
 
 export type CreatePaymentResult =
-  | { ok: true; payment: Record<string, unknown> }
+  | { ok: true; payment: Record<string, unknown>; message?: string }
   | { ok: false; error: string }
 
 /**
@@ -216,13 +215,13 @@ export async function createPayment(input: PaymentInput): Promise<CreatePaymentR
       periodEnd = pe ? ymdFromDate(pe) : null
     }
 
-    // Ya existe una cuota viva de ese período: NO duplicamos ni chocamos contra el índice único
-    // (que producción mostraba como un crash opaco). Avisamos con claridad para que el admin
-    // marque como pagada la cuota existente en Pagos.
+    // Ya existe una cuota viva de ese período: NO duplicamos (chocaría con el índice único, que
+    // producción mostraba como un crash opaco). Si el admin la está marcando como pagada,
+    // registramos el pago SOBRE la cuota existente y renovamos la suscripción — un solo paso.
     if (parsed.plan_id && periodStart) {
       const { data: existing } = await supabase
         .from('payments')
-        .select('status')
+        .select('id, status, athlete_id, plan_id, period_start, period_end, amount, payment_method')
         .eq('club_id', clubId)
         .eq('athlete_id', parsed.athlete_id)
         .eq('plan_id', parsed.plan_id)
@@ -231,13 +230,62 @@ export async function createPayment(input: PaymentInput): Promise<CreatePaymentR
         .maybeSingle()
 
       if (existing) {
-        const label = formatPeriod(parseYmd(periodStart), periodEnd ? parseYmd(periodEnd) : null)
+        // Ya está pagada: nada que registrar.
+        if (existing.status === 'paid') {
+          return {
+            ok: false,
+            error: 'Este alumno ya tiene pagada la cuota de este período. No hace falta registrar otro pago.',
+          }
+        }
+
+        // Cuota pendiente/vencida y el admin la marca como pagada → la pagamos directamente.
+        if (parsed.status === 'paid') {
+          if (
+            existing.payment_method &&
+            (ONLINE_GATEWAY_IDS as readonly string[]).includes(existing.payment_method)
+          ) {
+            return {
+              ok: false,
+              error: 'La cuota pendiente de este alumno es de una pasarela de pago y se confirma sola; no se marca a mano.',
+            }
+          }
+
+          const paidAtDate = parsed.paid_at ? new Date(parsed.paid_at) : new Date()
+          const method = parsed.payment_method ?? 'manual'
+
+          const { error: updErr } = await supabase
+            .from('payments')
+            .update({
+              status: 'paid',
+              paid_at: paidAtDate.toISOString(),
+              payment_method: method,
+              ...(parsed.notes ? { notes: parsed.notes } : {}),
+            })
+            .eq('id', existing.id)
+            .eq('club_id', clubId)
+
+          if (updErr) {
+            console.error('[createPayment] no se pudo marcar la cuota existente como pagada:', updErr.message)
+            return { ok: false, error: `No se pudo registrar el pago: ${updErr.message}` }
+          }
+
+          await activateSubscriptionForPaidPayment(supabase, clubId, existing, paidAtDate, method)
+          revalidatePath('/dashboard/subscriptions')
+          revalidatePath('/dashboard/athletes')
+          revalidatePath(`/dashboard/athletes/${parsed.athlete_id}`)
+          revalidatePath('/dashboard/athlete')
+          revalidatePath('/dashboard/payments')
+          return {
+            ok: true,
+            payment: existing,
+            message: 'Se registró el pago de la cuota pendiente del alumno.',
+          }
+        }
+
+        // El admin intenta crear otra cuota NO pagada del mismo período: avisamos sin duplicar.
         return {
           ok: false,
-          error:
-            existing.status === 'paid'
-              ? `Este alumno ya tiene pagada la cuota del período ${label}. No hace falta registrar otro pago.`
-              : `Este alumno ya tiene la cuota del período ${label} pendiente. Márcala como pagada en Pagos en vez de crear un pago nuevo.`,
+          error: 'Este alumno ya tiene una cuota pendiente de este período. Márcala como pagada en Pagos en vez de crear un pago nuevo.',
         }
       }
     }
