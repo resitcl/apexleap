@@ -20,6 +20,8 @@ const isPublicRoute = createRouteMatcher([
   '/api/attendance(.*)',
   '/api/webhooks(.*)',
   '/api/payments(.*)',
+  // Vercel Cron llega sin sesión de Clerk; la ruta se protege sola con CRON_SECRET.
+  '/api/cron(.*)',
   '/:slug/signin',
   '/:slug/signup',
 ])

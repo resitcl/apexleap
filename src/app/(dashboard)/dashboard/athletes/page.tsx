@@ -26,6 +26,7 @@ import {
   ATHLETE_PAYMENT_STATUS_META,
   deriveAthletePaymentStatus,
   isAthletePaymentStatus,
+  unbilledOverdueSince,
   type AthletePaymentStatus,
 } from "@/lib/payment-status"
 
@@ -76,7 +77,7 @@ function paymentsOf(a: AthleteRow): AthletePayment[] {
 }
 
 function subscriptionsOf(a: AthleteRow) {
-  return (a.subscriptions as Array<{ status: string; next_billing_date?: string | null }> | null) ?? []
+  return (a.subscriptions as Array<{ status: string; next_billing_date?: string | null; plans?: { price?: number | null } | null }> | null) ?? []
 }
 
 /**
@@ -103,10 +104,17 @@ function documentsOf(a: AthleteRow) {
   return (a.documents as Array<{ expiry_date: string | null }> | null) ?? []
 }
 
-function debtOf(a: AthleteRow) {
-  return paymentsOf(a)
+/**
+ * Deuda vencida: cuotas `overdue` + la cuota del período que el cron no alcanzó a emitir
+ * (fecha de cobro ya pasada sin cuota). Se suma UNA sola cuota del plan: no se inventan meses.
+ */
+function debtOf(a: AthleteRow, today: string) {
+  const overdue = paymentsOf(a)
     .filter((p) => p.status === "overdue")
     .reduce((s, p) => s + Number(p.amount), 0)
+  if (!unbilledOverdueSince({ payments: paymentsOf(a), subscriptions: subscriptionsOf(a) }, today)) return overdue
+  const activeSub = subscriptionsOf(a).find((s) => s.status === 'active')
+  return overdue + Number(activeSub?.plans?.price ?? 0)
 }
 
 function paidTotalOf(a: AthleteRow) {
@@ -231,7 +239,7 @@ export default async function AthletesPage({ searchParams }: PageProps) {
 
       if (debtMin !== undefined || debtMax !== undefined) {
         filtered = filtered.filter((a) => {
-          const debt = debtOf(a)
+          const debt = debtOf(a, today)
           if (debtMin !== undefined && debt < debtMin) return false
           if (debtMax !== undefined && debt > debtMax) return false
           return true
@@ -252,7 +260,7 @@ export default async function AthletesPage({ searchParams }: PageProps) {
         filtered = filtered.filter((a) => attendanceOf(a).length >= minAtt)
       }
 
-      if (sort === 'debt')  filtered.sort((a, b) => debtOf(b) - debtOf(a))
+      if (sort === 'debt')  filtered.sort((a, b) => debtOf(b, today) - debtOf(a, today))
       if (sort === 'paid')  filtered.sort((a, b) => paidTotalOf(b) - paidTotalOf(a))
       if (sort === 'docs')  filtered.sort((a, b) => documentsOf(b).length - documentsOf(a).length)
       if (sort === 'last_attendance') {
@@ -294,7 +302,7 @@ export default async function AthletesPage({ searchParams }: PageProps) {
     injured: allAthletes.filter((a) => a.health_status === "injured").length,
   }
 
-  const totalDebt = allAthletes.reduce((sum, a) => sum + debtOf(a), 0)
+  const totalDebt = allAthletes.reduce((sum, a) => sum + debtOf(a, today), 0)
 
   const avgAttendanceRate = (() => {
     const active = allAthletes.filter((a) => a.status === 'active')
@@ -536,7 +544,9 @@ export default async function AthletesPage({ searchParams }: PageProps) {
       {(() => {
         const active = allAthletes.filter((a) => a.status === 'active')
         if (active.length < 5) return null
-        const withOverdue = active.filter((a) => paymentsOf(a).some((p) => p.status === 'overdue')).length
+        const withOverdue = active.filter(
+          (a) => deriveAthletePaymentStatus({ payments: paymentsOf(a), subscriptions: subscriptionsOf(a) }, today) === 'overdue',
+        ).length
         const pct = Math.round((withOverdue / active.length) * 100)
         if (pct < 30) return null
         return (
@@ -693,7 +703,7 @@ export default async function AthletesPage({ searchParams }: PageProps) {
               const cancelledSub = subs.find((s) => s.status === 'cancelled')
 
               const pmts = paymentsOf(athlete)
-              const debt = debtOf(athlete)
+              const debt = debtOf(athlete, today)
               const overdueCount = pmts.filter((p) => p.status === 'overdue').length
               const lastPaid = pmts
                 .filter((p) => p.status === 'paid' && p.paid_at)
@@ -705,14 +715,17 @@ export default async function AthletesPage({ searchParams }: PageProps) {
               const nextBilling = activeSub?.next_billing_date ?? null
               const payState = deriveAthletePaymentStatus({ payments: pmts, subscriptions: subs }, today)
               const payMeta = ATHLETE_PAYMENT_STATUS_META[payState]
+              const unbilledSince = unbilledOverdueSince({ payments: pmts, subscriptions: subs }, today)
               const payHint =
-                payState === 'overdue'
+                payState === 'overdue' && overdueCount > 0
                   ? `${overdueCount} vencido${overdueCount > 1 ? 's' : ''}`
-                  : payState === 'current' && nextBilling
-                    ? `Hasta ${new Date(`${nextBilling}T12:00:00`).toLocaleDateString('es-CL', { day: 'numeric', month: 'short' })}`
-                    : payState === 'none' && lastPaid
-                      ? 'Sin plan activo'
-                      : payMeta.hint
+                  : payState === 'overdue' && unbilledSince
+                    ? `Desde ${new Date(`${unbilledSince}T12:00:00`).toLocaleDateString('es-CL', { day: 'numeric', month: 'short' })}`
+                    : payState === 'current' && nextBilling
+                      ? `Hasta ${new Date(`${nextBilling}T12:00:00`).toLocaleDateString('es-CL', { day: 'numeric', month: 'short' })}`
+                      : payState === 'none' && lastPaid
+                        ? 'Sin plan activo'
+                        : payMeta.hint
 
               const PayIcon = payState === 'current' ? CheckCircle2 : payState === 'overdue' ? AlertCircle : Clock
 

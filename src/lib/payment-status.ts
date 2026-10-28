@@ -99,9 +99,26 @@ interface DerivableAthlete {
 }
 
 /**
+ * Fecha de cobro ya pasada (estrictamente antes de hoy) sin cuota emitida: el cron no generó la
+ * cuota del período, pero el alumno igual está atrasado. Devuelve esa fecha, o null si no aplica.
+ * Si ya hay una cuota pendiente/vencida, esa cuota manda y aquí no se cuenta otra.
+ *
+ * @param todayYmd fecha de hoy en formato `YYYY-MM-DD`
+ */
+export function unbilledOverdueSince(athlete: DerivableAthlete, todayYmd: string): string | null {
+  const payments = athlete.payments ?? []
+  if (payments.some((p) => p.status === 'overdue' || p.status === 'pending')) return null
+
+  const activeSub = (athlete.subscriptions ?? []).find((s) => s.status === 'active')
+  const nextBilling = activeSub?.next_billing_date ?? null
+  return nextBilling && nextBilling < todayYmd ? nextBilling : null
+}
+
+/**
  * Deriva el estado de cobranza de un alumno con la MISMA regla que muestra la tabla:
  * "Al día" solo si la suscripción activa tiene el próximo cobro en el futuro (período cubierto).
  * Sin esa condición, un alumno sin cuotas generadas aparecía "Al día" sin pagar hace meses.
+ * "Por cobrar" solo el mismo día del cobro; desde el día siguiente es atraso, exista o no la cuota.
  *
  * @param todayYmd fecha de hoy en formato `YYYY-MM-DD`
  */
@@ -114,7 +131,8 @@ export function deriveAthletePaymentStatus(athlete: DerivableAthlete, todayYmd: 
   if (!activeSub) return 'none'
 
   const nextBilling = activeSub.next_billing_date ?? null
-  return nextBilling && nextBilling > todayYmd ? 'current' : 'due'
+  if (nextBilling && nextBilling > todayYmd) return 'current'
+  return unbilledOverdueSince(athlete, todayYmd) ? 'overdue' : 'due'
 }
 
 // ─────────────────────────────────────────────────────────────
