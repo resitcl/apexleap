@@ -4,6 +4,7 @@ import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { CLUB_COOKIE } from '@/lib/constants'
+import { ilikeExact } from '@/lib/email-match'
 import { getSportVocab, type SportVocab } from '@/lib/sport-vocab'
 
 
@@ -205,7 +206,7 @@ export async function resolveCurrentAthleteIdInClub(): Promise<string | null> {
     .from('athletes')
     .select('id')
     .eq('club_id', clubId)
-    .ilike('email', email)
+    .ilike('email', ilikeExact(email))
     .is('archived_at', null)
     .maybeSingle()
 

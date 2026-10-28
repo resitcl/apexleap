@@ -27,6 +27,7 @@ import { notifyAdminsPaymentSubmitted } from '@/lib/admin-notifications'
 import { createFlowPayment, resolveFlowConfigFromSettings } from '@/lib/flow'
 import { createMercadoPagoPreference, resolveMercadoPagoConfigFromSettings } from '@/lib/mercadopago'
 import { TRANSFER_RECEIPT_MAX_BYTES } from '@/lib/constants'
+import { ilikeExact } from '@/lib/email-match'
 import {
   ATHLETE_OVERDUE_HARD_BLOCK_DAYS,
   type AthleteFinancialAccessState,
@@ -73,7 +74,7 @@ export async function getMySubscriptionStatus() {
     .from('athletes')
     .select('id, name, email, health_status, status')
     .eq('club_id', clubId)
-    .eq('email', email)
+    .ilike('email', ilikeExact(email))
     .is('archived_at', null)
     .maybeSingle()
 
@@ -129,7 +130,8 @@ export async function enrollInPlan(planId: string) {
     .from('athletes')
     .select('id')
     .eq('club_id', clubId)
-    .eq('email', email)
+    .ilike('email', ilikeExact(email))
+    .is('archived_at', null)
     .maybeSingle()
 
   if (!athlete) {
@@ -270,7 +272,8 @@ export async function getOnboardingData(): Promise<OnboardingData> {
       .from('athletes')
       .select('id, name, phone, birth_date, emergency_contact, emergency_phone, technical_meta, enrollment_status')
       .eq('club_id', clubId)
-      .eq('email', email)
+      .ilike('email', ilikeExact(email))
+      .is('archived_at', null)
       .maybeSingle()
     athlete = data as OnboardingAthlete | null
   }
@@ -417,7 +420,8 @@ export async function getAthleteFinancialAccessState(): Promise<AthleteFinancial
     .from('athletes')
     .select('id')
     .eq('club_id', clubId)
-    .eq('email', email)
+    .ilike('email', ilikeExact(email))
+    .is('archived_at', null)
     .maybeSingle()
 
   if (!athlete) return empty
@@ -517,7 +521,8 @@ export async function saveAthleteProfile(profile: {
     .from('athletes')
     .select('id')
     .eq('club_id', clubId)
-    .eq('email', email)
+    .ilike('email', ilikeExact(email))
+    .is('archived_at', null)
     .maybeSingle()
 
   if (!athlete) {
@@ -590,7 +595,8 @@ export async function requestEnrollment(profile: {
     .from('athletes')
     .select('id, enrollment_status')
     .eq('club_id', clubId)
-    .eq('email', email)
+    .ilike('email', ilikeExact(email))
+    .is('archived_at', null)
     .maybeSingle()
 
   if (existing) {
@@ -863,7 +869,8 @@ export async function enrollWithPayment(
     .from('athletes')
     .select('id')
     .eq('club_id', clubId)
-    .eq('email', email)
+    .ilike('email', ilikeExact(email))
+    .is('archived_at', null)
     .maybeSingle()
 
   if (!athlete) {
@@ -1115,7 +1122,8 @@ export async function saveAthleteProfileSelf(profile: {
     .from('athletes')
     .select('id')
     .eq('club_id', clubId)
-    .eq('email', email)
+    .ilike('email', ilikeExact(email))
+    .is('archived_at', null)
     .maybeSingle()
 
   if (!athlete) throw new Error('No se encontró tu perfil de atleta')
@@ -1176,11 +1184,15 @@ export async function saveRegistrationContact(contact: {
   const email = (user.emailAddresses[0]?.emailAddress ?? '').trim().toLowerCase() || null
   if (!email) throw new Error('No se encontró un email asociado a tu cuenta')
 
+  // Solo la ficha vigente: un alumno dado de baja conserva su email en la ficha archivada, y
+  // sin el filtro `.maybeSingle()` falla con 2 filas (archivada + vigente) → data null → el
+  // insert de abajo chocaba con idx_athletes_unique_email al volver a registrarse.
   const { data: athlete } = await supabase
     .from('athletes')
     .select('id')
     .eq('club_id', clubId)
-    .eq('email', email)
+    .ilike('email', ilikeExact(email))
+    .is('archived_at', null)
     .maybeSingle()
 
   if (athlete) {
@@ -1243,7 +1255,8 @@ export async function markTourCompleted() {
     .from('athletes')
     .select('id, technical_meta')
     .eq('club_id', clubId)
-    .eq('email', email)
+    .ilike('email', ilikeExact(email))
+    .is('archived_at', null)
     .maybeSingle()
 
   if (!athlete) throw new Error('No se encontró tu perfil de atleta')
@@ -1280,7 +1293,7 @@ async function getMyAthleteId(): Promise<{ athleteId: string; clubId: string }> 
 
   if (!email) throw new Error('No se encontró email')
   const { data } = await supabase
-    .from('athletes').select('id, email, name').eq('club_id', clubId).eq('email', email).is('archived_at', null).maybeSingle()
+    .from('athletes').select('id, email, name').eq('club_id', clubId).ilike('email', ilikeExact(email)).is('archived_at', null).maybeSingle()
 
   if (!data) throw new Error('Perfil de atleta no encontrado')
   return { athleteId: data.id, clubId }
@@ -1461,7 +1474,8 @@ export async function submitSelfPayment(params: {
     .from('athletes')
     .select('id')
     .eq('club_id', clubId)
-    .eq('email', email)
+    .ilike('email', ilikeExact(email))
+    .is('archived_at', null)
     .maybeSingle()
 
   if (!athlete) throw new Error('No se encontró tu perfil de atleta')
@@ -1673,7 +1687,8 @@ export async function createFlowCheckoutForSelfPayment() {
     .from('athletes')
     .select('id')
     .eq('club_id', clubId)
-    .eq('email', email)
+    .ilike('email', ilikeExact(email))
+    .is('archived_at', null)
     .maybeSingle()
   if (!athlete) throw new Error('No se encontró tu perfil de atleta')
 
@@ -1785,7 +1800,8 @@ export async function createMercadoPagoCheckoutForSelfPayment() {
     .from('athletes')
     .select('id')
     .eq('club_id', clubId)
-    .eq('email', email)
+    .ilike('email', ilikeExact(email))
+    .is('archived_at', null)
     .maybeSingle()
   if (!athlete) throw new Error('No se encontró tu perfil de atleta')
 

@@ -1,5 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { clerkClient } from '@clerk/nextjs/server'
+import { ilikeExact } from '@/lib/email-match'
 
 /**
  * Asegura que exista una ficha activa en `athletes` para un usuario con rol
@@ -53,12 +54,14 @@ export async function ensureAthleteRecordForUser(params: {
   }
 
   if (email) {
-    const normalized = email.trim().toLowerCase()
+    // Preferir la ficha vigente: reactivar una archivada habiendo otra vigente con el mismo
+    // email chocaría con idx_athletes_unique_email.
     const { data: byEmailRows } = await supabase
       .from('athletes')
       .select('id, user_id')
       .eq('club_id', clubId)
-      .ilike('email', normalized)
+      .ilike('email', ilikeExact(email))
+      .order('archived_at', { ascending: false, nullsFirst: true })
       .limit(1)
     const byEmail = byEmailRows?.[0]
     if (byEmail) {
