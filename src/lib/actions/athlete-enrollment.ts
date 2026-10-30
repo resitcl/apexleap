@@ -1516,9 +1516,15 @@ export async function submitSelfPayment(params: {
     ? parseYmd(subscription.current_period_start as string)
     : null
   const anchorDay = subscription.billing_anchor_day ?? getBillingAnchorDay(today)
-  const { periodStart, periodEnd } = calculatePeriodStartForPayment(anchorDay, today, cycle, refStart)
-  const periodStartStr = ymdFromDate(periodStart)
-  const periodEndStr = periodEnd ? ymdFromDate(periodEnd) : null
+  const { periodStart, periodStartStr, periodEndStr } = await resolveSelfPayPeriod(supabase, {
+    clubId,
+    athleteId: athlete.id,
+    planId: plan.id,
+    cycle,
+    anchorDay,
+    refStart,
+    now: today,
+  })
 
   const month = periodStart.toLocaleDateString('es-CL', { month: 'long', year: 'numeric' })
   const concept = params.concept || `${plan.name} – ${month}`
@@ -1537,24 +1543,21 @@ export async function submitSelfPayment(params: {
     }
   }
 
-  const { error } = await supabase
-    .from('payments')
-    .insert({
-      club_id: clubId,
-      athlete_id: athlete.id,
-      plan_id: plan.id,
-      subscription_id: subscription.id,
-      concept,
-      amount: plan.price,
-      status: 'pending',
-      due_date: todayStr,
-      payment_method: params.paymentMethod,
-      notes,
-      period_start: periodStartStr,
-      period_end: periodEndStr,
-    })
-
-  if (error) throw new Error('Error al registrar el pago: ' + error.message)
+  // Reutiliza la cuota del período si ya existe (p. ej. la que emitió el cron): insertar otra
+  // chocaba con idx_payments_unique_period.
+  await ensureSelfPayPayment(supabase, {
+    clubId,
+    athleteId: athlete.id,
+    planId: plan.id,
+    subscriptionId: subscription.id,
+    concept,
+    amount: Number(plan.price),
+    dueDate: todayStr,
+    method: params.paymentMethod,
+    periodStartStr,
+    periodEndStr,
+    notes,
+  })
 
   // Aviso al admin: el pago queda pendiente de validación y nadie lo mira si no llega un correo.
   await notifyAdminsPaymentSubmitted(supabase, {
@@ -1611,12 +1614,14 @@ async function ensureSelfPayPayment(
     concept: string
     amount: number
     dueDate: string
-    method: 'flow' | 'mercadopago'
+    method: string
     periodStartStr: string | null
     periodEndStr: string | null
+    /** Solo se escribe si viene definido (p. ej. comprobante de transferencia). */
+    notes?: string | null
   },
 ): Promise<{ id: string; created: boolean }> {
-  const { clubId, athleteId, planId, subscriptionId, concept, amount, dueDate, method, periodStartStr, periodEndStr } = params
+  const { clubId, athleteId, planId, subscriptionId, concept, amount, dueDate, method, periodStartStr, periodEndStr, notes } = params
 
   if (periodStartStr) {
     const { data: existing } = await supabase
@@ -1642,10 +1647,11 @@ async function ensureSelfPayPayment(
           due_date: dueDate,
           payment_method: method,
           period_end: periodEndStr,
+          ...(notes !== undefined ? { notes } : {}),
         })
         .eq('id', existing.id)
         .eq('club_id', clubId)
-      if (updErr) throw new Error('No se pudo preparar el pago pendiente para la pasarela')
+      if (updErr) throw new Error('No se pudo preparar el pago pendiente')
       return { id: existing.id, created: false }
     }
   }
@@ -1662,13 +1668,86 @@ async function ensureSelfPayPayment(
       status: 'pending',
       due_date: dueDate,
       payment_method: method,
+      notes: notes ?? null,
       period_start: periodStartStr,
       period_end: periodEndStr,
     })
     .select('id')
     .single()
-  if (paymentErr || !payment) throw new Error('No se pudo crear el pago pendiente para la pasarela')
+  if (paymentErr || !payment) {
+    console.error('[ensureSelfPayPayment] insert falló:', paymentErr?.message)
+    throw new Error('No se pudo registrar el pago pendiente')
+  }
   return { id: payment.id, created: true }
+}
+
+/**
+ * Decide qué período cobra el pago self-service del atleta:
+ * 1. La cuota pendiente/vencida más antigua del plan (primero se salda la deuda).
+ * 2. Si no debe nada, el período en curso; si ese ya está pagado, el siguiente sin pagar
+ *    (pago adelantado — el cron luego ve la cuota `paid` y avanza sin emitir otra).
+ * Sin esto el botón "Pagar cuota" de un atleta al día recalculaba el período en curso, ya
+ * pagado, y el insert chocaba con `idx_payments_unique_period` (500 en producción).
+ * Llamar ANTES de supersedePendingGatewayPayments, que pasa a `failed` los intentos de
+ * pasarela y ocultaría la deuda.
+ */
+async function resolveSelfPayPeriod(
+  supabase: ReturnType<typeof createAdminClient>,
+  params: {
+    clubId: string
+    athleteId: string
+    planId: string
+    cycle: BillingCycle
+    anchorDay: number
+    refStart: Date | null
+    now: Date
+  },
+): Promise<{ periodStart: Date; periodStartStr: string; periodEndStr: string | null }> {
+  const { clubId, athleteId, planId, cycle, anchorDay, refStart, now } = params
+
+  const { data: owed } = await supabase
+    .from('payments')
+    .select('period_start, period_end')
+    .eq('club_id', clubId)
+    .eq('athlete_id', athleteId)
+    .eq('plan_id', planId)
+    .not('period_start', 'is', null)
+    .in('status', ['pending', 'overdue'])
+    .order('period_start', { ascending: true })
+    .limit(1)
+    .maybeSingle()
+
+  if (owed?.period_start) {
+    const periodStartStr = String(owed.period_start).slice(0, 10)
+    const periodStart = parseYmd(periodStartStr)
+    const end = owed.period_end ? parseYmd(String(owed.period_end).slice(0, 10)) : calculatePeriodEnd(periodStart, cycle)
+    return { periodStart, periodStartStr, periodEndStr: end ? ymdFromDate(end) : null }
+  }
+
+  let { periodStart } = calculatePeriodStartForPayment(anchorDay, now, cycle, refStart)
+
+  const { data: paidRows } = await supabase
+    .from('payments')
+    .select('period_start')
+    .eq('club_id', clubId)
+    .eq('athlete_id', athleteId)
+    .eq('plan_id', planId)
+    .eq('status', 'paid')
+    .gte('period_start', ymdFromDate(periodStart))
+  const paid = new Set((paidRows ?? []).map((r) => String(r.period_start).slice(0, 10)))
+
+  for (let i = 0; i < 36 && paid.has(ymdFromDate(periodStart)); i++) {
+    const next = calculateNextPeriodStart(periodStart, cycle)
+    if (!next) break
+    periodStart = next
+  }
+
+  const periodEnd = calculatePeriodEnd(periodStart, cycle)
+  return {
+    periodStart,
+    periodStartStr: ymdFromDate(periodStart),
+    periodEndStr: periodEnd ? ymdFromDate(periodEnd) : null,
+  }
 }
 
 export async function createFlowCheckoutForSelfPayment() {
@@ -1728,9 +1807,15 @@ export async function createFlowCheckoutForSelfPayment() {
     ? parseYmd(subscription.current_period_start as string)
     : null
   const anchorDay = subscription.billing_anchor_day ?? getBillingAnchorDay(now)
-  const { periodStart, periodEnd } = calculatePeriodStartForPayment(anchorDay, now, cycle, refStart)
-  const periodStartStr = ymdFromDate(periodStart)
-  const periodEndStr = periodEnd ? ymdFromDate(periodEnd) : null
+  const { periodStart, periodStartStr, periodEndStr } = await resolveSelfPayPeriod(supabase, {
+    clubId,
+    athleteId: athlete.id,
+    planId: plan.id,
+    cycle,
+    anchorDay,
+    refStart,
+    now,
+  })
   const month = periodStart.toLocaleDateString('es-CL', { month: 'long', year: 'numeric' })
   const concept = `${plan.name} – ${month}`
 
@@ -1841,9 +1926,15 @@ export async function createMercadoPagoCheckoutForSelfPayment() {
     ? parseYmd(subscription.current_period_start as string)
     : null
   const anchorDay = subscription.billing_anchor_day ?? getBillingAnchorDay(now)
-  const { periodStart, periodEnd } = calculatePeriodStartForPayment(anchorDay, now, cycle, refStart)
-  const periodStartStr = ymdFromDate(periodStart)
-  const periodEndStr = periodEnd ? ymdFromDate(periodEnd) : null
+  const { periodStart, periodStartStr, periodEndStr } = await resolveSelfPayPeriod(supabase, {
+    clubId,
+    athleteId: athlete.id,
+    planId: plan.id,
+    cycle,
+    anchorDay,
+    refStart,
+    now,
+  })
   const month = periodStart.toLocaleDateString('es-CL', { month: 'long', year: 'numeric' })
   const concept = `${plan.name} – ${month}`
 
