@@ -43,7 +43,13 @@ export async function syncOverduePaymentsForClub(clubId: string): Promise<number
   return count ?? 0
 }
 
-/** Marca intentos de pasarela vencidos como failed (no deben quedar como mora). */
+/**
+ * Marca intentos de pasarela vencidos como failed (no deben quedar como mora).
+ *
+ * Solo alcanza a las filas que CREÓ un checkout (su `payment_method` es la pasarela). Una cuota
+ * emitida por el cron sobre la que el alumno intentó pagar conserva su medio original y nunca
+ * entra aquí: si entrara, la deuda del período desaparecería (ver `ensureSelfPayPayment`).
+ */
 export async function failStaleGatewayPaymentsForClub(clubId: string): Promise<number> {
   const supabase = createAdminClient()
   const today = todayYmd()

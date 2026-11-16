@@ -43,9 +43,10 @@ export function PlanSelectionClient({ plans }: Props) {
       toast.success('¡Inscripción exitosa! Bienvenido al club.')
       router.push('/dashboard/athlete')
       router.refresh()
+      // No se reactivan los botones tras el éxito: mientras navega, un segundo toque cancelaba
+      // la suscripción recién creada y generaba otra.
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Error al inscribirse')
-    } finally {
       setLoading(null)
     }
   }

@@ -22,6 +22,7 @@ export type SupplierInput = z.infer<typeof supplierSchema>
 
 
 export async function getSuppliers(params?: { search?: string; category?: string; activeOnly?: boolean }) {
+  await assertClubCapability('finances')
   const clubId = await getClubId()
   const supabase = createAdminClient()
 

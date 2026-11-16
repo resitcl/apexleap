@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic"
 
-import { requireClubStaffPage } from "@/lib/actions/club-context"
+import { requireClubCapabilityPage } from "@/lib/actions/club-context"
 import Link from "next/link"
 import { Suspense } from "react"
 import { getPayments, getNextBillingDateByAthleteIds } from "@/lib/actions/payments"
@@ -31,7 +31,7 @@ function formatCurrency(value: number) {
 }
 
 export default async function PaymentsPage({ searchParams }: PageProps) {
-  await requireClubStaffPage()
+  await requireClubCapabilityPage('finances')
   const params = await searchParams
   const page = Number(params.page ?? 1)
   const from        = params.from        ?? ""

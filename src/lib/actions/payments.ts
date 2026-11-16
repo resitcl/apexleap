@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { fetchAllRows } from '@/lib/supabase/fetch-all'
 import { z } from 'zod'
 import { getClubId, assertClubCapability, getClubMembershipRole } from '@/lib/actions/club-context'
 import {
@@ -50,46 +51,60 @@ export async function getPayments(params?: {
   paidFrom?: string
   paidTo?: string
 }) {
+  await assertClubCapability('finances')
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
   const page = params?.page ?? 1
   const limit = params?.limit
 
-  let query = supabase
-    .from('payments')
-    .select('*, athletes(id, name, photo_url), plans(id, name, billing_cycle)', { count: 'exact' })
-    .eq('club_id', clubId)
-    .order('due_date', { ascending: false })
-
-  if (params?.status)    query = query.eq('status', params.status)
-  if (params?.athleteId) query = query.eq('athlete_id', params.athleteId)
-  if (params?.search)    query = query.ilike('concept', `%${params.search}%`)
-  if (params?.from)      query = query.gte('due_date', params.from)
-  if (params?.to)        query = query.lte('due_date', params.to)
-  if (params?.amountMin != null) query = query.gte('amount', params.amountMin)
-  if (params?.amountMax != null) query = query.lte('amount', params.amountMax)
-  if (params?.paymentMethod)     query = query.eq('payment_method', params.paymentMethod)
-  if (params?.paidFrom)  query = query.gte('paid_at', `${params.paidFrom}T00:00:00`)
-  if (params?.paidTo)    query = query.lte('paid_at', `${params.paidTo}T23:59:59.999`)
+  let athleteIdsByName: string[] | null = null
   if (params?.athleteName) {
     const { data: athlData } = await supabase
       .from('athletes').select('id').eq('club_id', clubId)
       .ilike('name', `%${params.athleteName}%`)
-    const ids = (athlData ?? []).map((a) => a.id)
+    const ids = (athlData ?? []).map((a) => a.id as string)
     if (ids.length === 0) return { payments: [], total: 0 }
-    query = query.in('athlete_id', ids)
+    athleteIdsByName = ids
+  }
+
+  // Se arma como función porque el modo "sin límite" la ejecuta una vez por página.
+  const buildQuery = () => {
+    let query = supabase
+      .from('payments')
+      .select('*, athletes(id, name, photo_url), plans(id, name, billing_cycle)', { count: 'exact' })
+      .eq('club_id', clubId)
+      .order('due_date', { ascending: false })
+      // Desempate estable: muchas cuotas comparten `due_date` y, sin él, dos páginas pueden
+      // repetir u omitir filas.
+      .order('id', { ascending: true })
+
+    if (params?.status)    query = query.eq('status', params.status)
+    if (params?.athleteId) query = query.eq('athlete_id', params.athleteId)
+    if (params?.search)    query = query.ilike('concept', `%${params.search}%`)
+    if (params?.from)      query = query.gte('due_date', params.from)
+    if (params?.to)        query = query.lte('due_date', params.to)
+    if (params?.amountMin != null) query = query.gte('amount', params.amountMin)
+    if (params?.amountMax != null) query = query.lte('amount', params.amountMax)
+    if (params?.paymentMethod)     query = query.eq('payment_method', params.paymentMethod)
+    if (params?.paidFrom)  query = query.gte('paid_at', `${params.paidFrom}T00:00:00`)
+    if (params?.paidTo)    query = query.lte('paid_at', `${params.paidTo}T23:59:59.999`)
+    if (athleteIdsByName)  query = query.in('athlete_id', athleteIdsByName)
+    return query
   }
 
   if (limit != null) {
     const rangeFrom = (page - 1) * limit
     const rangeTo = rangeFrom + limit - 1
-    query = query.range(rangeFrom, rangeTo)
+    const { data, error, count } = await buildQuery().range(rangeFrom, rangeTo)
+    if (error) throw new Error(error.message)
+    return { payments: data ?? [], total: count ?? 0 }
   }
 
-  const { data, error, count } = await query
-  if (error) throw new Error(error.message)
-  return { payments: data ?? [], total: count ?? 0 }
+  // Sin límite (exportación CSV, detección de duplicados): todas las filas, paginando. Una sola
+  // consulta se corta en 1.000 filas y el CSV salía incompleto sin avisar.
+  const all = await fetchAllRows((from, to) => buildQuery().range(from, to))
+  return { payments: all, total: all.length }
 }
 
 /** Próxima fecha de cobro por atleta según suscripciones activas (`next_billing_date`, alineado al plan/ciclo). */
@@ -99,6 +114,7 @@ export async function getNextBillingDateByAthleteIds(
   const unique = [...new Set(athleteIds.filter(Boolean))]
   if (unique.length === 0) return {}
 
+  await assertClubCapability('finances')
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
@@ -127,15 +143,18 @@ export async function getNextBillingDateByAthleteIds(
 }
 
 export async function getPaymentSummary() {
+  await assertClubCapability('finances')
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
-  const { data, error } = await supabase
-    .from('payments')
-    .select('status, amount')
-    .eq('club_id', clubId)
-
-  if (error) throw new Error(error.message)
+  const data = await fetchAllRows((from, to) =>
+    supabase
+      .from('payments')
+      .select('status, amount', { count: 'exact' })
+      .eq('club_id', clubId)
+      .order('id')
+      .range(from, to),
+  )
 
   const summary = {
     total_collected: 0,

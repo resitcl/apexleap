@@ -114,13 +114,15 @@ export async function enrollInPlan(planId: string) {
 
   if (!email) throw new Error('No se encontró un email asociado a tu cuenta')
 
-  // Validate plan exists and is visible
+  // Validate plan exists and is visible (los planes ocultos no se ofrecen al alumno; sin este
+  // filtro se podían contratar igual conociendo su id)
   const { data: plan, error: planErr } = await supabase
     .from('plans')
     .select('id, name, billing_cycle, price')
     .eq('id', planId)
     .eq('club_id', clubId)
     .eq('is_active', true)
+    .eq('is_visible', true)
     .single()
 
   if (planErr || !plan) throw new Error('Plan no encontrado o no disponible')
@@ -133,6 +135,25 @@ export async function enrollInPlan(planId: string) {
     .ilike('email', ilikeExact(email))
     .is('archived_at', null)
     .maybeSingle()
+
+  // Misma regla que la página /select-plan, pero del lado servidor (la action se puede invocar
+  // directo): con suscripción activa solo se vuelve a elegir plan si el portal está bloqueado
+  // por mora. Sin esto, un alumno al día cancelaba su suscripción y creaba otra con un toque.
+  if (athlete) {
+    const { data: activeSub } = await supabase
+      .from('subscriptions')
+      .select('id')
+      .eq('club_id', clubId)
+      .eq('athlete_id', athlete.id)
+      .eq('status', 'active')
+      .maybeSingle()
+    if (activeSub) {
+      const access = await getAthleteFinancialAccessState()
+      if (!access.delinquency.hardBlocked) {
+        throw new Error('Ya tienes una suscripción activa. Para cambiar de plan, contacta al club.')
+      }
+    }
+  }
 
   if (!athlete) {
     const { data: created, error: createErr } = await supabase
@@ -235,6 +256,22 @@ export async function enrollInPlan(planId: string) {
   revalidatePath('/dashboard/payments')
 
   return { success: true }
+}
+
+/**
+ * Medios de pago utilizables al INSCRIBIRSE: los que el club habilitó, dejando de las pasarelas
+ * solo las que tienen checkout operativo (Flow y MercadoPago con credenciales API). Webpay, Khipu
+ * o una pasarela configurada solo con link estático no cobran nada desde la inscripción: antes se
+ * ofrecían igual y el alumno veía "¡Todo listo!" sin haber pagado.
+ * Sin `payment_settings` (club legacy) solo quedan los medios offline, que confirma el admin.
+ */
+function resolveEnrollmentPaymentMethodIds(settings: Record<string, unknown>): string[] {
+  const enabled = getEnabledPaymentMethodIdsFromClubSettings(settings)
+  if (enabled === null) return ['transfer', 'cash']
+  const withCheckout = new Set<string>()
+  if (resolveFlowConfigFromSettings(settings)) withCheckout.add('flow')
+  if (resolveMercadoPagoConfigFromSettings(settings)) withCheckout.add('mercadopago')
+  return enabled.filter((id) => isOfflinePaymentMethod(id) || withCheckout.has(id))
 }
 
 /**
@@ -363,15 +400,18 @@ export async function getOnboardingData(): Promise<OnboardingData> {
     needsPlatformTour: hasActiveSubscription && profileComplete && !tourCompleted,
     hasPendingPayment,
     pendingPaymentPlanName,
-    club: club ?? {
-      id: clubId,
-      name: 'Club',
-      slug: '',
-      sport_type: null,
-      logo_url: null,
-      primary_color: null,
-      settings: {} as Record<string, unknown>,
+    // Solo campos públicos: este objeto se serializa hacia componentes cliente. `settings` se usa
+    // arriba en el servidor (datos bancarios, medios habilitados) y NO se devuelve, porque
+    // `payment_settings` guarda las llaves secretas de Flow/MercadoPago.
+    club: {
+      id: club?.id ?? clubId,
+      name: club?.name ?? 'Club',
+      slug: club?.slug ?? '',
+      sport_type: club?.sport_type ?? null,
+      logo_url: club?.logo_url ?? null,
+      primary_color: club?.primary_color ?? null,
     },
+    enrollmentPaymentMethodIds: resolveEnrollmentPaymentMethodIds(settings),
     bankInfo,
     user: { fullName, email, photoUrl },
     athlete,
@@ -850,6 +890,7 @@ export async function enrollWithPayment(
     .eq('id', planId)
     .eq('club_id', clubId)
     .eq('is_active', true)
+    .eq('is_visible', true)
     .single()
 
   if (planErr || !plan) throw new Error('Plan no encontrado o no disponible')
@@ -859,10 +900,20 @@ export async function enrollWithPayment(
     .select('settings')
     .eq('id', clubId)
     .single()
-  const enabledIds = getEnabledPaymentMethodIdsFromClubSettings(
-    (clubRow?.settings ?? {}) as Record<string, unknown>
-  )
+  const clubSettings = (clubRow?.settings ?? {}) as Record<string, unknown>
+  const enabledIds = getEnabledPaymentMethodIdsFromClubSettings(clubSettings)
   assertPaymentMethodEnabled(enabledIds, paymentMethod)
+
+  // Una pasarela solo sirve para inscribirse si puede abrir un checkout real (credenciales API).
+  // Antes Flow/Webpay/Khipu dejaban una cuota "pendiente" que nadie podía confirmar (las
+  // pasarelas no se marcan a mano) y el alumno veía "¡Todo listo!" sin haber pagado. Se valida
+  // ANTES de crear la ficha o tocar suscripciones, para no dejar nada a medias.
+  const isGatewayMethod = (ONLINE_GATEWAY_IDS as readonly string[]).includes(paymentMethod)
+  const mpConfig = paymentMethod === 'mercadopago' ? resolveMercadoPagoConfigFromSettings(clubSettings) : null
+  const flowConfig = paymentMethod === 'flow' ? resolveFlowConfigFromSettings(clubSettings) : null
+  if (isGatewayMethod && !mpConfig && !flowConfig) {
+    throw new Error('Este medio de pago no está disponible para inscribirse en línea. Elige otro medio o contacta al club.')
+  }
 
   // Find or create athlete record (auto-link on enrollment)
   let { data: athlete } = await supabase
@@ -956,12 +1007,7 @@ export async function enrollWithPayment(
   // init_point para redirigir al alumno a MercadoPago. La suscripción queda pending_payment hasta
   // que el webhook/reconcile confirme el pago (ahí se activa). Reutiliza los mismos helpers que el
   // pago desde el portal para que el reintento sea seguro (no choca con el índice único de período).
-  if (paymentMethod === 'mercadopago' && totalAmount > 0) {
-    const mpConfig = resolveMercadoPagoConfigFromSettings((clubRow?.settings ?? {}) as Record<string, unknown>)
-    if (!mpConfig) {
-      throw new Error('MercadoPago no está configurado. Contacta al club para completar el pago por otro medio.')
-    }
-
+  if (mpConfig && totalAmount > 0) {
     // Cierra intentos de pasarela previos abandonados antes de crear el nuevo (evita duplicados).
     await supersedePendingGatewayPayments(supabase, clubId, athlete.id)
 
@@ -976,6 +1022,7 @@ export async function enrollWithPayment(
       method: 'mercadopago',
       periodStartStr: startStr,
       periodEndStr: endStr,
+      reuse: 'overwrite',
     })
 
     const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || 'http://localhost:3000').replace(/\/$/, '')
@@ -998,7 +1045,7 @@ export async function enrollWithPayment(
       // No revalidar: el cliente navega de inmediato a MercadoPago. Un revalidatePath
       // dispara un refetch del RSC que la navegación aborta ("Load failed" en Safari) →
       // crashea antes de redirigir. La página es force-dynamic y se recarga al volver.
-      return { success: true, isTransfer: false, initPoint: pref.initPoint }
+      return { success: true, isTransfer: false, pendingConfirmation: true, initPoint: pref.initPoint }
     } catch (e) {
       if (created) {
         await supabase.from('payments').delete().eq('id', paymentId).eq('club_id', clubId)
@@ -1007,8 +1054,55 @@ export async function enrollWithPayment(
     }
   }
 
-  // ── Resto de medios (transferencia, efectivo, y otras pasarelas sin checkout dinámico):
-  // se registra el pago pendiente para confirmación del admin.
+  // ── Flow: mismo patrón que MercadoPago. Crea la orden y devuelve el checkout; la suscripción
+  // queda pending_payment hasta que el webhook/return confirme el pago contra la API de Flow.
+  if (flowConfig && totalAmount > 0) {
+    await supersedePendingGatewayPayments(supabase, clubId, athlete.id)
+
+    const { id: paymentId, created } = await ensureSelfPayPayment(supabase, {
+      clubId,
+      athleteId: athlete.id,
+      planId: plan.id,
+      subscriptionId: newSub.id,
+      concept,
+      amount: totalAmount,
+      dueDate: startStr,
+      method: 'flow',
+      periodStartStr: startStr,
+      periodEndStr: endStr,
+      reuse: 'overwrite',
+    })
+
+    const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || 'http://localhost:3000').replace(/\/$/, '')
+    const commerceOrder = `pay_${paymentId}`
+    try {
+      const flowOrder = await createFlowPayment(flowConfig, {
+        commerceOrder,
+        subject: concept.slice(0, 90),
+        currency: 'CLP',
+        amount: totalAmount,
+        email,
+        urlConfirmation: `${baseUrl}/api/webhooks/flow`,
+        urlReturn: `${baseUrl}/api/payments/flow/return`,
+      })
+      await supabase
+        .from('payments')
+        .update({ transaction_id: flowOrder.token, notes: `Flow order: ${commerceOrder}` })
+        .eq('id', paymentId)
+        .eq('club_id', clubId)
+
+      // No revalidar: el cliente navega de inmediato a Flow (mismo motivo que en MercadoPago).
+      return { success: true, isTransfer: false, pendingConfirmation: true, checkoutUrl: flowOrder.checkoutUrl }
+    } catch (e) {
+      if (created) {
+        await supabase.from('payments').delete().eq('id', paymentId).eq('club_id', clubId)
+      }
+      throw e
+    }
+  }
+
+  // ── Resto de medios (transferencia y efectivo): se registra el pago pendiente para
+  // confirmación del admin.
   if (totalAmount > 0) {
     const notes = isTransfer
       ? receiptUrl
@@ -1052,7 +1146,9 @@ export async function enrollWithPayment(
   revalidatePath('/dashboard/subscriptions')
   revalidatePath('/dashboard/payments')
 
-  return { success: true, isTransfer }
+  // `pendingConfirmation`: la suscripción quedó esperando que el admin confirme el pago; el
+  // cliente no debe mostrar "cuenta activada".
+  return { success: true, isTransfer, pendingConfirmation: pending }
 }
 
 /**
@@ -1544,8 +1640,8 @@ export async function submitSelfPayment(params: {
   }
 
   // Reutiliza la cuota del período si ya existe (p. ej. la que emitió el cron): insertar otra
-  // chocaba con idx_payments_unique_period.
-  await ensureSelfPayPayment(supabase, {
+  // chocaba con idx_payments_unique_period. La cuota conserva su vencimiento y su monto.
+  const { amount: submittedAmount } = await ensureSelfPayPayment(supabase, {
     clubId,
     athleteId: athlete.id,
     planId: plan.id,
@@ -1557,13 +1653,14 @@ export async function submitSelfPayment(params: {
     periodStartStr,
     periodEndStr,
     notes,
+    reuse: 'keep_debt',
   })
 
   // Aviso al admin: el pago queda pendiente de validación y nadie lo mira si no llega un correo.
   await notifyAdminsPaymentSubmitted(supabase, {
     clubId,
     athleteId: athlete.id,
-    amount: Number(plan.price ?? 0),
+    amount: submittedAmount,
     paymentMethod: params.paymentMethod,
     concept,
     planName: plan.name,
@@ -1598,11 +1695,27 @@ async function supersedePendingGatewayPayments(
 }
 
 /**
- * Reutiliza la cuota pendiente/vencida del mismo período (si ya existe) para el checkout de
- * pasarela, en lugar de insertar una duplicada que chocaría con el índice único
- * `idx_payments_unique_period` (p. ej. la cuota de inscripción que crea enrollInPlan).
- * Devuelve el id del pago y si fue creado en esta llamada, para poder revertirlo si la
- * pasarela falla sin borrar una cuota preexistente del atleta.
+ * Devuelve la fila de `payments` sobre la que se cobra: reutiliza la cuota pendiente/vencida del
+ * mismo período si ya existe (insertar otra chocaría con `idx_payments_unique_period`) o crea una.
+ *
+ * `reuse` decide qué pasa cuando la cuota ya existe:
+ *
+ * - `'keep_debt'` (pago de una cuota desde el portal): la cuota es la DEUDA vigente y no se
+ *   reescribe. Conserva su estado, su vencimiento, su monto y su concepto.
+ *     · Antes se dejaba `pending` con `due_date = hoy`: avisar una transferencia (incluso "por
+ *       WhatsApp", sin adjunto) reiniciaba la mora y el bloqueo del portal.
+ *     · Antes se le ponía el medio de la pasarela: si el alumno abandonaba el checkout, el cron y
+ *       los handlers de retorno pasaban la cuota a `failed` y la deuda del período desaparecía
+ *       (nadie la reemite: `next_billing_date` ya avanzó). Ahora una pasarela NO marca la cuota;
+ *       el intento queda ligado solo por `transaction_id`, y el medio se fija recién al pagarse.
+ *     · El monto a cobrar es el de la cuota (respeta descuentos que el admin haya puesto).
+ *   Transferencia/efectivo sí marcan el medio y anexan el comprobante: es lo que el admin valida.
+ *
+ * - `'overwrite'` (inscripción): la fila previa es un intento anterior de la misma inscripción;
+ *   los términos son los del nuevo intento, así que se reescribe completa.
+ *
+ * Devuelve el id, si la fila fue creada aquí (para revertirla si la pasarela falla sin borrar una
+ * cuota preexistente) y el monto que corresponde cobrar.
  */
 async function ensureSelfPayPayment(
   supabase: ReturnType<typeof createAdminClient>,
@@ -1619,14 +1732,16 @@ async function ensureSelfPayPayment(
     periodEndStr: string | null
     /** Solo se escribe si viene definido (p. ej. comprobante de transferencia). */
     notes?: string | null
+    reuse: 'keep_debt' | 'overwrite'
   },
-): Promise<{ id: string; created: boolean }> {
-  const { clubId, athleteId, planId, subscriptionId, concept, amount, dueDate, method, periodStartStr, periodEndStr, notes } = params
+): Promise<{ id: string; created: boolean; amount: number }> {
+  const { clubId, athleteId, planId, subscriptionId, concept, amount, dueDate, method, periodStartStr, periodEndStr, notes, reuse } = params
+  const isGateway = (ONLINE_GATEWAY_IDS as readonly string[]).includes(method)
 
   if (periodStartStr) {
     const { data: existing } = await supabase
       .from('payments')
-      .select('id')
+      .select('id, amount, notes')
       .eq('club_id', clubId)
       .eq('athlete_id', athleteId)
       .eq('plan_id', planId)
@@ -1637,9 +1752,11 @@ async function ensureSelfPayPayment(
       .maybeSingle()
 
     if (existing) {
-      const { error: updErr } = await supabase
-        .from('payments')
-        .update({
+      let patch: Record<string, unknown>
+      let chargeAmount: number
+
+      if (reuse === 'overwrite') {
+        patch = {
           subscription_id: subscriptionId,
           concept,
           amount,
@@ -1648,11 +1765,34 @@ async function ensureSelfPayPayment(
           payment_method: method,
           period_end: periodEndStr,
           ...(notes !== undefined ? { notes } : {}),
-        })
+        }
+        chargeAmount = amount
+      } else {
+        patch = { subscription_id: subscriptionId }
+        if (!isGateway) {
+          patch.payment_method = method
+          if (notes) {
+            // El aviso más reciente va primero: el admin lee el primer "Comprobante: <ruta>".
+            const prev = ((existing.notes as string | null) ?? '').trim()
+            patch.notes = !prev ? notes : prev.includes(notes) ? prev : `${notes}\n${prev}`
+          }
+        }
+        const owed = Number(existing.amount)
+        chargeAmount = Number.isFinite(owed) ? Math.round(owed) : amount
+        // Una cuota en $0 (p. ej. beca que dejó el admin) no se cobra por pasarela: antes se le
+        // reescribía el monto con el precio del plan y se cobraba completo.
+        if (isGateway && !(chargeAmount > 0)) {
+          throw new Error('Esta cuota no tiene un monto por pagar. Contacta al club.')
+        }
+      }
+
+      const { error: updErr } = await supabase
+        .from('payments')
+        .update(patch)
         .eq('id', existing.id)
         .eq('club_id', clubId)
       if (updErr) throw new Error('No se pudo preparar el pago pendiente')
-      return { id: existing.id, created: false }
+      return { id: existing.id, created: false, amount: chargeAmount }
     }
   }
 
@@ -1678,7 +1818,7 @@ async function ensureSelfPayPayment(
     console.error('[ensureSelfPayPayment] insert falló:', paymentErr?.message)
     throw new Error('No se pudo registrar el pago pendiente')
   }
-  return { id: payment.id, created: true }
+  return { id: payment.id, created: true, amount }
 }
 
 /**
@@ -1822,7 +1962,7 @@ export async function createFlowCheckoutForSelfPayment() {
   // Cierra intentos de pasarela previos abandonados antes de crear el nuevo.
   await supersedePendingGatewayPayments(supabase, clubId, athlete.id)
 
-  const { id: paymentId, created: createdPayment } = await ensureSelfPayPayment(supabase, {
+  const { id: paymentId, created: createdPayment, amount: chargeAmount } = await ensureSelfPayPayment(supabase, {
     clubId,
     athleteId: athlete.id,
     planId: plan.id,
@@ -1833,6 +1973,7 @@ export async function createFlowCheckoutForSelfPayment() {
     method: 'flow',
     periodStartStr,
     periodEndStr,
+    reuse: 'keep_debt',
   })
 
   const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || 'http://localhost:3000').replace(/\/$/, '')
@@ -1842,17 +1983,19 @@ export async function createFlowCheckoutForSelfPayment() {
       commerceOrder,
       subject: concept.slice(0, 90),
       currency: 'CLP',
-      amount: Number(plan.price),
+      amount: chargeAmount,
       email,
       urlConfirmation: `${baseUrl}/api/webhooks/flow`,
       urlReturn: `${baseUrl}/api/payments/flow/return`,
     })
 
+    // En una cuota preexistente solo se liga el intento (token); sus notas (comprobante,
+    // descuentos anotados por el admin) no se pisan.
     await supabase
       .from('payments')
       .update({
         transaction_id: created.token,
-        notes: `Flow order: ${commerceOrder}`,
+        ...(createdPayment ? { notes: `Flow order: ${commerceOrder}` } : {}),
       })
       .eq('id', paymentId)
       .eq('club_id', clubId)
@@ -1941,7 +2084,7 @@ export async function createMercadoPagoCheckoutForSelfPayment() {
   // Cierra intentos de pasarela previos abandonados antes de crear el nuevo.
   await supersedePendingGatewayPayments(supabase, clubId, athlete.id)
 
-  const { id: paymentId, created: createdPayment } = await ensureSelfPayPayment(supabase, {
+  const { id: paymentId, created: createdPayment, amount: chargeAmount } = await ensureSelfPayPayment(supabase, {
     clubId,
     athleteId: athlete.id,
     planId: plan.id,
@@ -1952,6 +2095,7 @@ export async function createMercadoPagoCheckoutForSelfPayment() {
     method: 'mercadopago',
     periodStartStr,
     periodEndStr,
+    reuse: 'keep_debt',
   })
 
   const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || 'http://localhost:3000').replace(/\/$/, '')
@@ -1960,17 +2104,18 @@ export async function createMercadoPagoCheckoutForSelfPayment() {
     const pref = await createMercadoPagoPreference(mpConfig, {
       externalReference,
       title: concept,
-      amount: Number(plan.price),
+      amount: chargeAmount,
       payerEmail: email,
       backUrl: `${baseUrl}/api/payments/mercadopago/return`,
       notificationUrl: `${baseUrl}/api/webhooks/mercadopago?ext=${encodeURIComponent(externalReference)}`,
     })
 
+    // En una cuota preexistente solo se liga el intento; sus notas no se pisan.
     await supabase
       .from('payments')
       .update({
         transaction_id: pref.id,
-        notes: `MercadoPago order: ${externalReference}`,
+        ...(createdPayment ? { notes: `MercadoPago order: ${externalReference}` } : {}),
       })
       .eq('id', paymentId)
       .eq('club_id', clubId)

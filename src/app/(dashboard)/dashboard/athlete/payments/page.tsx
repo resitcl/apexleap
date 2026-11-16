@@ -15,7 +15,7 @@ import { getAthletePaymentStatus } from "@/lib/actions/billing"
 import { formatPeriod } from "@/lib/billing-utils"
 import { PayNowButton } from "@/components/athlete/PayNowButton"
 import { getClubSettings } from "@/lib/actions/settings"
-import { getEnabledPaymentMethodIdsFromClubSettings } from "@/lib/payment-methods"
+import { getEnabledPaymentMethodIdsFromClubSettings, isOfflinePaymentMethod } from "@/lib/payment-methods"
 import { AthleteSectionHeader } from "@/components/athlete/AthleteSectionHeader"
 import { FlowPaymentBanner } from "@/components/athlete/FlowPaymentBanner"
 import { MercadoPagoPaymentBanner } from "@/components/athlete/MercadoPagoPaymentBanner"
@@ -104,7 +104,7 @@ export default async function AthletePaymentsPage() {
 
   const { data: payments } = await supabase
     .from('payments')
-    .select('id, concept, amount, status, due_date, paid_at, created_at, period_start, period_end')
+    .select('id, concept, amount, status, due_date, paid_at, created_at, period_start, period_end, payment_method')
     .eq('club_id', clubId)
     .eq('athlete_id', athleteId)
     .order('due_date', { ascending: false })
@@ -118,7 +118,16 @@ export default async function AthletePaymentsPage() {
   const pendingPayments = paymentsList.filter((p) => p.status === 'pending')
   const overduePayments = paymentsList.filter((p) => p.status === 'overdue')
   const totalPaid = paymentsList.filter((p) => p.status === 'paid').reduce((sum, p) => sum + Number(p.amount), 0)
-  const totalOverdue = overduePayments.reduce((sum, p) => sum + Number(p.amount), 0)
+
+  // "En revisión" = el alumno ya avisó un pago por transferencia/efectivo y falta que el admin lo
+  // valide. La cuota conserva su estado y vencimiento reales (avisar ya no reinicia la mora), así
+  // que se distingue aquí: no se le dice "vencido, paga" a quien ya envió su comprobante, ni
+  // "tu comprobante está en revisión" a quien solo tiene la cuota del mes emitida y sin pagar.
+  const awaitingReview = (p: { status: string; payment_method?: string | null }) =>
+    (p.status === 'pending' || p.status === 'overdue') && isOfflinePaymentMethod(p.payment_method ?? '')
+  const inReviewPayments = paymentsList.filter(awaitingReview)
+  const overdueToPay = overduePayments.filter((p) => !awaitingReview(p))
+  const totalOverdueToPay = overdueToPay.reduce((sum, p) => sum + Number(p.amount), 0)
 
   // Days until subscription expires
   let daysLeft: number | null = null
@@ -234,8 +243,8 @@ export default async function AthletePaymentsPage() {
           planName={plan.name}
           planPrice={plan.price}
           planCycle={plan.billing_cycle}
-          hasOverdue={overduePayments.length > 0}
-          hasPending={pendingPayments.length > 0}
+          hasOverdue={overdueToPay.length > 0}
+          hasPending={inReviewPayments.length > 0}
           bankInfo={bankInfo}
           enabledMethods={enabledMethods}
           cashInstructions={cashInstructions}
@@ -246,7 +255,7 @@ export default async function AthletePaymentsPage() {
 
       {/* Alerts */}
       <div className="space-y-3">
-        {overduePayments.length > 0 && (
+        {overdueToPay.length > 0 && (
           <Card className="rounded-2xl border-destructive/30 bg-destructive/10">
             <CardContent className="py-4">
               <div className="flex items-start sm:items-center gap-4">
@@ -255,7 +264,7 @@ export default async function AthletePaymentsPage() {
                 </div>
                 <div className="flex-1">
                   <p className="text-sm text-destructive font-black tracking-tight uppercase">
-                    ATENCIÓN: Tienes {overduePayments.length} pago{overduePayments.length > 1 ? "s" : ""} vencido{overduePayments.length > 1 ? "s" : ""} (Total: ${totalOverdue.toLocaleString('es-CL')})
+                    ATENCIÓN: Tienes {overdueToPay.length} pago{overdueToPay.length > 1 ? "s" : ""} vencido{overdueToPay.length > 1 ? "s" : ""} (Total: ${totalOverdueToPay.toLocaleString('es-CL')})
                   </p>
                   <p className="text-xs text-destructive/80 font-medium mt-1">
                     Contacta a la administración del club para regularizar la situación y evitar bloqueos en tu perfil.
@@ -265,14 +274,14 @@ export default async function AthletePaymentsPage() {
             </CardContent>
           </Card>
         )}
-        {pendingPayments.length > 0 && overduePayments.length === 0 && (
+        {inReviewPayments.length > 0 && overdueToPay.length === 0 && (
           <Card className="rounded-2xl border-amber-500/30 bg-amber-500/10">
             <CardContent className="py-4 flex items-center gap-4">
               <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0">
                 <Clock className="w-5 h-5 text-amber-500" />
               </div>
               <p className="text-sm text-amber-600 font-bold uppercase tracking-tight">
-                Hay {pendingPayments.length} pago{pendingPayments.length > 1 ? "s" : ""} pendiente{pendingPayments.length > 1 ? "s" : ""} de validación en curso.
+                Hay {inReviewPayments.length} pago{inReviewPayments.length > 1 ? "s" : ""} pendiente{inReviewPayments.length > 1 ? "s" : ""} de validación en curso.
               </p>
             </CardContent>
           </Card>

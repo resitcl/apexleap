@@ -175,6 +175,25 @@ export async function assertClubCapability(cap: CoachCapability): Promise<void> 
 }
 
 /**
+ * Guard de PÁGINA para secciones que el admin puede delegar por capacidad (Pagos, Suscripciones,
+ * Planes, Adm. Financiera…). Mismo criterio que `assertClubCapability`, pero redirigiendo:
+ * el atleta vuelve a su portal y el coach sin la capacidad vuelve al dashboard.
+ *
+ * Ocultar el ítem del menú no protege nada: sin este guard cualquier miembro del club podía abrir
+ * la URL directamente. Llamar al inicio de la página y FUERA de try/catch (`redirect` lanza).
+ */
+export async function requireClubCapabilityPage(cap: CoachCapability): Promise<void> {
+  const role = await getClubMembershipRole()
+  if (role === 'athlete') redirect('/dashboard/athlete')
+  if (role === 'admin' || role === 'admin_athlete') return
+  if (role === 'coach') {
+    const perms = await getCoachPermissions()
+    if (perms[cap]) return
+  }
+  redirect('/dashboard')
+}
+
+/**
  * ID del perfil atleta vinculado al usuario actual en el club (por `user_id` o email).
  * Útil para resaltar al jugador en convocatorias. No lanza si no hay perfil.
  */

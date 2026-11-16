@@ -3,6 +3,7 @@
 import { auth } from '@clerk/nextjs/server'
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { fetchAllRows } from '@/lib/supabase/fetch-all'
 import { z } from 'zod'
 import { getClubId, assertClubCapability } from '@/lib/actions/club-context'
 
@@ -51,6 +52,7 @@ export async function getExpenses(params?: {
   dateTo?: string
   search?: string
 }) {
+  await assertClubCapability('finances')
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
@@ -86,34 +88,66 @@ export async function getExpenses(params?: {
 }
 
 export async function getFinanceSummary(month?: string) {
+  await assertClubCapability('finances')
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
-  const { start, end, monthKey } = getMonthRange(month)
+  const { year, month: mm, start, end, monthKey } = getMonthRange(month)
 
-  const [expensesRes, paymentsRes] = await Promise.all([
-    supabase.from('expenses').select('amount, category').eq('club_id', clubId).gte('date', start).lte('date', end),
-    supabase.from('payments').select('amount, status, due_date, paid_at').eq('club_id', clubId),
+  // Antes se leían TODOS los pagos del club para filtrar un mes en memoria; esa consulta se
+  // cortaba en 1.000 filas y el resumen quedaba mal al crecer el club. Ahora se piden solo las
+  // cuotas que tocan el mes (pagadas en el mes / con vencimiento en el mes), y paginadas.
+  // El mes de `paid_at` se mantiene en UTC, igual que el `slice(0, 7)` que se usaba.
+  const nextMonthKey =
+    Number(mm) === 12 ? `${Number(year) + 1}-01` : `${year}-${String(Number(mm) + 1).padStart(2, '0')}`
+
+  const [expenseRows, paidRows, dueRows] = await Promise.all([
+    fetchAllRows((from, to) =>
+      supabase
+        .from('expenses')
+        .select('amount, category', { count: 'exact' })
+        .eq('club_id', clubId)
+        .gte('date', start)
+        .lte('date', end)
+        .order('id')
+        .range(from, to),
+    ),
+    fetchAllRows((from, to) =>
+      supabase
+        .from('payments')
+        .select('amount', { count: 'exact' })
+        .eq('club_id', clubId)
+        .eq('status', 'paid')
+        .gte('paid_at', `${monthKey}-01T00:00:00Z`)
+        .lt('paid_at', `${nextMonthKey}-01T00:00:00Z`)
+        .order('id')
+        .range(from, to),
+    ),
+    fetchAllRows((from, to) =>
+      supabase
+        .from('payments')
+        .select('amount, status', { count: 'exact' })
+        .eq('club_id', clubId)
+        .gte('due_date', start)
+        .lte('due_date', end)
+        .order('id')
+        .range(from, to),
+    ),
   ])
 
-  const totalExpenses = (expensesRes.data ?? []).reduce((s, e) => s + Number(e.amount), 0)
-  const paymentRows = paymentsRes.data ?? []
+  const totalExpenses = expenseRows.reduce((s, e) => s + Number(e.amount), 0)
 
-  const totalIncome = paymentRows
-    .filter((p) => p.status === 'paid' && p.paid_at?.slice(0, 7) === monthKey)
+  const totalIncome = paidRows.reduce((s, p) => s + Number(p.amount), 0)
+  const emittedIncome = dueRows.reduce((s, p) => s + Number(p.amount), 0)
+  const pendingIncome = dueRows
+    .filter((p) => p.status === 'pending' || p.status === 'overdue')
     .reduce((s, p) => s + Number(p.amount), 0)
-  const emittedIncome = paymentRows
-    .filter((p) => p.due_date?.slice(0, 7) === monthKey)
-    .reduce((s, p) => s + Number(p.amount), 0)
-  const pendingIncome = paymentRows
-    .filter((p) => p.due_date?.slice(0, 7) === monthKey && (p.status === 'pending' || p.status === 'overdue'))
-    .reduce((s, p) => s + Number(p.amount), 0)
-  const overdueIncome = paymentRows
-    .filter((p) => p.due_date?.slice(0, 7) === monthKey && p.status === 'overdue')
+  const overdueIncome = dueRows
+    .filter((p) => p.status === 'overdue')
     .reduce((s, p) => s + Number(p.amount), 0)
 
   const byCategory: Record<string, number> = {}
-  for (const e of expensesRes.data ?? []) {
+  for (const e of expenseRows) {
     byCategory[e.category] = (byCategory[e.category] ?? 0) + Number(e.amount)
   }
 
@@ -148,6 +182,7 @@ function firstRelated<T>(rel: T | T[] | null | undefined): T | null {
 
 /** Ingresos aún no cobrados que se esperan en el mes (cuotas con vencimiento en el mes + próxima facturación de suscripción si no hay fila en el mes). */
 export async function getExpectedMonthIncome(monthIso: string) {
+  await assertClubCapability('finances')
   const clubId = await getClubId()
   const supabase = createAdminClient()
   const parts = monthIso.split('-')
@@ -161,13 +196,17 @@ export async function getExpectedMonthIncome(monthIso: string) {
 
   const details: ExpectedMonthDetail[] = []
 
-  const { data: pendingRows } = await supabase
-    .from('payments')
-    .select('amount, athlete_id, due_date, concept, athletes(name)')
-    .eq('club_id', clubId)
-    .in('status', ['pending', 'overdue'])
-    .gte('due_date', start)
-    .lte('due_date', end)
+  const pendingRows = await fetchAllRows((from, to) =>
+    supabase
+      .from('payments')
+      .select('amount, athlete_id, due_date, concept, athletes(name)', { count: 'exact' })
+      .eq('club_id', clubId)
+      .in('status', ['pending', 'overdue'])
+      .gte('due_date', start)
+      .lte('due_date', end)
+      .order('id')
+      .range(from, to),
+  )
 
   let fromScheduled = 0
   for (const p of pendingRows ?? []) {
@@ -184,24 +223,32 @@ export async function getExpectedMonthIncome(monthIso: string) {
     })
   }
 
-  const { data: dueInMonth } = await supabase
-    .from('payments')
-    .select('athlete_id')
-    .eq('club_id', clubId)
-    .gte('due_date', start)
-    .lte('due_date', end)
+  const dueInMonth = await fetchAllRows((from, to) =>
+    supabase
+      .from('payments')
+      .select('athlete_id', { count: 'exact' })
+      .eq('club_id', clubId)
+      .gte('due_date', start)
+      .lte('due_date', end)
+      .order('id')
+      .range(from, to),
+  )
 
   const athletesWithAnyDueInMonth = new Set(
     (dueInMonth ?? []).map((p) => p.athlete_id).filter(Boolean) as string[],
   )
 
-  const { data: subs } = await supabase
-    .from('subscriptions')
-    .select('athlete_id, next_billing_date, plans(name, price), athletes(name, archived_at)')
-    .eq('club_id', clubId)
-    .eq('status', 'active')
-    .gte('next_billing_date', start)
-    .lte('next_billing_date', end)
+  const subs = await fetchAllRows((from, to) =>
+    supabase
+      .from('subscriptions')
+      .select('athlete_id, next_billing_date, plans(name, price), athletes(name, archived_at)', { count: 'exact' })
+      .eq('club_id', clubId)
+      .eq('status', 'active')
+      .gte('next_billing_date', start)
+      .lte('next_billing_date', end)
+      .order('id')
+      .range(from, to),
+  )
 
   let fromSubscriptions = 0
   for (const s of subs ?? []) {
@@ -276,6 +323,7 @@ export async function deleteExpense(id: string) {
 // ── COACHES ──────────────────────────────────────────────────
 
 export async function getCoaches() {
+  await assertClubCapability('finances')
   const clubId = await getClubId()
   const supabase = createAdminClient()
   const { data, error } = await supabase
@@ -313,6 +361,7 @@ export async function updateCoach(id: string, input: Partial<CoachInput>) {
 }
 
 export async function getMonthlyFinanceChart(months = 6) {
+  await assertClubCapability('finances')
   const clubId = await getClubId()
   const supabase = createAdminClient()
   const now = new Date()
@@ -325,24 +374,32 @@ export async function getMonthlyFinanceChart(months = 6) {
     const end = new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0]
     const label = d.toLocaleDateString('es-CL', { month: 'short' })
 
-    const [incomeRes, expensesRes] = await Promise.all([
-      supabase
-        .from('payments')
-        .select('amount')
-        .eq('club_id', clubId)
-        .eq('status', 'paid')
-        .gte('paid_at', start)
-        .lte('paid_at', end + 'T23:59:59'),
-      supabase
-        .from('expenses')
-        .select('amount')
-        .eq('club_id', clubId)
-        .gte('date', start)
-        .lte('date', end),
+    const [incomeRows, expenseRows] = await Promise.all([
+      fetchAllRows((from, to) =>
+        supabase
+          .from('payments')
+          .select('amount', { count: 'exact' })
+          .eq('club_id', clubId)
+          .eq('status', 'paid')
+          .gte('paid_at', start)
+          .lte('paid_at', end + 'T23:59:59')
+          .order('id')
+          .range(from, to),
+      ),
+      fetchAllRows((from, to) =>
+        supabase
+          .from('expenses')
+          .select('amount', { count: 'exact' })
+          .eq('club_id', clubId)
+          .gte('date', start)
+          .lte('date', end)
+          .order('id')
+          .range(from, to),
+      ),
     ])
 
-    const income   = (incomeRes.data   ?? []).reduce((s, r) => s + Number(r.amount), 0)
-    const expenses = (expensesRes.data ?? []).reduce((s, r) => s + Number(r.amount), 0)
+    const income   = incomeRows.reduce((s, r) => s + Number(r.amount), 0)
+    const expenses = expenseRows.reduce((s, r) => s + Number(r.amount), 0)
     result.push({ label, income, expenses })
   }
 

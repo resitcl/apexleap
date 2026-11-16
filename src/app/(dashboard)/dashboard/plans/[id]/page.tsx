@@ -1,3 +1,4 @@
+import { requireClubCapabilityPage } from "@/lib/actions/club-context"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import { getPlanById } from "@/lib/actions/plans"
@@ -21,6 +22,7 @@ interface PageProps {
 }
 
 export default async function PlanDetailPage({ params }: PageProps) {
+  await requireClubCapabilityPage('finances')
   const { id } = await params
 
   let plan

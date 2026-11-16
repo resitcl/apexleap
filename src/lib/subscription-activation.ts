@@ -286,6 +286,58 @@ export async function notifyPaymentFailed(
   }
 }
 
+/** Filtro `.or()` de PostgREST: filas cuyo medio NO es una pasarela (cuota sin medio, transferencia, efectivo). */
+const NON_GATEWAY_METHOD_FILTER = `payment_method.is.null,payment_method.not.in.(${ONLINE_GATEWAY_IDS.join(',')})`
+
+export type ClosedGatewayAttempt = {
+  club_id: string
+  athlete_id: string
+  plan_id: string | null
+  amount: number | null
+}
+
+/**
+ * Cierra un intento de pasarela que no se completó (rechazado, anulado o abandonado).
+ *
+ * Hay dos tipos de fila y se tratan distinto:
+ *  - La que creó el propio checkout (su `payment_method` es la pasarela): no existía una cuota
+ *    emitida para ese período, así que pasa a `failed`.
+ *  - Una CUOTA preexistente sobre la que el alumno intentó pagar (sin medio, transferencia o
+ *    efectivo): la deuda sigue viva. No se toca su estado; solo se desliga el intento
+ *    (`transaction_id`). Antes también pasaba a `failed` y la deuda del período desaparecía;
+ *    además el retorno de MercadoPago es una URL pública que recibe el id del pago, así que
+ *    cualquiera que conociera el id de una cuota podía anularla.
+ *
+ * Devuelve las filas afectadas para avisar al alumno. El desligue del `transaction_id` hace de
+ * candado: una segunda llamada (return + webhook) no encuentra nada y no repite el aviso.
+ */
+export async function closeFailedGatewayAttempt(
+  supabase: SupabaseAdmin,
+  match: { column: 'id' | 'transaction_id'; value: string },
+  failedNote: string,
+): Promise<ClosedGatewayAttempt[]> {
+  const cols = 'club_id, athlete_id, plan_id, amount'
+
+  const { data: failed } = await supabase
+    .from('payments')
+    .update({ status: 'failed', notes: failedNote })
+    .eq(match.column, match.value)
+    .in('status', ['pending', 'overdue'])
+    .in('payment_method', [...ONLINE_GATEWAY_IDS])
+    .select(cols)
+
+  const { data: released } = await supabase
+    .from('payments')
+    .update({ transaction_id: null })
+    .eq(match.column, match.value)
+    .in('status', ['pending', 'overdue'])
+    .not('transaction_id', 'is', null)
+    .or(NON_GATEWAY_METHOD_FILTER)
+    .select(cols)
+
+  return [...((failed ?? []) as ClosedGatewayAttempt[]), ...((released ?? []) as ClosedGatewayAttempt[])]
+}
+
 export type MarkPaidResult =
   | { won: true; payment: PaymentForActivation & { id: string } }
   | { won: false; alreadyPaid: true }

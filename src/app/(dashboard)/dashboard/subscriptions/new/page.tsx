@@ -1,5 +1,6 @@
 export const dynamic = "force-dynamic"
 
+import { requireClubCapabilityPage } from "@/lib/actions/club-context"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { ChevronLeft } from "lucide-react"
@@ -10,6 +11,7 @@ import { getPlans } from "@/lib/actions/plans"
 interface Props { searchParams: Promise<{ athleteId?: string }> }
 
 export default async function NewSubscriptionPage({ searchParams }: Props) {
+  await requireClubCapabilityPage('finances')
   const { athleteId } = await searchParams
   const [athletesResult, plans] = await Promise.all([
     getAthletes({ limit: 200 }),

@@ -3,6 +3,7 @@
 import { auth } from '@clerk/nextjs/server'
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { fetchAllRows } from '@/lib/supabase/fetch-all'
 import { z } from 'zod'
 import { getClubId, getClubInfo, assertClubStaff } from '@/lib/actions/club-context'
 import { sendInvitationEmail, sendMembershipStatusEmail } from '@/lib/email'
@@ -82,6 +83,7 @@ export async function getAthletes(params?: {
   limit?: number
   sort?: string
 }) {
+  await assertClubStaff()
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
@@ -132,11 +134,15 @@ export async function getAthletes(params?: {
     query = query.eq('category_id', params.categoryId)
   }
   if (params?.planId || params?.subscriptionStatus) {
-    let subQ = supabase.from('subscriptions').select('athlete_id').eq('club_id', clubId)
-    if (params.planId)            subQ = subQ.eq('plan_id', params.planId)
-    if (params.subscriptionStatus) subQ = subQ.eq('status', params.subscriptionStatus)
-    const { data: subData } = await subQ
-    const ids = (subData ?? []).map((s) => s.athlete_id).filter(Boolean)
+    // Paginado y sin repetidos: hay una fila de suscripción por cada pago confirmado, así que un
+    // mismo alumno aparece muchas veces y una sola consulta (tope 1.000) dejaba alumnos fuera.
+    const subData = await fetchAllRows((from, to) => {
+      let subQ = supabase.from('subscriptions').select('athlete_id', { count: 'exact' }).eq('club_id', clubId)
+      if (params.planId)            subQ = subQ.eq('plan_id', params.planId)
+      if (params.subscriptionStatus) subQ = subQ.eq('status', params.subscriptionStatus)
+      return subQ.order('id').range(from, to)
+    })
+    const ids = [...new Set(subData.map((s) => s.athlete_id as string).filter(Boolean))]
     if (ids.length === 0) return { athletes: [], total: 0 }
     query = query.in('id', ids)
   }
@@ -148,6 +154,7 @@ export async function getAthletes(params?: {
 }
 
 export async function getAthleteById(id: string) {
+  await assertClubStaff()
   const clubId = await getClubId()
   const supabase = createAdminClient()
 

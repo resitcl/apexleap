@@ -5,9 +5,10 @@ import { Button } from "@/components/ui/button"
 import { AthleteForm } from "@/components/athletes/AthleteForm"
 import { ChevronLeft } from "lucide-react"
 import { getCategories } from "@/lib/actions/categories"
-import { getClubSportType } from "@/lib/actions/club-context"
+import { getClubSportType, requireClubStaffPage } from "@/lib/actions/club-context"
 
 export default async function NewAthletePage() {
+  await requireClubStaffPage()
   let categories: Awaited<ReturnType<typeof getCategories>> = []
   try { categories = await getCategories(true) } catch { /* silent */ }
 

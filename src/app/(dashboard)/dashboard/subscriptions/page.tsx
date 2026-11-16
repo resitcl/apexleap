@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic"
 import Link from "next/link"
 import { getSubscriptions, getSubscriptionStats } from "@/lib/actions/subscriptions"
 import { getPlans } from "@/lib/actions/plans"
-import { getClubVocab } from "@/lib/actions/club-context"
+import { getClubVocab, requireClubCapabilityPage } from "@/lib/actions/club-context"
 import { getAthletes } from "@/lib/actions/athletes"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -35,6 +35,7 @@ interface PageProps {
 }
 
 export default async function SubscriptionsPage({ searchParams }: PageProps) {
+  await requireClubCapabilityPage('finances')
   const params = await searchParams
   const page     = Number(params.page ?? 1)
   const planId   = params.planId   ?? ""

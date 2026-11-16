@@ -2,7 +2,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { getAthleteById } from "@/lib/actions/athletes"
 import { getCategories } from "@/lib/actions/categories"
-import { getClubSportType } from "@/lib/actions/club-context"
+import { getClubSportType, requireClubStaffPage } from "@/lib/actions/club-context"
 import { AthleteForm } from "@/components/athletes/AthleteForm"
 import { Button } from "@/components/ui/button"
 import { ChevronLeft } from "lucide-react"
@@ -12,6 +12,7 @@ interface PageProps {
 }
 
 export default async function EditAthletePage({ params }: PageProps) {
+  await requireClubStaffPage()
   const { id } = await params
 
   let athlete

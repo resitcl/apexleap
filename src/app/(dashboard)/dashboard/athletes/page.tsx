@@ -5,7 +5,7 @@ import { getAthletes } from "@/lib/actions/athletes"
 import { getPlans } from "@/lib/actions/plans"
 import { getCategories } from "@/lib/actions/categories"
 import { getPendingEnrollments } from "@/lib/actions/athlete-enrollment"
-import { getClubVocab } from "@/lib/actions/club-context"
+import { getClubVocab, requireClubStaffPage } from "@/lib/actions/club-context"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
@@ -140,6 +140,7 @@ function ageOf(a: AthleteRow, nowMs: number): number | null {
 }
 
 export default async function AthletesPage({ searchParams }: PageProps) {
+  await requireClubStaffPage()
   const params = await searchParams
   const page = Math.max(1, Number(params.page ?? 1) || 1)
   const sort = params.sort ?? ""
