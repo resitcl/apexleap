@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic"
 
 import Link from "next/link"
 import { getAgreementTemplates } from "@/lib/actions/agreements"
+import { requireClubStaffPage } from "@/lib/actions/club-context"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -10,6 +11,7 @@ import { NewAgreementTemplateButton } from "@/components/agreements/NewAgreement
 import { EditAgreementTemplateButton } from "@/components/agreements/EditAgreementTemplateButton"
 
 export default async function AgreementsSettingsPage() {
+  await requireClubStaffPage()
   let templates: Awaited<ReturnType<typeof getAgreementTemplates>> = []
   let error: string | null = null
 
@@ -29,7 +31,7 @@ export default async function AgreementsSettingsPage() {
         <div>
           <h1 className="text-3xl font-bold">Acuerdos y Contratos</h1>
           <p className="text-muted-foreground">
-            Configura los documentos que los atletas deben firmar con Clave Única
+            Configura los documentos que los alumnos deben leer y aceptar para usar la plataforma
           </p>
         </div>
         <NewAgreementTemplateButton />
@@ -118,7 +120,7 @@ export default async function AgreementsSettingsPage() {
             <FileText className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-40" />
             <h3 className="font-semibold text-lg mb-1">Sin templates de acuerdo</h3>
             <p className="text-muted-foreground text-sm mb-4">
-              Crea tu primer template para que los atletas puedan firmar
+              Crea tu primer template para que los alumnos lo acepten al ingresar
             </p>
             <NewAgreementTemplateButton />
           </CardContent>

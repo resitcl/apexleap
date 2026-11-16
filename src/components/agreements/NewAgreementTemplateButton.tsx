@@ -87,7 +87,7 @@ Autorizo el uso de mis datos personales para fines administrativos del club.
 
 Fecha: {{current_date}}
 
-Este documento tiene validez legal según la Ley 19.799 de Firma Electrónica.`
+Al presionar «Acepto» declaro haber leído este documento y estar de acuerdo con su contenido.`
 
   return (
     <>
@@ -157,7 +157,7 @@ Este documento tiene validez legal según la Ley 19.799 de Firma Electrónica.`
                 <div>
                   <Label htmlFor="required">Requerido para inscripción</Label>
                   <p className="text-xs text-muted-foreground">
-                    El atleta debe firmar antes de entrenar
+                    El alumno debe aceptarlo antes de usar la plataforma
                   </p>
                 </div>
                 <Switch

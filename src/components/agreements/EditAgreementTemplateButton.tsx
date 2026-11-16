@@ -113,7 +113,7 @@ export function EditAgreementTemplateButton({ template }: Props) {
                 <div>
                   <Label>Activo</Label>
                   <p className="text-xs text-muted-foreground">
-                    Disponible para nuevas firmas
+                    Los alumnos pueden aceptarlo
                   </p>
                 </div>
                 <Switch checked={isActive} onCheckedChange={setIsActive} />
