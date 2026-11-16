@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { fetchAllRows } from '@/lib/supabase/fetch-all'
 import { getClubId, assertClubCapability } from '@/lib/actions/club-context'
 import { getExpectedMonthIncome } from '@/lib/actions/finances'
 import { auth, clerkClient } from '@clerk/nextjs/server'
@@ -20,6 +21,7 @@ import {
  * Includes actual income, projected income, and overdue amounts.
  */
 export async function getPaymentMetrics(month?: string) {
+  await assertClubCapability('finances')
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
@@ -37,25 +39,31 @@ export async function getPaymentMetrics(month?: string) {
   const sixtyDaysAgo = new Date(today)
   sixtyDaysAgo.setDate(today.getDate() - 60)
 
-  // Get all payments for analysis
-  const { data: allPayments } = await supabase
-    .from('payments')
-    .select('id, athlete_id, amount, status, due_date, paid_at, payment_method, notes, period_start, period_end')
-    .eq('club_id', clubId)
-
-  // Get active subscriptions for projected income
-  const { data: activeSubscriptions } = await supabase
-    .from('subscriptions')
-    .select(`
-      id, athlete_id, plan_id, status, start_date,
-      current_period_start, current_period_end, next_billing_date,
-      plans (id, name, price, billing_cycle)
-    `)
-    .eq('club_id', clubId)
-    .eq('status', 'active')
-
-  const payments = allPayments ?? []
-  const subscriptions = activeSubscriptions ?? []
+  // Todas las cuotas y suscripciones activas del club, PAGINADAS: una sola consulta se corta en
+  // 1.000 filas (tope de PostgREST) y los KPIs se calculaban sobre una parte del historial.
+  const [payments, subscriptions] = await Promise.all([
+    fetchAllRows((from, to) =>
+      supabase
+        .from('payments')
+        .select('id, athlete_id, amount, status, due_date, paid_at, payment_method, notes, period_start, period_end', { count: 'exact' })
+        .eq('club_id', clubId)
+        .order('id')
+        .range(from, to),
+    ),
+    fetchAllRows((from, to) =>
+      supabase
+        .from('subscriptions')
+        .select(`
+          id, athlete_id, plan_id, status, start_date,
+          current_period_start, current_period_end, next_billing_date,
+          plans (id, name, price, billing_cycle)
+        `, { count: 'exact' })
+        .eq('club_id', clubId)
+        .eq('status', 'active')
+        .order('id')
+        .range(from, to),
+    ),
+  ])
   const expectedMonth = await getExpectedMonthIncome(targetMonth)
 
   const monthlyTrend = Array.from({ length: 6 }, (_, idx) => {
@@ -288,6 +296,7 @@ export type MonthlyAthleteCollectionStatus = {
 export async function getMonthlyAthleteCollectionStatus(
   monthIso?: string
 ): Promise<MonthlyAthleteCollectionStatus> {
+  await assertClubCapability('finances')
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
@@ -302,27 +311,35 @@ export async function getMonthlyAthleteCollectionStatus(
     year: 'numeric',
   })
 
-  const [{ data: monthPayments }, { data: activeSubs }] = await Promise.all([
-    supabase
-      .from('payments')
-      .select(`
-        id, athlete_id, amount, status, due_date, paid_at, payment_method,
-        athletes (id, name, archived_at),
-        plans (name)
-      `)
-      .eq('club_id', clubId)
-      .gte('due_date', monthStart)
-      .lte('due_date', monthEnd)
-      .order('due_date', { ascending: true }),
-    supabase
-      .from('subscriptions')
-      .select(`
-        athlete_id, next_billing_date,
-        plans (name, price),
-        athletes (id, name, archived_at)
-      `)
-      .eq('club_id', clubId)
-      .eq('status', 'active'),
+  const [monthPayments, activeSubs] = await Promise.all([
+    fetchAllRows((from, to) =>
+      supabase
+        .from('payments')
+        .select(`
+          id, athlete_id, amount, status, due_date, paid_at, payment_method,
+          athletes (id, name, archived_at),
+          plans (name)
+        `, { count: 'exact' })
+        .eq('club_id', clubId)
+        .gte('due_date', monthStart)
+        .lte('due_date', monthEnd)
+        .order('due_date', { ascending: true })
+        .order('id')
+        .range(from, to),
+    ),
+    fetchAllRows((from, to) =>
+      supabase
+        .from('subscriptions')
+        .select(`
+          athlete_id, next_billing_date,
+          plans (name, price),
+          athletes (id, name, archived_at)
+        `, { count: 'exact' })
+        .eq('club_id', clubId)
+        .eq('status', 'active')
+        .order('id')
+        .range(from, to),
+    ),
   ])
 
   const paid: MonthlyAthleteCollectionRow[] = []
@@ -834,20 +851,23 @@ export async function markPaymentAsPaidWithPeriod(
  * Get athletes with overdue payments for reporting.
  */
 export async function getAthletesWithOverduePayments() {
+  await assertClubCapability('finances')
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
-  const { data, error } = await supabase
-    .from('payments')
-    .select(`
-      id, amount, due_date, period_start, period_end,
-      athletes (id, name, email, phone, photo_url)
-    `)
-    .eq('club_id', clubId)
-    .eq('status', 'overdue')
-    .order('due_date', { ascending: true })
-
-  if (error) throw new Error(error.message)
+  const data = await fetchAllRows((from, to) =>
+    supabase
+      .from('payments')
+      .select(`
+        id, amount, due_date, period_start, period_end,
+        athletes (id, name, email, phone, photo_url)
+      `, { count: 'exact' })
+      .eq('club_id', clubId)
+      .eq('status', 'overdue')
+      .order('due_date', { ascending: true })
+      .order('id')
+      .range(from, to),
+  )
 
   // Group by athlete
   const byAthlete = new Map<string, {

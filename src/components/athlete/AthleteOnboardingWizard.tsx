@@ -17,7 +17,6 @@ import {
 import { enrollWithPayment, uploadTransferReceipt, saveRegistrationContact } from '@/lib/actions/athlete-enrollment'
 import type { OnboardingData } from '@/lib/athlete-enrollment-shared'
 import type { SportConfig } from '@/lib/sport-fields'
-import { getEnabledPaymentMethodIdsFromClubSettings } from '@/lib/payment-methods'
 import { buildWhatsAppTransferLink } from '@/lib/whatsapp-transfer'
 import { TRANSFER_RECEIPT_MAX_BYTES } from '@/lib/constants'
 
@@ -89,14 +88,13 @@ export function AthleteOnboardingWizard({ data, sportConfig: _sportConfig }: Pro
     return () => window.removeEventListener('pageshow', onPageShow)
   }, [])
 
-  const enabledPaymentIds = useMemo(
-    () => getEnabledPaymentMethodIdsFromClubSettings((data.club.settings ?? {}) as Record<string, unknown>),
-    [data.club.settings]
+  // Los medios vienen resueltos desde el servidor: el cliente no recibe la configuración de pagos
+  // del club (ahí viven las llaves secretas de las pasarelas).
+  const enabledPaymentIds = data.enrollmentPaymentMethodIds
+  const visiblePaymentMethods = useMemo(
+    () => PAYMENT_METHODS.filter((pm) => enabledPaymentIds.includes(pm.id)),
+    [enabledPaymentIds]
   )
-  const visiblePaymentMethods = useMemo(() => {
-    if (enabledPaymentIds === null) return PAYMENT_METHODS
-    return PAYMENT_METHODS.filter((pm) => enabledPaymentIds.includes(pm.id))
-  }, [enabledPaymentIds])
 
   // Plan state
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null)
@@ -202,16 +200,18 @@ export function AthleteOnboardingWizard({ data, sportConfig: _sportConfig }: Pro
         receiptUrl,
         transferSource
       )
-      // Pasarela online (MercadoPago): redirige al checkout. La página navega fuera; no cambiamos de paso.
-      const initPoint = (result as { initPoint?: string }).initPoint
-      if (initPoint) {
+      // Pasarela online (MercadoPago / Flow): redirige al checkout. La página navega fuera; no cambiamos de paso.
+      const gatewayUrl =
+        (result as { initPoint?: string }).initPoint ?? (result as { checkoutUrl?: string }).checkoutUrl
+      if (gatewayUrl) {
         // Deja la UI en "Redirigiendo…" y navega; no volvemos a renderizar tras esto.
         redirectingRef.current = true
         setRedirecting(true)
-        window.location.href = initPoint
+        window.location.href = gatewayUrl
         return
       }
-      setStep(result.isTransfer ? 'waiting' : 'done')
+      // Transferencia y efectivo quedan esperando la confirmación del admin: nunca "cuenta activada".
+      setStep(result.pendingConfirmation === false ? 'done' : 'waiting')
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Error al procesar inscripción')
     } finally {
@@ -780,7 +780,7 @@ export function AthleteOnboardingWizard({ data, sportConfig: _sportConfig }: Pro
             }
           >
             {redirecting ? (
-              <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Redirigiendo a MercadoPago…</>
+              <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Redirigiendo a {paymentMethod === 'flow' ? 'Flow' : 'MercadoPago'}…</>
             ) : loading ? (
               <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Procesando...</>
             ) : (
@@ -804,9 +804,15 @@ export function AthleteOnboardingWizard({ data, sportConfig: _sportConfig }: Pro
         </div>
 
         <div className="space-y-2">
-          <h2 className="text-2xl font-bold">Comprobante Enviado</h2>
+          <h2 className="text-2xl font-bold">
+            {paymentMethod === 'cash' ? 'Inscripción registrada' : 'Comprobante Enviado'}
+          </h2>
           <p className="text-muted-foreground">
-            Tu comprobante fue enviado al equipo de <strong style={{ color: primaryColor }}>{clubName}</strong>.
+            {paymentMethod === 'cash' ? (
+              <>Paga en efectivo en <strong style={{ color: primaryColor }}>{clubName}</strong> para completar tu inscripción.</>
+            ) : (
+              <>Tu comprobante fue enviado al equipo de <strong style={{ color: primaryColor }}>{clubName}</strong>.</>
+            )}
           </p>
         </div>
 

@@ -4,6 +4,7 @@ import {
   markPaymentPaidIdempotent,
   persistAmountMismatch,
   notifyPaymentFailed,
+  closeFailedGatewayAttempt,
 } from '@/lib/subscription-activation'
 import {
   resolveMercadoPagoConfigFromSettings,
@@ -24,7 +25,10 @@ type ReconcileResult =
   | { ok: false; reason: string; expected?: number; charged?: number; internalError?: boolean }
 
 /**
- * Marca como `failed` un pago de MercadoPago abandonado/rechazado si sigue pendiente o vencido.
+ * Cierra un intento de MercadoPago abandonado/rechazado. La fila creada por el checkout pasa a
+ * `failed`; una cuota preexistente conserva su deuda (ver `closeFailedGatewayAttempt`). Importa
+ * especialmente aquí: el id llega por una URL pública (`external_reference`), así que nunca debe
+ * poder anular una cuota que no sea un intento de pasarela.
  */
 export async function markMercadoPagoPaymentFailedIfPending(
   ourPaymentId: string,
@@ -32,18 +36,17 @@ export async function markMercadoPagoPaymentFailedIfPending(
 ): Promise<void> {
   if (!ourPaymentId?.trim()) return
   const supabase = createAdminClient()
-  const { data: failed } = await supabase
-    .from('payments')
-    .update({ status: 'failed', notes: `MercadoPago: pago no completado (${reason})` })
-    .eq('id', ourPaymentId.trim())
-    .in('status', ['pending', 'overdue'])
-    .select('club_id, athlete_id, plan_id, amount')
-  // Aviso al alumno solo si el pago realmente transicionó a failed (best-effort).
-  for (const p of failed ?? []) {
-    await notifyPaymentFailed(supabase, p.club_id as string, {
-      athlete_id: p.athlete_id as string,
-      plan_id: (p.plan_id as string | null) ?? null,
-      amount: (p.amount as number | null) ?? null,
+  const closed = await closeFailedGatewayAttempt(
+    supabase,
+    { column: 'id', value: ourPaymentId.trim() },
+    `MercadoPago: pago no completado (${reason})`,
+  )
+  // Aviso al alumno solo si el intento realmente se cerró en esta llamada (best-effort).
+  for (const p of closed) {
+    await notifyPaymentFailed(supabase, p.club_id, {
+      athlete_id: p.athlete_id,
+      plan_id: p.plan_id ?? null,
+      amount: p.amount ?? null,
     })
   }
 }

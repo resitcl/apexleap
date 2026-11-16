@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic"
 
-import { requireClubStaffPage } from "@/lib/actions/club-context"
+import { requireClubCapabilityPage } from "@/lib/actions/club-context"
 import Link from "next/link"
 import { getPaymentMetrics, getAthletesWithOverduePayments } from "@/lib/actions/billing"
 import { Button } from "@/components/ui/button"
@@ -12,7 +12,7 @@ import { PaymentMetricsWidget } from "@/components/payments/PaymentMetricsWidget
 import { OverdueAthletesTable } from "@/components/payments/OverdueAthletesTable"
 
 export default async function PaymentsOverviewPage() {
-  await requireClubStaffPage()
+  await requireClubCapabilityPage('finances')
   const currentMonth = new Date().toISOString().slice(0, 7)
   
   const [metrics, overdueAthletes] = await Promise.all([

@@ -3,6 +3,7 @@
 import { auth } from '@clerk/nextjs/server'
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { fetchAllRows } from '@/lib/supabase/fetch-all'
 import { z } from 'zod'
 import { getClubId, assertClubCapability } from '@/lib/actions/club-context'
 import {
@@ -39,6 +40,7 @@ export async function getSubscriptions(params?: {
   page?: number
   limit?: number
 }) {
+  await assertClubCapability('finances')
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
@@ -223,15 +225,20 @@ export async function updateSubscriptionDates(
 }
 
 export async function getSubscriptionStats() {
+  await assertClubCapability('finances')
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
-  const { data, error } = await supabase
-    .from('subscriptions')
-    .select('status, athlete_id, plans(price, billing_cycle)')
-    .eq('club_id', clubId)
-
-  if (error) throw new Error(error.message)
+  // Paginado: cada pago confirmado crea una fila nueva de suscripción, así que esta tabla crece
+  // tan rápido como `payments` y una sola consulta (tope 1.000) subcontaba activas y MRR.
+  const data = await fetchAllRows((from, to) =>
+    supabase
+      .from('subscriptions')
+      .select('status, athlete_id, plans(price, billing_cycle)', { count: 'exact' })
+      .eq('club_id', clubId)
+      .order('id')
+      .range(from, to),
+  )
 
   const stats = { active: 0, paused: 0, cancelled: 0, expired: 0, mrr: 0 }
   const mrrAthletes = new Set<string>()

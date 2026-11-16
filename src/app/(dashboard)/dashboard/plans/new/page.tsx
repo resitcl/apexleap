@@ -1,11 +1,13 @@
 export const dynamic = "force-dynamic"
 
+import { requireClubCapabilityPage } from "@/lib/actions/club-context"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { PlanForm } from "@/components/plans/PlanForm"
 import { ChevronLeft } from "lucide-react"
 
-export default function NewPlanPage() {
+export default async function NewPlanPage() {
+  await requireClubCapabilityPage('finances')
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div className="flex items-center gap-4">

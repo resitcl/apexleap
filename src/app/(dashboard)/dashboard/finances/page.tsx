@@ -1,5 +1,6 @@
 export const dynamic = "force-dynamic"
 
+import { requireClubCapabilityPage } from "@/lib/actions/club-context"
 import Link from "next/link"
 import { getFinanceSummary, getExpenses, getCoaches, getMonthlyFinanceChart, getExpectedMonthIncome } from "@/lib/actions/finances"
 import { getSuppliers } from "@/lib/actions/suppliers"
@@ -81,6 +82,7 @@ interface PageProps {
 }
 
 export default async function FinancesPage({ searchParams }: PageProps) {
+  await requireClubCapabilityPage('finances')
   const params = await searchParams
   const tab       = params.tab       ?? "overview"
   const month     = params.month     ?? new Date().toISOString().slice(0, 7)

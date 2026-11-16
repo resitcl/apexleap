@@ -11,14 +11,16 @@ import { AthleteSectionHeader } from "@/components/athlete/AthleteSectionHeader"
 import { BookOpen } from "lucide-react"
 
 export default async function SelectPlanPage() {
-  // Si ya tiene suscripción activa y no está en bloqueo por mora, volver al portal
+  // Si ya tiene suscripción activa y no está en bloqueo por mora, volver al portal.
+  // El redirect va FUERA del try: `redirect()` funciona lanzando una excepción de control y el
+  // catch se la tragaba, así que un alumno al día podía quedarse aquí y re-inscribirse.
+  let alreadyEnrolled = false
   try {
     const status = await getMySubscriptionStatus()
     const financial = await getAthleteFinancialAccessState()
-    if (status.hasActiveSubscription && !financial.delinquency.hardBlocked) {
-      redirect("/dashboard/athlete")
-    }
+    alreadyEnrolled = status.hasActiveSubscription && !financial.delinquency.hardBlocked
   } catch { /* continue — nuevo usuario sin perfil atleta */ }
+  if (alreadyEnrolled) redirect("/dashboard/athlete")
 
   let plans: Awaited<ReturnType<typeof getVisiblePlans>> = []
   try {

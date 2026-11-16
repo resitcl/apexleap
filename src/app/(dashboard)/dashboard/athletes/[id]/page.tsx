@@ -26,7 +26,7 @@ import {
   Calendar, CreditCard, CheckSquare, Activity, Heart,
   Repeat2, ClipboardCheck, DollarSign, Award
 } from "lucide-react"
-import { getClubSportType } from "@/lib/actions/club-context"
+import { getClubSportType, requireClubStaffPage } from "@/lib/actions/club-context"
 import { getSportConfig, getSportFieldDisplayValue } from "@/lib/sport-fields"
 import { getSportVocab } from "@/lib/sport-vocab"
 
@@ -35,6 +35,7 @@ interface PageProps {
 }
 
 export default async function AthleteDetailPage({ params }: PageProps) {
+  await requireClubStaffPage()
   const { id } = await params
 
   let athlete

@@ -25,7 +25,8 @@ export type OnboardingClub = {
   sport_type: string | null
   logo_url: string | null
   primary_color: string | null
-  settings: Record<string, unknown>
+  // OJO: nunca agregar aquí `settings` completo. Este objeto viaja como prop a componentes
+  // cliente y `clubs.settings.payment_settings` contiene las llaves secretas de las pasarelas.
 }
 
 export type OnboardingAthlete = {
@@ -61,6 +62,11 @@ export type OnboardingData = {
   hasPendingPayment: boolean
   pendingPaymentPlanName: string | null
   club: OnboardingClub
+  /**
+   * Medios de pago que el alumno puede usar al inscribirse, ya resueltos en el servidor
+   * (habilitados por el club y con cobro operativo). El cliente no recibe la configuración.
+   */
+  enrollmentPaymentMethodIds: string[]
   bankInfo: {
     bank_name?: string
     account_type?: string

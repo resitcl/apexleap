@@ -1,5 +1,6 @@
 export const dynamic = "force-dynamic"
 
+import { requireClubCapabilityPage } from "@/lib/actions/club-context"
 import Link from "next/link"
 import { getPlans } from "@/lib/actions/plans"
 import { Button } from "@/components/ui/button"
@@ -23,6 +24,7 @@ const CYCLE_LABELS: Record<string, string> = {
 }
 
 export default async function PlansPage() {
+  await requireClubCapabilityPage('finances')
   let plans: Awaited<ReturnType<typeof getPlans>> = []
   let error: string | null = null
 
