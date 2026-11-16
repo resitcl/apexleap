@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic"
 
 import { getRules, getRuleAffectedCounts, getRuleLastTriggerDates } from "@/lib/actions/rules"
+import { requireClubCapabilityPage } from "@/lib/actions/club-context"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -53,6 +54,7 @@ interface PageProps {
 }
 
 export default async function RulesPage({ searchParams }: PageProps) {
+  await requireClubCapabilityPage('rules')
   const { type } = await searchParams
 
   let rules: Awaited<ReturnType<typeof getRules>> = []

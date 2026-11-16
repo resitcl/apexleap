@@ -22,7 +22,8 @@ export function AthleteNotesButton({ athleteId, currentNotes }: Props) {
   async function handleSave() {
     setLoading(true)
     try {
-      await updateAthlete(athleteId, { notes: notes.trim() || undefined })
+      // String vacío (no `undefined`): borrar la nota tiene que guardarse.
+      await updateAthlete(athleteId, { notes: notes.trim() })
       toast.success('Notas actualizadas')
       setOpen(false)
     } catch (err) {

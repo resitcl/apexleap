@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getClubId, assertClubStaff } from '@/lib/actions/club-context'
 import { z } from 'zod'
+import { pickFields } from '@/lib/safe-update'
 
 const docSchema = z.object({
   name: z.string().min(2),
@@ -20,6 +21,7 @@ export type DocInput = z.infer<typeof docSchema>
 
 
 export async function getDocuments(filters?: { category?: string; athleteId?: string; status?: string; search?: string }) {
+  await assertClubStaff()
   const clubId = await getClubId()
   const supabase = createAdminClient()
   let q = supabase.from('documents').select('*, athletes(id, name)').eq('club_id', clubId)
@@ -52,7 +54,8 @@ export async function updateDocument(id: string, input: { name?: string; categor
   await assertClubStaff()
   const clubId = await getClubId()
   const supabase = createAdminClient()
-  const safeUpdate = Object.fromEntries(Object.entries({ ...input }).filter(([, v]) => v !== undefined))
+  // Lista blanca: `athlete_id` y `file_url` se cambian por sus propias acciones, nunca por aquí.
+  const safeUpdate = pickFields(input, ['name', 'category', 'expiry_date', 'status', 'notes'])
   const { error } = await supabase.from('documents')
     .update(safeUpdate)
     .eq('id', id).eq('club_id', clubId)

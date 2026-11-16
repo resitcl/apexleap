@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { z } from 'zod'
 import { getClubId, assertClubStaff } from '@/lib/actions/club-context'
+import { pickSchemaFields } from '@/lib/safe-update'
 
 const seasonSchema = z.object({
   name:        z.string().min(2),
@@ -71,7 +72,7 @@ export async function updateSeason(id: string, input: Partial<SeasonInput>) {
   const supabase = createAdminClient()
   const { error } = await supabase
     .from('club_seasons')
-    .update({ ...input, updated_at: new Date().toISOString() })
+    .update({ ...pickSchemaFields(seasonSchema, input), updated_at: new Date().toISOString() })
     .eq('id', id)
     .eq('club_id', clubId)
   if (error) throw new Error(error.message)

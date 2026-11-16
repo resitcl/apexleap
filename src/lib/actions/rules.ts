@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { z } from 'zod'
 import { getClubId, assertClubCapability } from '@/lib/actions/club-context'
+import { pickSchemaFields } from '@/lib/safe-update'
 
 const ruleSchema = z.object({
   name: z.string().min(2),
@@ -20,6 +21,7 @@ export type RuleInput = z.infer<typeof ruleSchema>
 
 
 export async function getRules(filters?: { type?: string }) {
+  await assertClubCapability('rules')
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
@@ -60,7 +62,7 @@ export async function updateRule(id: string, input: Partial<RuleInput>) {
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
-  const safeUpdate = Object.fromEntries(Object.entries({ ...input }).filter(([, v]) => v !== undefined))
+  const safeUpdate = pickSchemaFields(ruleSchema, input)
   const { data, error } = await supabase
     .from('rules')
     .update(safeUpdate)
@@ -90,6 +92,7 @@ export async function toggleRule(id: string, is_active: boolean) {
 }
 
 export async function getRuleLastTriggerDates() {
+  await assertClubCapability('rules')
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
@@ -157,6 +160,7 @@ export async function createRuleException(params: {
 }
 
 export async function getRuleExceptions(athleteId?: string) {
+  await assertClubCapability('rules')
   const clubId = await getClubId()
   const supabase = createAdminClient()
   let q = supabase
@@ -180,6 +184,7 @@ export async function deleteRuleException(id: string) {
 }
 
 export async function getRuleAffectedCounts() {
+  await assertClubCapability('rules')
   const clubId = await getClubId()
   const supabase = createAdminClient()
 

@@ -5,8 +5,10 @@ import { Button } from "@/components/ui/button"
 import { ChevronLeft } from "lucide-react"
 import { ScheduleForm } from "@/components/calendar/ScheduleForm"
 import { getVenues } from "@/lib/actions/venues"
+import { requireClubStaffPage } from "@/lib/actions/club-context"
 
 export default async function NewSchedulePage() {
+  await requireClubStaffPage()
   const venues = await getVenues().catch(() => [])
 
   return (

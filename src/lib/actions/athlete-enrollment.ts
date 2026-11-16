@@ -10,6 +10,7 @@ import {
   getBillingAnchorDay,
   calculatePeriodStartForPayment,
   dayOfMonthFromYmd,
+  nowInTimeZone,
   parseYmd,
   todayYmd,
   ymdFromDate,
@@ -23,6 +24,7 @@ import {
   ONLINE_GATEWAY_IDS,
 } from '@/lib/payment-methods'
 import { cancelPriorSubscriptions } from '@/lib/subscription-activation'
+import { getClubTimeZone } from '@/lib/club-timezone'
 import { notifyAdminsPaymentSubmitted } from '@/lib/admin-notifications'
 import { createFlowPayment, resolveFlowConfigFromSettings } from '@/lib/flow'
 import { createMercadoPagoPreference, resolveMercadoPagoConfigFromSettings } from '@/lib/mercadopago'
@@ -189,8 +191,8 @@ export async function enrollInPlan(planId: string) {
     .eq('status', 'active')
 
   // Calculate period dates using proper month-based billing
-  const startDate = new Date()
-  const startStr = todayYmd()
+  const startDate = nowInTimeZone(await getClubTimeZone())
+  const startStr = ymdFromDate(startDate)
   const cycle = plan.billing_cycle as BillingCycle
 
   const periodEnd = calculatePeriodEnd(startDate, cycle)
@@ -496,7 +498,7 @@ export async function getAthleteFinancialAccessState(): Promise<AthleteFinancial
       .maybeSingle()
 
     if (activeSub) {
-      const todayStr = new Date().toISOString().split('T')[0]
+      const todayStr = todayYmd(await getClubTimeZone())
       const { data: paymentRows } = await supabase
         .from('payments')
         .select('due_date, status')
@@ -955,8 +957,8 @@ export async function enrollWithPayment(
   // Cancel existing active or pending_payment subscriptions
   await cancelPriorSubscriptions(supabase, clubId, athlete.id)
 
-  const startDate = new Date()
-  const startStr = todayYmd()
+  const startDate = nowInTimeZone(await getClubTimeZone())
+  const startStr = ymdFromDate(startDate)
   const cycle = plan.billing_cycle as BillingCycle
   const periodEnd = calculatePeriodEnd(startDate, cycle)
   const endStr = periodEnd ? ymdFromDate(periodEnd) : null
@@ -1585,6 +1587,11 @@ export async function submitSelfPayment(params: {
     (clubRow?.settings ?? {}) as Record<string, unknown>
   )
   assertPaymentMethodEnabled(enabledIds, params.paymentMethod)
+  // Webpay y Khipu no tienen integración ni link de pago: aceptarlos dejaba una "solicitud" que
+  // nunca se cobraba ni se podía confirmar (el admin no puede marcar pasarelas a mano).
+  if (params.paymentMethod === 'webpay' || params.paymentMethod === 'khipu') {
+    throw new Error('Este medio de pago no está disponible. Paga por transferencia, efectivo u otro medio en línea.')
+  }
 
   // Get active subscription + plan (including billing anchor day for period calc)
   const { data: subscription } = await supabase
@@ -1604,8 +1611,8 @@ export async function submitSelfPayment(params: {
 
   if (!plan) throw new Error('No se encontró el plan asociado a tu suscripción')
 
-  const today = new Date()
-  const todayStr = todayYmd()
+  const today = nowInTimeZone(await getClubTimeZone())
+  const todayStr = ymdFromDate(today)
   const cycle = plan.billing_cycle as BillingCycle
 
   const refStart = subscription.current_period_start
@@ -1940,8 +1947,8 @@ export async function createFlowCheckoutForSelfPayment() {
     : (plansData as { id: string; name: string; price: number; billing_cycle: string } | null)
   if (!plan) throw new Error('No se encontró el plan asociado a tu suscripción')
 
-  const now = new Date()
-  const todayStr = todayYmd()
+  const now = nowInTimeZone(await getClubTimeZone())
+  const todayStr = ymdFromDate(now)
   const cycle = plan.billing_cycle as BillingCycle
   const refStart = subscription.current_period_start
     ? parseYmd(subscription.current_period_start as string)
@@ -2062,8 +2069,8 @@ export async function createMercadoPagoCheckoutForSelfPayment() {
     : (plansData as { id: string; name: string; price: number; billing_cycle: string } | null)
   if (!plan) throw new Error('No se encontró el plan asociado a tu suscripción')
 
-  const now = new Date()
-  const todayStr = todayYmd()
+  const now = nowInTimeZone(await getClubTimeZone())
+  const todayStr = ymdFromDate(now)
   const cycle = plan.billing_cycle as BillingCycle
   const refStart = subscription.current_period_start
     ? parseYmd(subscription.current_period_start as string)

@@ -372,6 +372,7 @@ export async function updateRosterScore(params: {
 }
 
 export async function getAthletesSemaforo() {
+  await assertClubStaff()
   const clubId = await getClubId()
   const supabase = createAdminClient()
 

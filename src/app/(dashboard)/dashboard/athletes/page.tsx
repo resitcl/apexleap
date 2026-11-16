@@ -21,6 +21,8 @@ import { AthleteRowActions } from "@/components/athletes/AthleteRowActions"
 import { getPaymentReminderHistory } from "@/lib/actions/communications"
 import { formatReminderAge, type LastReminder } from "@/lib/payment-reminders"
 import { ONLINE_GATEWAY_IDS } from "@/lib/payment-methods"
+import { todayYmd } from "@/lib/billing-utils"
+import { getClubTimeZone } from "@/lib/club-timezone"
 import {
   ATHLETE_PAYMENT_STATUSES,
   ATHLETE_PAYMENT_STATUS_META,
@@ -165,7 +167,8 @@ export default async function AthletesPage({ searchParams }: PageProps) {
 
   const now = new Date()
   const nowMs = now.getTime()
-  const today = now.toISOString().split('T')[0]
+  // Día calendario del club (no el de UTC): de noche en Chile ya es "mañana" en UTC.
+  const today = todayYmd(await getClubTimeZone())
   const currentMonth = today.slice(0, 7)
   const thirtyDaysAgoISO = new Date(nowMs - 30 * 24 * 60 * 60 * 1000).toISOString()
   const fourteenDaysAgoISO = new Date(nowMs - 14 * 24 * 60 * 60 * 1000).toISOString()

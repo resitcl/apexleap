@@ -264,6 +264,8 @@ export default async function DashboardLayout({
           if (it.href === '/dashboard/rules') return perms.rules
           if (it.href === '/dashboard/settings/team') return perms.team
           if (it.href === '/dashboard/settings/landing') return perms.club_config
+          // Comunicaciones es solo-admin (no delegable): sus acciones rechazan al coach.
+          if (it.href === '/dashboard/communications') return false
           return true
         }),
       }))

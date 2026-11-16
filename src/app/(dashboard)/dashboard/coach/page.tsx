@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic"
 import Link from "next/link"
 import { redirect } from "next/navigation"
 import { checkUserHasClub } from "@/lib/actions/onboarding"
-import { getClubVocab } from "@/lib/actions/club-context"
+import { getClubVocab, requireClubStaffPage } from "@/lib/actions/club-context"
 import { getCoachDashboard } from "@/lib/actions/dashboard"
 import { getTodaySessions } from "@/lib/actions/dashboard"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -24,6 +24,7 @@ const HEALTH_LABEL: Record<string, string> = {
 export default async function CoachPage() {
   const hasClub = await checkUserHasClub().catch(() => false)
   if (!hasClub) redirect("/onboarding")
+  await requireClubStaffPage()
 
   let data: Awaited<ReturnType<typeof getCoachDashboard>> | null = null
   let error = ""

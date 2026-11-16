@@ -206,6 +206,7 @@ export async function updateTeamMemberRole(
 }
 
 export async function getTeamData() {
+  await assertClubCapability('team')
   const clubId = await getClubId()
   const supabase = createAdminClient()
 

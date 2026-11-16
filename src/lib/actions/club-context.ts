@@ -140,6 +140,20 @@ export function isClubAdminRole(role: string): boolean {
   return role === 'admin' || role === 'admin_athlete'
 }
 
+/**
+ * Guard de PÁGINA para secciones solo-admin que NO son delegables a coaches (p. ej. Comunicaciones,
+ * cuyas acciones exigen admin/admin_athlete). Mismo criterio que `assertClubAdmin`, pero redirigiendo:
+ * el atleta vuelve a su portal y el coach al dashboard.
+ *
+ * Llamar al inicio de la página y FUERA de try/catch (`redirect` lanza).
+ */
+export async function requireClubAdminPage(): Promise<void> {
+  const role = await getClubMembershipRole()
+  if (role === 'athlete') redirect('/dashboard/athlete')
+  if (role === 'admin' || role === 'admin_athlete') return
+  redirect('/dashboard')
+}
+
 /** Capacidades que el admin del club puede delegar a los coaches. */
 export type CoachCapability = 'finances' | 'rules' | 'club_config' | 'team'
 

@@ -22,6 +22,8 @@ import { PendingAdminPaymentScreen } from "@/components/athlete/PendingAdminPaym
 import { AthleteDashboardRankCard } from "@/components/athlete/AthleteDashboardRankCard"
 import { AthleteBillingAlertBanner } from "@/components/athlete/AthleteBillingAlertBanner"
 import { Button } from "@/components/ui/button"
+import { nowInTimeZone, ymdFromDate } from "@/lib/billing-utils"
+import { getClubTimeZone } from "@/lib/club-timezone"
 import {
   Calendar, AlertTriangle, Trophy, FileText,
   CreditCard, Clock, ChevronRight, Swords,
@@ -141,11 +143,13 @@ export default async function AthletePage({ searchParams }: { searchParams?: Pro
   }
 
   const { athlete, sessions, monthCheckIns, weeklyCheckIns, upcomingComps } = data
-  const today = new Date()
+  // Reloj del club: en el servidor (UTC) el saludo y la fecha salían corridos 3–4 horas.
+  const today = nowInTimeZone(await getClubTimeZone())
+  const todayIso = ymdFromDate(today)
   
   let upcomingClubEvents: Awaited<ReturnType<typeof getEvents>> = []
   try {
-    const allEvents = await getEvents({ from: today.toISOString().split("T")[0] })
+    const allEvents = await getEvents({ from: todayIso })
     upcomingClubEvents = allEvents.filter((e) => e.is_visible_to_athletes !== false).slice(0, 3)
   } catch { /* silent */ }
 
@@ -193,7 +197,7 @@ export default async function AthletePage({ searchParams }: { searchParams?: Pro
   const pendingPayments = payments.filter((p) => p.status === "pending" || p.status === "overdue")
   const overduePayments = payments.filter((p) => p.status === "overdue")
   const totalOverdue = overduePayments.reduce((sum, p) => sum + Number(p.amount), 0)
-  const expiredDocs = documents.filter((d) => d.status === "expired" || (d.expiry_date && d.expiry_date < today.toISOString().split("T")[0]))
+  const expiredDocs = documents.filter((d) => d.status === "expired" || (d.expiry_date && d.expiry_date < todayIso))
 
   const daysUntilExpiry = activeSub?.end_date
     ? Math.ceil((new Date(activeSub.end_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
@@ -215,7 +219,7 @@ export default async function AthletePage({ searchParams }: { searchParams?: Pro
   const teamDraws = finishedMatches.filter((m) => m.home_score !== null && m.home_score === m.away_score).length
   const teamLosses = finishedMatches.length - teamWins - teamDraws
 
-  const todayStr = today.toISOString().split("T")[0]
+  const todayStr = todayIso
   const nextRoster = myRosters.find((r) => r.rosters!.match_date >= todayStr)
   const nextMatch = typedMatches.find((m) => m.match_date >= todayStr && m.status !== "finished")
 

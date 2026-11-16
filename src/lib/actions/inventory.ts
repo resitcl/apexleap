@@ -25,6 +25,7 @@ export type ItemInput = z.infer<typeof itemSchema>
 
 
 export async function getInventoryItems(filters?: { category?: string; condition?: string; lowStock?: boolean; search?: string; page?: number; limit?: number; athleteId?: string; priceMin?: number; priceMax?: number }) {
+  await assertClubStaff()
   const clubId = await getClubId()
   const supabase = createAdminClient()
   const page  = filters?.page  ?? 1

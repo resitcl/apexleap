@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from "react"
+import { todayYmd } from "@/lib/billing-utils"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
@@ -27,7 +28,7 @@ export function NewSubscriptionFromAthleteButton({ athleteId }: Props) {
   const [plans, setPlans] = useState<Plan[]>([])
   const [form, setForm] = useState({
     planId: '',
-    startDate: new Date().toISOString().split('T')[0],
+    startDate: todayYmd(),
     autoRenew: true,
   })
 

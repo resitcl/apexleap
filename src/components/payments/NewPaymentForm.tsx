@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { todayYmd } from '@/lib/billing-utils'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -26,8 +27,8 @@ export function NewPaymentForm({ athletes, plans, defaultAthleteId }: Props) {
     concept: '',
     amount: '',
     status: 'pending',
-    due_date: new Date().toISOString().split('T')[0],
-    paid_at: new Date().toISOString().split('T')[0],
+    due_date: todayYmd(),
+    paid_at: todayYmd(),
     payment_method: '',
     notes: '',
   })
@@ -65,7 +66,8 @@ export function NewPaymentForm({ athletes, plans, defaultAthleteId }: Props) {
         due_date: form.due_date,
         payment_method: form.payment_method || null,
         notes: form.notes || null,
-        paid_at: form.status === 'paid' ? new Date(form.paid_at).toISOString() : null,
+        // Solo la fecha: el servidor la ancla al mediodía (medianoche UTC era el día anterior en Chile).
+        paid_at: form.status === 'paid' ? form.paid_at : null,
         transaction_id: null,
       })
       if (!result.ok) {

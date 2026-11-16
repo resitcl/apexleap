@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic"
 import Link from "next/link"
 import { redirect } from "next/navigation"
 import { checkUserHasClub } from "@/lib/actions/onboarding"
+import { requireClubStaffPage } from "@/lib/actions/club-context"
 import { getClubStats } from "@/lib/actions/stats"
 import { Button } from "@/components/ui/button"
 import {
@@ -18,6 +19,7 @@ import { BarChart3, Users, CheckCircle, TrendingUp, Activity, Heart } from "luci
 export default async function StatsPage() {
   const hasClub = await checkUserHasClub().catch(() => false)
   if (!hasClub) redirect("/onboarding")
+  await requireClubStaffPage()
 
   let stats: Awaited<ReturnType<typeof getClubStats>> | null = null
   try { stats = await getClubStats() } catch { /* silent */ }

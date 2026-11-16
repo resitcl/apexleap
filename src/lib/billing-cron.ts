@@ -6,6 +6,7 @@ import {
   getBillingAnchorDay,
   getBillingPolicyFromSettings,
   getRemindersEnabledFromSettings,
+  nowInTimeZone,
   todayYmd,
   ymdFromDate,
   parseYmd,
@@ -26,9 +27,9 @@ type CronResult = {
 }
 
 /** Marca pagos pendientes vencidos como overdue (excluye pasarelas online). */
-export async function syncOverduePaymentsForClub(clubId: string): Promise<number> {
+export async function syncOverduePaymentsForClub(clubId: string, timeZone?: string | null): Promise<number> {
   const supabase = createAdminClient()
-  const today = todayYmd()
+  const today = todayYmd(timeZone)
   const gatewayFilter = ONLINE_GATEWAY_IDS.join(',')
 
   const { count, error } = await supabase
@@ -50,9 +51,9 @@ export async function syncOverduePaymentsForClub(clubId: string): Promise<number
  * emitida por el cron sobre la que el alumno intentó pagar conserva su medio original y nunca
  * entra aquí: si entrara, la deuda del período desaparecería (ver `ensureSelfPayPayment`).
  */
-export async function failStaleGatewayPaymentsForClub(clubId: string): Promise<number> {
+export async function failStaleGatewayPaymentsForClub(clubId: string, timeZone?: string | null): Promise<number> {
   const supabase = createAdminClient()
-  const today = todayYmd()
+  const today = todayYmd(timeZone)
 
   const { count, error } = await supabase
     .from('payments')
@@ -73,9 +74,10 @@ export async function failStaleGatewayPaymentsForClub(clubId: string): Promise<n
 export async function generateDuePaymentsForClub(
   clubId: string,
   policy: BillingPolicy = 'suspend',
+  timeZone?: string | null,
 ): Promise<number> {
   const supabase = createAdminClient()
-  const today = todayYmd()
+  const today = todayYmd(timeZone)
   let created = 0
 
   const { data: subs } = await supabase
@@ -155,7 +157,10 @@ export async function generateDuePaymentsForClub(
       concept: `${plan.name} – ${month}`,
       amount: plan.price,
       status: 'pending',
-      due_date: periodStartStr,
+      // Una cuota nunca nace vencida. Si se emite tarde (el cron estuvo caído, se sanearon anclas
+      // o la suscripción revivió al regularizar una deuda vieja), vence el día en que se emite:
+      // el alumno no puede estar en mora —ni bloqueado— por una cuota que todavía no existía.
+      due_date: periodStartStr < today ? today : periodStartStr,
       period_start: periodStartStr,
       period_end: periodEndStr,
     })
@@ -190,10 +195,10 @@ const EXPIRY_GRACE_DAYS = 3
  * suscripción `active` y por tanto bloqueado de pagar por self-service. Con gracia, la
  * suscripción sigue `active` durante la gracia para que pueda renovar.
  */
-export async function expireSubscriptionsForClub(clubId: string): Promise<number> {
+export async function expireSubscriptionsForClub(clubId: string, timeZone?: string | null): Promise<number> {
   const supabase = createAdminClient()
 
-  const graceCutoff = new Date()
+  const graceCutoff = nowInTimeZone(timeZone)
   graceCutoff.setDate(graceCutoff.getDate() - EXPIRY_GRACE_DAYS)
   const cutoff = ymdFromDate(graceCutoff)
 
@@ -217,7 +222,7 @@ export async function expireSubscriptionsForClub(clubId: string): Promise<number
  * para que generateDuePaymentsForClub las empiece a facturar desde este mes en adelante.
  * Idempotente: tras la primera corrida ya no quedan subs en NULL.
  */
-export async function backfillMissingBillingAnchorsForClub(clubId: string): Promise<number> {
+export async function backfillMissingBillingAnchorsForClub(clubId: string, timeZone?: string | null): Promise<number> {
   const supabase = createAdminClient()
   let fixed = 0
 
@@ -228,7 +233,7 @@ export async function backfillMissingBillingAnchorsForClub(clubId: string): Prom
     .eq('status', 'active')
     .is('next_billing_date', null)
 
-  const now = new Date()
+  const now = nowInTimeZone(timeZone)
   for (const sub of subs ?? []) {
     const plansData = sub.plans as unknown
     const plan = Array.isArray(plansData)
@@ -265,6 +270,25 @@ export async function backfillMissingBillingAnchorsForClub(clubId: string): Prom
 }
 
 const REMINDER_OFFSETS = [-3, 1, 7, 15] // días relativos al vencimiento (negativo = antes de vencer)
+/** Anticipación del aviso de próxima cuota: el offset negativo de `REMINDER_OFFSETS`. */
+const UPCOMING_REMINDER_DAYS = 3
+
+type ReminderAthlete = {
+  name?: string | null
+  email?: string | null
+  status?: string | null
+  archived_at?: string | null
+}
+
+/**
+ * ¿Le corresponde un cobro automático? No a quien salió del club (archivado/inactivo) ni a quien
+ * está suspendido: la suspensión pausa la facturación (lesión, viaje) y no tiene sentido seguir
+ * insistiéndole por correo. El cobro manual desde el panel sigue disponible para esos casos.
+ */
+function canReceiveAutoReminder(athlete: ReminderAthlete | null): athlete is ReminderAthlete {
+  if (!athlete || athlete.archived_at) return false
+  return athlete.status !== 'suspended' && athlete.status !== 'inactive'
+}
 
 /**
  * Envía recordatorios de pago por correo en offsets EXACTOS respecto al vencimiento: 3 días antes,
@@ -272,7 +296,7 @@ const REMINDER_OFFSETS = [-3, 1, 7, 15] // días relativos al vencimiento (negat
  * offset sin necesidad de trackear estado (sin columna extra). Solo si el club activó recordatorios;
  * best-effort (un fallo de correo no interrumpe el cron).
  */
-export async function sendPaymentRemindersForClub(clubId: string): Promise<number> {
+export async function sendPaymentRemindersForClub(clubId: string, timeZone?: string | null): Promise<number> {
   const supabase = createAdminClient()
   const { data: club } = await supabase
     .from('clubs')
@@ -288,48 +312,44 @@ export async function sendPaymentRemindersForClub(clubId: string): Promise<numbe
   const ps = (settings.payment_settings ?? {}) as { bank_info?: { email?: string }; cash_instructions?: string }
   const clubEmail = ps.bank_info?.email ?? null
   const cashInstructions = ps.cash_instructions || undefined
-  const todayMs = parseYmd(todayYmd()).getTime()
-
-  const { data: payments } = await supabase
-    .from('payments')
-    .select('id, athlete_id, amount, due_date, status, plans(name), athletes(name, email)')
-    .eq('club_id', clubId)
-    .in('status', ['pending', 'overdue'])
-    .not('due_date', 'is', null)
+  const clubName = club?.name ?? 'tu academia'
+  const today = todayYmd(timeZone)
+  const todayMs = parseYmd(today).getTime()
 
   let sent = 0
-  for (const p of payments ?? []) {
-    const due = p.due_date as string
-    const offset = Math.round((todayMs - parseYmd(due).getTime()) / 86400000)
-    if (!REMINDER_OFFSETS.includes(offset)) continue
 
-    const athlete = (Array.isArray(p.athletes) ? p.athletes[0] : p.athletes) as { name?: string; email?: string } | null
-    const to = athlete?.email?.trim()
-    if (!to) continue
-    const plan = (Array.isArray(p.plans) ? p.plans[0] : p.plans) as { name?: string } | null
-
-    const clubName = club?.name ?? 'tu academia'
-    const amount = Number(p.amount ?? 0)
-    const montoFmt = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }).format(amount)
-    const dueFmt = new Date(`${due}T12:00:00`).toLocaleDateString('es-CL', { day: 'numeric', month: 'long', year: 'numeric' })
+  /** Arma y envía un recordatorio; registra el envío en la bitácora del alumno. */
+  const sendReminder = async (r: {
+    athleteId: string
+    paymentId: string | null
+    athlete: ReminderAthlete
+    planName?: string | null
+    amount: number
+    due: string
+  }) => {
+    const to = r.athlete.email?.trim()
+    if (!to) return
+    const athleteName = r.athlete.name ?? 'Atleta'
+    const montoFmt = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }).format(r.amount)
+    const dueFmt = parseYmd(r.due).toLocaleDateString('es-CL', { day: 'numeric', month: 'long', year: 'numeric' })
     const tpl = resolveAutoEmail(settings, 'payment_reminder', {
-      nombre: athlete?.name ?? 'Atleta',
+      nombre: athleteName,
       club: clubName,
-      plan: plan?.name ?? '',
+      plan: r.planName ?? '',
       monto: montoFmt,
       fecha_vencimiento: dueFmt,
     })
-    if (!tpl) continue
+    if (!tpl) return
 
     try {
       await sendPaymentReminderEmail({
         to,
-        athleteName: athlete?.name ?? 'Atleta',
+        athleteName,
         clubName,
         clubSlug: club?.slug ?? '',
-        amount,
-        dueDate: due,
-        planName: plan?.name ?? undefined,
+        amount: r.amount,
+        dueDate: r.due,
+        planName: r.planName ?? undefined,
         paymentInstructions: cashInstructions,
         logoUrl: club?.logo_url ?? null,
         brandColor: club?.primary_color ?? null,
@@ -342,34 +362,107 @@ export async function sendPaymentRemindersForClub(clubId: string): Promise<numbe
       sent++
       // Bitácora por alumno: permite ver en la ficha/lista cuándo se le insistió por última vez.
       await logPaymentReminder(supabase, clubId, {
-        athleteId: p.athlete_id as string,
-        paymentId: p.id as string,
+        athleteId: r.athleteId,
+        paymentId: r.paymentId,
         source: 'cron',
         status: 'sent',
-        amount,
-        dueDate: due,
+        amount: r.amount,
+        dueDate: r.due,
       })
     } catch (err) {
       console.error('[sendPaymentRemindersForClub] error (no bloqueante):', err instanceof Error ? err.message : err)
     }
   }
+
+  // 1) Cuotas ya emitidas: 3 días antes del vencimiento (solo aplica a cuotas creadas a mano con
+  //    vencimiento futuro) y a 1/7/15 días de mora.
+  const { data: payments } = await supabase
+    .from('payments')
+    .select('id, athlete_id, amount, due_date, status, plans(name), athletes(name, email, status, archived_at)')
+    .eq('club_id', clubId)
+    .in('status', ['pending', 'overdue'])
+    .not('due_date', 'is', null)
+
+  for (const p of payments ?? []) {
+    const due = (p.due_date as string).slice(0, 10)
+    const offset = Math.round((todayMs - parseYmd(due).getTime()) / 86400000)
+    if (!REMINDER_OFFSETS.includes(offset)) continue
+
+    const athlete = (Array.isArray(p.athletes) ? p.athletes[0] : p.athletes) as ReminderAthlete | null
+    if (!canReceiveAutoReminder(athlete)) continue
+    const plan = (Array.isArray(p.plans) ? p.plans[0] : p.plans) as { name?: string } | null
+
+    await sendReminder({
+      athleteId: p.athlete_id as string,
+      paymentId: p.id as string,
+      athlete,
+      planName: plan?.name,
+      amount: Number(p.amount ?? 0),
+      due,
+    })
+  }
+
+  // 2) Próxima cuota. Las cuotas del cron se crean el mismo día en que vencen, así que el aviso
+  //    de "3 días antes" de arriba nunca calzaba con ellas: el alumno recién se enteraba ya en
+  //    mora. El aviso previo sale de la suscripción, cuyo próximo cobro es en 3 días.
+  const upcomingDate = nowInTimeZone(timeZone)
+  upcomingDate.setDate(upcomingDate.getDate() + UPCOMING_REMINDER_DAYS)
+  const upcoming = ymdFromDate(upcomingDate)
+
+  const { data: upcomingSubs } = await supabase
+    .from('subscriptions')
+    .select('athlete_id, plans(name, price), athletes(name, email, status, archived_at)')
+    .eq('club_id', clubId)
+    .eq('status', 'active')
+    .eq('next_billing_date', upcoming)
+
+  for (const sub of upcomingSubs ?? []) {
+    const athlete = (Array.isArray(sub.athletes) ? sub.athletes[0] : sub.athletes) as ReminderAthlete | null
+    if (!canReceiveAutoReminder(athlete)) continue
+    const plan = (Array.isArray(sub.plans) ? sub.plans[0] : sub.plans) as { name?: string; price?: number } | null
+    const amount = Number(plan?.price ?? 0)
+    if (!(amount > 0)) continue // plan gratuito: no hay nada que cobrar
+
+    // No duplicar: si ya existe la cuota de ese período (pagada por adelantado, o creada a mano y
+    // avisada en el paso 1) o el alumno arrastra mora (ya recibe los avisos de atraso), se omite.
+    const { count: blocking } = await supabase
+      .from('payments')
+      .select('id', { count: 'exact', head: true })
+      .eq('club_id', clubId)
+      .eq('athlete_id', sub.athlete_id)
+      .in('status', ['pending', 'overdue', 'paid'])
+      .or(`status.eq.overdue,period_start.eq.${upcoming}`)
+    if ((blocking ?? 0) > 0) continue
+
+    await sendReminder({
+      athleteId: sub.athlete_id as string,
+      paymentId: null,
+      athlete,
+      planName: plan?.name,
+      amount,
+      due: upcoming,
+    })
+  }
+
   return sent
 }
 
 export async function runBillingCronForClub(clubId: string): Promise<Omit<CronResult, 'clubsProcessed'>> {
   const supabase = createAdminClient()
-  const { data: clubRow } = await supabase.from('clubs').select('settings').eq('id', clubId).single()
+  const { data: clubRow } = await supabase.from('clubs').select('settings, timezone').eq('id', clubId).single()
   const policy = getBillingPolicyFromSettings((clubRow?.settings ?? {}) as Record<string, unknown>)
+  // "Hoy" es el día calendario del club, no el de UTC (ver `nowInTimeZone`).
+  const timeZone = (clubRow?.timezone as string | null | undefined) ?? null
 
-  await backfillMissingBillingAnchorsForClub(clubId)
-  const paymentsGenerated = await generateDuePaymentsForClub(clubId, policy)
-  const overdueSynced = await syncOverduePaymentsForClub(clubId)
-  const gatewayFailed = await failStaleGatewayPaymentsForClub(clubId)
+  await backfillMissingBillingAnchorsForClub(clubId, timeZone)
+  const paymentsGenerated = await generateDuePaymentsForClub(clubId, policy, timeZone)
+  const overdueSynced = await syncOverduePaymentsForClub(clubId, timeZone)
+  const gatewayFailed = await failStaleGatewayPaymentsForClub(clubId, timeZone)
   // "Acumular": nunca vencer por impago (la sub sigue activa acumulando deuda).
   // "No acumular": vencer normal tras la gracia → deja de facturar.
-  const subscriptionsExpired = policy === 'accumulate' ? 0 : await expireSubscriptionsForClub(clubId)
+  const subscriptionsExpired = policy === 'accumulate' ? 0 : await expireSubscriptionsForClub(clubId, timeZone)
   // Recordatorios por correo (después de sincronizar mora, para usar estados actualizados).
-  await sendPaymentRemindersForClub(clubId)
+  await sendPaymentRemindersForClub(clubId, timeZone)
   return { paymentsGenerated, overdueSynced, gatewayFailed, subscriptionsExpired }
 }
 

@@ -1,10 +1,12 @@
 export const dynamic = "force-dynamic"
 
 import { getTeamData } from "@/lib/actions/team"
+import { requireClubCapabilityPage } from "@/lib/actions/club-context"
 import { TeamManager } from "@/components/settings/TeamManager"
 import { Users } from "lucide-react"
 
 export default async function TeamPage() {
+  await requireClubCapabilityPage('team')
   let data = {
     members: [] as {
       user_id: string

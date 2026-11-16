@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { todayYmd } from '@/lib/billing-utils'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -23,7 +24,7 @@ type SupplierOption = { id: string; name: string; category: string }
 
 const BLANK = {
   concept: '', category: 'other', amount: '',
-  date: new Date().toISOString().split('T')[0],
+  date: todayYmd(),
   paid_to: '', notes: '', supplier_id: '',
 }
 

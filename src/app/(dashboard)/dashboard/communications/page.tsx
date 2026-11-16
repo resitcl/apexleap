@@ -4,6 +4,7 @@ import { Megaphone, History } from "lucide-react"
 import { getCommunicationsAthletes, getMessageTemplates, getCommunicationLogs } from "@/lib/actions/communications"
 import { getPlans } from "@/lib/actions/plans"
 import { getCategories } from "@/lib/actions/categories"
+import { requireClubAdminPage } from "@/lib/actions/club-context"
 import { CommunicationsClient } from "@/components/communications/CommunicationsClient"
 
 const KIND_LABEL: Record<string, string> = {
@@ -19,6 +20,7 @@ const AUDIENCE_LABEL: Record<string, string> = {
 }
 
 export default async function CommunicationsPage() {
+  await requireClubAdminPage()
   const [athletes, templates, plansRaw, categoriesRaw, logs] = await Promise.all([
     getCommunicationsAthletes().catch(() => []),
     getMessageTemplates().catch(() => []),

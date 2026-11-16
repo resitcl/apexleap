@@ -24,6 +24,8 @@ import { EditExpenseButton } from "@/components/finances/EditExpenseButton"
 import { MonthPicker } from "@/components/finances/MonthPicker"
 import { ExportCoachesButton } from "@/components/finances/ExportCoachesButton"
 import { FinancialProjection } from "@/components/finances/FinancialProjection"
+import { todayYmd } from "@/lib/billing-utils"
+import { getClubTimeZone } from "@/lib/club-timezone"
 import {
   DashboardPage,
   DashboardPageHeader,
@@ -85,7 +87,8 @@ export default async function FinancesPage({ searchParams }: PageProps) {
   await requireClubCapabilityPage('finances')
   const params = await searchParams
   const tab       = params.tab       ?? "overview"
-  const month     = params.month     ?? new Date().toISOString().slice(0, 7)
+  const currentMonthKey = todayYmd(await getClubTimeZone()).slice(0, 7)
+  const month     = params.month     ?? currentMonthKey
   const category  = params.category  ?? ""
   const amountMin = params.amountMin ? Number(params.amountMin) : undefined
   const amountMax = params.amountMax ? Number(params.amountMax) : undefined
@@ -1013,7 +1016,7 @@ export default async function FinancesPage({ searchParams }: PageProps) {
                           {coach.email && <span>{coach.email}</span>}
                           <span>{SALARY_TYPE_LABELS[coach.salary_type]}{coach.salary_amount ? `: $${Number(coach.salary_amount).toLocaleString("es-CL")}` : ""}</span>
                           {(() => {
-                            const curMonth = new Date().toISOString().slice(0, 7)
+                            const curMonth = currentMonthKey
                             const coachExpenses = monthExpenses.filter((e) =>
                               e.paid_to && e.paid_to.toLowerCase().includes(coach.name.toLowerCase()) &&
                               e.date.startsWith(curMonth)

@@ -6,6 +6,7 @@ import { getClubId, assertClubStaff } from '@/lib/actions/club-context'
 
 
 export async function getAttendanceToday(params?: { categoryId?: string }) {
+  await assertClubStaff()
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
@@ -50,6 +51,7 @@ export async function getAttendanceHistory(params?: {
   limit?: number
   page?: number
 }) {
+  await assertClubStaff()
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
@@ -262,6 +264,7 @@ export async function getPastSessionsAttendance(params?: {
   scheduleId?: string
   limit?: number
 }) {
+  await assertClubStaff()
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
@@ -339,6 +342,7 @@ export async function getPastSessionsAttendance(params?: {
 }
 
 export async function getAthleteAttendanceRate(athleteId: string, days = 30) {
+  await assertClubStaff()
   const clubId = await getClubId()
   const supabase = createAdminClient()
 

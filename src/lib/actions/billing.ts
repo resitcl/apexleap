@@ -5,6 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { fetchAllRows } from '@/lib/supabase/fetch-all'
 import { getClubId, assertClubCapability } from '@/lib/actions/club-context'
 import { getExpectedMonthIncome } from '@/lib/actions/finances'
+import { getClubTimeZone } from '@/lib/club-timezone'
 import { auth, clerkClient } from '@clerk/nextjs/server'
 import {
   calculatePeriodEnd,
@@ -12,6 +13,7 @@ import {
   generateOverduePeriods,
   CYCLE_MONTHS,
   dayOfMonthFromYmd,
+  nowInTimeZone,
   todayYmd,
   type BillingCycle,
 } from '@/lib/billing-utils'
@@ -26,12 +28,13 @@ export async function getPaymentMetrics(month?: string) {
   const supabase = createAdminClient()
 
   // Default to current month
-  const targetMonth = month || new Date().toISOString().slice(0, 7)
+  const timeZone = await getClubTimeZone()
+  const targetMonth = month || todayYmd(timeZone).slice(0, 7)
   const monthStart = `${targetMonth}-01`
   const nextMonth = new Date(targetMonth + '-01')
   nextMonth.setMonth(nextMonth.getMonth() + 1)
   const monthEnd = nextMonth.toISOString().split('T')[0]
-  const today = new Date()
+  const today = nowInTimeZone(timeZone)
   const sevenDaysAgo = new Date(today)
   sevenDaysAgo.setDate(today.getDate() - 7)
   const thirtyDaysAgo = new Date(today)
@@ -300,7 +303,7 @@ export async function getMonthlyAthleteCollectionStatus(
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
-  const targetMonth = monthIso || new Date().toISOString().slice(0, 7)
+  const targetMonth = monthIso || todayYmd(await getClubTimeZone()).slice(0, 7)
   const parts = targetMonth.split('-')
   const y = Number(parts[0])
   const mo = Number(parts[1])
@@ -573,7 +576,8 @@ export async function generateCatchUpPayments(
     : null
 
   // Generate overdue periods
-  const fromDate = options?.fromDate ? new Date(options.fromDate) : new Date()
+  const today = nowInTimeZone(await getClubTimeZone())
+  const fromDate = options?.fromDate ? new Date(options.fromDate) : today
   const overduePeriods = generateOverduePeriods(
     lastPaidPeriodEnd,
     billingAnchorDay,
@@ -612,7 +616,7 @@ export async function generateCatchUpPayments(
       subscription_id: subscription.id,
       concept: `${plan.name} - ${period.periodStart.toLocaleDateString('es-CL', { month: 'long', year: 'numeric' })}`,
       amount: plan.price,
-      status: period.dueDate < new Date() ? 'overdue' : 'pending',
+      status: period.dueDate < today ? 'overdue' : 'pending',
       due_date: period.dueDate.toISOString().split('T')[0],
       period_start: period.periodStart.toISOString().split('T')[0],
       period_end: period.periodEnd.toISOString().split('T')[0],

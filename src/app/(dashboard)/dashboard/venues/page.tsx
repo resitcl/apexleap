@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic"
 
 import { getVenues } from "@/lib/actions/venues"
 import { getSchedules } from "@/lib/actions/schedules"
-import { getClubInfo } from "@/lib/actions/club-context"
+import { getClubInfo, requireClubStaffPage } from "@/lib/actions/club-context"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -20,6 +20,7 @@ import { ExportVenuesButton } from "@/components/venues/ExportVenuesButton"
 import { VenueQRButton } from "@/components/venues/VenueQRButton"
 
 export default async function VenuesPage() {
+  await requireClubStaffPage()
   let venues: Awaited<ReturnType<typeof getVenues>> = []
   let schedules: Awaited<ReturnType<typeof getSchedules>> = []
   let clubInfo = { id: '', name: 'Club', slug: 'club', logo_url: null as string | null }

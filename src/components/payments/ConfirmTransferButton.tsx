@@ -16,6 +16,7 @@ import {
   parseYmd,
   ymdFromDate,
   type BillingCycle,
+  todayYmd,
 } from "@/lib/billing-utils"
 
 interface Props {
@@ -80,7 +81,7 @@ function projectNextBilling(anchorDay: number | null, cycle: BillingCycle, perio
 export function ConfirmTransferButton({ payment, billingAnchorDay, open: controlledOpen, onOpenChange, hideButton }: Props) {
   const [internalOpen, setInternalOpen] = useState(false)
   const open = controlledOpen !== undefined ? controlledOpen : internalOpen
-  const [paidAt, setPaidAt] = useState(() => new Date().toISOString().split('T')[0])
+  const [paidAt, setPaidAt] = useState(() => todayYmd())
   const [loading, setLoading] = useState(false)
 
   const expectedAmount = Math.round(Number(payment.amount) || 0)

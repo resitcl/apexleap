@@ -15,7 +15,7 @@ import { QRCheckInDisplay } from "@/components/attendance/QRCheckInDisplay"
 import { ExportAttendanceButton } from "@/components/attendance/ExportAttendanceButton"
 import { JustifyAttendanceButton } from "@/components/attendance/JustifyAttendanceButton"
 import { getAthletes } from "@/lib/actions/athletes"
-import { getClubVocab } from "@/lib/actions/club-context"
+import { getClubVocab, requireClubStaffPage } from "@/lib/actions/club-context"
 import { getSchedules } from "@/lib/actions/schedules"
 import { getCategories } from "@/lib/actions/categories"
 import { getVenues } from "@/lib/actions/venues"
@@ -25,6 +25,7 @@ interface PageProps {
 }
 
 export default async function AttendancePage({ searchParams }: PageProps) {
+  await requireClubStaffPage()
   const params = await searchParams
   const tab        = params.tab        ?? "today"
   const from       = params.from       ?? ""
