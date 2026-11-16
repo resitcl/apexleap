@@ -6,12 +6,14 @@ import { Button } from "@/components/ui/button"
 import { ChevronLeft } from "lucide-react"
 import { ScheduleForm } from "@/components/calendar/ScheduleForm"
 import { getVenues } from "@/lib/actions/venues"
+import { requireClubStaffPage } from "@/lib/actions/club-context"
 
 interface PageProps {
   params: Promise<{ id: string }>
 }
 
 export default async function EditSchedulePage({ params }: PageProps) {
+  await requireClubStaffPage()
   const { id } = await params
   const { userId } = await auth()
   if (!userId) notFound()

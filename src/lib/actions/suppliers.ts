@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { z } from 'zod'
 import { getClubId, assertClubCapability } from '@/lib/actions/club-context'
+import { pickSchemaFields } from '@/lib/safe-update'
 const supplierSchema = z.object({
   name:           z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
   rut:            z.string().optional().nullable(),
@@ -63,7 +64,7 @@ export async function updateSupplier(id: string, input: Partial<SupplierInput>) 
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
-  const safeUpdate = Object.fromEntries(Object.entries({ ...input }).filter(([, v]) => v !== undefined))
+  const safeUpdate = pickSchemaFields(supplierSchema, input)
   const { error } = await supabase
     .from('suppliers')
     .update(safeUpdate)

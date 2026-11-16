@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { z } from 'zod'
 import { getClubId, assertClubCapability, assertClubStaff } from '@/lib/actions/club-context'
+import { pickSchemaFields } from '@/lib/safe-update'
 
 const optionalPositiveInt = z.preprocess(
   (value) => value === '' || value == null ? null : value,
@@ -80,7 +81,7 @@ export async function updatePlan(id: string, input: Partial<PlanInput>) {
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
-  const safeUpdate = Object.fromEntries(Object.entries({ ...input }).filter(([, v]) => v !== undefined))
+  const safeUpdate = pickSchemaFields(planSchema, input)
   const { data, error } = await supabase
     .from('plans')
     .update(safeUpdate)

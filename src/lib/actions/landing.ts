@@ -36,6 +36,7 @@ const landingSchema = z.object({
 export type LandingInput = z.infer<typeof landingSchema>
 
 export async function getLandingSettings() {
+  await assertClubCapability('club_config')
   const clubId = await getClubId()
   const supabase = createAdminClient()
   const { data, error } = await supabase

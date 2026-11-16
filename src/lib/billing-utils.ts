@@ -50,10 +50,56 @@ export function parseYmd(ymd: string): Date {
   return new Date(`${ymd.slice(0, 10)}T12:00:00`)
 }
 
-/** Fecha local de hoy en YYYY-MM-DD. */
-export function todayYmd(): string {
-  const now = new Date()
-  return ymdFromDate(now)
+/** Zona por defecto: la de los clubes chilenos (mismo default que la columna `clubs.timezone`). */
+export const DEFAULT_TIME_ZONE = 'America/Santiago'
+
+const zonedFormatters = new Map<string, Intl.DateTimeFormat>()
+
+function zonedFormatter(timeZone: string): Intl.DateTimeFormat {
+  let fmt = zonedFormatters.get(timeZone)
+  if (!fmt) {
+    fmt = new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      hourCycle: 'h23',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    })
+    zonedFormatters.set(timeZone, fmt)
+  }
+  return fmt
+}
+
+/**
+ * "Ahora" (o el instante `at`) expresado como RELOJ DE PARED de la zona del club.
+ *
+ * El servidor corre en UTC. Entre las 20–21 h y la medianoche de Chile en UTC ya es "mañana", así
+ * que todo lo que sacaba la fecha con `new Date()` salía corrido un día: el día de cobro de una
+ * inscripción hecha de noche, las fechas por defecto de los formularios y el mes en curso de los
+ * tableros el último día del mes.
+ *
+ * El Date devuelto tiene sus campos LOCALES (`getFullYear`, `getDate`, `getHours`…) iguales a la
+ * hora de la zona pedida, que es lo que usa toda la aritmética de calendario de este archivo.
+ * NO es el instante real: nunca guardar su `toISOString()` como timestamp (para eso, `new Date()`).
+ */
+export function nowInTimeZone(timeZone?: string | null, at: Date = new Date()): Date {
+  let parts: Intl.DateTimeFormatPart[]
+  try {
+    parts = zonedFormatter(timeZone || DEFAULT_TIME_ZONE).formatToParts(at)
+  } catch {
+    // Zona inválida en la configuración del club: mejor la de Chile que fallar.
+    parts = zonedFormatter(DEFAULT_TIME_ZONE).formatToParts(at)
+  }
+  const get = (type: Intl.DateTimeFormatPartTypes) => Number(parts.find((p) => p.type === type)?.value ?? 0)
+  return new Date(get('year'), get('month') - 1, get('day'), get('hour'), get('minute'), get('second'))
+}
+
+/** Fecha de hoy (YYYY-MM-DD) en la zona del club; por defecto, la de Chile. */
+export function todayYmd(timeZone?: string | null): string {
+  return ymdFromDate(nowInTimeZone(timeZone))
 }
 
 /** Convierte Date a YYYY-MM-DD en hora local. */

@@ -184,6 +184,19 @@ export type CreatePaymentResult =
   | { ok: false; error: string }
 
 /**
+ * Fecha de pago → instante. Un valor de solo fecha (o la medianoche UTC que enviaba el formulario)
+ * se ancla al mediodía: a medianoche UTC en Chile todavía es el día anterior, así que el pago
+ * quedaba registrado con un día menos. Sin valor, es ahora.
+ */
+function toPaidAtDate(value?: string | null): Date {
+  if (!value) return new Date()
+  const dateOnly = /^(\d{4}-\d{2}-\d{2})(?:T00:00:00(?:\.0+)?Z)?$/.exec(value.trim())
+  const d = dateOnly ? new Date(`${dateOnly[1]}T12:00:00`) : new Date(value)
+  if (Number.isNaN(d.getTime())) throw new Error('Fecha de pago inválida')
+  return d
+}
+
+/**
  * Registra un pago manual desde el panel del admin.
  *
  * Devuelve un resultado `{ ok }` en vez de lanzar: en producción Next.js enmascara el mensaje
@@ -269,7 +282,7 @@ export async function createPayment(input: PaymentInput): Promise<CreatePaymentR
             }
           }
 
-          const paidAtDate = parsed.paid_at ? new Date(parsed.paid_at) : new Date()
+          const paidAtDate = toPaidAtDate(parsed.paid_at)
           const method = parsed.payment_method ?? 'manual'
 
           const { error: updErr } = await supabase
@@ -311,7 +324,15 @@ export async function createPayment(input: PaymentInput): Promise<CreatePaymentR
 
     const { data, error } = await supabase
       .from('payments')
-      .insert({ ...parsed, club_id: clubId, period_start: periodStart, period_end: periodEnd })
+      .insert({
+        ...parsed,
+        // Un pago que nace pagado siempre lleva fecha de pago (los tableros filtran por ella).
+        paid_at:
+          parsed.status === 'paid' || parsed.paid_at ? toPaidAtDate(parsed.paid_at).toISOString() : null,
+        club_id: clubId,
+        period_start: periodStart,
+        period_end: periodEnd,
+      })
       .select()
       .single()
 
@@ -329,7 +350,7 @@ export async function createPayment(input: PaymentInput): Promise<CreatePaymentR
 
     // Auto-create subscription if payment is created as paid and linked to a plan
     if (parsed.status === 'paid' && parsed.plan_id) {
-      const paidAtDate = parsed.paid_at ? new Date(parsed.paid_at) : new Date()
+      const paidAtDate = toPaidAtDate(parsed.paid_at)
       await activateSubscriptionForPaidPayment(
         supabase,
         clubId,
@@ -385,11 +406,7 @@ export async function markAsPaid(id: string, method: string, paidAt?: string) {
     throw new Error('Los pagos por pasarela se confirman automáticamente y no pueden marcarse manualmente.')
   }
 
-  const paidAtDate = paidAt
-    ? paidAt.includes('T')
-      ? new Date(paidAt)
-      : new Date(`${paidAt.slice(0, 10)}T12:00:00`)
-    : new Date()
+  const paidAtDate = toPaidAtDate(paidAt)
 
   const { data, error } = await supabase
     .from('payments')
@@ -420,9 +437,7 @@ export async function markAsPaid(id: string, method: string, paidAt?: string) {
 
 function toPaidAtIso(value: string | null): string | null {
   if (value === null || value === '') return null
-  const d = value.includes('T') ? new Date(value) : new Date(`${value}T12:00:00`)
-  if (Number.isNaN(d.getTime())) throw new Error('Fecha de pago inválida')
-  return d.toISOString()
+  return toPaidAtDate(value).toISOString()
 }
 
 export async function updatePayment(id: string, input: {
@@ -444,10 +459,14 @@ export async function updatePayment(id: string, input: {
 
   const { data: existing } = await supabase
     .from('payments')
-    .select('athlete_id')
+    .select('athlete_id, period_start, period_end')
     .eq('id', id)
     .eq('club_id', clubId)
     .maybeSingle()
+
+  const ymd = (v: unknown): string | null => (typeof v === 'string' && v.length >= 10 ? v.slice(0, 10) : null)
+  const previousPeriodStart = ymd(existing?.period_start)
+  const previousPeriodEnd = ymd(existing?.period_end)
 
   const updateRow: Record<string, unknown> = {}
   if (input.concept !== undefined) updateRow.concept = input.concept
@@ -474,33 +493,47 @@ export async function updatePayment(id: string, input: {
     .eq('club_id', clubId)
     .maybeSingle()
 
-  if (
-    pmt?.status === 'paid' &&
-    pmt.athlete_id &&
-    pmt.plan_id &&
-    pmt.period_start &&
-    String(pmt.period_start).length >= 10
-  ) {
-    const { data: planRow } = await supabase
-      .from('plans')
-      .select('billing_cycle')
-      .eq('id', pmt.plan_id)
-      .single()
-    if (planRow?.billing_cycle) {
-      const cycle = planRow.billing_cycle as BillingCycle
-      const anchor = new Date(`${String(pmt.period_start).slice(0, 10)}T12:00:00`)
-      const next = calculateNextPeriodStart(anchor, cycle)
-      await supabase
+  // La suscripción solo sigue al pago cuando el admin corrigió el PERÍODO de la cuota que define
+  // su período vigente. Antes se reescribía en cada edición de un pago pagado: corregir el
+  // concepto o el monto de una cuota de hace meses devolvía la suscripción a ese período viejo,
+  // el cron la veía terminada y la expiraba (o volvía a facturar meses ya cubiertos).
+  const newPeriodStart = ymd(pmt?.period_start)
+  const newPeriodEnd = ymd(pmt?.period_end)
+  const periodChanged = newPeriodStart !== previousPeriodStart || newPeriodEnd !== previousPeriodEnd
+
+  if (pmt?.status === 'paid' && pmt.athlete_id && pmt.plan_id && newPeriodStart && periodChanged) {
+    const [{ data: planRow }, { data: activeSub }] = await Promise.all([
+      supabase.from('plans').select('billing_cycle').eq('id', pmt.plan_id).single(),
+      supabase
         .from('subscriptions')
-        .update({
-          current_period_start: String(pmt.period_start).slice(0, 10),
-          current_period_end: pmt.period_end ? String(pmt.period_end).slice(0, 10) : null,
-          next_billing_date: next ? next.toISOString().split('T')[0] : null,
-        })
+        .select('id, current_period_start')
         .eq('club_id', clubId)
         .eq('athlete_id', pmt.athlete_id)
         .eq('plan_id', pmt.plan_id)
         .eq('status', 'active')
+        .maybeSingle(),
+    ])
+
+    const subPeriodStart = ymd(activeSub?.current_period_start)
+    // Esta cuota es la del período vigente (su período anterior coincide con el de la suscripción)
+    // o no tenía período y el nuevo no la hace retroceder.
+    const definesCurrentPeriod = previousPeriodStart
+      ? previousPeriodStart === subPeriodStart
+      : !subPeriodStart || newPeriodStart >= subPeriodStart
+
+    if (planRow?.billing_cycle && activeSub && definesCurrentPeriod) {
+      const cycle = planRow.billing_cycle as BillingCycle
+      const next = calculateNextPeriodStart(parseYmd(newPeriodStart), cycle)
+      await supabase
+        .from('subscriptions')
+        .update({
+          current_period_start: newPeriodStart,
+          current_period_end: newPeriodEnd,
+          end_date: newPeriodEnd,
+          next_billing_date: next ? ymdFromDate(next) : null,
+        })
+        .eq('id', activeSub.id)
+        .eq('club_id', clubId)
     }
   }
 
@@ -584,7 +617,7 @@ export async function confirmTransferPayment(paymentId: string, paidAt?: string,
 
   if (paymentError || !payment) throw new Error('Pago no encontrado')
 
-  const paidAtDate = paidAt ? new Date(`${paidAt}T12:00:00`) : new Date()
+  const paidAtDate = toPaidAtDate(paidAt)
 
   const originalAmount = Number(payment.amount ?? 0)
   let finalAmount = originalAmount

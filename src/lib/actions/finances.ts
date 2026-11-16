@@ -6,6 +6,9 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { fetchAllRows } from '@/lib/supabase/fetch-all'
 import { z } from 'zod'
 import { getClubId, assertClubCapability } from '@/lib/actions/club-context'
+import { pickSchemaFields } from '@/lib/safe-update'
+import { nowInTimeZone } from '@/lib/billing-utils'
+import { getClubTimeZone } from '@/lib/club-timezone'
 
 const expenseSchema = z.object({
   concept: z.string().min(2),
@@ -30,8 +33,9 @@ const coachSchema = z.object({
 export type ExpenseInput = z.infer<typeof expenseSchema>
 export type CoachInput = z.infer<typeof coachSchema>
 
-function getMonthRange(month?: string) {
-  const now = new Date()
+/** Sin `month`, el mes en curso se toma en la zona del club (no en UTC). */
+function getMonthRange(month?: string, timeZone?: string | null) {
+  const now = nowInTimeZone(timeZone)
   const y = month ? month.split('-')[0] : String(now.getFullYear())
   const m = month ? month.split('-')[1] : String(now.getMonth() + 1).padStart(2, '0')
   const start = `${y}-${m}-01`
@@ -92,7 +96,7 @@ export async function getFinanceSummary(month?: string) {
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
-  const { year, month: mm, start, end, monthKey } = getMonthRange(month)
+  const { year, month: mm, start, end, monthKey } = getMonthRange(month, month ? null : await getClubTimeZone())
 
   // Antes se leían TODOS los pagos del club para filtrar un mes en memoria; esa consulta se
   // cortaba en 1.000 filas y el resumen quedaba mal al crecer el club. Ahora se piden solo las
@@ -303,7 +307,7 @@ export async function updateExpense(id: string, input: Partial<ExpenseInput>) {
   await assertClubCapability('finances')
   const clubId = await getClubId()
   const supabase = createAdminClient()
-  const safeUpdate = Object.fromEntries(Object.entries({ ...input }).filter(([, v]) => v !== undefined))
+  const safeUpdate = pickSchemaFields(expenseSchema, input)
   const { error } = await supabase.from('expenses')
     .update(safeUpdate)
     .eq('id', id).eq('club_id', clubId)
@@ -350,7 +354,7 @@ export async function updateCoach(id: string, input: Partial<CoachInput>) {
   await assertClubCapability('finances')
   const clubId = await getClubId()
   const supabase = createAdminClient()
-  const safeUpdateCoach = Object.fromEntries(Object.entries({ ...input }).filter(([, v]) => v !== undefined))
+  const safeUpdateCoach = pickSchemaFields(coachSchema, input)
   const { data, error } = await supabase
     .from('coaches')
     .update(safeUpdateCoach)
@@ -364,7 +368,7 @@ export async function getMonthlyFinanceChart(months = 6) {
   await assertClubCapability('finances')
   const clubId = await getClubId()
   const supabase = createAdminClient()
-  const now = new Date()
+  const now = nowInTimeZone(await getClubTimeZone())
 
   const result: { label: string; income: number; expenses: number }[] = []
 

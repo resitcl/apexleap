@@ -2,10 +2,11 @@
 
 import { auth } from '@clerk/nextjs/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { getClubId } from '@/lib/actions/club-context'
+import { getClubId, assertClubStaff } from '@/lib/actions/club-context'
 
 
 export async function getClubStats() {
+  await assertClubStaff()
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
@@ -119,6 +120,7 @@ export async function getClubStats() {
 }
 
 export async function getAthleteStats(athleteId: string) {
+  await assertClubStaff()
   const clubId = await getClubId()
   const supabase = createAdminClient()
 

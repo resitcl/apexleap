@@ -17,6 +17,8 @@ import { RenewSubscriptionButton } from "@/components/subscriptions/RenewSubscri
 import { EditSubscriptionValidityButton } from "@/components/subscriptions/EditSubscriptionValidityButton"
 import { ExportSubscriptionsButton } from "@/components/subscriptions/ExportSubscriptionsButton"
 import { SubscriptionsFilter } from "@/components/subscriptions/SubscriptionsFilter"
+import { nowInTimeZone, ymdFromDate } from "@/lib/billing-utils"
+import { getClubTimeZone } from "@/lib/club-timezone"
 
 const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   active:    { label: "Activa",     variant: "default" },
@@ -56,7 +58,7 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
   let stats = { active: 0, paused: 0, cancelled: 0, expired: 0, mrr: 0 }
   let plans: Array<{ id: string; name: string }> = []
   let athletesWithoutSub = 0
-  const today = new Date()
+  const today = nowInTimeZone(await getClubTimeZone())
   today.setHours(0, 0, 0, 0)
 
   try {
@@ -104,7 +106,7 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
       return sum + plan.price * (CYCLE_MONTHLY[plan.billing_cycle] ?? 1)
     }, 0)
 
-  const now = new Date()
+  const now = nowInTimeZone(await getClubTimeZone())
   const in7  = new Date(now); in7.setDate(in7.getDate() + 7)
   const in30 = new Date(now); in30.setDate(in30.getDate() + 30)
   const expiringIn7  = allSubs.filter((s) => s.status === 'active' && s.end_date && new Date(s.end_date) <= in7  && new Date(s.end_date) >= now).length
@@ -179,7 +181,7 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
 
       {(() => {
         const sixMonthsAgo = new Date(now); sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
-        const todayISO = new Date().toISOString().split('T')[0]
+        const todayISO = ymdFromDate(now)
 
         const stale = allSubs.filter((s) =>
           s.status === 'active' &&
@@ -387,7 +389,7 @@ export default async function SubscriptionsPage({ searchParams }: PageProps) {
           )
         })()}
         {(() => {
-          const curMonth = new Date().toISOString().slice(0, 7)
+          const curMonth = ymdFromDate(now).slice(0, 7)
           const cancelledThisMonth = allSubs.filter((s) => {
             if (s.status !== 'cancelled') return false
             // Preferir cancelled_at (columna dedicada, migración 036); fallback a updated_at

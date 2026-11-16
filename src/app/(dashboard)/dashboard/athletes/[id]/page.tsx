@@ -29,6 +29,8 @@ import {
 import { getClubSportType, requireClubStaffPage } from "@/lib/actions/club-context"
 import { getSportConfig, getSportFieldDisplayValue } from "@/lib/sport-fields"
 import { getSportVocab } from "@/lib/sport-vocab"
+import { todayYmd } from "@/lib/billing-utils"
+import { getClubTimeZone } from "@/lib/club-timezone"
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -90,7 +92,7 @@ export default async function AthleteDetailPage({ params }: PageProps) {
   const activeSub = subscriptions.find((s) => s.status === "active")
   const overduePayments = payments.filter((p) => p.status === "overdue")
   const billingOverdue = billingInfo.hasActiveSub && billingInfo.nextBilling
-    ? billingInfo.nextBilling <= new Date().toISOString().slice(0, 10)
+    ? billingInfo.nextBilling <= todayYmd(await getClubTimeZone())
     : false
   const debtCount = overduePayments.length + (billingOverdue && overduePayments.length === 0 ? 1 : 0)
   const attendanceRate = attendance.length > 0

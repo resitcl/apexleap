@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from "react"
+import { todayYmd } from "@/lib/billing-utils"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import {
@@ -25,7 +26,7 @@ interface Props {
 export function MarkAsPaidButton({ paymentId }: Props) {
   const [open, setOpen] = useState(false)
   const [method, setMethod] = useState('cash')
-  const [paidAt, setPaidAt] = useState(() => new Date().toISOString().split('T')[0])
+  const [paidAt, setPaidAt] = useState(() => todayYmd())
   const [loading, setLoading] = useState(false)
 
   async function handleConfirm() {

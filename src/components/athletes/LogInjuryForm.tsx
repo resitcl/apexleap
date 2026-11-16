@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { todayYmd } from '@/lib/billing-utils'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -25,7 +26,7 @@ export function LogInjuryForm({ athleteId }: { athleteId: string }) {
   const [loading, setLoading] = useState(false)
   const [form, setForm] = useState({
     diagnosis: '', severity: 'medium', body_part: '',
-    start_date: new Date().toISOString().split('T')[0],
+    start_date: todayYmd(),
     estimated_recovery: '', notes: '',
   })
 
@@ -48,7 +49,7 @@ export function LogInjuryForm({ athleteId }: { athleteId: string }) {
       })
       toast.success('Lesión registrada — semáforo actualizado a 🔴')
       setOpen(false)
-      setForm({ diagnosis: '', severity: 'medium', body_part: '', start_date: new Date().toISOString().split('T')[0], estimated_recovery: '', notes: '' })
+      setForm({ diagnosis: '', severity: 'medium', body_part: '', start_date: todayYmd(), estimated_recovery: '', notes: '' })
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Error inesperado')
     } finally {

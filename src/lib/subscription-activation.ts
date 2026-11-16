@@ -1,6 +1,12 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import {
+  calculatePeriodStartForPayment,
+  getBillingPolicyFromSettings,
+  nowInTimeZone,
+  parseYmd,
   subscriptionPeriodFieldsForPlan,
+  todayYmd,
+  ymdFromDate,
   type BillingCycle,
 } from '@/lib/billing-utils'
 import { ONLINE_GATEWAY_IDS } from '@/lib/payment-methods'
@@ -47,6 +53,14 @@ export async function cancelPriorSubscriptions(
 /**
  * Activa/renueva la suscripción al confirmar un pago.
  * Usado por acciones admin, reconciliadores Flow/MP y cron.
+ *
+ * Un pago solo puede mover la suscripción hacia ADELANTE:
+ *  - Si paga un período anterior al que la suscripción ya tiene vigente (regularizar una cuota
+ *    vieja mientras hay otra más nueva, o una cuota de un plan anterior), la suscripción no se
+ *    toca. Antes se cancelaba y se recreaba en el período viejo, con lo que quedaba "vencida".
+ *  - Si paga un período que ya terminó y el club NO acumula deuda, el próximo cobro es el del
+ *    período en curso, no el siguiente al pagado: los meses intermedios no se facturaron por
+ *    política y no deben cobrarse retroactivamente al regularizar.
  */
 export async function activateSubscriptionForPaidPayment(
   supabase: SupabaseAdmin,
@@ -57,21 +71,22 @@ export async function activateSubscriptionForPaidPayment(
 ) {
   if (!payment.plan_id || !payment.athlete_id) return
 
-  const { data: plan } = await supabase
-    .from('plans')
-    .select('billing_cycle, name, price')
-    .eq('id', payment.plan_id)
-    .single()
+  const [{ data: plan }, { data: clubRow }] = await Promise.all([
+    supabase.from('plans').select('billing_cycle, name, price').eq('id', payment.plan_id).single(),
+    supabase.from('clubs').select('settings, timezone').eq('id', clubId).maybeSingle(),
+  ])
   if (!plan) return
 
   const cycle = plan.billing_cycle as BillingCycle
+  const timeZone = (clubRow?.timezone as string | null | undefined) ?? null
+  const policy = getBillingPolicyFromSettings((clubRow?.settings ?? {}) as Record<string, unknown>)
 
   // El ancla vigente se lee ANTES de cancelar la suscripción anterior: es el día de cobro que el
   // club acordó con el alumno y debe sobrevivir a un pago atrasado. Sin esto, una cuota sin
   // `period_start` reanclaba el ciclo al día en que se pagó.
   const { data: priorSub } = await supabase
     .from('subscriptions')
-    .select('billing_anchor_day, current_period_start')
+    .select('status, billing_anchor_day, current_period_start, next_billing_date')
     .eq('club_id', clubId)
     .eq('athlete_id', payment.athlete_id)
     .in('status', ['active', 'pending_payment'])
@@ -82,49 +97,70 @@ export async function activateSubscriptionForPaidPayment(
   const { startStr, endStr, nextBillingStr, billingAnchorDay } = subscriptionPeriodFieldsForPlan(cycle, {
     periodStart: payment.period_start,
     periodEnd: payment.period_end,
-    paidAt: paidAtDate,
+    // `paidAtDate` es un instante real; el período se calcula con el día calendario del club.
+    paidAt: nowInTimeZone(timeZone, paidAtDate),
     billingAnchorDay: (priorSub?.billing_anchor_day as number | null) ?? null,
     referencePeriodStart: (priorSub?.current_period_start as string | null) ?? null,
   })
 
-  const noAutoRenew = new Set<string>(['transfer', 'cash', 'manual', ...ONLINE_GATEWAY_IDS])
-  const autoRenew = paymentMethod ? !noAutoRenew.has(paymentMethod) : false
+  const priorPeriodStart = ((priorSub?.current_period_start as string | null) ?? '').slice(0, 10)
+  const paysOlderPeriod = priorSub?.status === 'active' && priorPeriodStart !== '' && priorPeriodStart > startStr
 
-  await cancelPriorSubscriptions(supabase, clubId, payment.athlete_id)
+  let effectiveNextBilling: string | null = nextBillingStr
 
-  const { error: insertErr } = await supabase.from('subscriptions').insert({
-    club_id: clubId,
-    athlete_id: payment.athlete_id,
-    plan_id: payment.plan_id,
-    status: 'active',
-    start_date: startStr,
-    end_date: endStr,
-    payment_method: paymentMethod,
-    auto_renew: autoRenew,
-    billing_anchor_day: billingAnchorDay,
-    current_period_start: startStr,
-    current_period_end: endStr,
-    next_billing_date: nextBillingStr,
-  })
-
-  // Un pago confirmado NUNCA debe quedar sin suscripción activa. Si el INSERT falla (p.ej.
-  // 23505 del índice one-active-per-athlete por una confirmación concurrente), verificar que
-  // realmente exista una suscripción activa; si no, registrar para revisión (no lanzar: el
-  // pago ya está pagado y no queremos romper el flujo del webhook).
-  if (insertErr) {
-    const { data: activeNow } = await supabase
-      .from('subscriptions')
-      .select('id')
-      .eq('club_id', clubId)
-      .eq('athlete_id', payment.athlete_id)
-      .eq('status', 'active')
-      .maybeSingle()
-    if (!activeNow) {
-      console.error(
-        '[activateSubscriptionForPaidPayment] pago confirmado sin suscripción activa resultante:',
-        insertErr.message,
-        { clubId, athleteId: payment.athlete_id, planId: payment.plan_id },
+  if (paysOlderPeriod) {
+    // La suscripción ya va en un período posterior: este pago salda historia, no la renueva.
+    effectiveNextBilling = (priorSub?.next_billing_date as string | null) ?? null
+  } else {
+    if (policy === 'suspend' && cycle !== 'single' && endStr && endStr < todayYmd(timeZone)) {
+      const current = calculatePeriodStartForPayment(
+        billingAnchorDay,
+        nowInTimeZone(timeZone),
+        cycle,
+        parseYmd(startStr),
       )
+      effectiveNextBilling = ymdFromDate(current.periodStart)
+    }
+
+    const noAutoRenew = new Set<string>(['transfer', 'cash', 'manual', ...ONLINE_GATEWAY_IDS])
+    const autoRenew = paymentMethod ? !noAutoRenew.has(paymentMethod) : false
+
+    await cancelPriorSubscriptions(supabase, clubId, payment.athlete_id)
+
+    const { error: insertErr } = await supabase.from('subscriptions').insert({
+      club_id: clubId,
+      athlete_id: payment.athlete_id,
+      plan_id: payment.plan_id,
+      status: 'active',
+      start_date: startStr,
+      end_date: endStr,
+      payment_method: paymentMethod,
+      auto_renew: autoRenew,
+      billing_anchor_day: billingAnchorDay,
+      current_period_start: startStr,
+      current_period_end: endStr,
+      next_billing_date: effectiveNextBilling,
+    })
+
+    // Un pago confirmado NUNCA debe quedar sin suscripción activa. Si el INSERT falla (p.ej.
+    // 23505 del índice one-active-per-athlete por una confirmación concurrente), verificar que
+    // realmente exista una suscripción activa; si no, registrar para revisión (no lanzar: el
+    // pago ya está pagado y no queremos romper el flujo del webhook).
+    if (insertErr) {
+      const { data: activeNow } = await supabase
+        .from('subscriptions')
+        .select('id')
+        .eq('club_id', clubId)
+        .eq('athlete_id', payment.athlete_id)
+        .eq('status', 'active')
+        .maybeSingle()
+      if (!activeNow) {
+        console.error(
+          '[activateSubscriptionForPaidPayment] pago confirmado sin suscripción activa resultante:',
+          insertErr.message,
+          { clubId, athleteId: payment.athlete_id, planId: payment.plan_id },
+        )
+      }
     }
   }
 
@@ -135,7 +171,7 @@ export async function activateSubscriptionForPaidPayment(
     .eq('club_id', clubId)
 
   // Correo de confirmación (best-effort: nunca bloquea el flujo de pago).
-  await notifyPaymentConfirmed(supabase, clubId, payment, plan as { name?: string; price?: number }, nextBillingStr)
+  await notifyPaymentConfirmed(supabase, clubId, payment, plan as { name?: string; price?: number }, effectiveNextBilling)
 
   // Pasarela = el alumno pagó por su cuenta y nadie del club tocó nada: avisamos al admin.
   // Las confirmaciones manuales (transfer/cash/manual) las hace el propio admin, no se avisan.

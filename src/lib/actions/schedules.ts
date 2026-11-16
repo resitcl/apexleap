@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { z } from 'zod'
 import { getClubId, assertClubStaff } from '@/lib/actions/club-context'
+import { pickSchemaFields } from '@/lib/safe-update'
 
 const scheduleSchema = z.object({
   name: z.string().min(2),
@@ -69,7 +70,7 @@ export async function updateSchedule(id: string, input: Partial<ScheduleInput>) 
   const clubId = await getClubId()
   const supabase = createAdminClient()
 
-  const safeUpdate = Object.fromEntries(Object.entries({ ...input }).filter(([, v]) => v !== undefined))
+  const safeUpdate = pickSchemaFields(scheduleSchema, input)
   const { data, error } = await supabase
     .from('schedules')
     .update(safeUpdate)

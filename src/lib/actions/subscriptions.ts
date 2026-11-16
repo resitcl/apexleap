@@ -10,12 +10,13 @@ import {
   calculatePeriodEnd,
   calculateNextPeriodStart,
   getBillingAnchorDay,
+  nowInTimeZone,
   parseYmd,
-  todayYmd,
   ymdFromDate,
   type BillingCycle,
 } from '@/lib/billing-utils'
 import { cancelPriorSubscriptions } from '@/lib/subscription-activation'
+import { getClubTimeZone } from '@/lib/club-timezone'
 
 const subscriptionSchema = z.object({
   athlete_id: z.string().uuid(),
@@ -65,10 +66,10 @@ export async function getSubscriptions(params?: {
   if (params?.planId)    query = query.eq('plan_id', params.planId)
   if (params?.search)    query = query.ilike('athletes.name', `%${params.search}%`)
   if (params?.expiringIn) {
-    const today = new Date().toISOString().split('T')[0]
-    const future = new Date()
+    const future = nowInTimeZone(await getClubTimeZone())
+    const today = ymdFromDate(future)
     future.setDate(future.getDate() + params.expiringIn)
-    const futureStr = future.toISOString().split('T')[0]
+    const futureStr = ymdFromDate(future)
     query = query.gte('end_date', today).lte('end_date', futureStr).eq('status', 'active')
   }
 
@@ -134,8 +135,8 @@ export async function renewSubscription(id: string) {
     .eq('id', id).eq('club_id', clubId).single()
   if (fetchErr || !existing) throw new Error('Suscripción no encontrada')
 
-  const startDate = new Date()
-  const startStr = todayYmd()
+  const startDate = nowInTimeZone(await getClubTimeZone())
+  const startStr = ymdFromDate(startDate)
   const plansData = existing.plans as unknown as { billing_cycle: string } | null
   const billingCycle = (plansData?.billing_cycle ?? 'monthly') as BillingCycle
 

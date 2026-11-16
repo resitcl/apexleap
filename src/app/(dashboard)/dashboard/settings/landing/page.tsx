@@ -1,8 +1,10 @@
 import { getLandingSettings } from '@/lib/actions/landing'
+import { requireClubCapabilityPage } from '@/lib/actions/club-context'
 import { LandingSettingsForm } from '@/components/settings/LandingSettingsForm'
 import { Globe } from 'lucide-react'
 
 export default async function LandingSettingsPage() {
+  await requireClubCapabilityPage('club_config')
   let settings
   try {
     settings = await getLandingSettings()

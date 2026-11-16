@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic"
 import Link from "next/link"
 import { redirect } from "next/navigation"
 import { checkUserHasClub } from "@/lib/actions/onboarding"
+import { requireClubStaffPage } from "@/lib/actions/club-context"
 import { getMediaItems, getMediaStats, getMediaByMonth, getMediaYears, getMediaWeekBuckets } from "@/lib/actions/media"
 import { groupMediaByWeek, weekLabelEs, monthLabelEs, defaultContentDateForUpload, effectiveMediaDay } from "@/lib/media-archive"
 import { AthleteSectionHeader } from "@/components/athlete/AthleteSectionHeader"
@@ -144,6 +145,7 @@ interface PageProps {
 export default async function MediaPage({ searchParams }: PageProps) {
   const hasClub = await checkUserHasClub().catch(() => false)
   if (!hasClub) redirect("/onboarding")
+  await requireClubStaffPage()
 
   const params = await searchParams
   const type     = params.type     ?? ""

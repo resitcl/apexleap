@@ -10,10 +10,12 @@ import {
 } from "lucide-react"
 import { PaymentMetricsWidget } from "@/components/payments/PaymentMetricsWidget"
 import { OverdueAthletesTable } from "@/components/payments/OverdueAthletesTable"
+import { todayYmd } from "@/lib/billing-utils"
+import { getClubTimeZone } from "@/lib/club-timezone"
 
 export default async function PaymentsOverviewPage() {
   await requireClubCapabilityPage('finances')
-  const currentMonth = new Date().toISOString().slice(0, 7)
+  const currentMonth = todayYmd(await getClubTimeZone()).slice(0, 7)
   
   const [metrics, overdueAthletes] = await Promise.all([
     getPaymentMetrics(currentMonth),

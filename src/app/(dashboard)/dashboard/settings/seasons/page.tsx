@@ -1,12 +1,14 @@
 export const dynamic = "force-dynamic"
 
 import { getSeasons } from "@/lib/actions/seasons"
+import { requireClubStaffPage } from "@/lib/actions/club-context"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Calendar, Trophy } from "lucide-react"
 import { SeasonsList } from "@/components/seasons/SeasonsList"
 import { NewSeasonForm } from "@/components/seasons/NewSeasonForm"
 
 export default async function SeasonsPage() {
+  await requireClubStaffPage()
   const seasons = await getSeasons(true)
 
   return (

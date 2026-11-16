@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic"
 import Link from "next/link"
 import { getDocuments } from "@/lib/actions/documents"
 import { getAthletes } from "@/lib/actions/athletes"
+import { requireClubStaffPage } from "@/lib/actions/club-context"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -39,6 +40,7 @@ interface PageProps {
 }
 
 export default async function DocumentsPage({ searchParams }: PageProps) {
+  await requireClubStaffPage()
   const { category, status, search, expiring } = await searchParams
 
   let docs: Awaited<ReturnType<typeof getDocuments>> = []

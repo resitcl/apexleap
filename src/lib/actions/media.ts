@@ -11,6 +11,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { z } from 'zod'
 import { getClubId, assertClubStaff } from '@/lib/actions/club-context'
 import { addOneDayIso, weekOfMonthFromDate, weekOfMonthRange } from '@/lib/media-archive'
+import { pickSchemaFields } from '@/lib/safe-update'
 
 const mediaSchema = z.object({
   title:         z.string().min(2),
@@ -429,6 +430,7 @@ export async function toggleMediaLandingFeatured(id: string, featured: boolean):
 }
 
 export async function getMediaStats() {
+  await assertClubStaff()
   const clubId = await getClubId()
   const supabase = createAdminClient()
   // Try enhanced columns; fall back to basic ones if they don't exist.
@@ -465,7 +467,7 @@ export async function updateMediaItem(id: string, input: Partial<MediaInput>) {
   
   const { data, error } = await supabase
     .from('media_items')
-    .update({ ...input, updated_at: new Date().toISOString() })
+    .update({ ...pickSchemaFields(mediaSchema, input), updated_at: new Date().toISOString() })
     .eq('id', id)
     .eq('club_id', clubId)
     .select()

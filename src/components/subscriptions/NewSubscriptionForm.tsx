@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { todayYmd } from '@/lib/billing-utils'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -28,7 +29,7 @@ export function NewSubscriptionForm({ athletes, plans, defaultAthleteId }: Props
     athlete_id: defaultAthleteId ?? '',
     plan_id: '',
     status: 'active',
-    start_date: new Date().toISOString().split('T')[0],
+    start_date: todayYmd(),
     end_date: '',
     payment_method: '',
     auto_renew: true,

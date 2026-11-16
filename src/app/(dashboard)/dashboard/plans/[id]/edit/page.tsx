@@ -1,5 +1,8 @@
+export const dynamic = "force-dynamic"
+
 import Link from "next/link"
 import { notFound } from "next/navigation"
+import { requireClubCapabilityPage } from "@/lib/actions/club-context"
 import { getPlanById } from "@/lib/actions/plans"
 import { PlanForm } from "@/components/plans/PlanForm"
 import { Button } from "@/components/ui/button"
@@ -9,7 +12,13 @@ interface PageProps {
   params: Promise<{ id: string }>
 }
 
+/**
+ * Edición de un plan. El detalle del plan enlaza aquí desde siempre, pero la única página de
+ * edición vivía en la ruta vieja `/plans/[id]/edit` (sin control de rol), así que el botón
+ * "Editar" terminaba en un 404.
+ */
 export default async function EditPlanPage({ params }: PageProps) {
+  await requireClubCapabilityPage('finances')
   const { id } = await params
 
   let plan

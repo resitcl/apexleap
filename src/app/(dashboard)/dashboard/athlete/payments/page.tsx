@@ -12,10 +12,13 @@ import { CreditCard, Clock, CheckCircle, AlertTriangle, Calendar, Repeat2, Shiel
 import { createAdminClient } from "@/lib/supabase/admin"
 import { getClubId } from "@/lib/actions/club-context"
 import { getAthletePaymentStatus } from "@/lib/actions/billing"
-import { formatPeriod } from "@/lib/billing-utils"
+import { formatPeriod, nowInTimeZone } from "@/lib/billing-utils"
+import { getClubTimeZone } from "@/lib/club-timezone"
 import { PayNowButton } from "@/components/athlete/PayNowButton"
 import { getClubSettings } from "@/lib/actions/settings"
 import { getEnabledPaymentMethodIdsFromClubSettings, isOfflinePaymentMethod } from "@/lib/payment-methods"
+import { resolveFlowConfigFromSettings } from "@/lib/flow"
+import { resolveMercadoPagoConfigFromSettings } from "@/lib/mercadopago"
 import { AthleteSectionHeader } from "@/components/athlete/AthleteSectionHeader"
 import { FlowPaymentBanner } from "@/components/athlete/FlowPaymentBanner"
 import { MercadoPagoPaymentBanner } from "@/components/athlete/MercadoPagoPaymentBanner"
@@ -91,7 +94,6 @@ export default async function AthletePaymentsPage() {
     ...((paymentSettingsBlock?.bank_info as Record<string, string> | undefined) ?? {}),
   }
   const bankInfo = Object.keys(mergedBank).length > 0 ? mergedBank : null
-  const enabledMethods = getEnabledPaymentMethodIdsFromClubSettings(rawSettings)
   const cashInstructions = paymentSettingsBlock?.cash_instructions ?? undefined
   const flowCheckoutUrl =
     paymentSettingsBlock?.flow?.checkout_url?.trim() ||
@@ -101,6 +103,18 @@ export default async function AthletePaymentsPage() {
     paymentSettingsBlock?.mercadopago?.checkout_url?.trim() ||
     paymentSettingsBlock?.mercadopago?.checkoutUrl?.trim() ||
     null
+
+  // Solo se ofrecen medios con los que el pago se puede completar: transferencia y efectivo (los
+  // confirma el admin) y las pasarelas que tienen checkout —integración por API o, en su defecto,
+  // el link de pago del club—. Webpay y Khipu no tienen ninguna de las dos cosas: elegirlos
+  // mostraba "listo" sin cobrar nada. Un club sin medios configurados ofrece los dos offline.
+  const gatewayReady: Record<string, boolean> = {
+    flow: !!resolveFlowConfigFromSettings(rawSettings) || !!flowCheckoutUrl,
+    mercadopago: !!resolveMercadoPagoConfigFromSettings(rawSettings) || !!mercadopagoCheckoutUrl,
+  }
+  const enabledMethods = (getEnabledPaymentMethodIdsFromClubSettings(rawSettings) ?? ['transfer', 'cash']).filter(
+    (id) => isOfflinePaymentMethod(id) || gatewayReady[id] === true,
+  )
 
   const { data: payments } = await supabase
     .from('payments')
@@ -134,7 +148,7 @@ export default async function AthletePaymentsPage() {
   let daysLeftLabel = ""
   if (sub?.end_date) {
     const end = new Date(sub.end_date)
-    const today = new Date()
+    const today = nowInTimeZone(await getClubTimeZone())
     today.setHours(0, 0, 0, 0)
     daysLeft = Math.ceil((end.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
     daysLeftLabel = daysLeft <= 0 ? "Vencida" : `${daysLeft} días`

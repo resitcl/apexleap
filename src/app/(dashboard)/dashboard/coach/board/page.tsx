@@ -1,5 +1,5 @@
 import { TacticalBoard } from "@/components/coach/TacticalBoard"
-import { getClubSportType } from "@/lib/actions/club-context"
+import { getClubSportType, requireClubStaffPage } from "@/lib/actions/club-context"
 
 function mapSportType(sportType: string | null): 'basketball' | 'soccer' | 'futsal' | 'volleyball' | 'handball' | 'generic' {
   if (!sportType) return 'generic'
@@ -13,6 +13,7 @@ function mapSportType(sportType: string | null): 'basketball' | 'soccer' | 'futs
 }
 
 export default async function BoardPage() {
+  await requireClubStaffPage()
   const sportType = await getClubSportType()
   const sport = mapSportType(sportType)
 

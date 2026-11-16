@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic"
 import Link from "next/link"
 import { getInventoryItems } from "@/lib/actions/inventory"
 import { getAthletes } from "@/lib/actions/athletes"
+import { requireClubStaffPage } from "@/lib/actions/club-context"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Package, AlertTriangle } from "lucide-react"
@@ -31,6 +32,7 @@ interface PageProps {
 }
 
 export default async function InventoryPage({ searchParams }: PageProps) {
+  await requireClubStaffPage()
   const { category, condition, lowStock, search, page: pageStr, athleteId, priceMin: priceMinStr, priceMax: priceMaxStr, sortBy, serialSearch, dateFrom, dateTo } = await searchParams
   const isLowStock = lowStock === '1'
   const page = Number(pageStr ?? 1)
